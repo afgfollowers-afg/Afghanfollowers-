@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Automation — Afghan Followers</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--bd:#232a3d;--acc:#7c5cfc;--acc2:#a78bfa;--gr:#00d2a0;--rd:#ff5c7d;--yw:#fbbf24;--tx:#e2e8f0;--mt:#64748b;--wh:#fff;--fn:'Inter',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fn);padding:20px;min-height:100vh;}
+.wrap{max-width:860px;margin:0 auto;}
+.hdr{display:flex;align-items:center;gap:14px;margin-bottom:24px;padding:20px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;}
+.hdr-ico{width:50px;height:50px;background:linear-gradient(135deg,var(--acc),var(--gr));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+h1{font-size:20px;font-weight:800;color:var(--wh);}
+.sub{font-size:13px;color:var(--mt);}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:16px;}
+.ch{padding:14px 18px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;justify-content:space-between;}
+.cb{padding:18px;}
+.fg{margin-bottom:14px;}
+.fl{font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;display:block;}
+.fi{width:100%;background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:11px 13px;border-radius:9px;font-size:13px;font-family:var(--fn);outline:none;transition:border-color .2s;}
+.fi:focus{border-color:var(--acc);}
+.fi::placeholder{color:var(--mt);}
+textarea.fi{resize:vertical;min-height:90px;}
+.btn{padding:10px 18px;border-radius:9px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:var(--fn);transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-p{background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;box-shadow:0 4px 14px rgba(124,92,252,.3);}
+.btn-p:hover:not(:disabled){transform:translateY(-1px);}
+.btn-g{background:var(--s2);border:1px solid var(--bd);color:var(--mt);}
+.btn-g:hover{border-color:var(--acc);color:var(--acc2);}
+.btn-s{background:rgba(0,210,160,.12);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
+.btn-d{background:rgba(255,92,125,.12);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.b{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.bg{background:rgba(0,210,160,.12);color:var(--gr);border:1px solid rgba(0,210,160,.25);}
+.by{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.25);}
+.br{background:rgba(255,92,125,.12);color:var(--rd);border:1px solid rgba(255,92,125,.25);}
+.bp{background:rgba(124,92,252,.12);color:var(--acc2);border:1px solid rgba(124,92,252,.25);}
+.tog{width:40px;height:22px;border-radius:11px;background:var(--bd);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.tog.on{background:var(--gr);}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;}
+.tog.on::after{left:21px;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;}
+.stat-v{font-size:22px;font-weight:900;color:var(--wh);}
+.stat-l{font-size:11px;color:var(--mt);margin-top:3px;}
+.log{background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:12px;font-family:monospace;font-size:12px;max-height:280px;overflow-y:auto;}
+.li{padding:4px 0;border-bottom:1px solid rgba(35,42,61,.3);}
+.li:last-child{border-bottom:none;}
+.ls{color:var(--gr);}
+.le{color:var(--rd);}
+.lw{color:var(--yw);}
+.li-i{color:var(--acc2);}
+table{width:100%;border-collapse:collapse;}
+th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--bd);background:var(--s2);}
+td{padding:11px 12px;font-size:13px;border-bottom:1px solid rgba(35,42,61,.4);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(22,27,40,.5);}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.d-g{background:var(--gr);}
+.d-y{background:var(--yw);}
+.d-r{background:var(--rd);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.pulse{animation:pulse 1.5s ease infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+.alert{padding:12px 15px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.a-s{background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
+.a-e{background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
+.a-w{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yw);}
+.a-i{background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);}
+code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:600;z-index:999;transition:all .3s;transform:translateY(60px);opacity:0;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:300px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.s{border-color:var(--gr);color:var(--gr);}
+.toast.e{border-color:var(--rd);color:var(--rd);}
+.toast.w{border-color:var(--yw);color:var(--yw);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-ico">📧</div>
+  <div style="flex:1">
+    <h1>Email Automation — Re-engagement System</h1>
+    <div class="sub">Automatically sends emails to users inactive for 30+ days using Resend API</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span class="dot d-r pulse" id="s-dot"></span>
+    <span id="s-txt" style="font-size:12px;color:var(--mt)">Off</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stat-grid">
+  <div class="stat"><div class="stat-v" id="st-total">0</div><div class="stat-l">Total Users</div></div>
+  <div class="stat"><div class="stat-v" id="st-inactive">0</div><div class="stat-l">Inactive &gt;30 days</div></div>
+  <div class="stat"><div class="stat-v" id="st-sent">0</div><div class="stat-l">Emails Sent</div></div>
+  <div class="stat"><div class="stat-v" id="st-next">—</div><div class="stat-l">Next Run</div></div>
+</div>
+
+<!-- RESEND CONFIG -->
+<div class="card">
+  <div class="ch">🔑 Resend API Configuration</div>
+  <div class="cb">
+    <div class="alert a-i">
+      <span>ℹ️</span>
+      <div>
+        <strong>Setup Resend (Free — 3,000 emails/month):</strong><br>
+        1. Go to <a href="https://resend.com" target="_blank" style="color:var(--gr)">resend.com</a> → Create free account<br>
+        2. Settings → API Keys → Create API Key → Copy it<br>
+        3. Add your domain (or use <code>onboarding@resend.dev</code> for testing)<br>
+        4. Paste API Key below → Save → Enable Automation
+      </div>
+    </div>
+    <div class="fgrid">
+      <div class="fg">
+        <label class="fl">Resend API Key <span style="color:var(--rd)">*</span></label>
+        <input class="fi" id="cfg-key" type="password" placeholder="re_XXXXXXXXXXXXXXXXXXXX">
+      </div>
+      <div class="fg">
+        <label class="fl">From Email <span style="color:var(--rd)">*</span></label>
+        <input class="fi" id="cfg-from" placeholder="noreply@afghanfollowers.shop">
+      </div>
+      <div class="fg">
+        <label class="fl">From Name</label>
+        <input class="fi" id="cfg-fname" value="Afghan Followers" placeholder="Afghan Followers">
+      </div>
+      <div class="fg">
+        <label class="fl">Reply-To Email</label>
+        <input class="fi" id="cfg-reply" placeholder="support@afghanfollowers.shop">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-p" onclick="saveCfg()">💾 Save Config</button>
+      <button class="btn btn-g" onclick="testEmail()">🧪 Send Test Email</button>
+      <span id="test-status" style="font-size:12px;color:var(--mt);align-self:center"></span>
+    </div>
+  </div>
+</div>
+
+<!-- AUTOMATION RULES -->
+<div class="card">
+  <div class="ch">
+    ⚙️ Automation Rules
+    <div class="tog" id="auto-tog" onclick="toggleAuto(this)"></div>
+  </div>
+  <div class="cb">
+    <div class="fgrid">
+      <div class="fg">
+        <label class="fl">Inactive Period (days)</label>
+        <input type="number" class="fi" id="r-days" value="30" min="1" max="365">
+        <div style="font-size:11px;color:var(--mt);margin-top:4px">Send email if not visited for X days</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Check Every</label>
+        <select class="fi" id="r-interval">
+          <option value="1">1 Hour</option>
+          <option value="6">6 Hours</option>
+          <option value="24" selected>24 Hours (recommended)</option>
+          <option value="168">1 Week</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="fl">Max Emails per User</label>
+        <input type="number" class="fi" id="r-max" value="3" min="1" max="10">
+        <div style="font-size:11px;color:var(--mt);margin-top:4px">Stop after sending X emails to same user</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Cooldown Between Emails (days)</label>
+        <input type="number" class="fi" id="r-cool" value="7" min="1">
+        <div style="font-size:11px;color:var(--mt);margin-top:4px">Wait X days before next email to same user</div>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">Target Audience</label>
+      <select class="fi" id="r-target">
+        <option value="all">All inactive users</option>
+        <option value="no_orders">Never ordered (inactive)</option>
+        <option value="has_orders">Ordered before (inactive)</option>
+        <option value="low_balance">Low balance &lt; $5 (inactive)</option>
+      </select>
+    </div>
+    <button class="btn btn-p" onclick="saveRules()">💾 Save Rules</button>
+  </div>
+</div>
+
+<!-- EMAIL TEMPLATE -->
+<div class="card">
+  <div class="ch">
+    ✉️ Email Template
+    <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="showPreview()">👁 Preview</button>
+  </div>
+  <div class="cb">
+    <div style="font-size:12px;color:var(--mt);margin-bottom:12px;background:var(--s2);padding:10px 12px;border-radius:8px;line-height:1.8">
+      Variables: <code>{{name}}</code> <code>{{email}}</code> <code>{{days}}</code> <code>{{balance}}</code> <code>{{panel_link}}</code> <code>{{site_name}}</code>
+    </div>
+    <div class="fg">
+      <label class="fl">Email Subject</label>
+      <input class="fi" id="t-subj" value="We miss you, {{name}}! 🌟 Come back and grow your social media">
+    </div>
+    <div class="fg">
+      <label class="fl">Email Body (HTML)</label>
+      <textarea class="fi" id="t-body" rows="12">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
+  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+    &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🌟 Afghan Followers&lt;/h1&gt;
+  &lt;/div&gt;
+  &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08)"&gt;
+    &lt;h2 style="color:#1a202c;margin-bottom:8px"&gt;Hi {{name}}, we miss you! 👋&lt;/h2&gt;
+    &lt;p style="color:#555;line-height:1.7;margin-bottom:16px"&gt;
+      You haven't visited &lt;strong&gt;{{site_name}}&lt;/strong&gt; for &lt;strong style="color:#7c5cfc"&gt;{{days}} days&lt;/strong&gt;.
+      Your account balance is &lt;strong style="color:#00d2a0"&gt;${{balance}}&lt;/strong&gt; — ready to use!
+    &lt;/p&gt;
+    &lt;p style="color:#555;line-height:1.7;margin-bottom:20px"&gt;
+      Come back and grow your social media presence with:&lt;br&gt;
+      ✅ Real Instagram, TikTok &amp; Telegram followers&lt;br&gt;
+      ✅ Fast delivery, starting from $0.30/1K&lt;br&gt;
+      ✅ 24/7 support team ready to help
+    &lt;/p&gt;
+    &lt;div style="text-align:center;margin-bottom:20px"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+        🚀 Back to Panel
+      &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:0"&gt;
+      You received this because you registered at {{site_name}}.
+      &lt;br&gt;© {{site_name}} · All rights reserved
+    &lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</textarea>
+    </div>
+    <!-- Preview -->
+    <div id="preview-box" style="display:none">
+      <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">📬 Preview (Sample Data)</div>
+      <div style="border:2px solid var(--bd);border-radius:12px;overflow:hidden">
+        <div style="background:var(--s2);padding:10px 14px;font-size:12px;color:var(--mt)">
+          <strong style="color:var(--tx)">Subject:</strong> <span id="prev-subj"></span>
+        </div>
+        <iframe id="prev-frame" style="width:100%;height:400px;border:none;background:#fff"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INACTIVE USERS -->
+<div class="card">
+  <div class="ch">
+    👥 Inactive Users
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="loadUsers()">🔄 Refresh</button>
+      <button class="btn btn-s" style="padding:6px 12px;font-size:11px" onclick="runCampaignNow()">📤 Run Campaign Now</button>
+    </div>
+  </div>
+  <div style="overflow-x:auto" id="users-tbl">
+    <div style="text-align:center;padding:30px;color:var(--mt)">Click Refresh to load inactive users</div>
+  </div>
+</div>
+
+<!-- LOGS -->
+<div class="card">
+  <div class="ch">
+    📋 Activity Logs
+    <div style="display:flex;gap:8px">
+      <span id="log-count" style="font-size:11px;color:var(--mt)"></span>
+      <button class="btn btn-d" style="padding:5px 10px;font-size:11px" onclick="clearLogs()">Clear</button>
+    </div>
+  </div>
+  <div class="cb">
+    <div class="log" id="log"><div style="color:var(--mt)">No activity yet.</div></div>
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var CFG_KEY='smm_email_auto_cfg';
+var LOG_KEY='smm_email_auto_log';
+var _interval=null;
+var _logs=[];
+
+// ═══ CONFIG ═══
+function getCfg(){try{return JSON.parse(localStorage.getItem(CFG_KEY)||'{}');}catch(e){return{};}}
+function saveCfgData(c){localStorage.setItem(CFG_KEY,JSON.stringify(c));}
+
+function saveCfg(){
+  var c=getCfg();
+  c.apiKey=document.getElementById('cfg-key').value.trim();
+  c.from=document.getElementById('cfg-from').value.trim();
+  c.fromName=document.getElementById('cfg-fname').value.trim()||'Afghan Followers';
+  c.replyTo=document.getElementById('cfg-reply').value.trim();
+  saveCfgData(c);
+  toast('Config saved!','s');
+  addLog('⚙️ Config saved','i');
+}
+
+function saveRules(){
+  var c=getCfg();
+  c.days=parseInt(document.getElementById('r-days').value)||30;
+  c.intervalH=parseInt(document.getElementById('r-interval').value)||24;
+  c.maxEmails=parseInt(document.getElementById('r-max').value)||3;
+  c.cooldownDays=parseInt(document.getElementById('r-cool').value)||7;
+  c.target=document.getElementById('r-target').value||'all';
+  saveCfgData(c);
+  toast('Rules saved!','s');
+  addLog('⚙️ Rules saved: check every '+c.intervalH+'h, inactive '+c.days+' days','i');
+  if(c.active) restartTimer(c.intervalH);
+}
+
+function loadCfgUI(){
+  var c=getCfg();
+  if(c.apiKey) document.getElementById('cfg-key').value=c.apiKey;
+  if(c.from) document.getElementById('cfg-from').value=c.from;
+  if(c.fromName) document.getElementById('cfg-fname').value=c.fromName;
+  if(c.replyTo) document.getElementById('cfg-reply').value=c.replyTo;
+  if(c.days) document.getElementById('r-days').value=c.days;
+  if(c.intervalH) document.getElementById('r-interval').value=c.intervalH;
+  if(c.maxEmails) document.getElementById('r-max').value=c.maxEmails;
+  if(c.cooldownDays) document.getElementById('r-cool').value=c.cooldownDays;
+  if(c.target) document.getElementById('r-target').value=c.target;
+}
+
+// ═══ AUTOMATION TOGGLE ═══
+function toggleAuto(el){
+  el.classList.toggle('on');
+  var on=el.classList.contains('on');
+  var c=getCfg();c.active=on;saveCfgData(c);
+  if(on){startAutomation();}else{stopAutomation();}
+}
+
+function startAutomation(){
+  var c=getCfg();
+  if(!c.apiKey||!c.from){
+    toast('Configure API Key and From Email first','e');
+    document.getElementById('auto-tog').classList.remove('on');
+    return;
+  }
+  setStatus(true);
+  addLog('▶️ Automation STARTED — checks every '+c.intervalH+'h','s');
+  runEmailCampaign(); // run immediately
+  restartTimer(c.intervalH);
+}
+
+function restartTimer(hours){
+  clearInterval(_interval);
+  _interval=setInterval(function(){
+    addLog('⏰ Scheduled check triggered','i');
+    runEmailCampaign();
+  }, hours*3600000);
+  updateNextRun(hours);
+}
+
+function stopAutomation(){
+  clearInterval(_interval);_interval=null;
+  setStatus(false);
+  addLog('⏹ Automation STOPPED','w');
+  document.getElementById('st-next').textContent='—';
+}
+
+function setStatus(on){
+  document.getElementById('s-dot').className='dot pulse '+(on?'d-g':'d-r');
+  document.getElementById('s-txt').textContent=on?'Running':'Off';
+  document.getElementById('s-txt').style.color=on?'var(--gr)':'var(--mt)';
+}
+
+function updateNextRun(hours){
+  var next=new Date(Date.now()+hours*3600000);
+  document.getElementById('st-next').textContent=next.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+
+// ═══ CORE: SEND EMAIL via Resend API ═══
+async function sendEmail(toEmail,toName,subject,htmlBody){
+  var c=getCfg();
+  if(!c.apiKey||!c.from){
+    addLog('❌ Missing API key or from email','e');
+    return{ok:false,error:'Not configured'};
+  }
+
+  var payload={
+    from:c.fromName?c.fromName+' <'+c.from+'>':c.from,
+    to:[toEmail],
+    subject:subject,
+    html:htmlBody
+  };
+  if(c.replyTo) payload.reply_to=c.replyTo;
+
+  try{
+    var res=await fetch('https://api.resend.com/emails',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+c.apiKey,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify(payload)
+    });
+    var data=await res.json();
+    if(res.ok&&data.id){
+      return{ok:true,id:data.id};
+    } else {
+      return{ok:false,error:data.message||data.error||JSON.stringify(data)};
+    }
+  }catch(e){
+    return{ok:false,error:e.message};
+  }
+}
+
+// ═══ FILL TEMPLATE VARS ═══
+function fillVars(text,user,daysInactive){
+  var c=getCfg();
+  var siteName=document.getElementById('cfg-fname').value||'Afghan Followers';
+  var panelLink=window.location.origin+'/smm-panel.html';
+  return text
+    .replace(/\{\{name\}\}/g,user.fname||'User')
+    .replace(/\{\{email\}\}/g,user.email||'')
+    .replace(/\{\{days\}\}/g,daysInactive||0)
+    .replace(/\{\{balance\}\}/g,(user.balance||0).toFixed(2))
+    .replace(/\{\{panel_link\}\}/g,panelLink)
+    .replace(/\{\{site_name\}\}/g,siteName);
+}
+
+// ═══ GET INACTIVE USERS ═══
+function getUsers(){
+  try{return JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){return[];}
+}
+
+function getInactiveUsers(){
+  var c=getCfg();
+  var thresholdMs=(c.days||30)*24*60*60*1000;
+  var now=Date.now();
+  var target=c.target||'all';
+  return getUsers().filter(function(u){
+    if(!u.email||u.email.indexOf('@')<0) return false;
+    if(u.status==='suspended') return false;
+    var last=u.lastVisit?new Date(u.lastVisit).getTime():new Date(u.joined).getTime();
+    if(now-last<thresholdMs) return false;
+    if(target==='no_orders'&&(u.orders||0)>0) return false;
+    if(target==='has_orders'&&(u.orders||0)===0) return false;
+    if(target==='low_balance'&&(u.balance||0)>=5) return false;
+    return true;
+  });
+}
+
+function canSendTo(u){
+  var c=getCfg();
+  var log=u.emailLog||[];
+  if(log.length>=(c.maxEmails||3)) return false;
+  if(log.length>0){
+    var lastMs=new Date(log[log.length-1]).getTime();
+    if(Date.now()-lastMs<(c.cooldownDays||7)*24*60*60*1000) return false;
+  }
+  return true;
+}
+
+// ═══ MAIN CAMPAIGN ═══
+async function runEmailCampaign(){
+  var inactive=getInactiveUsers();
+  var eligible=inactive.filter(canSendTo);
+  addLog('🔍 Check: '+inactive.length+' inactive users, '+eligible.length+' eligible for email','i');
+  updateStats();
+
+  var sent=0,failed=0;
+  for(var i=0;i<eligible.length;i++){
+    var u=eligible[i];
+    var last=u.lastVisit||u.joined;
+    var days=Math.floor((Date.now()-new Date(last).getTime())/(24*60*60*1000));
+    var subject=fillVars(document.getElementById('t-subj').value,u,days);
+    var html=fillVars(document.getElementById('t-body').value,u,days);
+    addLog('📤 Sending to '+u.email+' ('+days+' days inactive)...','i');
+    var result=await sendEmail(u.email,u.fname,subject,html);
+    if(result.ok){
+      // record in user
+      var users=getUsers();
+      var uu=users.find(function(x){return x.id===u.id;});
+      if(uu){
+        if(!uu.emailLog) uu.emailLog=[];
+        uu.emailLog.push(new Date().toISOString());
+        localStorage.setItem('smm_users',JSON.stringify(users));
+      }
+      addLog('✅ Sent to '+u.email+' | ID: '+result.id,'s');
+      sent++;
+    } else {
+      addLog('❌ Failed: '+u.email+' — '+result.error,'e');
+      failed++;
+    }
+    // 500ms delay between sends
+    await new Promise(function(r){setTimeout(r,500);});
+  }
+  addLog('📊 Campaign complete: '+sent+' sent, '+failed+' failed','s');
+  updateStats();
+  return{sent:sent,failed:failed};
+}
+
+// ═══ MANUAL SEND ═══
+async function sendToUser(userId){
+  var u=getUsers().find(function(x){return x.id===userId;});
+  if(!u){toast('User not found','e');return;}
+  var days=Math.floor((Date.now()-new Date(u.lastVisit||u.joined).getTime())/(24*60*60*1000));
+  var subject=fillVars(document.getElementById('t-subj').value,u,days);
+  var html=fillVars(document.getElementById('t-body').value,u,days);
+  addLog('📤 Manual send to '+u.email+'...','i');
+  var result=await sendEmail(u.email,u.fname,subject,html);
+  if(result.ok){
+    var users=getUsers();
+    var uu=users.find(function(x){return x.id===userId;});
+    if(uu){if(!uu.emailLog)uu.emailLog=[];uu.emailLog.push(new Date().toISOString());localStorage.setItem('smm_users',JSON.stringify(users));}
+    addLog('✅ Manual email sent to '+u.email,'s');
+    toast('Email sent to '+u.email,'s');
+    loadUsers();updateStats();
+  } else {
+    addLog('❌ Failed: '+result.error,'e');
+    toast('Failed: '+result.error,'e');
+  }
+}
+
+// ═══ TEST EMAIL ═══
+async function testEmail(){
+  var apiKey=document.getElementById('cfg-key').value.trim();
+  var from=document.getElementById('cfg-from').value.trim();
+  if(!apiKey||!from){toast('Enter API Key and From Email first','e');return;}
+  var toEmail=prompt('Send test to email:','');
+  if(!toEmail) return;
+  document.getElementById('test-status').textContent='Sending...';
+  var testUser={fname:'Test',email:toEmail,balance:10};
+  var subject=fillVars(document.getElementById('t-subj').value,testUser,35);
+  var html=fillVars(document.getElementById('t-body').value,testUser,35);
+  // save current config for test
+  saveCfg();
+  var result=await sendEmail(toEmail,'Test',subject,html);
+  if(result.ok){
+    document.getElementById('test-status').textContent='✅ Sent! Check inbox.';
+    document.getElementById('test-status').style.color='var(--gr)';
+    addLog('🧪 Test email sent to '+toEmail,'s');
+    toast('Test email sent!','s');
+  } else {
+    document.getElementById('test-status').textContent='❌ '+result.error;
+    document.getElementById('test-status').style.color='var(--rd)';
+    addLog('🧪 Test failed: '+result.error,'e');
+    toast('Test failed: '+result.error,'e');
+  }
+}
+
+// ═══ RUN NOW ═══
+async function runCampaignNow(){
+  var c=getCfg();
+  if(!c.apiKey||!c.from){toast('Configure API Key first','e');return;}
+  if(!confirm('Send emails to all eligible inactive users now?')) return;
+  toast('Campaign started...','s');
+  addLog('🚀 Manual campaign triggered','i');
+  var result=await runEmailCampaign();
+  toast('Done: '+result.sent+' sent, '+result.failed+' failed','s');
+  loadUsers();
+}
+
+// ═══ USERS TABLE ═══
+function loadUsers(){
+  var inactive=getInactiveUsers();
+  var c=getCfg();
+  if(!inactive.length){
+    document.getElementById('users-tbl').innerHTML='<div style="text-align:center;padding:30px;color:var(--mt)">✅ No inactive users found</div>';
+    return;
+  }
+  var h='<table><thead><tr><th>User</th><th>Email</th><th>Last Visit</th><th>Inactive</th><th>Emails</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+  inactive.forEach(function(u){
+    var last=u.lastVisit||u.joined;
+    var days=Math.floor((Date.now()-new Date(last).getTime())/(24*60*60*1000));
+    var sent=(u.emailLog||[]).length;
+    var max=c.maxEmails||3;
+    var can=canSendTo(u);
+    var lastSent=u.emailLog&&u.emailLog.length?new Date(u.emailLog[u.emailLog.length-1]).toLocaleDateString():'—';
+    h+='<tr>'
+      +'<td style="font-weight:600">'+u.fname+' '+(u.lname||'')+'</td>'
+      +'<td style="color:var(--mt);font-size:12px">'+u.email+'</td>'
+      +'<td style="font-size:12px;color:var(--mt)">'+new Date(last).toLocaleDateString()+'</td>'
+      +'<td><span class="b '+(days>90?'br':days>30?'by':'bp')+'">'+days+'d</span></td>'
+      +'<td style="font-size:12px">'+sent+'/'+max+'<br><span style="color:var(--mt);font-size:10px">last: '+lastSent+'</span></td>'
+      +'<td style="color:var(--gr);font-weight:700">$'+(u.balance||0).toFixed(2)+'</td>'
+      +'<td><span class="b '+(can?'bg':sent>=max?'br':'by')+'">'+(can?'Ready':sent>=max?'Max Reached':'Cooldown')+'</span></td>'
+      +'<td>'+(can?'<button class="btn btn-s" style="padding:5px 10px;font-size:11px" onclick="sendToUser('+u.id+')">📤 Send</button>':'—')+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('users-tbl').innerHTML=h+'</tbody></table>';
+}
+
+function updateStats(){
+  var users=getUsers();
+  var inactive=getInactiveUsers();
+  var totalSent=users.reduce(function(t,u){return t+(u.emailLog?u.emailLog.length:0);},0);
+  document.getElementById('st-total').textContent=users.length;
+  document.getElementById('st-inactive').textContent=inactive.length;
+  document.getElementById('st-sent').textContent=totalSent;
+}
+
+// ═══ PREVIEW ═══
+function showPreview(){
+  var demoUser={fname:'Ahmad',email:'ahmad@example.com',balance:12.50};
+  var subject=fillVars(document.getElementById('t-subj').value,demoUser,35);
+  var html=fillVars(document.getElementById('t-body').value,demoUser,35);
+  document.getElementById('prev-subj').textContent=subject;
+  var frame=document.getElementById('prev-frame');
+  frame.srcdoc=html;
+  document.getElementById('preview-box').style.display='block';
+}
+
+// ═══ LOGS ═══
+function addLog(msg,type){
+  var now=new Date();
+  var time=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var date=now.toLocaleDateString();
+  _logs.unshift({msg:msg,type:type||'i',time:time,date:date});
+  if(_logs.length>500) _logs=_logs.slice(0,500);
+  try{localStorage.setItem(LOG_KEY,JSON.stringify(_logs.slice(0,200)));}catch(e){}
+  renderLogs();
+}
+function renderLogs(){
+  var el=document.getElementById('log');
+  var count=document.getElementById('log-count');
+  if(count) count.textContent=_logs.length+' entries';
+  if(!_logs.length){el.innerHTML='<div style="color:var(--mt)">No activity yet.</div>';return;}
+  el.innerHTML=_logs.map(function(l){
+    return '<div class="li l'+(l.type||'i')+'"><span style="color:var(--mt)">['+l.date+' '+l.time+']</span> '+l.msg+'</div>';
+  }).join('');
+}
+function clearLogs(){_logs=[];localStorage.removeItem(LOG_KEY);renderLogs();toast('Logs cleared','s');}
+
+// ═══ TOAST ═══
+function toast(msg,t){
+  var el=document.getElementById('toast');
+  el.textContent=msg;el.className='toast '+(t||'s')+' show';
+  setTimeout(function(){el.className='toast';},3000);
+}
+
+// ═══ INIT ═══
+(function(){
+  // load saved logs
+  try{_logs=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');}catch(e){_logs=[];}
+  renderLogs();
+  loadCfgUI();
+  updateStats();
+
+  // restore active state if was running
+  var c=getCfg();
+  if(c.active&&c.apiKey&&c.from){
+    document.getElementById('auto-tog').classList.add('on');
+    setStatus(true);
+    restartTimer(c.intervalH||24);
+    addLog('🔄 Automation restored from previous session','i');
+  }
+
+  // track current user visit
+  try{
+    var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');
+    if(sess.userId){
+      var users=JSON.parse(localStorage.getItem('smm_users')||'[]');
+      var u=users.find(function(x){return x.id===sess.userId;});
+      if(u){u.lastVisit=new Date().toISOString();localStorage.setItem('smm_users',JSON.stringify(users));}
+    }
+  }catch(e){}
+
+  addLog('📧 Email Automation panel opened','i');
+})();
+</script>
+</body>
+</html>

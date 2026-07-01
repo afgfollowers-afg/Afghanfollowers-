@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Add Funds — PayPal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- PayPal SDK loaded dynamically with client ID from admin -->
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--bd:#e2e8f0;--acc:#003087;--acc2:#009cde;--gr:#22c55e;--rd:#ef4444;--tx:#1a202c;--mt:#64748b;--fn:'Inter',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:var(--fn);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.wrap{width:100%;max-width:440px;}
+.logo{text-align:center;margin-bottom:20px;}
+.logo h1{font-size:22px;font-weight:800;color:var(--acc);display:flex;align-items:center;justify-content:center;gap:8px;}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,.08);}
+.section-title{font-size:13px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;}
+.amount-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.amt-btn{padding:10px 4px;background:#f8fafc;border:2px solid var(--bd);border-radius:9px;text-align:center;font-size:14px;font-weight:700;color:var(--mt);cursor:pointer;transition:all .2s;}
+.amt-btn:hover,.amt-btn.on{border-color:var(--acc2);background:rgba(0,156,222,.08);color:var(--acc);}
+.fi{width:100%;padding:12px 14px;border:2px solid var(--bd);border-radius:10px;font-size:15px;font-family:var(--fn);outline:none;transition:border-color .2s;color:var(--tx);}
+.fi:focus{border-color:var(--acc2);}
+.fg{margin-bottom:16px;}
+.fl{font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;display:block;}
+.summary{background:linear-gradient(135deg,rgba(0,48,135,.04),rgba(0,156,222,.06));border:1px solid rgba(0,156,222,.2);border-radius:12px;padding:14px;margin:16px 0;}
+.sum-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--mt);}
+.sum-row:last-child{border-top:1px solid var(--bd);padding-top:8px;margin-top:4px;font-weight:800;font-size:15px;color:var(--tx);}
+#paypal-button-container{margin:16px 0;}
+.divider{display:flex;align-items:center;gap:10px;color:var(--mt);font-size:12px;margin:14px 0;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--bd);}
+/* Card fields area */
+.card-fields{background:#f8fafc;border:2px solid var(--bd);border-radius:12px;padding:16px;margin:10px 0;}
+.cf-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.field-placeholder{height:40px;background:#fff;border:1px solid var(--bd);border-radius:8px;font-size:13px;color:var(--mt);display:flex;align-items:center;padding:0 12px;}
+.back-link{text-align:center;margin-top:16px;font-size:13px;color:var(--mt);}
+.back-link a{color:var(--acc2);text-decoration:none;font-weight:600;}
+.alert{padding:10px 14px;border-radius:9px;font-size:13px;font-weight:600;margin-bottom:12px;display:none;}
+.alert-s{background:#dcfce7;border:1px solid #86efac;color:#166534;display:block;}
+.alert-e{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;display:block;}
+.mode-tabs{display:flex;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:16px;}
+.mode-tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;color:var(--mt);cursor:pointer;border-radius:8px;transition:all .2s;}
+.mode-tab.on{background:#fff;color:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.secure-badge{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--mt);margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#003087"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.082-8.558 6.082h-2.19c-1.562 0-2.888 1.13-3.13 2.669l-1.2 7.602h4.097l1.12-7.107c.082-.518.526-.9 1.05-.9h2.19c4.298 0 7.664-1.748 8.647-6.797.31-1.591.103-2.894-.378-3.962z"/></svg>
+      PayPal Checkout
+    </h1>
+    <div style="font-size:13px;color:var(--mt);margin-top:4px">Secure payment powered by PayPal</div>
+  </div>
+
+  <div class="card">
+    <div class="alert" id="pp-alert"></div>
+
+    <!-- Amount selection -->
+    <div class="section-title">Select Amount</div>
+    <div class="amount-grid">
+      <div class="amt-btn" onclick="setAmount(5)">$5</div>
+      <div class="amt-btn" onclick="setAmount(10)">$10</div>
+      <div class="amt-btn" onclick="setAmount(25)">$25</div>
+      <div class="amt-btn" onclick="setAmount(50)">$50</div>
+      <div class="amt-btn" onclick="setAmount(100)">$100</div>
+      <div class="amt-btn" onclick="setAmount(200)">$200</div>
+      <div class="amt-btn" onclick="setAmount(500)">$500</div>
+      <div class="amt-btn" onclick="setAmount(0,'custom')">Custom</div>
+    </div>
+
+    <div class="fg" id="custom-amount-wrap" style="display:none">
+      <label class="fl">Custom Amount (USD)</label>
+      <input type="number" class="fi" id="custom-amount" placeholder="Enter amount" min="1" oninput="updateSummary()">
+    </div>
+
+    <!-- Summary -->
+    <div class="summary" id="summary" style="display:none">
+      <div class="sum-row"><span>Amount</span><span id="sum-amount">—</span></div>
+      <div class="sum-row"><span>Fee</span><span id="sum-fee">$0.00</span></div>
+      <div class="sum-row"><span>You receive</span><span id="sum-receive">—</span></div>
+    </div>
+
+    <!-- Mode selector: Standard vs Advanced -->
+    <div class="mode-tabs" id="mode-tabs">
+      <div class="mode-tab on" id="mode-standard" onclick="setMode('standard')">
+        🏦 PayPal Account
+      </div>
+      <div class="mode-tab" id="mode-advanced" onclick="setMode('advanced')">
+        💳 Credit / Debit Card
+      </div>
+    </div>
+
+    <!-- PayPal Standard Button -->
+    <div id="paypal-button-container"></div>
+
+    <!-- Advanced Card Fields -->
+    <div id="advanced-section" style="display:none">
+      <div class="card-fields">
+        <div class="section-title" style="margin-bottom:10px">Card Details</div>
+        <!-- PayPal Hosted Fields render here -->
+        <div id="card-number-field-container">
+          <div class="field-placeholder">Card Number</div>
+        </div>
+        <div class="cf-row">
+          <div id="expiry-field-container"><div class="field-placeholder">MM / YY</div></div>
+          <div id="cvv-field-container"><div class="field-placeholder">CVV</div></div>
+        </div>
+      </div>
+      <button onclick="submitAdvanced()" style="width:100%;padding:13px;background:linear-gradient(135deg,#003087,#009cde);color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;font-family:var(--fn);cursor:pointer;margin-top:10px">
+        Pay Now
+      </button>
+    </div>
+
+    <div class="secure-badge">
+      🔒 Secured by PayPal · 256-bit SSL Encryption
+    </div>
+  </div>
+
+  <div class="back-link">
+    <a href="smm-panel.html">← Back to Panel</a>
+  </div>
+</div>
+
+<script>
+// Read config from URL params and localStorage
+var urlP=new URLSearchParams(window.location.search);
+var amount=parseFloat(urlP.get('amount'))||0;
+var pmCfg={};
+try{var d=localStorage.getItem('smm_payment_settings');if(d){var cfg=JSON.parse(d);pmCfg=cfg['paypal']||{};}}catch(e){}
+
+var CLIENT_ID=pmCfg.clientId||'sb'; // 'sb' = PayPal sandbox
+var FEE=parseFloat(pmCfg.fee)||0;
+var _amount=amount;
+var _mode='standard';
+
+// Load PayPal SDK
+function loadSDK(cb){
+  if(window.paypal){cb();return;}
+  var s=document.createElement('script');
+  s.src='https://www.paypal.com/sdk/js?client-id='+CLIENT_ID+'&currency=USD&components=buttons,hosted-fields';
+  s.onload=cb;
+  s.onerror=function(){showAlert('Failed to load PayPal SDK. Check Client ID in admin settings.','e');};
+  document.head.appendChild(s);
+}
+
+if(amount>0){
+  setAmount(amount);
+}
+
+function setAmount(val,type){
+  document.querySelectorAll('.amt-btn').forEach(function(b){b.classList.remove('on');});
+  if(type==='custom'){
+    document.getElementById('custom-amount-wrap').style.display='block';
+    event.target.classList.add('on');
+    return;
+  }
+  document.getElementById('custom-amount-wrap').style.display='none';
+  _amount=val;
+  event.target.classList.add('on');
+  updateSummary();
+  loadPayPal();
+}
+
+function updateSummary(){
+  var customAmt=document.getElementById('custom-amount').value;
+  if(customAmt) _amount=parseFloat(customAmt)||0;
+  if(!_amount){document.getElementById('summary').style.display='none';return;}
+  var fee=(_amount*(FEE/100));
+  var receive=_amount-fee;
+  document.getElementById('summary').style.display='block';
+  document.getElementById('sum-amount').textContent='$'+_amount.toFixed(2);
+  document.getElementById('sum-fee').textContent=FEE?'-$'+fee.toFixed(2):'$0.00';
+  document.getElementById('sum-receive').textContent='$'+receive.toFixed(2);
+  loadPayPal();
+}
+
+function setMode(m){
+  _mode=m;
+  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('on');});
+  document.getElementById('mode-'+m).classList.add('on');
+  document.getElementById('paypal-button-container').style.display=m==='standard'?'block':'none';
+  document.getElementById('advanced-section').style.display=m==='advanced'?'block':'none';
+  if(m==='advanced') loadAdvancedFields();
+}
+
+var _ppLoaded=false;
+function loadPayPal(){
+  if(!_amount||_amount<=0) return;
+  if(!CLIENT_ID||CLIENT_ID===''){showAlert('PayPal Client ID not configured in admin settings.','e');return;}
+  loadSDK(function(){
+    if(!window.paypal) return;
+    document.getElementById('paypal-button-container').innerHTML='';
+    try{
+      window.paypal.Buttons({
+        style:{shape:'rect',color:'gold',layout:'vertical',label:'pay'},
+        createOrder:function(data,actions){
+          return actions.order.create({
+            purchase_units:[{amount:{value:_amount.toFixed(2),currency_code:'USD'},description:'Afghan Followers — Wallet Top Up'}]
+          });
+        },
+        onApprove:function(data,actions){
+          return actions.order.capture().then(function(details){
+            onPaymentSuccess(details,_amount);
+          });
+        },
+        onError:function(err){
+          showAlert('Payment failed: '+err,'e');
+        },
+        onCancel:function(){
+          showAlert('Payment cancelled.','w');
+        }
+      }).render('#paypal-button-container');
+      _ppLoaded=true;
+    }catch(e){showAlert('PayPal error: '+e.message,'e');}
+  });
+}
+
+function loadAdvancedFields(){
+  loadSDK(function(){
+    if(!window.paypal||!window.paypal.HostedFields||!window.paypal.HostedFields.isEligible()){
+      document.querySelector('.card-fields').innerHTML='<div style="padding:14px;color:#64748b;font-size:13px;text-align:center">⚠️ Advanced card fields require a PayPal Business account with eligible status.<br><br>Please use PayPal Account method instead.</div>';
+      return;
+    }
+    window.paypal.HostedFields.render({
+      createOrder:function(data,actions){
+        return actions.order.create({purchase_units:[{amount:{value:_amount.toFixed(2)}}]});
+      },
+      fields:{
+        number:{selector:'#card-number-field-container',placeholder:'Card Number'},
+        expirationDate:{selector:'#expiry-field-container',placeholder:'MM/YY'},
+        cvv:{selector:'#cvv-field-container',placeholder:'CVV'}
+      }
+    }).then(function(hf){window._hostedFields=hf;}).catch(function(){});
+  });
+}
+
+function submitAdvanced(){
+  if(!window._hostedFields){showAlert('Card fields not loaded','e');return;}
+  window._hostedFields.submit({contingencies:['3D_SECURE']}).then(function(data){
+    onPaymentSuccess(data,_amount);
+  }).catch(function(e){showAlert('Card payment failed: '+(e.message||e),'e');});
+}
+
+function onPaymentSuccess(details,amount){
+  // Save transaction to user account
+  var sess=localStorage.getItem('smm_session');
+  if(sess){
+    var s=JSON.parse(sess);
+    var users=JSON.parse(localStorage.getItem('smm_users')||'[]');
+    var u=users.find(function(x){return x.id===s.userId;});
+    if(u){
+      var fee=amount*(FEE/100);
+      var credit=amount-fee;
+      u.balance=(u.balance||0)+credit;
+      if(!u.transactions) u.transactions=[];
+      u.transactions.unshift({
+        id:Date.now(),type:'deposit',method:'PayPal',
+        amount:credit,fee:fee,
+        ppOrderId:details.id||details.orderID,
+        payer:details.payer?(details.payer.email_address||''):'',
+        desc:'PayPal Checkout — auto approved',
+        date:new Date().toISOString(),status:'approved'
+      });
+      localStorage.setItem('smm_users',JSON.stringify(users));
+    }
+  }
+  showAlert('✅ Payment successful! $'+amount.toFixed(2)+' added to your wallet. Redirecting...','s');
+  setTimeout(function(){window.location.href='smm-panel.html';},2000);
+}
+
+function showAlert(msg,type){
+  var el=document.getElementById('pp-alert');
+  el.textContent=msg;
+  el.className='alert alert-'+type;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Telegram Bot — SMM Ticket System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f1117;--s1:#161b28;--s2:#1c2235;--bd:#252d42;--acc:#229ED9;--gr:#00d2a0;--rd:#ff5c7d;--yw:#fbbf24;--tx:#e2e8f0;--mt:#64748b;--wh:#fff;--fn:'Inter',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fn);min-height:100vh;padding:20px;}
+.wrap{max-width:720px;margin:0 auto;}
+.header{display:flex;align-items:center;gap:14px;margin-bottom:28px;padding:20px;background:var(--s1);border:1px solid var(--bd);border-radius:14px;}
+.tg-logo{width:52px;height:52px;background:linear-gradient(135deg,#229ED9,#1a7db5);border-radius:14px;display:flex;align-items:center;justify-content:center;}
+h1{font-size:22px;font-weight:800;color:var(--wh);}
+.sub{font-size:13px;color:var(--mt);margin-top:2px;}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:16px;overflow:hidden;}
+.card-h{padding:14px 18px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;}
+.card-b{padding:18px;}
+.fg{margin-bottom:14px;}
+.fl{font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block;}
+.fi{background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:11px 13px;border-radius:9px;font-size:13px;font-family:var(--fn);outline:none;width:100%;transition:border-color .2s;}
+.fi:focus{border-color:var(--acc);}
+.fi::placeholder{color:var(--mt);}
+.btn{padding:10px 18px;border-radius:9px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:var(--fn);transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
+.btn-p{background:linear-gradient(135deg,var(--acc),#1a7db5);color:#fff;}
+.btn-p:hover{transform:translateY(-1px);}
+.btn-g{background:var(--s2);border:1px solid var(--bd);color:var(--mt);}
+.btn-g:hover{border-color:var(--acc);color:var(--acc);}
+.btn-s{background:rgba(0,210,160,.15);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
+.btn-d{background:rgba(255,92,125,.15);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
+.status{display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:9px;font-size:13px;font-weight:600;margin-bottom:14px;}
+.status.ok{background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
+.status.err{background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
+.status.warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yw);}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot.gr{background:var(--gr);}
+.dot.rd{background:var(--rd);}
+.dot.yw{background:var(--yw);}
+/* tickets */
+.tk-item{padding:14px;border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;background:var(--s2);}
+.tk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tk-user{font-size:13px;font-weight:700;color:var(--wh);}
+.tk-sub{font-size:12px;color:var(--mt);margin-top:2px;}
+.b{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.bg{background:rgba(0,210,160,.12);color:var(--gr);border:1px solid rgba(0,210,160,.25);}
+.by{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.25);}
+.br{background:rgba(255,92,125,.12);color:var(--rd);border:1px solid rgba(255,92,125,.25);}
+.tk-msg{font-size:13px;color:var(--tx);background:rgba(0,0,0,.2);border-radius:7px;padding:10px;margin-bottom:10px;line-height:1.5;}
+.tk-reply{display:flex;gap:8px;margin-top:8px;}
+.tk-reply input{flex:1;background:var(--bg);border:1px solid var(--bd);color:var(--tx);padding:9px 12px;border-radius:8px;font-size:13px;font-family:var(--fn);outline:none;}
+.tk-reply input:focus{border-color:var(--acc);}
+.msg-item{display:flex;gap:8px;margin-bottom:8px;}
+.msg-item.admin{flex-direction:row-reverse;}
+.msg-bubble{max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;}
+.msg-item:not(.admin) .msg-bubble{background:var(--s2);border:1px solid var(--bd);border-bottom-left-radius:4px;}
+.msg-item.admin .msg-bubble{background:linear-gradient(135deg,rgba(34,158,217,.2),rgba(26,125,181,.15));border:1px solid rgba(34,158,217,.3);border-bottom-right-radius:4px;}
+.msg-time{font-size:10px;color:var(--mt);margin-top:4px;}
+.badge-new{background:var(--rd);color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;margin-left:6px;}
+/* step guide */
+.step{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--bd);}
+.step:last-child{border-bottom:none;}
+.step-num{width:32px;height:32px;background:linear-gradient(135deg,var(--acc),#1a7db5);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0;}
+.step-title{font-size:14px;font-weight:700;color:var(--wh);margin-bottom:4px;}
+.step-desc{font-size:12px;color:var(--mt);line-height:1.6;}
+code{background:var(--s2);border:1px solid var(--bd);padding:2px 7px;border-radius:5px;font-size:12px;color:var(--acc);}
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:0;}
+.tab{padding:11px 18px;cursor:pointer;font-size:13px;font-weight:600;color:var(--mt);border-bottom:2px solid transparent;transition:all .2s;}
+.tab.on{color:var(--acc);border-bottom-color:var(--acc);}
+.tab-c{display:none;padding:18px;}
+.tab-c.on{display:block;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:600;z-index:999;transition:all .3s;transform:translateY(60px);opacity:0;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.s{border-color:var(--gr);color:var(--gr);}
+.toast.e{border-color:var(--rd);color:var(--rd);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="tg-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+    </div>
+    <div>
+      <h1>Telegram Bot — Ticket System</h1>
+      <div class="sub">Two-way ticket management via Telegram</div>
+    </div>
+    <div id="bot-status-dot" style="margin-left:auto;width:12px;height:12px;border-radius:50%;background:var(--rd)"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="card" style="overflow:visible">
+    <div class="tabs">
+      <div class="tab on" onclick="showTab('setup',this)">⚙️ Setup</div>
+      <div class="tab" onclick="showTab('tickets',this)">🎫 Tickets <span id="new-badge" class="badge-new" style="display:none">0</span></div>
+      <div class="tab" onclick="showTab('logs',this)">📋 Logs</div>
+      <div class="tab" onclick="showTab('guide',this)">📖 Guide</div>
+    </div>
+
+    <!-- SETUP TAB -->
+    <div class="tab-c on" id="tab-setup">
+      <div id="conn-status" class="status warn"><div class="dot yw"></div>Not connected — enter Bot Token below</div>
+
+      <div class="fg">
+        <label class="fl">Bot Token <span style="color:var(--mt);font-weight:400;text-transform:none">(from @BotFather)</span></label>
+        <input class="fi" id="bot-token" type="password" placeholder="1234567890:ABCdefGHI..." autocomplete="off">
+      </div>
+      <div class="fg">
+        <label class="fl">Your Chat ID <span style="color:var(--mt);font-weight:400;text-transform:none">(where you receive notifications)</span></label>
+        <input class="fi" id="chat-id" placeholder="e.g. 123456789">
+        <div style="font-size:11px;color:var(--mt);margin-top:5px">💡 Send /start to your bot then click "Get My Chat ID" below</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Admin Username <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — to restrict who can reply)</span></label>
+        <input class="fi" id="admin-username" placeholder="@yourusername">
+      </div>
+      <div class="fg">
+        <label class="fl">Notification Language</label>
+        <select class="fi" id="notif-lang">
+          <option value="en">English</option>
+          <option value="fa">فارسی</option>
+          <option value="both">Both (EN + FA)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-p" onclick="testBot()">🔍 Test Connection</button>
+        <button class="btn btn-g" onclick="getMyId()">📲 Get My Chat ID</button>
+        <button class="btn btn-s" onclick="saveSettings()">💾 Save Settings</button>
+      </div>
+
+      <div style="height:1px;background:var(--bd);margin:18px 0"></div>
+
+      <!-- Notification toggles -->
+      <div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:12px">Notification Events</div>
+      <div id="notif-toggles"></div>
+
+      <div style="height:1px;background:var(--bd);margin:18px 0"></div>
+
+      <!-- Polling -->
+      <div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:6px">Auto-Poll for Replies</div>
+      <div style="font-size:12px;color:var(--mt);margin-bottom:12px">Checks Telegram every 5 seconds for new replies from you</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" id="poll-btn" onclick="togglePolling()">▶️ Start Polling</button>
+        <span id="poll-status" style="font-size:12px;color:var(--mt)">Stopped</span>
+        <span id="poll-count" style="font-size:12px;color:var(--mt)"></span>
+      </div>
+    </div>
+
+    <!-- TICKETS TAB -->
+    <div class="tab-c" id="tab-tickets">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--wh)">Active Tickets</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-g btn-sm" style="padding:6px 12px;font-size:11px" onclick="syncTickets()">🔄 Sync</button>
+          <select class="fi" style="width:auto;padding:6px 10px;font-size:11px" onchange="filterTk(this.value)">
+            <option value="all">All</option><option value="open">Open</option><option value="pending">Pending</option><option value="closed">Closed</option>
+          </select>
+        </div>
+      </div>
+      <div id="tk-list"></div>
+    </div>
+
+    <!-- LOGS TAB -->
+    <div class="tab-c" id="tab-logs">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--wh)">Activity Logs</div>
+        <button class="btn btn-d" style="padding:5px 11px;font-size:11px" onclick="clearLogs()">Clear</button>
+      </div>
+      <div id="log-list" style="background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:12px;font-family:monospace;font-size:12px;max-height:350px;overflow-y:auto;color:var(--mt)">
+        <div>No logs yet.</div>
+      </div>
+    </div>
+
+    <!-- GUIDE TAB -->
+    <div class="tab-c" id="tab-guide">
+      <div style="font-size:14px;font-weight:700;color:var(--wh);margin-bottom:16px">How to Set Up</div>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div><div class="step-title">Create a Bot</div><div class="step-desc">Open Telegram → search <code>@BotFather</code> → send <code>/newbot</code> → follow instructions → copy the <strong style="color:var(--wh)">Bot Token</strong></div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div><div class="step-title">Get Your Chat ID</div><div class="step-desc">Send <code>/start</code> to your bot → come back here → click <strong style="color:var(--wh)">"Get My Chat ID"</strong> button → paste it in the Chat ID field</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div><div class="step-title">Save & Test</div><div class="step-desc">Enter Token + Chat ID → click <strong style="color:var(--wh)">Test Connection</strong> → you should receive a test message in Telegram</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div><div class="step-title">Start Polling</div><div class="step-desc">Click <strong style="color:var(--wh)">Start Polling</strong> — the system will check every 5 seconds for your replies from Telegram</div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div><div class="step-title">Reply to Tickets via Telegram</div><div class="step-desc">When a new ticket arrives, you get a Telegram message. Reply using:<br>
+          <code>/reply [ticketId] your message here</code><br>
+          <code>/close [ticketId]</code> — close ticket<br>
+          <code>/pending [ticketId]</code> — mark as pending<br>
+          <code>/list</code> — list open tickets<br>
+          Example: <code>/reply 3 Thank you, we will fix this in 1 hour.</code></div></div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div><div class="step-title">Integrate with Admin Panel</div><div class="step-desc">Both files share data via <code>localStorage</code>. Open admin panel and Telegram bot panel in the same browser — tickets stay in sync automatically.</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Quick Send Test -->
+  <div class="card">
+    <div class="card-h">✉️ Send Test Message</div>
+    <div class="card-b">
+      <div class="fg">
+        <input class="fi" id="test-msg" placeholder="Type a test message to send to yourself...">
+      </div>
+      <button class="btn btn-p" onclick="sendTestMsg()">Send via Telegram</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var CFG_KEY='smm_tg_bot';
+var TK_KEY='smm_tickets';
+var LOG_KEY='smm_tg_logs';
+
+// ── SETTINGS ──
+function loadCfg(){try{var d=localStorage.getItem(CFG_KEY);return d?JSON.parse(d):{token:'',chatId:'',adminUser:'',lang:'en',notifs:{newTicket:true,orderPlaced:true,paymentReceived:true,newUser:true}};}catch(e){return{token:'',chatId:'',adminUser:'',lang:'en',notifs:{newTicket:true,orderPlaced:true,paymentReceived:true,newUser:true}};}}
+function saveCfg(c){localStorage.setItem(CFG_KEY,JSON.stringify(c));}
+
+var cfg=loadCfg();
+
+function init(){
+  document.getElementById('bot-token').value=cfg.token||'';
+  document.getElementById('chat-id').value=cfg.chatId||'';
+  document.getElementById('admin-username').value=cfg.adminUser||'';
+  document.getElementById('notif-lang').value=cfg.lang||'en';
+  renderNotifToggles();
+  renderTickets();
+  renderLogs();
+  if(cfg.token&&cfg.chatId) updateConnStatus('ok','Connected');
+}
+
+function saveSettings(){
+  cfg.token=document.getElementById('bot-token').value.trim();
+  cfg.chatId=document.getElementById('chat-id').value.trim();
+  cfg.adminUser=document.getElementById('admin-username').value.trim();
+  cfg.lang=document.getElementById('notif-lang').value;
+  saveCfg(cfg);
+  toast('Settings saved!','s');
+}
+
+// ── TABS ──
+function showTab(id,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  document.querySelectorAll('.tab-c').forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');
+  document.getElementById('tab-'+id).classList.add('on');
+  if(id==='tickets') renderTickets();
+  if(id==='logs') renderLogs();
+}
+
+// ── NOTIFICATION TOGGLES ──
+var notifEvents=[
+  {k:'newTicket',label:'New Ticket submitted'},
+  {k:'ticketReply',label:'User replied to ticket'},
+  {k:'orderPlaced',label:'New Order placed'},
+  {k:'orderFailed',label:'Order Failed'},
+  {k:'paymentReceived',label:'Payment Request submitted'},
+  {k:'paymentApproved',label:'Payment Approved'},
+  {k:'newUser',label:'New User registered'},
+];
+function renderNotifToggles(){
+  if(!cfg.notifs) cfg.notifs={};
+  document.getElementById('notif-toggles').innerHTML=notifEvents.map(function(e){
+    var on=cfg.notifs[e.k]!==false;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--bd)">'
+      +'<span style="font-size:13px">'+e.label+'</span>'
+      +'<div style="width:38px;height:20px;border-radius:10px;background:'+(on?'var(--gr)':'var(--bd)')+';position:relative;cursor:pointer;transition:background .2s" onclick="togNotif(\''+e.k+'\')" id="ntog-'+e.k+'">'
+      +'<div style="position:absolute;top:2px;left:'+(on?'20px':'2px')+';width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s"></div></div>'
+      +'</div>';
+  }).join('');
+}
+function togNotif(k){
+  if(!cfg.notifs) cfg.notifs={};
+  cfg.notifs[k]=cfg.notifs[k]===false?true:false;
+  saveCfg(cfg);
+  renderNotifToggles();
+}
+
+// ── TELEGRAM API ──
+function tgApi(method,params,cb){
+  var token=document.getElementById('bot-token').value.trim()||cfg.token;
+  if(!token){toast('Enter Bot Token first','e');return;}
+  var url='https://api.telegram.org/bot'+token+'/'+method;
+  var body=JSON.stringify(params||{});
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:body})
+    .then(function(r){return r.json();})
+    .then(function(d){if(cb)cb(null,d);})
+    .catch(function(e){if(cb)cb(e,null);});
+}
+
+function sendTgMsg(chatId,text,cb){
+  tgApi('sendMessage',{chat_id:chatId,text:text,parse_mode:'HTML'},function(err,res){
+    if(err||!res.ok){addLog('❌ Send failed: '+(err?err.message:(res&&res.description)||'unknown'));if(cb)cb(false);}
+    else{addLog('✅ Sent to '+chatId+': '+text.slice(0,50));if(cb)cb(true);}
+  });
+}
+
+function testBot(){
+  var token=document.getElementById('bot-token').value.trim();
+  var chatId=document.getElementById('chat-id').value.trim();
+  if(!token){toast('Enter Bot Token','e');return;}
+  updateConnStatus('warn','Testing...');
+  tgApi('getMe',{},function(err,res){
+    if(err||!res||!res.ok){
+      updateConnStatus('err','Connection failed — check token');
+      toast('Connection failed!','e');
+      addLog('❌ getMe failed');
+      return;
+    }
+    cfg.botName=res.result.first_name;
+    cfg.botUsername=res.result.username;
+    saveCfg(cfg);
+    updateConnStatus('ok','Connected as @'+res.result.username);
+    addLog('✅ Connected as @'+res.result.username);
+    if(chatId){
+      sendTgMsg(chatId,'🤖 <b>SMM Panel Bot Connected!</b>\n\nBot: @'+res.result.username+'\nStatus: ✅ Online\n\nCommands:\n/reply [id] [message]\n/close [id]\n/pending [id]\n/list',function(){
+        toast('Test message sent to your Telegram!','s');
+      });
+    } else {
+      toast('Connected! Enter Chat ID to receive messages.','s');
+    }
+  });
+}
+
+function getMyId(){
+  var token=document.getElementById('bot-token').value.trim();
+  if(!token){toast('Enter Bot Token first','e');return;}
+  tgApi('getUpdates',{limit:5},function(err,res){
+    if(err||!res||!res.ok){toast('Failed — make sure you sent /start to your bot first','e');return;}
+    if(res.result&&res.result.length>0){
+      var lastMsg=res.result[res.result.length-1];
+      var chatId=lastMsg.message&&lastMsg.message.chat&&lastMsg.message.chat.id;
+      if(chatId){
+        document.getElementById('chat-id').value=chatId;
+        cfg.chatId=String(chatId);
+        saveCfg(cfg);
+        toast('Chat ID found: '+chatId,'s');
+        addLog('✅ Chat ID auto-detected: '+chatId);
+      } else {toast('No messages found. Send /start to your bot first.','e');}
+    } else {toast('No updates. Send /start to your bot in Telegram.','e');}
+  });
+}
+
+function updateConnStatus(type,msg){
+  var el=document.getElementById('conn-status');
+  var dot=document.getElementById('bot-status-dot');
+  var colors={ok:'var(--gr)',err:'var(--rd)',warn:'var(--yw)'};
+  el.className='status '+type;
+  el.innerHTML='<div class="dot" style="background:'+colors[type]+'"></div>'+msg;
+  dot.style.background=colors[type];
+}
+
+// ── TICKETS ──
+var _tkFilter='all';
+var _selTkId=null;
+
+function loadTickets(){
+  try{
+    // Load from admin panel's ticket data (shared localStorage)
+    var d=localStorage.getItem(TK_KEY);
+    if(d) return JSON.parse(d);
+    // Default demo tickets
+    return [
+      {id:1,user:'Ahmad Karimi',subject:'Order not delivered',status:'open',priority:'high',date:'2025-06-11',msg:'I placed an order 6 hours ago but nothing delivered.',messages:[{from:'user',text:'I placed an order 6 hours ago but nothing delivered.',time:'20:11'}],tgMsgId:null},
+      {id:2,user:'Ali Hosseini',subject:'Payment not credited',status:'open',priority:'high',date:'2025-06-11',msg:'I sent $10 via PayPal but balance not updated.',messages:[{from:'user',text:'I sent $10 via PayPal but balance not updated.',time:'20:13'}],tgMsgId:null},
+      {id:3,user:'Fatima Noori',subject:'Refund request',status:'pending',priority:'medium',date:'2025-06-10',msg:'Followers were dropped. Please refund.',messages:[{from:'user',text:'Followers were dropped. Please refund.',time:'19:55'}],tgMsgId:null},
+    ];
+  }catch(e){return[];}
+}
+
+function saveTickets(tks){localStorage.setItem(TK_KEY,JSON.stringify(tks));}
+
+function renderTickets(){
+  var tks=loadTickets();
+  var filtered=_tkFilter==='all'?tks:tks.filter(function(t){return t.status===_tkFilter;});
+  var newCount=tks.filter(function(t){return t.status==='open';}).length;
+  var nb=document.getElementById('new-badge');
+  if(newCount>0){nb.style.display='inline';nb.textContent=newCount;}else{nb.style.display='none';}
+
+  if(!filtered.length){document.getElementById('tk-list').innerHTML='<div style="text-align:center;padding:30px;color:var(--mt)">No tickets found</div>';return;}
+  var bc={open:'br',pending:'by',closed:'bg'};
+  var pc={high:'br',medium:'by',low:'bg'};
+  document.getElementById('tk-list').innerHTML=filtered.map(function(t){
+    var msgs=(t.messages||[{from:'user',text:t.msg,time:t.date}]);
+    return '<div class="tk-item" id="tki-'+t.id+'">'
+      +'<div class="tk-h"><div><div class="tk-user">'+t.user+' <span style="font-size:11px;color:var(--mt)">#'+t.id+'</span></div><div class="tk-sub">'+t.subject+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="b '+(bc[t.status]||'by')+'">'+t.status+'</span><span class="b '+(pc[t.priority]||'by')+'" style="font-size:10px">'+t.priority+'</span></div></div>'
+      // Messages
+      +'<div style="margin-bottom:10px">'+msgs.map(function(m){
+        return '<div class="msg-item'+(m.from==='admin'?' admin':'')+'">'
+          +'<div><div class="msg-bubble">'+m.text+'</div><div class="msg-time">'+(m.from==='admin'?'👤 Admin':'👥 '+t.user)+' · '+m.time+'</div></div>'
+          +'</div>';
+      }).join('')+'</div>'
+      // Reply box
+      +'<div class="tk-reply">'
+      +'<input placeholder="Type reply..." id="rep-'+t.id+'" onkeydown="if(event.key===\'Enter\')replyTk('+t.id+')">'
+      +'<button class="btn btn-p" style="padding:7px 12px;font-size:12px" onclick="replyTk('+t.id+')">Send 📤</button>'
+      +'</div>'
+      // Status buttons
+      +'<div style="display:flex;gap:6px;margin-top:8px">'
+      +(t.status!=='closed'?'<button class="btn btn-s" style="padding:5px 10px;font-size:11px" onclick="changeTkStatus('+t.id+',\'closed\')">✅ Close</button>':'')
+      +(t.status==='open'?'<button class="btn btn-g" style="padding:5px 10px;font-size:11px" onclick="changeTkStatus('+t.id+',\'pending\')">⏳ Pending</button>':'')
+      +(t.status!=='open'?'<button class="btn btn-g" style="padding:5px 10px;font-size:11px" onclick="changeTkStatus('+t.id+',\'open\')">🔄 Reopen</button>':'')
+      +'<button class="btn btn-p" style="padding:5px 10px;font-size:11px" onclick="sendToTg('+t.id+')">📲 Forward to TG</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function filterTk(v){_tkFilter=v;renderTickets();}
+
+function replyTk(id){
+  var inp=document.getElementById('rep-'+id);
+  var text=inp&&inp.value.trim();
+  if(!text) return;
+  var tks=loadTickets();
+  var t=tks.find(function(x){return x.id===id;});
+  if(!t) return;
+  var now=new Date();
+  var timeStr=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+  if(!t.messages) t.messages=[{from:'user',text:t.msg,time:t.date}];
+  t.messages.push({from:'admin',text:text,time:timeStr});
+  t.status='pending';
+  saveTickets(tks);
+  // Send reply via Telegram
+  var tgText='💬 <b>Reply to Ticket #'+id+'</b>\n👤 User: '+t.user+'\n\n<i>'+text+'</i>';
+  var chatId=cfg.chatId;
+  if(chatId){sendTgMsg(chatId,tgText);}
+  inp.value='';
+  renderTickets();
+  addLog('📤 Replied to ticket #'+id+': '+text.slice(0,40));
+  toast('Reply sent!','s');
+}
+
+function changeTkStatus(id,status){
+  var tks=loadTickets();
+  var t=tks.find(function(x){return x.id===id;});
+  if(t){
+    t.status=status;
+    saveTickets(tks);
+    renderTickets();
+    // Notify via Telegram
+    var statusEmoji={open:'🔓',pending:'⏳',closed:'✅'};
+    var msg=statusEmoji[status]+' <b>Ticket #'+id+'</b> status changed to <b>'+status.toUpperCase()+'</b>';
+    if(cfg.chatId) sendTgMsg(cfg.chatId,msg);
+    addLog('🔄 Ticket #'+id+' → '+status);
+    toast('Status updated!','s');
+  }
+}
+
+function sendToTg(id){
+  var tks=loadTickets();
+  var t=tks.find(function(x){return x.id===id;});
+  if(!t) return;
+  if(!cfg.chatId){toast('Set Chat ID first','e');return;}
+  var pri={high:'🔴',medium:'🟡',low:'🟢'};
+  var text='🎫 <b>Ticket #'+t.id+'</b>\n'
+    +pri[t.priority]+' Priority: '+t.priority+'\n'
+    +'👤 User: '+t.user+'\n'
+    +'📝 Subject: '+t.subject+'\n'
+    +'📅 Date: '+t.date+'\n\n'
+    +'💬 Message:\n'+t.msg+'\n\n'
+    +'──────────────\n'
+    +'Reply: <code>/reply '+t.id+' your message</code>\n'
+    +'Close: <code>/close '+t.id+'</code>';
+  sendTgMsg(cfg.chatId,text,function(ok){
+    if(ok) toast('Ticket #'+t.id+' forwarded to Telegram!','s');
+    else toast('Failed to send. Check settings.','e');
+  });
+}
+
+function syncTickets(){
+  renderTickets();
+  addLog('🔄 Tickets synced');
+  toast('Tickets synced!','s');
+}
+
+// ── NOTIFY new ticket (called from admin panel) ──
+function notifyNewTicket(ticket){
+  if(!cfg.token||!cfg.chatId) return;
+  if(cfg.notifs&&cfg.notifs.newTicket===false) return;
+  var pri={high:'🔴',medium:'🟡',low:'🟢'};
+  var text='🆕 <b>New Ticket #'+ticket.id+'</b>\n'
+    +(pri[ticket.priority]||'🟡')+' '+ticket.priority+' priority\n'
+    +'👤 '+ticket.user+'\n'
+    +'📝 '+ticket.subject+'\n\n'
+    +'💬 '+ticket.msg+'\n\n'
+    +'Reply: <code>/reply '+ticket.id+' your message</code>';
+  sendTgMsg(cfg.chatId,text);
+}
+
+// ── POLLING — reads Telegram updates for /reply commands ──
+var _polling=false;
+var _pollInterval=null;
+var _lastUpdateId=0;
+var _pollCnt=0;
+
+function togglePolling(){
+  if(_polling) stopPolling();
+  else startPolling();
+}
+
+function startPolling(){
+  if(!cfg.token||!cfg.chatId){toast('Save Bot Token and Chat ID first','e');return;}
+  _polling=true;
+  document.getElementById('poll-btn').textContent='⏸ Stop Polling';
+  document.getElementById('poll-btn').className='btn btn-d';
+  document.getElementById('poll-status').textContent='Polling every 5s...';
+  document.getElementById('poll-status').style.color='var(--gr)';
+  addLog('▶️ Polling started');
+  poll();
+  _pollInterval=setInterval(poll,5000);
+}
+
+function stopPolling(){
+  _polling=false;
+  clearInterval(_pollInterval);
+  document.getElementById('poll-btn').textContent='▶️ Start Polling';
+  document.getElementById('poll-btn').className='btn btn-s';
+  document.getElementById('poll-status').textContent='Stopped';
+  document.getElementById('poll-status').style.color='var(--mt)';
+  addLog('⏹ Polling stopped');
+}
+
+function poll(){
+  _pollCnt++;
+  document.getElementById('poll-count').textContent='Polls: '+_pollCnt;
+  var token=cfg.token;
+  if(!token) return;
+  var url='https://api.telegram.org/bot'+token+'/getUpdates?offset='+(_lastUpdateId+1)+'&limit=10&timeout=1';
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data.ok) return;
+      data.result.forEach(function(upd){
+        _lastUpdateId=upd.update_id;
+        var msg=upd.message;
+        if(!msg||!msg.text) return;
+        // Only process messages from admin chat
+        if(String(msg.chat.id)!==String(cfg.chatId)) return;
+        var text=msg.text.trim();
+        addLog('📩 Received: '+text);
+        processCommand(text);
+      });
+    })
+    .catch(function(){});
+}
+
+function processCommand(text){
+  var tks=loadTickets();
+  // /reply [id] [message]
+  var replyMatch=text.match(/^\/reply\s+(\d+)\s+(.+)/i);
+  if(replyMatch){
+    var id=parseInt(replyMatch[1]);
+    var reply=replyMatch[2].trim();
+    var t=tks.find(function(x){return x.id===id;});
+    if(t){
+      var now=new Date();
+      var timeStr=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+      if(!t.messages) t.messages=[{from:'user',text:t.msg,time:t.date}];
+      t.messages.push({from:'admin',text:reply,time:timeStr});
+      t.status='pending';
+      saveTickets(tks);
+      renderTickets();
+      addLog('✅ Replied to #'+id+' via Telegram: '+reply.slice(0,40));
+      // Confirm via Telegram
+      sendTgMsg(cfg.chatId,'✅ Reply sent to ticket #'+id);
+    } else {
+      sendTgMsg(cfg.chatId,'❌ Ticket #'+id+' not found.');
+      addLog('❌ Ticket #'+id+' not found');
+    }
+    return;
+  }
+  // /close [id]
+  var closeMatch=text.match(/^\/close\s+(\d+)/i);
+  if(closeMatch){
+    var cid=parseInt(closeMatch[1]);
+    var ct=tks.find(function(x){return x.id===cid;});
+    if(ct){ct.status='closed';saveTickets(tks);renderTickets();sendTgMsg(cfg.chatId,'✅ Ticket #'+cid+' closed.');addLog('✅ Closed #'+cid);}
+    else sendTgMsg(cfg.chatId,'❌ Ticket #'+cid+' not found.');
+    return;
+  }
+  // /pending [id]
+  var pendMatch=text.match(/^\/pending\s+(\d+)/i);
+  if(pendMatch){
+    var pid=parseInt(pendMatch[1]);
+    var pt=tks.find(function(x){return x.id===pid;});
+    if(pt){pt.status='pending';saveTickets(tks);renderTickets();sendTgMsg(cfg.chatId,'⏳ Ticket #'+pid+' marked as pending.');addLog('⏳ Pending #'+pid);}
+    return;
+  }
+  // /list
+  if(text.match(/^\/list/i)){
+    var openTks=tks.filter(function(t){return t.status==='open'||t.status==='pending';});
+    if(!openTks.length){sendTgMsg(cfg.chatId,'✅ No open tickets!');return;}
+    var listText='📋 <b>Open Tickets ('+openTks.length+')</b>\n\n';
+    openTks.forEach(function(t){listText+='#'+t.id+' | '+t.user+' | '+t.status.toUpperCase()+'\n'+t.subject+'\n\n';});
+    sendTgMsg(cfg.chatId,listText);
+    addLog('📋 Sent ticket list');
+    return;
+  }
+  // /start
+  if(text.match(/^\/start/i)){
+    sendTgMsg(cfg.chatId,'👋 <b>SMM Panel Bot</b>\n\nCommands:\n/reply [id] [message]\n/close [id]\n/pending [id]\n/list');
+    return;
+  }
+}
+
+// ── LOGS ──
+var _logs=[];
+function addLog(msg){
+  var now=new Date();
+  var t=(now.getHours()<10?'0':'')+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes()+':'+(now.getSeconds()<10?'0':'')+now.getSeconds();
+  _logs.unshift('['+t+'] '+msg);
+  if(_logs.length>100) _logs.pop();
+  renderLogs();
+}
+function renderLogs(){
+  var el=document.getElementById('log-list');
+  if(!_logs.length){el.innerHTML='<div>No logs yet.</div>';return;}
+  el.innerHTML=_logs.map(function(l){
+    var color=l.indexOf('❌')>-1?'#ff5c7d':l.indexOf('✅')>-1?'#00d2a0':l.indexOf('📩')>-1?'#a78bfa':'#64748b';
+    return '<div style="color:'+color+';margin-bottom:3px">'+l+'</div>';
+  }).join('');
+}
+function clearLogs(){_logs=[];renderLogs();toast('Logs cleared','s');}
+
+// ── TEST ──
+function sendTestMsg(){
+  var text=document.getElementById('test-msg').value.trim()||'🧪 Test from SMM Panel Bot';
+  var chatId=document.getElementById('chat-id').value.trim()||cfg.chatId;
+  if(!chatId){toast('Enter Chat ID first','e');return;}
+  sendTgMsg(chatId,'🧪 <b>Test Message</b>\n\n'+text,function(ok){
+    toast(ok?'Message sent!':'Failed — check token & chat ID',ok?'s':'e');
+  });
+}
+
+// ── TOAST ──
+function toast(msg,t){var e=document.getElementById('toast');e.textContent=msg;e.className='toast '+(t||'s')+' show';setTimeout(function(){e.className='toast';},2800);}
+
+// Expose notifyNewTicket globally so admin panel can call it
+window.smmTgNotify=notifyNewTicket;
+
+init();
+</script>
+</body>
+</html>
