@@ -3245,6 +3245,19 @@ function pullFromServerOnLoad(){
         var sp=document.getElementById('page-services');
         if(sp&&sp.style.display!=='none') renderBrowse();
       }
+      var pmChanged=false;
+      if(d.smm_pm&&Array.isArray(d.smm_pm)){
+        var localPm=localStorage.getItem('smm_payment_methods')||'[]';
+        var newPm=JSON.stringify(d.smm_pm);
+        if(newPm!==localPm){
+          localStorage.setItem('smm_payment_methods',newPm);
+          pmChanged=true;
+        }
+      }
+      if(pmChanged){
+        var afp=document.getElementById('page-add-funds');
+        if(afp&&afp.style.display!=='none') initAddFunds();
+      }
       if(changed){
         // Refresh session user reference with fresh data
         if(u){
