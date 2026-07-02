@@ -3384,4 +3384,28 @@ function refillOrder(id){
     var tickets=[];try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
     tickets.unshift({id:'R'+Date.now(),userId:u&&u.id,user:u?(u.fname||''):'',subject:'Refill Request - Order #'+id,message:'Please refill order #'+id,status:'open',date:new Date().toISOString()});
     localStorage.setItem('smm_tickets',JSON.stringify(tickets));
-    localStorage.setItem('smm_admin_updated',Date.now().toString(
+    localStorage.setItem('smm_admin_updated',Date.now().toString());
+  }
+}
+
+function showApiInfo(){
+  var u=getCurrentUser();
+  if(!u){showToast('Login required','e');return;}
+  var apiKey=u.apiKey||('ak_'+u.id+'_'+Date.now().toString(36));
+  alert('API Key: '+apiKey+'\n\nAPI URL: https://afghanfollowers.online/api/api-proxy\n\nDocumentation coming soon.');
+}
+
+// INIT
+rebuildServiceMaps();
+loadSupportFABs();
+checkPayPalReturn();
+renderBrowse();
+renderCatList();
+renderCategoryList();
+renderPaymentMethods(); // load from admin settings
+updateBalanceUI();      // show correct balance and currency
+checkTicketDot();       // show ticket notification if any
+
+</script>
+</body>
+</html>
