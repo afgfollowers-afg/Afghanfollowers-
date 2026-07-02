@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
         headers: { 'X-Master-Key': API_KEY }
       });
       const j = await r.json();
-      return res.status(200).json(j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_ts: 0 });
+      return res.status(200).json(j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_svc: [], smm_ts: 0 });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
         headers: { 'X-Master-Key': API_KEY }
       });
       const j = await r.json();
-      const current = j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_ts: 0 };
+      const current = j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_svc: [], smm_ts: 0 };
 
       // Merge — keep the larger dataset for each field
       if (body.smm_users && Array.isArray(body.smm_users)) {
@@ -71,6 +71,10 @@ module.exports = async (req, res) => {
           current.smm_tickets = body.smm_tickets;
         }
       }
+      // Services: admin is the single source of truth, always overwrite with latest push
+      if (body.smm_svc && Array.isArray(body.smm_svc)) {
+        current.smm_svc = body.smm_svc;
+      }
       current.smm_ts = Date.now();
 
       // Write back
@@ -83,7 +87,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify(current)
       });
 
-      return res.status(200).json({ ok: true, users: current.smm_users.length, orders: current.smm_orders.length });
+      return res.status(200).json({ ok: true, users: current.smm_users.length, orders: current.smm_orders.length, services: (current.smm_svc || []).length });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
