@@ -1,13 +1,11 @@
 // Vercel Serverless Function — Real persistent cross-device sync via JSONBin.io
-// Uses TWO separate bins because JSONBin's free plan caps each record at 100KB:
-//  - Main bin (JSONBIN_BIN_ID): smm_users, smm_orders, smm_tickets (small, grows slowly)
-//  - Services bin (JSONBIN_SVC_BIN_ID): smm_svc (can be large — 500 services ~ near/over 100KB)
+// Uses TWO bins (JSONBin free plan caps each record at 100KB):
+//  - Main bin (JSONBIN_BIN_ID): smm_users, smm_orders, smm_tickets
+//  - Services bin (JSONBIN_SVC_BIN_ID): smm_svc, GZIP-COMPRESSED to fit the size limit
 //
-// SETUP:
-// 1. Bin #1 (already created): {"smm_users":[],"smm_orders":[],"smm_tickets":[],"smm_ts":0}
-//    env vars: JSONBIN_BIN_ID, JSONBIN_API_KEY
-// 2. Bin #2 (new): {"smm_svc":[]}
-//    env var: JSONBIN_SVC_BIN_ID  (uses the same JSONBIN_API_KEY)
+// Env vars needed: JSONBIN_BIN_ID, JSONBIN_SVC_BIN_ID, JSONBIN_API_KEY
+
+const zlib = require('zlib');
 
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const SVC_BIN_ID = process.env.JSONBIN_SVC_BIN_ID;
@@ -34,6 +32,18 @@ async function writeBin(binId, record) {
   return { ok: true };
 }
 
+function gzipToBase64(obj) {
+  const json = JSON.stringify(obj);
+  const gz = zlib.gzipSync(Buffer.from(json, 'utf8'));
+  return gz.toString('base64');
+}
+
+function base64ToObj(b64) {
+  const buf = Buffer.from(b64, 'base64');
+  const json = zlib.gunzipSync(buf).toString('utf8');
+  return JSON.parse(json);
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -53,8 +63,15 @@ module.exports = async (req, res) => {
     let svc = [];
     if (SVC_BIN_ID) {
       const svcResult = await readBin(SVC_BIN_ID);
-      if (svcResult.ok) svc = svcResult.record.smm_svc || [];
-      // if services bin fails, just return empty services rather than failing the whole request
+      if (svcResult.ok) {
+        try {
+          if (svcResult.record.svc_gz) {
+            svc = base64ToObj(svcResult.record.svc_gz);
+          } else if (svcResult.record.smm_svc) {
+            svc = svcResult.record.smm_svc; // legacy uncompressed fallback
+          }
+        } catch (e) { svc = []; }
+      }
     }
     const out = Object.assign({}, main.record, { smm_svc: svc });
     return res.status(200).json(out);
@@ -64,21 +81,19 @@ module.exports = async (req, res) => {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
 
-      // Handle services separately (goes to the dedicated bin)
       if (body.smm_svc && Array.isArray(body.smm_svc)) {
         if (!SVC_BIN_ID) {
-          return res.status(200).json({ diag: 'NO_SVC_BIN_CONFIGURED', error: 'Set JSONBIN_SVC_BIN_ID env var for a second bin dedicated to services.' });
+          return res.status(200).json({ diag: 'NO_SVC_BIN_CONFIGURED', error: 'Set JSONBIN_SVC_BIN_ID env var.' });
         }
-        const w = await writeBin(SVC_BIN_ID, { smm_svc: body.smm_svc });
-        if (!w.ok) return res.status(200).json({ diag: 'PUT_SVC_FAILED', jsonbinStatus: w.status, jsonbinBodyRaw: w.raw });
-        // If ONLY services were sent, we're done — no need to touch the main bin
+        const gz = gzipToBase64(body.smm_svc);
+        const w = await writeBin(SVC_BIN_ID, { svc_gz: gz });
+        if (!w.ok) return res.status(200).json({ diag: 'PUT_SVC_FAILED', jsonbinStatus: w.status, jsonbinBodyRaw: w.raw, compressedSizeKB: Math.round(gz.length / 1024) });
         const onlyServices = !body.smm_users && !body.smm_orders && !body.smm_tickets;
         if (onlyServices) {
-          return res.status(200).json({ ok: true, services: body.smm_svc.length });
+          return res.status(200).json({ ok: true, services: body.smm_svc.length, compressedSizeKB: Math.round(gz.length / 1024) });
         }
       }
 
-      // Main bin: users / orders / tickets
       const main = await readBin(BIN_ID);
       if (!main.ok) return res.status(200).json({ diag: 'POST_READ_MAIN_FAILED', jsonbinStatus: main.status, jsonbinBodyRaw: main.raw });
       const current = main.record;
