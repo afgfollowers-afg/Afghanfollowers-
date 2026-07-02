@@ -1,7 +1,7 @@
 // Vercel Serverless Function — Real persistent cross-device sync via JSONBin.io
 // DIAGNOSTIC VERSION — surfaces real JSONBin errors instead of silently
 // falling back to empty defaults, so we can pinpoint config issues.
-
+// DIAGNOSTIC VERSION
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const API_KEY = process.env.JSONBIN_API_KEY;
 const BASE = 'https://api.jsonbin.io/v3/b/';
