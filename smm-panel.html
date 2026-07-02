@@ -1717,7 +1717,7 @@ function placeOrder(){
             var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
             var lo=ords.find(function(x){return x.id===order.id;});
             if(lo){lo.provOrderId=d.order;lo.status='processing';localStorage.setItem('smm_orders',JSON.stringify(ords));}
-            showToast('✅ Order sent to provider! ID: '+d.order,'s');
+            showToast('✅ Order sent!','s');
           } else if(d.error){
             showToast('⚠️ Provider did not accept order: '+d.error,'e');
           }
