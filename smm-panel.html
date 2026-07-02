@@ -378,7 +378,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <div style="font-size:11px;color:var(--muted)" id="drawer-email">...</div>
       </div>
     </div>
-   <div style="color:#00d2a0;font-size:12px;font-weight:800">TEST-MANUAL-EDIT-OK</div>
+    <div style="font-size:9px;color:#00d2a0;padding:2px 4px;font-weight:800">BUILD v4-debug-provider-fix</div>
     <div class="drawer-balance">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       <span id="drawer-bal">$0.00</span>
@@ -1012,7 +1012,7 @@ function getPanelServices(){
       if(arr2&&arr2.length>0){
         return arr2.filter(function(s){return s[10]!==0;}).map(function(s){
           return {id:s[0],svcId:s[1],name:s[2],category:s[3],
-                  provName:s[4],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true};
+                  provName:s[4],provId:s[5],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true};
         });
       }
     }
@@ -1691,13 +1691,23 @@ function placeOrder(){
   }).catch(function(){});
   
   // Place with provider if service has provId and svcId
+  var sentToProvider=false;
   try{
     var svcs=getPanelServices();
     var matchedSvc=svcs.find(function(s){return s.name===svcName||s.svcName===svcName;});
+    // TEMP DIAGNOSTIC — remove after debugging
+    alert('DEBUG v3\nsvcName: '+svcName+'\nmatched: '+(matchedSvc?'YES':'NO')+
+      (matchedSvc?('\nsvcId: '+matchedSvc.svcId+'\nprovId: '+matchedSvc.provId):'')+
+      '\ntotal services loaded: '+svcs.length);
     if(matchedSvc&&matchedSvc.svcId&&matchedSvc.provId){
       var provs2=[];try{provs2=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e){}
       var prov=provs2.find(function(p){return String(p.id)===String(matchedSvc.provId);});
+      alert('DEBUG v3 provider lookup\nproviders in storage: '+provs2.length+
+        '\nlooking for id: '+matchedSvc.provId+
+        '\nfound provider: '+(prov?prov.name:'NOT FOUND')+
+        (prov?('\nhas url: '+(!!prov.url)+'\nhas key: '+(!!prov.key)):''));
       if(prov&&prov.url&&prov.key){
+        sentToProvider=true;
         fetch('/api/place-order',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -1715,10 +1725,15 @@ function placeOrder(){
             var lo=ords.find(function(x){return x.id===order.id;});
             if(lo){lo.provOrderId=d.order;lo.status='processing';localStorage.setItem('smm_orders',JSON.stringify(ords));}
             showToast('✅ Order sent to provider! ID: '+d.order,'s');
+          } else if(d.error){
+            showToast('⚠️ Provider did not accept order: '+d.error,'e');
           }
-        }).catch(function(){});
+        }).catch(function(e){showToast('⚠️ Could not reach provider: '+e.message,'e');});
+      } else {
+        showToast('⚠️ Service has a provider link but no matching provider found in settings','w');
       }
     }
+    // If matchedSvc has no provId at all, this is a manually-priced/local service — no provider call needed.
   }catch(e){}
   
   // Telegram notify
@@ -1736,6 +1751,7 @@ function placeOrder(){
   renderOrdersTable();
   
   setTimeout(function(){
+    if(sentToProvider) return; // real provider orders keep their real status, updated via admin/provider sync
     var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
     var o=ords.find(function(x){return x.id===order.id;});
     if(o){o.status='completed';localStorage.setItem('smm_orders',JSON.stringify(ords));}
@@ -3188,6 +3204,57 @@ function onAdminUpdate(){
   var ap=document.getElementById('page-add-funds');
   if(ap&&ap.style.display!=='none') initAddFunds();
 }
+
+// ══ PULL FROM SERVER (cross-device sync on load) ══
+// Without this, a user visiting from a new device/browser sees no orders/tickets
+// because data only ever gets pushed to the server, never pulled back.
+function pullFromServerOnLoad(){
+  fetch('/api/db',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d) return;
+      var changed=false;
+      var u=getCurrentUser();
+      if(d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length){
+        var local=[];try{local=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
+        if(d.smm_users.length>=local.length){
+          localStorage.setItem('smm_users',JSON.stringify(d.smm_users));
+          changed=true;
+        }
+      }
+      if(d.smm_orders&&Array.isArray(d.smm_orders)&&d.smm_orders.length){
+        var localO=[];try{localO=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+        if(d.smm_orders.length>localO.length){
+          localStorage.setItem('smm_orders',JSON.stringify(d.smm_orders));
+          changed=true;
+        }
+      }
+      if(d.smm_tickets&&Array.isArray(d.smm_tickets)&&d.smm_tickets.length){
+        var localT=[];try{localT=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
+        if(d.smm_tickets.length>localT.length){
+          localStorage.setItem('smm_tickets',JSON.stringify(d.smm_tickets));
+          changed=true;
+        }
+      }
+      if(changed){
+        // Refresh session user reference with fresh data
+        if(u){
+          try{
+            var allU=JSON.parse(localStorage.getItem('smm_users')||'[]');
+            var freshU=allU.find(function(x){return String(x.id)===String(u.id);});
+            if(freshU)_currentUser=freshU;
+          }catch(e){}
+        }
+        updateBalanceUI();
+        var op=document.getElementById('page-orders');
+        if(op&&op.style.display!=='none') renderOrdersList();
+        var tp=document.getElementById('page-tickets');
+        if(tp&&tp.style.display!=='none') renderTicketsList();
+      }
+    }).catch(function(){});
+}
+pullFromServerOnLoad();
+setInterval(pullFromServerOnLoad,8000);
 
 // Start sync when page loads
 startRealTimeSync();
