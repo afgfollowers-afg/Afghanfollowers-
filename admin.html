@@ -3601,6 +3601,9 @@ function savePmVisibility(){
   localStorage.setItem('smm_payment_settings',JSON.stringify(cfg));
   // 3. Notify user panel
   localStorage.setItem('smm_admin_updated',Date.now().toString());
+  // 4. Push to server so payment settings show up on every browser/device
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_pm:pms,smm_ts:Date.now()})}).catch(function(){});
 }
 
 // Edit modal for payment method config
