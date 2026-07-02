@@ -1,4 +1,22 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
+const SITE = 'https://afghanfollowers.online';
+
+async function lookupOrder(orderId) {
+  try {
+    const r = await fetch(SITE + '/api/db');
+    const db = await r.json();
+    const orders = db.smm_orders || [];
+    return orders.find(o => String(o.id) === String(orderId)) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function statusEmoji(status) {
+  var map = { completed: '✅', processing: '⏳', pending: '🕐', partial: '⚠️', cancelled: '❌', refunded: '💸' };
+  return map[status] || '❔';
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).send('Method not allowed');
@@ -27,26 +45,42 @@ module.exports = async (req, res) => {
   const lower = text.toLowerCase();
   let reply = '';
 
-  if (text === '/start') {
-    reply = `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: https://afghanfollowers.online\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/support - پشتیبانی`;
+  // Order status lookup: "/order 12345" or just a bare number
+  const orderMatch = text.match(/^\/order\s+(\d+)$/) || text.match(/^#?(\d{5,})$/);
+  if (orderMatch) {
+    const order = await lookupOrder(orderMatch[1]);
+    if (order) {
+      reply = `${statusEmoji(order.status)} <b>سفارش #${order.id}</b>\n\n`
+        + `سرویس: ${order.service || order.svcName || '—'}\n`
+        + `تعداد: ${order.qty || '—'}\n`
+        + `وضعیت: <b>${order.status || 'pending'}</b>\n`
+        + (order.startCount !== undefined ? `Start Count: ${order.startCount}\n` : '')
+        + (order.remain !== undefined ? `باقیمانده: ${order.remain}\n` : '');
+    } else {
+      reply = `❌ سفارشی با این شماره پیدا نشد.\n\nبرای مشاهده سفارش‌هایتان وارد پنل شوید:\n${SITE}`;
+    }
+  } else if (text === '/start') {
+    reply = `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/support - پشتیبانی`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
-    reply = `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+    reply = `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
-    reply = `🔗 <b>لینک پنل</b>\n\nhttps://afghanfollowers.online\n\nبرای ورود ثبت نام کنید یا لاگین کنید.`;
+    reply = `🔗 <b>لینک پنل</b>\n\n${SITE}\n\nبرای ورود ثبت نام کنید یا لاگین کنید.`;
   } else if (text === '/services' || lower.includes('service') || lower.includes('سرویس')) {
-    reply = `📦 <b>سرویس‌های ما</b>\n\n✅ Instagram Followers\n✅ TikTok Likes\n✅ YouTube Views\n✅ Telegram Members\n✅ Facebook Likes\n✅ Twitter Followers\n\n🌐 برای سفارش: https://afghanfollowers.online`;
+    reply = `📦 <b>سرویس‌های ما</b>\n\n✅ Instagram Followers\n✅ TikTok Likes\n✅ YouTube Views\n✅ Telegram Members\n✅ Facebook Likes\n✅ Twitter Followers\n\n🌐 برای سفارش: ${SITE}`;
+  } else if (lower.includes('order') || lower.includes('سفارش') || lower.includes('وضعیت') || lower.includes('فالور') || lower.includes('follower')) {
+    reply = `📦 <b>پیگیری سفارش</b>\n\nبرای دیدن وضعیت سفارش، شماره سفارشتان را برایم بفرستید، مثلاً:\n<code>/order 12345</code>\n\nیا وارد پنل شوید:\n${SITE}`;
   } else if (text === '/support' || lower.includes('support') || lower.includes('پشتیبانی') || lower.includes('problem') || lower.includes('مشکل')) {
-    reply = `🆘 <b>پشتیبانی</b>\n\nبرای رفع مشکل:\n1. وارد پنل شوید\n2. بخش Tickets را باز کنید\n3. تیکت جدید ارسال کنید\n\n🌐 https://afghanfollowers.online\n\nادمین در اسرع وقت پاسخ می‌دهد.`;
+    reply = `🆘 <b>پشتیبانی</b>\n\nبرای رفع مشکل:\n1. وارد پنل شوید\n2. بخش Tickets را باز کنید\n3. تیکت جدید ارسال کنید\n\n🌐 ${SITE}\n\nادمین در اسرع وقت پاسخ می‌دهد.`;
   } else if (lower.includes('price') || lower.includes('قیمت') || lower.includes('cost') || lower.includes('هزینه')) {
-    reply = `💰 <b>قیمت‌ها</b>\n\nقیمت‌ها بر اساس نوع سرویس متفاوت است.\n\n👉 برای مشاهده قیمت دقیق:\nhttps://afghanfollowers.online\n\nبخش Services را باز کنید.`;
+    reply = `💰 <b>قیمت‌ها</b>\n\nقیمت‌ها بر اساس نوع سرویس متفاوت است.\n\n👉 برای مشاهده قیمت دقیق:\n${SITE}\n\nبخش Services را باز کنید.`;
   } else if (lower.includes('payment') || lower.includes('پرداخت') || lower.includes('pay')) {
-    reply = `💳 <b>روش‌های پرداخت</b>\n\n✅ PayPal\n✅ Binance Pay\n✅ USDT (TRC20)\n✅ Hawala / Cash\n\n🌐 https://afghanfollowers.online/smm-panel.html`;
+    reply = `💳 <b>روش‌های پرداخت</b>\n\n✅ PayPal\n✅ Binance Pay\n✅ USDT (TRC20)\n✅ Hawala / Cash\n\n🌐 ${SITE}/smm-panel.html`;
   } else if (lower.includes('instagram') || lower.includes('insta')) {
-    reply = `📸 <b>Instagram Services</b>\n\n✅ Real Followers\n✅ Likes\n✅ Views\n✅ Comments\n\n💰 از $0.001/unit\n🌐 https://afghanfollowers.online`;
+    reply = `📸 <b>Instagram Services</b>\n\n✅ Real Followers\n✅ Likes\n✅ Views\n✅ Comments\n\n💰 از $0.001/unit\n🌐 ${SITE}`;
   } else if (lower.includes('tiktok')) {
-    reply = `🎵 <b>TikTok Services</b>\n\n✅ Followers\n✅ Likes\n✅ Views\n✅ Comments\n\n💰 از $0.001/unit\n🌐 https://afghanfollowers.online`;
+    reply = `🎵 <b>TikTok Services</b>\n\n✅ Followers\n✅ Likes\n✅ Views\n✅ Comments\n\n💰 از $0.001/unit\n🌐 ${SITE}`;
   } else {
-    reply = `👋 سلام ${firstName}!\n\nممنون از پیام شما.\n\nبرای کمک:\n/help - راهنما\n/support - پشتیبانی\n\n🌐 https://afghanfollowers.online`;
+    reply = `👋 سلام ${firstName}!\n\nممنون از پیام شما.\n\nبرای کمک:\n/help - راهنما\n/order [شماره] - وضعیت سفارش\n/support - پشتیبانی\n\n🌐 ${SITE}`;
   }
 
   if (reply) {
