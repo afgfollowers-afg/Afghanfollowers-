@@ -107,6 +107,10 @@ module.exports = async (req, res) => {
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
         if (body.smm_tickets.length >= (current.smm_tickets || []).length) current.smm_tickets = body.smm_tickets;
       }
+      // Payment methods: admin is the single source of truth, always overwrite
+      if (body.smm_pm && Array.isArray(body.smm_pm)) {
+        current.smm_pm = body.smm_pm;
+      }
       current.smm_ts = Date.now();
 
       const w2 = await writeBin(BIN_ID, current);
