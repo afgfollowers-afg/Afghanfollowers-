@@ -2611,8 +2611,8 @@ function ppOpenPayPal(clientId, amt, feeAmt, receive){
 
   // Return URL — go straight to the panel, skip extra redirect hop
   var baseUrl=window.location.origin;
-  var returnUrl=baseUrl+'/smm-panel.html?pp=done';
-  var cancelUrl=baseUrl+'/smm-panel.html?pp=cancel';
+  var returnUrl=baseUrl+'/api/paypal-return';
+  var cancelUrl=baseUrl+'/api/paypal-cancel';
 
   // Build PayPal URL
   var ppUrl='';
