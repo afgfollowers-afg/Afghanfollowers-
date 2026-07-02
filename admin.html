@@ -2606,6 +2606,19 @@ function syncServicesToPanel(svcs){
   localStorage.setItem('smm_panel_services',JSON.stringify(active));
   localStorage.setItem('smm_imported_svcs',JSON.stringify(active));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
+  // Also write + push the compressed format (smm_svc), since that's what
+  // the user panel and the server sync actually read from.
+  var compressed=(svcs||[]).map(function(s){
+    return [
+      s.id,s.svcId||'',s.name||'',s.category||'',
+      s.provName||'',s.provId||0,s.provRate||0,
+      s.myRate||s.price||0,s.min||100,s.max||50000,
+      s.active!==false?1:0
+    ];
+  });
+  try{localStorage.setItem('smm_svc',JSON.stringify(compressed));}catch(e){}
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})}).catch(function(){});
   toast('✅ Synced '+active.length+' services to panel','s');notifyPanel();
 }
 
