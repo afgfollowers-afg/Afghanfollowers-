@@ -1,4 +1,5 @@
 {
+  "cleanUrls": true,
   "redirects": [
     { "source": "/payment/paypal", "destination": "/smm-panel.html?pp=done", "permanent": false },
     { "source": "/payment/paypal/cancel", "destination": "/smm-panel.html?pp=cancel", "permanent": false }
