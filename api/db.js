@@ -1,16 +1,6 @@
 // Vercel Serverless Function — Real persistent cross-device sync via JSONBin.io
-// This replaces in-memory storage (which resets every few minutes and does NOT
-// share data between devices/browsers) with a real, permanent JSON store.
-//
-// SETUP REQUIRED (one-time, ~2 minutes):
-// 1. Go to https://jsonbin.io and create a free account
-// 2. Create a new Bin, paste this as its initial content:
-//    {"smm_users":[],"smm_orders":[],"smm_tickets":[],"smm_ts":0}
-// 3. Copy the Bin ID (shown in the URL/dashboard) and your X-Master-Key (API key)
-// 4. In Vercel: Project → Settings → Environment Variables, add:
-//    JSONBIN_BIN_ID = your bin id
-//    JSONBIN_API_KEY = your master key
-// 5. Redeploy the project so the new env vars take effect
+// DIAGNOSTIC VERSION — surfaces real JSONBin errors instead of silently
+// falling back to empty defaults, so we can pinpoint config issues.
 
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const API_KEY = process.env.JSONBIN_API_KEY;
@@ -28,7 +18,9 @@ module.exports = async (req, res) => {
 
   if (!BIN_ID || !API_KEY) {
     return res.status(500).json({
-      error: 'Database not configured. Set JSONBIN_BIN_ID and JSONBIN_API_KEY in Vercel environment variables.'
+      error: 'Database not configured. Set JSONBIN_BIN_ID and JSONBIN_API_KEY in Vercel environment variables.',
+      binIdSet: !!BIN_ID,
+      apiKeySet: !!API_KEY
     });
   }
 
@@ -37,10 +29,25 @@ module.exports = async (req, res) => {
       const r = await fetch(BASE + BIN_ID + '/latest', {
         headers: { 'X-Master-Key': API_KEY }
       });
-      const j = await r.json();
-      return res.status(200).json(j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_svc: [], smm_ts: 0 });
+      const text = await r.text();
+      let j;
+      try { j = JSON.parse(text); } catch (parseErr) {
+        return res.status(200).json({
+          diag: 'GET_PARSE_FAILED',
+          jsonbinStatus: r.status,
+          jsonbinBodyRaw: text.slice(0, 500)
+        });
+      }
+      if (!r.ok || !j.record) {
+        return res.status(200).json({
+          diag: 'GET_NOT_OK_OR_NO_RECORD',
+          jsonbinStatus: r.status,
+          jsonbinResponse: j
+        });
+      }
+      return res.status(200).json(j.record);
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return res.status(200).json({ diag: 'GET_EXCEPTION', error: e.message });
     }
   }
 
@@ -52,8 +59,18 @@ module.exports = async (req, res) => {
       const r = await fetch(BASE + BIN_ID + '/latest', {
         headers: { 'X-Master-Key': API_KEY }
       });
-      const j = await r.json();
-      const current = j.record || { smm_users: [], smm_orders: [], smm_tickets: [], smm_svc: [], smm_ts: 0 };
+      const readText = await r.text();
+      let j;
+      try { j = JSON.parse(readText); } catch (e) { j = {}; }
+      if (!r.ok || !j.record) {
+        return res.status(200).json({
+          diag: 'POST_READ_FAILED',
+          jsonbinStatus: r.status,
+          jsonbinResponse: j,
+          jsonbinBodyRaw: readText.slice(0, 500)
+        });
+      }
+      const current = j.record;
 
       // Merge — keep the larger dataset for each field
       if (body.smm_users && Array.isArray(body.smm_users)) {
@@ -78,7 +95,7 @@ module.exports = async (req, res) => {
       current.smm_ts = Date.now();
 
       // Write back
-      await fetch(BASE + BIN_ID, {
+      const putResp = await fetch(BASE + BIN_ID, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -86,10 +103,25 @@ module.exports = async (req, res) => {
         },
         body: JSON.stringify(current)
       });
+      const putText = await putResp.text();
 
-      return res.status(200).json({ ok: true, users: current.smm_users.length, orders: current.smm_orders.length, services: (current.smm_svc || []).length });
+      if (!putResp.ok) {
+        return res.status(200).json({
+          diag: 'PUT_FAILED',
+          jsonbinStatus: putResp.status,
+          jsonbinBodyRaw: putText.slice(0, 500)
+        });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        users: (current.smm_users || []).length,
+        orders: (current.smm_orders || []).length,
+        services: (current.smm_svc || []).length,
+        ts: current.smm_ts
+      });
     } catch (e) {
-      return res.status(500).json({ error: e.message });
+      return res.status(200).json({ diag: 'POST_EXCEPTION', error: e.message });
     }
   }
 
