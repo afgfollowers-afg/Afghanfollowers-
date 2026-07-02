@@ -111,6 +111,13 @@ module.exports = async (req, res) => {
       if (body.smm_pm && Array.isArray(body.smm_pm)) {
         current.smm_pm = body.smm_pm;
       }
+      if (body.smm_providers && Array.isArray(body.smm_providers)) {
+        current.smm_providers = body.smm_providers;
+      }
+      if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
+        // Used by the sync-orders cron job to write back updated order statuses
+        current.smm_orders = body.smm_orders_sync;
+      }
       current.smm_ts = Date.now();
 
       const w2 = await writeBin(BIN_ID, current);
