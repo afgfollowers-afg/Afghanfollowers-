@@ -2619,7 +2619,13 @@ function syncServicesToPanel(svcs){
   });
   try{localStorage.setItem('smm_svc',JSON.stringify(compressed));}catch(e){}
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      // TEMP DIAGNOSTIC — remove after debugging
+      alert('SYNC PUSH RESULT:\n'+JSON.stringify(d,null,2));
+    })
+    .catch(function(e){alert('SYNC PUSH FAILED (network/JS error):\n'+e.message);});
   toast('✅ Synced '+active.length+' services to panel','s');notifyPanel();
 }
 
