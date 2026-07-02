@@ -252,10 +252,10 @@ textarea.fi{resize:vertical;min-height:75px;}
     <!-- DASHBOARD -->
     <div class="page on" id="pg-dashboard">
       <div class="sg">
-        <div class="sc c1"><div class="sc-ico">👥</div><div class="sc-val">1,248</div><div class="sc-lbl">Total Users</div><div class="sc-tr">↑ 12% this month</div></div>
-        <div class="sc c2"><div class="sc-ico">📦</div><div class="sc-val">8,642</div><div class="sc-lbl">Total Orders</div><div class="sc-tr">↑ 24% this month</div></div>
-        <div class="sc c3"><div class="sc-ico">💰</div><div class="sc-val">$4,821</div><div class="sc-lbl">Revenue</div><div class="sc-tr">↑ 8% this month</div></div>
-        <div class="sc c4"><div class="sc-ico">🎫</div><div class="sc-val">5</div><div class="sc-lbl">Open Tickets</div><div class="sc-tr" style="color:var(--rd)">↑ 2 new today</div></div>
+        <div class="sc c1"><div class="sc-ico">👥</div><div class="sc-val" id="sc-users">0</div><div class="sc-lbl">Total Users</div><div class="sc-tr" id="sc-users-tr"></div></div>
+        <div class="sc c2"><div class="sc-ico">📦</div><div class="sc-val" id="sc-orders">0</div><div class="sc-lbl">Total Orders</div><div class="sc-tr" id="sc-orders-tr"></div></div>
+        <div class="sc c3"><div class="sc-ico">💰</div><div class="sc-val" id="sc-revenue">$0.00</div><div class="sc-lbl">Revenue</div><div class="sc-tr" id="sc-revenue-tr"></div></div>
+        <div class="sc c4"><div class="sc-ico">🎫</div><div class="sc-val" id="sc-tickets">0</div><div class="sc-lbl">Open Tickets</div><div class="sc-tr" id="sc-tickets-tr" style="color:var(--rd)"></div></div>
       </div>
       <div class="sec">
         <div class="sec-h"><div class="sec-t">📊 Revenue — Last 7 Days</div><div style="display:flex;gap:6px"><button class="btn btn-g btn-sm">7D</button><button class="btn btn-g btn-sm">30D</button></div></div>
@@ -1480,20 +1480,21 @@ function initDash(){
   // Load real data
   var realUsers=[];
   var realOrders=[];
+  var realTickets=[];
   try{realUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
   try{realOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  try{realTickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
 
-  var totalRevenue=realOrders.reduce(function(t,o){return t+(o.cost||0);},0);
+  var totalRevenue=realOrders.reduce(function(t,o){return t+(parseFloat(o.cost)||0);},0);
   var totalUsers=realUsers.length;
   var totalOrders=realOrders.length;
-  var pendingOrders=realOrders.filter(function(o){return o.status==='pending';}).length;
+  var openTickets=realTickets.filter(function(t){return t.status!=='closed';}).length;
 
-  // Update stat cards
-  var cards=document.querySelectorAll('.sc-val');
-  if(cards[0]) cards[0].textContent='$'+totalRevenue.toFixed(2);
-  if(cards[1]) cards[1].textContent=totalOrders;
-  if(cards[2]) cards[2].textContent=totalUsers;
-  if(cards[3]) cards[3].textContent=pendingOrders;
+  // Update stat cards (by id, not position — avoids mismatched values)
+  var elU=document.getElementById('sc-users'); if(elU) elU.textContent=totalUsers.toLocaleString();
+  var elO=document.getElementById('sc-orders'); if(elO) elO.textContent=totalOrders.toLocaleString();
+  var elR=document.getElementById('sc-revenue'); if(elR) elR.textContent='$'+totalRevenue.toFixed(2);
+  var elT=document.getElementById('sc-tickets'); if(elT) elT.textContent=openTickets.toLocaleString();
 
   // Chart — orders per day (last 7 days)
   var days7=[];var lbs=[];
@@ -2562,11 +2563,22 @@ function applyPriceEdit(){
   var val=parseFloat(document.getElementById('price-edit-val').value);
   if(!val&&type!=='set_fixed'){toast('Enter a value','e');return;}
   var scope=document.getElementById('price-edit-scope').value;
-  var targetVal=document.getElementById('price-edit-target').value;
+  var targetEl=document.getElementById('price-edit-target');
+  var targetVal=targetEl?targetEl.value:'';
+  if(scope==='provider'&&!targetVal){
+    toast('⚠️ "By Provider" needs a provider selected — applying to All Services instead. This filter isn\'t available yet.','w');
+    scope='all';
+  }
   var svcs=getServices();
   var count=0;
+  var selectedIds=null;
+  if(scope==='selected'){
+    selectedIds={};
+    document.querySelectorAll('.svc-cb:checked').forEach(function(c){selectedIds[c.dataset.id]=true;});
+  }
   svcs.forEach(function(s){
     // Check scope
+    if(scope==='selected'&&!selectedIds[s.id]) return;
     if(scope==='provider'&&targetVal&&String(s.provId)!==String(targetVal)) return;
     if(scope==='category'&&targetVal&&String(s.categoryId)!==String(targetVal)) return;
     var base=s.provRate||s.myRate||s.price||0;
@@ -3309,7 +3321,7 @@ function rTickets(list){
   }
   h+='</tbody></table>';
   document.getElementById('tickets-tbl').innerHTML=h;
-  document.getElementById('nb-t').textContent=tickets.filter(function(t){return t.status==='open';}).length;
+  document.getElementById('nb-t').textContent=list.filter(function(t){return t.status==='open';}).length;
 }
 function filterTickets(s){var list=loadTks();rTickets(s==='all'?list:list.filter(function(t){return t.status===s;}));}
 function openTk(id){
@@ -3341,6 +3353,10 @@ function sendReply(){
     t.messages.push({from:'admin',text:reply,time:timeStr});
     t.status=status;
     saveTks(list);
+    // Push to server so the reply shows up on the customer's device too
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_tickets:list,smm_ts:Date.now()})}).catch(function(){});
+    localStorage.setItem('smm_admin_updated',Date.now().toString());
     // notify via Telegram bot page if open
     if(window.opener&&window.opener.smmTgNotify){}
     // try direct API call
