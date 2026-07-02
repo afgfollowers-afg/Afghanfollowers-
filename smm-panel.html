@@ -2609,10 +2609,10 @@ function ppOpenPayPal(clientId, amt, feeAmt, receive){
   var paypalme=cfg.paypalme||'';
   var email=cfg.email||'';
 
-  // Return URL — clean Netlify redirect path
+  // Return URL — go straight to the panel, skip extra redirect hop
   var baseUrl=window.location.origin;
-  var returnUrl=baseUrl+'/payment/paypal';
-  var cancelUrl=baseUrl+'/payment/paypal/cancel';
+  var returnUrl=baseUrl+'/smm-panel.html?pp=done';
+  var cancelUrl=baseUrl+'/smm-panel.html?pp=cancel';
 
   // Build PayPal URL
   var ppUrl='';
