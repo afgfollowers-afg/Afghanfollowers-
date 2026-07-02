@@ -1154,6 +1154,9 @@ function saveProvs(){
   });
   localStorage.setItem(PROV_KEY,JSON.stringify(lite));
   // Services are kept in memory only (provs array) until page reload
+  // Push to server so the order-status sync job (and other server-side code) can reach providers
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_providers:lite,smm_ts:Date.now()})}).catch(function(){});
 }
 
 // ── API PROXY (Netlify Function) ──
