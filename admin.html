@@ -1475,7 +1475,7 @@ function toggleSb(){var s=document.getElementById('sb');s.classList.toggle('open
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('mov').classList.remove('open');}
 
 // ═══ MODALS ═══
-function om(id){if(id==='m-add-bal'){var s=document.getElementById('bal-usr');s.innerHTML=users.map(function(u){return'<option value="'+u.id+'">'+u.name+' ($'+u.balance.toFixed(2)+')</option>';}).join('');}document.getElementById(id).classList.add('open');}
+function om(id){if(id==='m-add-bal'){var s=document.getElementById('bal-usr');var realU=getRealUsers();s.innerHTML=realU.map(function(u){var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);return'<option value="'+u.id+'">'+dispName.trim()+' ($'+(parseFloat(u.balance)||0).toFixed(2)+')</option>';}).join('');}document.getElementById(id).classList.add('open');}
 function cm(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(function(m){m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
@@ -3322,7 +3322,27 @@ function rWallets(list){
 }
 function qAdd(id){var a=parseFloat(prompt('Add amount ($):','10'));if(!a||isNaN(a))return;var u=users.find(function(x){return x.id===id;});if(u){u.balance+=a;rWallets(users);toast('$'+a+' added to '+u.name,'s');}}
 function qDed(id){var a=parseFloat(prompt('Deduct ($):','5'));if(!a||isNaN(a))return;var u=users.find(function(x){return x.id===id;});if(u&&u.balance>=a){u.balance-=a;rWallets(users);toast('$'+a+' deducted','w');}else toast('Insufficient balance','e');}
-function addBal(){var uid=parseInt(document.getElementById('bal-usr').value);var a=parseFloat(document.getElementById('bal-amt').value);if(!a||a<=0){toast('Enter valid amount','e');return;}var u=users.find(function(x){return x.id===uid;});if(u){u.balance+=a;rWallets(users);cm('m-add-bal');toast('$'+a+' added to '+u.name,'s');}}
+function addBal(){
+  var uid=document.getElementById('bal-usr').value;
+  var a=parseFloat(document.getElementById('bal-amt').value);
+  var reason=document.getElementById('bal-rsn').value||'Balance added by admin';
+  if(!a||a<=0){toast('Enter valid amount','e');return;}
+  var realU=getRealUsers();
+  var u=realU.find(function(x){return String(x.id)===String(uid);});
+  if(u){
+    u.balance=parseFloat(((parseFloat(u.balance)||0)+a).toFixed(2));
+    if(!u.transactions) u.transactions=[];
+    u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
+    localStorage.setItem('smm_users',JSON.stringify(realU));
+    localStorage.setItem('smm_admin_updated',Date.now().toString());
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
+    rWallets(realU);
+    cm('m-add-bal');
+    toast('$'+a+' added to '+dispName.trim(),'s');
+  }
+}
 
 // ═══ TICKETS ═══
 var TK_KEY='smm_tickets';
