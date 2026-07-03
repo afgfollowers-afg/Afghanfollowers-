@@ -131,6 +131,9 @@ module.exports = async (req, res) => {
       if (body.smm_general && typeof body.smm_general === 'object') {
         current.smm_general = body.smm_general;
       }
+      if (body.smm_resets && Array.isArray(body.smm_resets)) {
+        current.smm_resets = body.smm_resets;
+      }
       if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;
