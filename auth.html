@@ -587,7 +587,11 @@ var AK='smm_users',SK='smm_session';
   }).catch(function(){});
 })();
 function getUsers(){try{var d=localStorage.getItem(AK);return d?JSON.parse(d):[{id:1,fname:'Admin',lname:'',email:'admin@panel.com',phone:'',password:btoa('admin123'),role:'admin',balance:500,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]}];}catch(e){return[];}}
-function saveUsers(u){localStorage.setItem(AK,JSON.stringify(u));}
+function saveUsers(u){
+  localStorage.setItem(AK,JSON.stringify(u));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_users:u,smm_ts:Date.now()})}).catch(function(){});
+}
 function createSess(u){localStorage.setItem(SK,JSON.stringify({userId:u.id,email:u.email,name:u.fname+' '+u.lname,role:u.role,ts:Date.now()}));}
 
 // Check existing session
