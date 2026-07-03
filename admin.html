@@ -3849,6 +3849,8 @@ function saveGeneral(){
   });
   localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
   localStorage.setItem('smm_general_settings',JSON.stringify(cfg));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
   if(cfg['g-currency']) saveCurrencyNow(cfg['g-currency']);
   toast('✅ General settings saved!','s');
   notifyPanel();
@@ -3991,7 +3993,7 @@ function rIntg(){
 
   // Telegram Bot special section
   var tgCfg={};try{tgCfg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');}catch(e){}
-  var _tgWebhookUrl='https://afghanfollowers.online/api/telegram-bot?token='+(tgCfg.token||'');
+  var _tgWebhookUrl='https://www.afghanfollowers.online/api/telegram-bot?token='+(tgCfg.token||'');
   var tgHtml='<div class="ic" style="flex-direction:column;align-items:stretch;gap:10px">'
     +'<div style="display:flex;align-items:center;gap:12px">'
     +'<div class="ic-ico" style="background:#2AABEE;color:#fff;font-size:18px">✈️</div>'
@@ -4028,7 +4030,7 @@ function setupTgWebhook(){
   var token=document.getElementById('tg-token');
   if(!token||!token.value.trim()){toast('Enter Bot Token first','e');return;}
   var tok=token.value.trim();
-  var webhookUrl='https://afghanfollowers.online/api/telegram-bot?token='+encodeURIComponent(tok);
+  var webhookUrl='https://www.afghanfollowers.online/api/telegram-bot?token='+encodeURIComponent(tok);
   var setUrl='https://api.telegram.org/bot'+tok+'/setWebhook?url='+encodeURIComponent(webhookUrl);
   toast('Setting up webhook...','s');
   fetch(setUrl)
@@ -4231,6 +4233,22 @@ function toast(msg,t){var e=document.getElementById('toast');e.textContent=msg;e
 var ADMIN_SESSION_KEY='smm_admin_session';
 var ADMIN_CREDS_KEY='smm_admin_creds';
 
+// Pull admin credentials + general settings from server immediately on page load,
+// so a fresh browser has the latest username/password before the user tries to log in.
+(function pullAdminCredsEarly(){
+  fetch('/api/db',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d) return;
+      if(d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
+        localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
+      }
+      if(d.smm_general&&typeof d.smm_general==='object'){
+        localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+      }
+    }).catch(function(){});
+})();
+
 function getAdminCreds(){
   try{
     var d=localStorage.getItem(ADMIN_CREDS_KEY);
@@ -4391,6 +4409,9 @@ function saveAdminCredentials(){
     password:btoa(newPass)
   };
   localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(updated));
+  // Push to server so the new username/password work from any browser
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_admin_creds:updated,smm_ts:Date.now()})}).catch(function(){});
 
   // Update topbar
   var av=document.getElementById('admin-av');
@@ -4570,6 +4591,12 @@ function pullFromServer(){
           localStorage.setItem('smm_tickets',JSON.stringify(d.smm_tickets));
           changed=true;
         }
+      }
+      if(d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
+        localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
+      }
+      if(d.smm_general&&typeof d.smm_general==='object'){
+        localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
       }
       if(changed){
         loadAllRealData();
