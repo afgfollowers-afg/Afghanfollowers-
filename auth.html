@@ -682,6 +682,9 @@ function doForgot(){
     body:JSON.stringify({email:email.trim().toLowerCase()})
   }).then(function(r){return r.json();}).then(function(d){
     showA(_lang==='en'?'If that email exists, a reset link has been sent!':'اگر این ایمیل ثبت باشد، لینک بازیابی ارسال شد!','s');
+    if(d.debug||d.error) console.log('RESET DEBUG:',d);
+    if(d.error) alert('DEBUG INFO:\n'+d.error);
+    else if(d.debug) alert('DEBUG INFO:\n'+d.debug);
   }).catch(function(){
     showA('Could not send email. Try again later.','e');
   });
