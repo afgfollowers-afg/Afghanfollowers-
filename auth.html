@@ -301,12 +301,7 @@ body.rtl .btn{font-family:var(--fn-fa);}
   <div class="fs"><div class="fs-v">🌍 Global</div><div class="fs-l" id="fp-global">Worldwide</div></div>
 </div>
 
-<!-- Quick panel links for file-based usage -->
-<div style="margin-top:20px;text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-  <a href="smm-panel.html" style="padding:10px 18px;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-    🚀 User Panel
-  </a>
-</div>
+
 
 </div>
 <script>
@@ -581,6 +576,16 @@ function toggleEye(id,btn){var i=document.getElementById(id);i.type=i.type==='pa
 
 // ═══ USERS ═══
 var AK='smm_users',SK='smm_session';
+
+// Pull latest users from the shared server DB so login works with the
+// current password on ANY device (e.g. after a password reset elsewhere).
+(function pullUsersEarly(){
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    if(d&&Array.isArray(d.smm_users)&&d.smm_users.length){
+      localStorage.setItem(AK,JSON.stringify(d.smm_users));
+    }
+  }).catch(function(){});
+})();
 function getUsers(){try{var d=localStorage.getItem(AK);return d?JSON.parse(d):[{id:1,fname:'Admin',lname:'',email:'admin@panel.com',phone:'',password:btoa('admin123'),role:'admin',balance:500,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]}];}catch(e){return[];}}
 function saveUsers(u){localStorage.setItem(AK,JSON.stringify(u));}
 function createSess(u){localStorage.setItem(SK,JSON.stringify({userId:u.id,email:u.email,name:u.fname+' '+u.lname,role:u.role,ts:Date.now()}));}
@@ -615,7 +620,8 @@ function doLogin(){
     if(!u){showA('Incorrect credentials','e');return;}
     if(u.status==='suspended'){showA('Account suspended. Contact support.','e');return;}
     createSess(u);
-    showA('✅ Welcome, '+u.fname+'! <a href="smm-panel.html" style="color:var(--gr);font-weight:700">Open Panel →</a>','s');
+    showA('✅ Welcome, '+u.fname+'! Redirecting...','s');
+    setTimeout(function(){window.location.href='smm-panel.html';},700);
   },700);
 }
 
@@ -638,7 +644,9 @@ function doReg(){
     var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:btoa(pass),inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:bonus,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:bonus>0?[{id:Date.now(),type:'bonus',amount:bonus,desc:'Welcome bonus',date:new Date().toISOString()}]:[],extra:extra};
     users.push(u);saveUsers(users);createSess(u);
     setBtnL('r-btn',false);
-    showA('🎉 Account created! <a href="smm-panel.html" style="color:var(--gr);font-weight:700">Open Panel →</a>','s');
+    tgAuthNotify('🆕 <b>New Registration</b>\nName: '+u.fname+' '+u.lname+'\n'+(u.email?'Email: '+u.email:'Phone: '+u.phone));
+    showA('🎉 Account created! Redirecting...','s');
+    setTimeout(function(){window.location.href='smm-panel.html';},900);
   },700);
 }
 
@@ -654,7 +662,8 @@ function loginGoogle(){
         var users=getUsers();var ex=users.find(function(u){return u.email===p.email;});
         if(ex){createSess(ex);showA('Welcome back, '+ex.fname+'!','s');}
         else{var nu={id:Date.now(),fname:(p.name||'').split(' ')[0]||'User',lname:(p.name||'').split(' ').slice(1).join(' '),email:p.email,phone:'',password:'',googleId:p.sub,role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],avatar:p.picture||''};users.push(nu);saveUsers(users);createSess(nu);showA('Welcome! 🎉','s');}
-        showA('✅ Logged in! <a href="smm-panel.html" style="color:var(--gr);font-weight:700">Open Panel →</a>','s');
+        showA('✅ Logged in! Redirecting...','s');
+        setTimeout(function(){window.location.href='smm-panel.html';},900);
       }catch(e){showA('Google error','e');}
     }});
     window.google.accounts.id.prompt();
@@ -663,7 +672,53 @@ function loginGoogle(){
 }
 
 // ═══ FORGOT ═══
-function doForgot(){showA(_lang==='en'?'Password reset link sent to your email!':'لینک بازیابی رمز ارسال شد!','s');}
+function doForgot(){
+  var emailField=document.getElementById('l-email');
+  var email=(emailField&&emailField.value.trim())||prompt('Enter your account email:');
+  if(!email||!email.includes('@')){showA('Enter a valid email','e');return;}
+  showA('Sending...','s');
+  fetch('/api/send-reset-email',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:email.trim().toLowerCase()})
+  }).then(function(r){return r.json();}).then(function(d){
+    showA(_lang==='en'?'If that email exists, a reset link has been sent!':'اگر این ایمیل ثبت باشد، لینک بازیابی ارسال شد!','s');
+  }).catch(function(){
+    showA('Could not send email. Try again later.','e');
+  });
+}
+
+// Handle password reset link (?reset=TOKEN)
+(function checkResetToken(){
+  var params=new URLSearchParams(window.location.search);
+  var token=params.get('reset');
+  if(!token) return;
+  var np=prompt('Enter your new password (min 8 characters):');
+  if(!np||np.length<8){alert('Password must be at least 8 characters. Reset cancelled.');return;}
+  fetch('/api/reset-password',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:token,newPassword:np})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){
+      alert('✅ Password reset successfully! Please log in with your new password.');
+      window.location.href='auth.html';
+    } else {
+      alert('❌ '+(d.error||'Reset link is invalid or expired.'));
+    }
+  }).catch(function(){alert('❌ Error resetting password.');});
+})();
+
+function tgAuthNotify(text){
+  try{
+    var cfg={};
+    try{cfg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');}catch(e){}
+    if(!cfg.token||!cfg.chatId) return;
+    fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:cfg.chatId,text:text,parse_mode:'HTML'})
+    }).catch(function(){});
+  }catch(e){}
+}
 
 // ═══ HELPERS ═══
 function showA(msg,t){var el=document.getElementById('alert');el.style.display='flex';el.className='alert a-'+t;el.innerHTML=msg;}
