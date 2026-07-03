@@ -720,7 +720,7 @@ function doForgot(){
     body:JSON.stringify({token:token,newPassword:np})
   }).then(function(r){return r.json();}).then(function(d){
     if(d.ok){
-      alert('✅ Password reset successfully! Please log in with your new password.');
+      alert('✅ Password reset successfully!\n\nDEBUG:\n'+JSON.stringify(d.debug,null,2));
       window.location.href='auth.html';
     } else {
       alert('❌ '+(d.error||'Reset link is invalid or expired.'));
