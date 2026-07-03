@@ -4013,6 +4013,7 @@ function rIntg(){
     +'<button class="btn btn-p" onclick="saveTgBot()">💾 Save</button>'
     +'<button class="btn btn-g" onclick="testTgBot()">🔔 Test</button>'
     +'<button class="btn btn-s" onclick="setupTgWebhook()" style="font-size:12px">🤖 Setup Auto-Reply Webhook</button>'
+    +'<button class="btn btn-g" onclick="checkTgWebhook()" style="font-size:12px">🔍 Check Webhook Status</button>'
     +'</div>'
     +'<div style="font-size:11px;background:var(--s2);border-radius:8px;padding:8px 12px;color:var(--mt)">'
     +'<b>Auto-Reply:</b> After saving, click "Setup Auto-Reply Webhook" to enable bot auto-replies in Farsi/English'
@@ -4041,6 +4042,20 @@ function setupTgWebhook(){
       }
     })
     .catch(function(e){toast('❌ Error: '+e.message,'e');});
+}
+
+function checkTgWebhook(){
+  var token=document.getElementById('tg-token');
+  if(!token||!token.value.trim()){toast('Enter Bot Token first','e');return;}
+  var tok=token.value.trim();
+  var infoUrl='https://api.telegram.org/bot'+tok+'/getWebhookInfo';
+  toast('Checking...','s');
+  fetch(infoUrl)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      alert('WEBHOOK STATUS:\n'+JSON.stringify(d,null,2));
+    })
+    .catch(function(e){alert('ERROR: '+e.message);});
 }
 
 function saveTgBot(){
