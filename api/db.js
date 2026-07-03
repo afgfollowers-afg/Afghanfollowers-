@@ -114,6 +114,12 @@ module.exports = async (req, res) => {
       if (body.smm_providers && Array.isArray(body.smm_providers)) {
         current.smm_providers = body.smm_providers;
       }
+      if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object') {
+        current.smm_admin_creds = body.smm_admin_creds;
+      }
+      if (body.smm_general && typeof body.smm_general === 'object') {
+        current.smm_general = body.smm_general;
+      }
       if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;
