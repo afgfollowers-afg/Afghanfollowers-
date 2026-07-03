@@ -617,7 +617,13 @@ function doLogin(){
   else{id=document.getElementById('l-code').value+document.getElementById('l-phone').value.trim();if(id.length<8){showA('Enter valid phone','e');return;}}
   if(!pass){showA('Enter password','e');return;}
   setBtnL('l-btn',true);
-  setTimeout(function(){
+  // Always pull the freshest user list from the server before checking the
+  // password, so a just-completed password reset works immediately.
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    if(d&&Array.isArray(d.smm_users)&&d.smm_users.length){
+      localStorage.setItem(AK,JSON.stringify(d.smm_users));
+    }
+  }).catch(function(){}).then(function(){
     var users=getUsers();
     var u=users.find(function(x){return _lm==='email'?x.email&&x.email.toLowerCase()===id&&x.password===btoa(pass):x.phone===id&&x.password===btoa(pass);});
     setBtnL('l-btn',false);
@@ -626,7 +632,7 @@ function doLogin(){
     createSess(u);
     showA('✅ Welcome, '+u.fname+'! Redirecting...','s');
     setTimeout(function(){window.location.href='smm-panel.html';},700);
-  },700);
+  });
 }
 
 // ═══ REGISTER ═══
