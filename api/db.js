@@ -98,14 +98,25 @@ module.exports = async (req, res) => {
       if (!main.ok) return res.status(200).json({ diag: 'POST_READ_MAIN_FAILED', jsonbinStatus: main.status, jsonbinBodyRaw: main.raw });
       const current = main.record;
 
+      // Merge by unique id — this prevents one browser's push from wiping out
+      // records another browser already saved (the old "keep longer array"
+      // approach caused real data loss whenever two browsers each had
+      // similar-sized but different data).
+      function mergeById(currentArr, incomingArr) {
+        var map = {};
+        (currentArr || []).forEach(function (item) { if (item && item.id !== undefined) map[item.id] = item; });
+        (incomingArr || []).forEach(function (item) { if (item && item.id !== undefined) map[item.id] = item; });
+        return Object.keys(map).map(function (k) { return map[k]; });
+      }
+
       if (body.smm_users && Array.isArray(body.smm_users)) {
-        if (body.smm_users.length >= (current.smm_users || []).length) current.smm_users = body.smm_users;
+        current.smm_users = mergeById(current.smm_users, body.smm_users);
       }
       if (body.smm_orders && Array.isArray(body.smm_orders)) {
-        if (body.smm_orders.length >= (current.smm_orders || []).length) current.smm_orders = body.smm_orders;
+        current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
       }
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
-        if (body.smm_tickets.length >= (current.smm_tickets || []).length) current.smm_tickets = body.smm_tickets;
+        current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
       }
       // Payment methods: admin is the single source of truth, always overwrite
       if (body.smm_pm && Array.isArray(body.smm_pm)) {
