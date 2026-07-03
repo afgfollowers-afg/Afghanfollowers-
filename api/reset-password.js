@@ -1,13 +1,6 @@
-// Vercel Serverless Function — Sends a password-reset email via Resend.io
-// Env vars needed: RESEND_API_KEY (and everything db.js already needs)
+// Vercel Serverless Function — Verifies a password-reset token and updates the password
 
 const SITE = 'https://afghanfollowers.online';
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-
-function randomToken() {
-  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
-}
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -15,52 +8,51 @@ module.exports = async (req, res) => {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const email = (body.email || '').trim().toLowerCase();
-    if (!email) return res.status(200).json({ ok: true }); // don't leak validation info
-
-    if (!RESEND_API_KEY) {
-      return res.status(200).json({ ok: false, error: 'Email service not configured (RESEND_API_KEY missing).' });
+    const token = body.token;
+    const newPassword = body.newPassword;
+    if (!token || !newPassword || newPassword.length < 8) {
+      return res.status(200).json({ ok: false, error: 'Invalid request.' });
     }
 
-    // Look up the user
     const dbResp = await fetch(SITE + '/api/db');
     const db = await dbResp.json();
+    const resets = db.smm_resets || [];
+    const entry = resets.find(r => r.token === token);
+
+    if (!entry) return res.status(200).json({ ok: false, error: 'Invalid or already-used reset link.' });
+    if (entry.expires < Date.now()) return res.status(200).json({ ok: false, error: 'Reset link has expired.' });
+
     const users = db.smm_users || [];
-    const user = users.find(u => (u.email || '').toLowerCase() === email);
+    const user = users.find(u => (u.email || '').toLowerCase() === entry.email);
+    if (!user) return res.status(200).json({ ok: false, error: 'Account not found.' });
 
-    // Always respond success (don't reveal whether the email exists) — but only
-    // actually send an email if we found a matching user.
-    if (user) {
-      const token = randomToken();
-      const resets = (db.smm_resets || []).filter(r => r.expires > Date.now()); // drop expired
-      resets.push({ token, email, expires: Date.now() + 60 * 60 * 1000 }); // 1 hour
+    // btoa equivalent in Node (matches the client's btoa(password) scheme)
+    const newHash = Buffer.from(newPassword, 'utf8').toString('base64');
+    user.password = newHash;
 
-      await fetch(SITE + '/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ smm_resets: resets, smm_ts: Date.now() })
-      });
+    const remainingResets = resets.filter(r => r.token !== token && r.expires > Date.now());
 
-      const resetLink = SITE + '/auth.html?reset=' + token;
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + RESEND_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: 'Afghan Followers <' + FROM_EMAIL + '>',
-          to: [email],
-          subject: 'Reset your password',
-          html: '<p>Hi ' + (user.fname || '') + ',</p>'
-            + '<p>Click the link below to reset your password. This link expires in 1 hour.</p>'
-            + '<p><a href="' + resetLink + '">' + resetLink + '</a></p>'
-            + '<p>If you did not request this, you can ignore this email.</p>'
-        })
-      });
-    }
+    const pushResp = await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ smm_users: users, smm_resets: remainingResets, smm_ts: Date.now() })
+    });
+    const pushResult = await pushResp.json();
 
-    return res.status(200).json({ ok: true });
+    // Verify by reading back immediately
+    const verifyResp = await fetch(SITE + '/api/db');
+    const verifyDb = await verifyResp.json();
+    const verifyUser = (verifyDb.smm_users || []).find(u => (u.email || '').toLowerCase() === entry.email);
+
+    return res.status(200).json({
+      ok: true,
+      debug: {
+        userIdFound: user.id,
+        newHashComputed: newHash,
+        pushResult: pushResult,
+        verifyHashAfterPush: verifyUser ? verifyUser.password : 'USER NOT FOUND ON VERIFY'
+      }
+    });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
