@@ -17,6 +17,37 @@ function statusEmoji(status) {
   return map[status] || '❔';
 }
 
+async function createTicket(chatId, username, message) {
+  try {
+    const r = await fetch(SITE + '/api/db');
+    const db = await r.json();
+    const tickets = db.smm_tickets || [];
+    const ticket = {
+      id: 'T' + Date.now(),
+      userId: 'tg_' + chatId,
+      user: username || ('Telegram User ' + chatId),
+      email: '',
+      tgChatId: chatId,
+      subject: 'Telegram Support Request',
+      message: message,
+      msg: message,
+      status: 'open',
+      priority: 'normal',
+      date: new Date().toISOString(),
+      messages: [{ from: 'user', text: message, date: new Date().toLocaleString() }]
+    };
+    tickets.unshift(ticket);
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ smm_tickets: tickets, smm_ts: Date.now() })
+    });
+    return ticket;
+  } catch (e) {
+    return null;
+  }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).send('Method not allowed');
@@ -45,8 +76,34 @@ module.exports = async (req, res) => {
   const lower = text.toLowerCase();
   let reply = '';
 
+  // Ticket creation: "/ticket <message>"
+  const ticketMatch = text.match(/^\/ticket\s+([\s\S]+)$/i);
+  if (ticketMatch) {
+    const msgText = ticketMatch[1].trim();
+    const username = (msg.from && (msg.from.username ? '@' + msg.from.username : msg.from.first_name)) || 'Telegram User';
+    const ticket = await createTicket(chatId, username, msgText);
+    if (ticket) {
+      reply = `✅ <b>تیکت شما ثبت شد!</b>\n\nشماره تیکت: ${ticket.id}\n\nادمین در اسرع وقت پاسخ می‌دهد. برای پیگیری وارد پنل شوید:\n${SITE}`;
+      const token = process.env.TG_BOT_TOKEN;
+      if (token) {
+        try {
+          const cfg = await fetch(SITE + '/api/db').then(r => r.json());
+          const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
+          if (adminChat) {
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: adminChat, text: `🎫 <b>New Ticket ${ticket.id}</b>\nFrom: ${username}\nMessage: ${msgText.slice(0, 300)}`, parse_mode: 'HTML' })
+            });
+          }
+        } catch (e) {}
+      }
+    } else {
+      reply = '❌ خطا در ثبت تیکت. لطفاً دوباره امتحان کنید یا از پنل استفاده کنید.';
+    }
+  }
   // Order status lookup: "/order 12345" or just a bare number
-  const orderMatch = text.match(/^\/order\s+(\d+)$/) || text.match(/^#?(\d{5,})$/);
+  const orderMatch = !ticketMatch && (text.match(/^\/order\s+(\d+)$/) || text.match(/^#?(\d{5,})$/));
   if (orderMatch) {
     const order = await lookupOrder(orderMatch[1]);
     if (order) {
@@ -59,10 +116,12 @@ module.exports = async (req, res) => {
     } else {
       reply = `❌ سفارشی با این شماره پیدا نشد.\n\nبرای مشاهده سفارش‌هایتان وارد پنل شوید:\n${SITE}`;
     }
+  } else if (ticketMatch) {
+    // already handled above
   } else if (text === '/start') {
-    reply = `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/support - پشتیبانی`;
+    reply = `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
-    reply = `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+    reply = `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
     reply = `🔗 <b>لینک پنل</b>\n\n${SITE}\n\nبرای ورود ثبت نام کنید یا لاگین کنید.`;
   } else if (text === '/services' || lower.includes('service') || lower.includes('سرویس')) {
@@ -70,7 +129,7 @@ module.exports = async (req, res) => {
   } else if (lower.includes('order') || lower.includes('سفارش') || lower.includes('وضعیت') || lower.includes('فالور') || lower.includes('follower')) {
     reply = `📦 <b>پیگیری سفارش</b>\n\nبرای دیدن وضعیت سفارش، شماره سفارشتان را برایم بفرستید، مثلاً:\n<code>/order 12345</code>\n\nیا وارد پنل شوید:\n${SITE}`;
   } else if (text === '/support' || lower.includes('support') || lower.includes('پشتیبانی') || lower.includes('problem') || lower.includes('مشکل')) {
-    reply = `🆘 <b>پشتیبانی</b>\n\nبرای رفع مشکل:\n1. وارد پنل شوید\n2. بخش Tickets را باز کنید\n3. تیکت جدید ارسال کنید\n\n🌐 ${SITE}\n\nادمین در اسرع وقت پاسخ می‌دهد.`;
+    reply = `🆘 <b>پشتیبانی</b>\n\nبرای ثبت درخواست پشتیبانی، همینجا برایم بفرستید:\n<code>/ticket پیام شما</code>\n\nمثال:\n<code>/ticket مشکلی با سفارشم دارم</code>\n\nیا وارد پنل شوید و از بخش Tickets استفاده کنید:\n🌐 ${SITE}\n\nادمین در اسرع وقت پاسخ می‌دهد.`;
   } else if (lower.includes('price') || lower.includes('قیمت') || lower.includes('cost') || lower.includes('هزینه')) {
     reply = `💰 <b>قیمت‌ها</b>\n\nقیمت‌ها بر اساس نوع سرویس متفاوت است.\n\n👉 برای مشاهده قیمت دقیق:\n${SITE}\n\nبخش Services را باز کنید.`;
   } else if (lower.includes('payment') || lower.includes('پرداخت') || lower.includes('pay')) {
