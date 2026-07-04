@@ -4363,7 +4363,11 @@ function doAdminLogin(){
   btn.innerHTML='<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>';
   btn.disabled=true;
 
-  setTimeout(function(){
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    if(d&&d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
+      localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
+    }
+  }).catch(function(){}).then(function(){
     var creds=getAdminCreds();
     var ok=(username===creds.username && btoa(password)===creds.password);
 
@@ -4399,7 +4403,7 @@ function doAdminLogin(){
     initDash();
     savePmVisibility();
     toast('Welcome back, '+username+'! 👋','s');
-  }, 600);
+  });
 }
 
 function showAdminLoginAlert(msg){
