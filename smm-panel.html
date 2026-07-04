@@ -3259,6 +3259,13 @@ function pullFromServerOnLoad(){
         var afp=document.getElementById('page-add-funds');
         if(afp&&afp.style.display!=='none') initAddFunds();
       }
+      if(d.smm_providers&&Array.isArray(d.smm_providers)&&d.smm_providers.length){
+        var localProv=localStorage.getItem('smm_providers')||'[]';
+        var newProv=JSON.stringify(d.smm_providers);
+        if(newProv!==localProv){
+          localStorage.setItem('smm_providers',newProv);
+        }
+      }
       if(changed){
         // Refresh session user reference with fresh data
         if(u){
