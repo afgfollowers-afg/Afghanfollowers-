@@ -1756,6 +1756,7 @@ function placeOrder(){
 // ORDERS TABLE
 function renderOrdersTable(){
   var c=document.getElementById('orders-table');
+  if(!c) return; // Not on the My Orders page — nothing to render
   if(!S.orders.length){
     c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No orders yet</div></div>';
     return;
