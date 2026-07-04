@@ -744,6 +744,21 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <div style="font-size:13px;color:var(--muted)">Get help from our team</div>
     </div>
     <div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-title">🤖 دستیار هوشمند (پاسخ فوری)</span></div>
+      <div class="card-body">
+        <div id="ai-chat-log" style="max-height:280px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--tx,#e2e8f0);align-self:flex-start;max-width:85%">
+            👋 سلام! من دستیار هوشمند این پنل هستم. هر سوالی درباره‌ی خرید فالوور، لایک، ویو، سفارش‌ها یا پرداخت داری بپرس!
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input type="text" class="form-input" id="ai-chat-input" placeholder="سوالتون رو بنویسید..." style="flex:1" onkeypress="if(event.key==='Enter')sendAiChat();">
+          <button class="btn btn-primary btn-sm" style="width:auto" onclick="sendAiChat()">ارسال</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">اگه دستیار نتونست کمک کنه، از فرم پایین یه تیکت واقعی برای پشتیبانی بفرستید.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
       <div class="card-body">
         <div class="form-group">
           <label class="form-label">Subject</label>
@@ -1166,6 +1181,55 @@ function openWhatsApp(){
   } else {
     showToast('WhatsApp not configured. Contact admin.','w');
   }
+}
+
+var _aiChatHistory=[];
+function sendAiChat(){
+  var input=document.getElementById('ai-chat-input');
+  var log=document.getElementById('ai-chat-log');
+  if(!input||!log) return;
+  var msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  input.disabled=true;
+
+  var userBubble=document.createElement('div');
+  userBubble.style.cssText='background:var(--acc,#7c5cfc);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
+  userBubble.textContent=msg;
+  log.appendChild(userBubble);
+
+  var typingBubble=document.createElement('div');
+  typingBubble.style.cssText='background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted,#64748b);align-self:flex-start;max-width:85%';
+  typingBubble.textContent='در حال تایپ...';
+  log.appendChild(typingBubble);
+  log.scrollTop=log.scrollHeight;
+
+  fetch('/api/ai-chat',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,history:_aiChatHistory})
+  }).then(function(r){return r.json();}).then(function(d){
+    input.disabled=false;
+    input.focus();
+    typingBubble.remove();
+    var botBubble=document.createElement('div');
+    botBubble.style.cssText='background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--tx,#e2e8f0);align-self:flex-start;max-width:85%;white-space:pre-wrap';
+    if(d.ok&&d.reply){
+      botBubble.textContent=d.reply;
+      _aiChatHistory.push({role:'user',content:msg});
+      _aiChatHistory.push({role:'assistant',content:d.reply});
+    } else {
+      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً از فرم پایین یه تیکت ثبت کنید.';
+    }
+    log.appendChild(botBubble);
+    log.scrollTop=log.scrollHeight;
+  }).catch(function(){
+    input.disabled=false;
+    typingBubble.remove();
+    var errBubble=document.createElement('div');
+    errBubble.style.cssText='background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--rd,#ff5c7d);align-self:flex-start;max-width:85%';
+    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید یا تیکت بزنید.';
+    log.appendChild(errBubble);
+  });
 }
 
 function submitTicket(){
