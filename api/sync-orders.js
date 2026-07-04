@@ -107,7 +107,8 @@ function mapStatus(providerStatus) {
   const s = String(providerStatus).toLowerCase();
   if (s.includes('complet')) return 'completed';
   if (s.includes('partial')) return 'partial';
-  if (s.includes('progress') || s.includes('process')) return 'processing';
+  if (s.includes('in progress')) return 'in_progress';
+  if (s.includes('process')) return 'processing';
   if (s.includes('cancel')) return 'cancelled';
   if (s.includes('refund')) return 'refunded';
   if (s.includes('pending')) return 'pending';
