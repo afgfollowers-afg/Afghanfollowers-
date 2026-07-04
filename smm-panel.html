@@ -1785,6 +1785,18 @@ function placeOrder(){
             var lo=ords.find(function(x){return x.id===order.id;});
             if(lo){lo.provOrderId=d.order;lo.status='processing';localStorage.setItem('smm_orders',JSON.stringify(ords));}
             showToast('✅ Order sent!','s');
+            // After 2 minutes, check the real status with the provider and sync it in
+            setTimeout(function(){
+              fetch('/api/sync-orders').then(function(r){return r.json();}).then(function(){
+                return fetch('/api/db');
+              }).then(function(r){return r.json();}).then(function(dbData){
+                if(dbData&&Array.isArray(dbData.smm_orders)){
+                  localStorage.setItem('smm_orders',JSON.stringify(dbData.smm_orders));
+                  var op=document.getElementById('page-orders');
+                  if(op&&op.classList.contains('active')) renderOrdersList();
+                }
+              }).catch(function(){});
+            },120000);
           } else if(d.error){
             showToast('⚠️ Provider did not accept order: '+d.error,'e');
           }
@@ -1828,7 +1840,8 @@ function renderOrdersTable(){
     c.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-title">No orders yet</div></div>';
     return;
   }
-  var badgeCls={pending:'by',processing:'bp',completed:'bg',failed:'br'};
+  var badgeCls={pending:'by',processing:'bp',in_progress:'bp',completed:'bg',failed:'br',cancelled:'br',refunded:'br',partial:'by'};
+  var statusLabel={in_progress:'In Progress',processing:'Processing',pending:'Pending',completed:'Completed',cancelled:'Cancelled',refunded:'Refunded',partial:'Partial'};
   var rows='';
   for(var i=0;i<S.orders.length;i++){
     var o=S.orders[i];
@@ -1839,7 +1852,7 @@ function renderOrdersTable(){
     rows+='<td style="font-size:12px">'+o.svc+'</td>';
     rows+='<td>'+o.qty.toLocaleString()+'</td>';
     rows+='<td style="color:#00d2a0;font-weight:700">$'+o.cost.toFixed(4)+'</td>';
-    rows+='<td><span class="badge '+(badgeCls[o.status]||'by')+'">'+o.status+'</span></td>';
+    rows+='<td><span class="badge '+(badgeCls[o.status]||'by')+'">'+(statusLabel[o.status]||o.status)+'</span></td>';
     rows+='</tr>';
   }
   c.innerHTML='<table><thead><tr><th>ID</th><th>Platform</th><th>Service</th><th>Qty</th><th>Cost</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -3432,11 +3445,13 @@ function renderOrdersList(){
   
   el.innerHTML=myOrders.map(function(o){
     var status=o.status||'pending';
-    var sc=status==='completed'?'bg':status==='processing'?'bp':status==='failed'?'br':'by';
+    var sc=status==='completed'?'bg':(status==='processing'||status==='in_progress')?'bp':(status==='failed'||status==='cancelled'||status==='refunded')?'br':'by';
+    var statusLabels={in_progress:'In Progress',processing:'Processing',pending:'Pending',completed:'Completed',cancelled:'Cancelled',refunded:'Refunded',partial:'Partial',failed:'Failed'};
+    var statusText=statusLabels[status]||status;
     var cost=parseFloat(o.cost||o.totalCost||0);
     var remain=o.remain!==undefined?o.remain:(status==='completed'?0:o.qty);
     var startCount=o.startCount||o.start_count||0;
-    var canCancel=(status==='pending'||status==='processing')&&(o.cancel!==false);
+    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel!==false);
     var canRefill=status==='completed'&&(o.refill||false);
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
@@ -3444,7 +3459,7 @@ function renderOrdersList(){
       // Header row
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
         +'<div style="font-size:12px;color:var(--muted)">#'+o.id+'</div>'
-        +'<span class="badge '+sc+'">'+status+'</span>'
+        +'<span class="badge '+sc+'">'+statusText+'</span>'
       +'</div>'
       // Service
       +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">'+(o.service||o.svcName||o.svc||'—')+'</div>'
