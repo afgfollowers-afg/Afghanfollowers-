@@ -112,6 +112,11 @@ module.exports = async (req, res) => {
       if (body.smm_users && Array.isArray(body.smm_users)) {
         current.smm_users = mergeById(current.smm_users, body.smm_users);
       }
+      if (body.smm_users_delete_id !== undefined) {
+        current.smm_users = (current.smm_users || []).filter(function (u) {
+          return String(u.id) !== String(body.smm_users_delete_id);
+        });
+      }
       if (body.smm_orders && Array.isArray(body.smm_orders)) {
         current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
       }
@@ -133,6 +138,9 @@ module.exports = async (req, res) => {
       }
       if (body.smm_resets && Array.isArray(body.smm_resets)) {
         current.smm_resets = body.smm_resets;
+      }
+      if (body.smm_tg_bot && typeof body.smm_tg_bot === 'object') {
+        current.smm_tg_bot = body.smm_tg_bot;
       }
       if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
         // Used by the sync-orders cron job to write back updated order statuses
