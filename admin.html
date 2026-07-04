@@ -3376,6 +3376,8 @@ function addBal(){
   var realU=getRealUsers();
   var u=realU.find(function(x){return String(x.id)===String(uid);});
   if(u){
+    var dispNameConfirm=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
+    if(!confirm('Add $'+a+' to '+dispNameConfirm.trim()+'\'s balance?')) return;
     u.balance=parseFloat(((parseFloat(u.balance)||0)+a).toFixed(2));
     if(!u.transactions) u.transactions=[];
     u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
@@ -3401,6 +3403,8 @@ function deductBal(){
   if(!u) return;
   var curBal=parseFloat(u.balance)||0;
   if(curBal<a){toast('Insufficient balance ($'+curBal.toFixed(2)+')','e');return;}
+  var dispNameConfirm2=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
+  if(!confirm('Deduct $'+a+' from '+dispNameConfirm2.trim()+'\'s balance?')) return;
   u.balance=parseFloat((curBal-a).toFixed(2));
   if(!u.transactions) u.transactions=[];
   u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:-a,desc:reason,date:new Date().toISOString(),status:'approved'});
@@ -4317,6 +4321,9 @@ var ADMIN_CREDS_KEY='smm_admin_creds';
       if(d.smm_general&&typeof d.smm_general==='object'){
         localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
       }
+      if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
+        localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
+      }
     }).catch(function(){});
 })();
 
@@ -4668,6 +4675,9 @@ function pullFromServer(){
       }
       if(d.smm_general&&typeof d.smm_general==='object'){
         localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+      }
+      if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
+        localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
       }
       if(changed){
         loadAllRealData();
