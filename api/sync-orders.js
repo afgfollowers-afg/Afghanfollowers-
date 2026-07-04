@@ -33,6 +33,7 @@ module.exports = async (req, res) => {
     let updated = 0;
     const idToOrder = {};
     orders.forEach(o => { idToOrder[o.id] = o; });
+    const debugInfo = [];
 
     for (const provId of Object.keys(byProvider)) {
       let prov = providers.find(p => String(p.id) === String(provId));
@@ -56,11 +57,16 @@ module.exports = async (req, res) => {
         });
         const text = await r.text();
         let data;
-        try { data = JSON.parse(text); } catch (e) { continue; }
+        try { data = JSON.parse(text); } catch (e) {
+          debugInfo.push({ provId, error: 'JSON parse failed', rawText: text.slice(0, 300) });
+          continue;
+        }
+
+        debugInfo.push({ provId, idsParam, rawResponse: data });
 
         // Response can be { "12345": {status,...} } (bulk) or a single object (one order)
         group.forEach(o => {
-          const info = data[o.provOrderId] || (group.length === 1 ? data : null);
+          const info = data[o.provOrderId] || data[String(o.provOrderId)] || (group.length === 1 ? data : null);
           if (!info || info.error) return;
 
           let changed = false;
@@ -79,7 +85,7 @@ module.exports = async (req, res) => {
           if (changed) updated++;
         });
       } catch (e) {
-        // Skip this provider group on error, continue with others
+        debugInfo.push({ provId, error: e.message });
         continue;
       }
     }
@@ -93,7 +99,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ ok: true, checked: pending.length, updated });
+    return res.status(200).json({ ok: true, checked: pending.length, updated, debugInfo });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
