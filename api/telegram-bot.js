@@ -126,6 +126,30 @@ module.exports = async (req, res) => {
     reply = `🔗 <b>لینک پنل</b>\n\n${SITE}\n\nبرای ورود ثبت نام کنید یا لاگین کنید.`;
   } else if (text === '/services' || lower.includes('service') || lower.includes('سرویس')) {
     reply = `📦 <b>سرویس‌های ما</b>\n\n✅ Instagram Followers\n✅ TikTok Likes\n✅ YouTube Views\n✅ Telegram Members\n✅ Facebook Likes\n✅ Twitter Followers\n\n🌐 برای سفارش: ${SITE}`;
+  } else if (lower.includes('ریزش') || lower.includes('drop') || lower.includes('unfollow') || lower.includes('کم میشه') || lower.includes('کم می‌شه')) {
+    reply = `📉 <b>ریزش فالوور/لایک</b>\n\nمقداری ریزش طبیعیه (معمولاً کمتر از ۵٪) چون شبکه‌های اجتماعی مدام حساب‌های فیک رو پاک می‌کنن.\n\n✅ بعضی سرویس‌ها گارانتی "No Refill" یا "Refill 30/60/365 روزه" دارن — یعنی اگه ریزش داشت، رایگان جاش پر میشه.\n\nموقع سفارش، به توضیحات هر سرویس (مثلاً "30 Days Refill ♻️") دقت کنید.`;
+  } else if (lower.includes('امن') || lower.includes('safe') || lower.includes('بن') || lower.includes('ban') || lower.includes('خطر')) {
+    reply = `🔒 <b>امنیت حساب شما</b>\n\nما هیچ‌وقت پسورد یا اطلاعات ورود شما رو نمی‌خوایم. فقط لینک/یوزرنیم عمومی حسابتون کافیه.\n\nسرویس‌های ما به‌صورت تدریجی (Speed کنترل‌شده) تحویل داده میشن تا برای الگوریتم شبکه‌ی اجتماعی طبیعی به‌نظر برسه.\n\n⚠️ فقط باید حسابتون Public (عمومی) باشه، نه Private.`;
+  } else if (lower.includes('خصوصی') || lower.includes('private')) {
+    reply = `🔓 <b>حساب Private</b>\n\nمتأسفانه سرویس‌ها فقط روی حساب‌های **Public (عمومی)** کار می‌کنن.\n\nقبل از سفارش، حسابتون رو موقتاً Public کنید، بعد از تکمیل سفارش می‌تونید دوباره Private کنید.`;
+  } else if (lower.includes('پسورد') || lower.includes('password') || lower.includes('رمز عبور حساب')) {
+    reply = `🔑 <b>پسورد لازم نیست</b>\n\nما هیچ‌وقت پسورد اینستاگرام/تیک‌تاک/یوتیوب شما رو نمی‌خوایم!\n\nفقط لینک پست یا یوزرنیم عمومی حسابتون کافیه.`;
+  } else if (lower.includes('چند وقت') || lower.includes('چقدر طول') || lower.includes('چه مدت') || lower.includes('how long') || lower.includes('delivery time')) {
+    reply = `⏱ <b>زمان تحویل</b>\n\nاکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت شروع میشن (Instant Start).\n\nسرعت کامل شدن بستگی به نوع سرویس داره — جزئیاتش (مثلاً "Day 100K 🚀") تو توضیحات هر سرویس نوشته شده.\n\nبرای پیگیری دقیق: <code>/order [شماره سفارش]</code>`;
+  } else if (lower.includes('واقعی') || lower.includes('ربات') || lower.includes('real') || lower.includes('bot account') || lower.includes('فیک')) {
+    reply = `👥 <b>فالوور واقعی یا ربات؟</b>\n\nما هر دو نوع سرویس داریم:\n✅ High Quality / Real Accounts — کیفیت بالاتر، ریزش کمتر، گرون‌تر\n✅ سرویس‌های اقتصادی — ارزون‌تر، مناسب افزایش عدد سریع\n\nتوضیحات هر سرویس (مثلاً "100% Real Accounts") دقیقاً مشخص می‌کنه چه نوعیه.`;
+  } else if (lower.includes('حداقل') || lower.includes('حداکثر') || lower.includes('minimum') || lower.includes('maximum') || lower.includes('min order') || lower.includes('max order')) {
+    reply = `🔢 <b>حداقل و حداکثر سفارش</b>\n\nهر سرویس محدودیت خودش رو داره (مثلاً حداقل ۱۰۰، حداکثر ۱ میلیون).\n\nاین اطلاعات موقع انتخاب سرویس تو پنل نمایش داده میشه.`;
+  } else if (lower.includes('بازگشت وجه') || lower.includes('refund') || lower.includes('پس بگیرم') || lower.includes('پول برگرد')) {
+    reply = `💸 <b>بازگشت وجه</b>\n\nاگه سفارشی ناقص یا انجام‌نشده باقی بمونه، مبلغش به کیف پول حسابتون برمی‌گرده یا سفارش جایگزین می‌گیرید.\n\nبرای درخواست بازگشت وجه، لطفاً تیکت بزنید:\n<code>/ticket توضیح مشکل شما</code>`;
+  } else if (lower.includes('گارانتی') || lower.includes('warranty') || lower.includes('guarantee')) {
+    reply = `✅ <b>گارانتی سرویس‌ها</b>\n\nبیشتر سرویس‌ها گارانتی Refill دارن (۳۰/۶۰/۹۰/۳۶۵ روزه یا مادام‌العمر ♻️) — یعنی اگه ریزش کرد، رایگان جبران میشه.\n\nنوع گارانتی هر سرویس تو توضیحاتش مشخصه.`;
+  } else if (lower.includes('یوتیوب') || lower.includes('youtube')) {
+    reply = `▶️ <b>YouTube Services</b>\n\n✅ Views\n✅ Likes\n✅ Subscribers\n✅ Comments\n\n🌐 ${SITE}`;
+  } else if (lower.includes('فیسبوک') || lower.includes('facebook')) {
+    reply = `👍 <b>Facebook Services</b>\n\n✅ Page/Profile Followers\n✅ Post Likes & Reactions\n✅ Comments\n\n🌐 ${SITE}`;
+  } else if (lower.includes('توییتر') || lower.includes('تویتر') || lower.includes('twitter') || lower.includes(' x ')) {
+    reply = `🐦 <b>Twitter/X Services</b>\n\n✅ Followers\n✅ Tweet Views\n✅ Likes & Retweets\n\n🌐 ${SITE}`;
   } else if (lower.includes('order') || lower.includes('سفارش') || lower.includes('وضعیت') || lower.includes('فالور') || lower.includes('follower')) {
     reply = `📦 <b>پیگیری سفارش</b>\n\nبرای دیدن وضعیت سفارش، شماره سفارشتان را برایم بفرستید، مثلاً:\n<code>/order 12345</code>\n\nیا وارد پنل شوید:\n${SITE}`;
   } else if (text === '/support' || lower.includes('support') || lower.includes('پشتیبانی') || lower.includes('problem') || lower.includes('مشکل')) {
