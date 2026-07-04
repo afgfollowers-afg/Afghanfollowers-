@@ -3320,8 +3320,35 @@ function rWallets(list){
   h+='</tbody></table>';
   document.getElementById('wallets-tbl').innerHTML=h;
 }
-function qAdd(id){var a=parseFloat(prompt('Add amount ($):','10'));if(!a||isNaN(a))return;var u=users.find(function(x){return x.id===id;});if(u){u.balance+=a;rWallets(users);toast('$'+a+' added to '+u.name,'s');}}
-function qDed(id){var a=parseFloat(prompt('Deduct ($):','5'));if(!a||isNaN(a))return;var u=users.find(function(x){return x.id===id;});if(u&&u.balance>=a){u.balance-=a;rWallets(users);toast('$'+a+' deducted','w');}else toast('Insufficient balance','e');}
+function qAdd(id){
+  var a=parseFloat(prompt('Add amount ($):','10'));
+  if(!a||isNaN(a))return;
+  var realU=getRealUsers();
+  var u=realU.find(function(x){return String(x.id)===String(id);});
+  if(u){
+    u.balance=parseFloat(((parseFloat(u.balance)||0)+a).toFixed(2));
+    localStorage.setItem('smm_users',JSON.stringify(realU));
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
+    rWallets(realU);
+    toast('$'+a+' added to '+dispName.trim(),'s');
+  }
+}
+function qDed(id){
+  var a=parseFloat(prompt('Deduct ($):','5'));
+  if(!a||isNaN(a))return;
+  var realU=getRealUsers();
+  var u=realU.find(function(x){return String(x.id)===String(id);});
+  if(u&&(parseFloat(u.balance)||0)>=a){
+    u.balance=parseFloat(((parseFloat(u.balance)||0)-a).toFixed(2));
+    localStorage.setItem('smm_users',JSON.stringify(realU));
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    rWallets(realU);
+    toast('$'+a+' deducted','w');
+  } else toast('Insufficient balance','e');
+}
 function addBal(){
   var uid=document.getElementById('bal-usr').value;
   var a=parseFloat(document.getElementById('bal-amt').value);
@@ -4606,6 +4633,7 @@ function pullFromServer(){
           if(pgId==='pg-users') rUsers(getRealUsers());
           else if(pgId==='pg-payments') rPayReqs(getRealPayments());
           else if(pgId==='pg-orders') rOrders(getRealOrders());
+          else if(pgId==='pg-wallets') rWallets(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
         }
         updateDashStats();
