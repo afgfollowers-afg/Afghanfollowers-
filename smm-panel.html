@@ -3304,16 +3304,11 @@ window.addEventListener('storage',function(e){
 
 // ══ TELEGRAM NOTIFY FROM PANEL ══
 function tgPanelSend(text){
-  try{
-    var cfg={};
-    try{cfg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');}catch(e){}
-    if(!cfg.token||!cfg.chatId) return;
-    fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:cfg.chatId,text:text,parse_mode:'HTML'})
-    }).catch(function(){});
-  }catch(e){}
+  fetch('/api/notify-telegram',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:text})
+  }).catch(function(){});
 }
 
 
