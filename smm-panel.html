@@ -1363,7 +1363,10 @@ function navTo(page){
   if(page==='new-order'){rebuildServiceMaps();renderCategoryList();}
   if(page==='add-funds'){initAddFunds();}
   if(page==='profile') initProfile();
-  if(page==='orders') renderOrdersList();
+  if(page==='orders'){
+    renderOrdersList();
+    refreshOrderStatusesLive();
+  }
   if(page==='tickets'){loadTgBotLink();renderTicketsList();}
 }
 function openDrawer(){document.getElementById('drawer').classList.add('open');document.getElementById('overlay').classList.add('open');}
@@ -3382,6 +3385,22 @@ function tgPanelSend(text){
   }).catch(function(){});
 }
 
+
+function refreshOrderStatusesLive(){
+  var badge=document.getElementById('orders-refresh-badge');
+  if(badge) badge.style.display='inline-block';
+  fetch('/api/sync-orders').then(function(r){return r.json();}).then(function(d){
+    return fetch('/api/db');
+  }).then(function(r){return r.json();}).then(function(dbData){
+    if(dbData&&Array.isArray(dbData.smm_orders)){
+      localStorage.setItem('smm_orders',JSON.stringify(dbData.smm_orders));
+    }
+    if(badge) badge.style.display='none';
+    renderOrdersList();
+  }).catch(function(){
+    if(badge) badge.style.display='none';
+  });
+}
 
 function renderOrdersList(){
   var el=document.getElementById('orders-cards-list');
