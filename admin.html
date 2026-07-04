@@ -4706,7 +4706,7 @@ function pushToServer(){
     body:JSON.stringify({smm_users:users,smm_orders:orders,smm_ts:Date.now()})
   }).catch(function(){});
 }
-setInterval(pullFromServer,3000);
+setInterval(pullFromServer,30000);
 setTimeout(pullFromServer,500);
 
 </script>
