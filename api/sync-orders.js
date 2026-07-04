@@ -41,33 +41,31 @@ module.exports = async (req, res) => {
       if (!prov || !prov.url || !prov.key) continue;
 
       const group = byProvider[provId];
-      const idsParam = group.map(o => o.provOrderId).join(',');
 
-      try {
-        const formData = new URLSearchParams();
-        formData.append('key', prov.key);
-        formData.append('action', 'status');
-        formData.append('orders', idsParam); // bulk param name used by most panels
-        formData.append('order', idsParam);  // some panels expect singular even for bulk
+      // Check each order individually — this provider does not reliably
+      // support bulk/comma-separated status requests.
+      for (const o of group) {
+        try {
+          const formData = new URLSearchParams();
+          formData.append('key', prov.key);
+          formData.append('action', 'status');
+          formData.append('order', String(o.provOrderId));
 
-        const r = await fetch(prov.url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: formData.toString()
-        });
-        const text = await r.text();
-        let data;
-        try { data = JSON.parse(text); } catch (e) {
-          debugInfo.push({ provId, error: 'JSON parse failed', rawText: text.slice(0, 300) });
-          continue;
-        }
+          const r = await fetch(prov.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+          });
+          const text = await r.text();
+          let info;
+          try { info = JSON.parse(text); } catch (e) {
+            debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: 'JSON parse failed', rawText: text.slice(0, 200) });
+            continue;
+          }
 
-        debugInfo.push({ provId, idsParam, rawResponse: data });
+          debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, rawResponse: info });
 
-        // Response can be { "12345": {status,...} } (bulk) or a single object (one order)
-        group.forEach(o => {
-          const info = data[o.provOrderId] || data[String(o.provOrderId)] || (group.length === 1 ? data : null);
-          if (!info || info.error) return;
+          if (!info || info.error) continue;
 
           let changed = false;
           if (info.status) {
@@ -83,10 +81,10 @@ module.exports = async (req, res) => {
             if (!isNaN(startNum) && startNum !== o.startCount) { o.startCount = startNum; changed = true; }
           }
           if (changed) updated++;
-        });
-      } catch (e) {
-        debugInfo.push({ provId, error: e.message });
-        continue;
+        } catch (e) {
+          debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: e.message });
+          continue;
+        }
       }
     }
 
