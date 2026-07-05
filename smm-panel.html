@@ -117,11 +117,16 @@ svg.icon{display:inline-block;vertical-align:middle;}
 .page.active{display:block;}
 
 /* ══════════════════════════════
-   ANNOUNCEMENT FEED (mini blog — multiple dated posts, always visible)
+   ANNOUNCEMENT FEED (mini blog, collapsible dropdown — collapsed by default)
 ══════════════════════════════ */
 .ann-feed{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;}
-.ann-feed-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--white);}
-.ann-feed-list{max-height:340px;overflow-y:auto;}
+.ann-feed-head{display:flex;align-items:center;gap:8px;padding:12px 14px;font-size:13px;font-weight:700;color:var(--white);cursor:pointer;user-select:none;}
+.ann-feed-count{background:var(--accent);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;}
+.ann-feed-arrow{margin-left:auto;font-size:11px;color:var(--muted);transition:transform .25s;}
+.ann-feed.open .ann-feed-arrow{transform:rotate(180deg);}
+.ann-feed.open .ann-feed-head{border-bottom:1px solid var(--border);}
+.ann-feed-list{max-height:0;overflow-y:auto;transition:max-height .3s ease;}
+.ann-feed.open .ann-feed-list{max-height:340px;}
 .ann-post{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
 .ann-post:last-child{border-bottom:none;}
 .ann-post-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;}
@@ -1168,10 +1173,16 @@ function renderAnnouncements(){
       +'<div class="ann-post-msg">'+escHtml(a.msg)+'</div>'
       +'</div></div>';
   }).join('');
-  wrap.innerHTML='<div class="ann-feed">'
-    +'<div class="ann-feed-head">📢 Announcements</div>'
+  wrap.innerHTML='<div class="ann-feed" id="ann-feed">'
+    +'<div class="ann-feed-head" onclick="toggleAnnFeed()">📢 Announcements'
+    +'<span class="ann-feed-count">'+active.length+'</span>'
+    +'<span class="ann-feed-arrow">▼</span></div>'
     +'<div class="ann-feed-list">'+posts+'</div>'
     +'</div>';
+}
+function toggleAnnFeed(){
+  var el=document.getElementById('ann-feed');
+  if(el) el.classList.toggle('open');
 }
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 (function pullAnnouncementsEarly(){
