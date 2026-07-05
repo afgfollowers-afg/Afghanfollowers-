@@ -102,6 +102,10 @@ tr:hover td{background:rgba(22,27,40,.6);}
 select.fi{cursor:pointer;}
 textarea.fi{resize:vertical;min-height:75px;}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.qi-cat-chip{cursor:pointer;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid var(--bd);background:var(--s2);color:var(--mt);white-space:nowrap;transition:all .15s;}
+.qi-cat-chip:hover{border-color:var(--acc);}
+.qi-cat-chip.qi-cat-chip-full{border-color:var(--acc);background:rgba(124,92,252,.15);color:var(--acc2);}
+.qi-cat-chip.qi-cat-chip-partial{border-color:var(--gr);color:var(--gr);}
 .full{grid-column:1/-1;}
 
 /* TOGGLE */
@@ -392,6 +396,12 @@ textarea.fi{resize:vertical;min-height:75px;}
             <label class="fl">Search</label>
             <input class="fi" id="qi-search" placeholder="Search services..." style="padding:8px 10px;font-size:13px" oninput="qiFilter()">
           </div>
+        </div>
+
+        <!-- Row 1b: Select whole categories at once -->
+        <div style="margin-bottom:10px" id="qi-cat-chips-wrap">
+          <label class="fl" style="margin-bottom:5px">Select by Category <span style="font-weight:400;color:var(--mt);text-transform:none">— click a category to select/deselect all its services</span></label>
+          <div id="qi-cat-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
 
         <!-- Row 2: Price + Category settings -->
@@ -2371,6 +2381,7 @@ function qiLoadServices(){
   qiUpdatePreview();
   if(p.services&&p.services.length){
     qiBuildCatFilter(p.services);
+    qiBuildCatChips(p.services);
     qiRender(p.services,provId);
     return;
   }
@@ -2395,6 +2406,7 @@ function qiLoadServices(){
       var opt=document.querySelector('#qi-provider option[value="'+provId+'"]');
       if(opt) opt.textContent=p.name+' ('+data.length+' services)';
       qiBuildCatFilter(data);
+      qiBuildCatChips(data);
       qiRender(data,provId);
       toast('✅ Loaded '+data.length+' services (in memory)','s');
     })
@@ -2416,6 +2428,70 @@ function qiBuildCatFilter(services){
   Object.keys(catCounts).sort().forEach(function(c){
     sel.innerHTML+='<option value="'+c+'"'+(cur===c?' selected':'')+'>'+c+' ('+catCounts[c]+')</option>';
   });
+}
+
+function qiEsc(s){
+  var d=document.createElement('div');
+  d.textContent=String(s);
+  return d.innerHTML;
+}
+
+// Services from this category that aren't already sitting in the live catalog
+function qiImportableInCat(services,cat){
+  var existing=JSON.parse(localStorage.getItem(SVC_KEY)||'[]');
+  var existingIds=new Set(existing.map(function(s){return s.svcId?String(s.svcId):null;}).filter(Boolean));
+  return services.filter(function(s){
+    return (s.category||'Other')===cat && !existingIds.has(String(s.service||s.id||''));
+  });
+}
+
+function qiBuildCatChips(services){
+  var wrap=document.getElementById('qi-cat-chips');
+  if(!wrap) return;
+  var cats={};
+  services.forEach(function(s){cats[s.category||'Other']=true;});
+  wrap.innerHTML=Object.keys(cats).sort().map(function(c){
+    return '<div class="qi-cat-chip" data-cat="'+qiEsc(c)+'" onclick="qiToggleCatChip(this)">'+qiEsc(c)+' <span class="qi-cat-chip-cnt"></span></div>';
+  }).join('');
+  qiRefreshCatChips();
+}
+
+// Re-paint chip selected/partial state + counts from the current _qiSelected set
+function qiRefreshCatChips(){
+  var provId=parseInt(document.getElementById('qi-provider').value);
+  var p=provs.find(function(x){return x.id===provId;});
+  if(!p||!p.services) return;
+  document.querySelectorAll('.qi-cat-chip').forEach(function(chip){
+    var cat=chip.dataset.cat;
+    var importable=qiImportableInCat(p.services,cat);
+    var selCount=importable.filter(function(s){return _qiSelected.has(String(s.service||s.id||''));}).length;
+    var cntEl=chip.querySelector('.qi-cat-chip-cnt');
+    if(cntEl) cntEl.textContent='('+selCount+'/'+importable.length+')';
+    chip.classList.remove('qi-cat-chip-full','qi-cat-chip-partial');
+    if(importable.length>0&&selCount===importable.length) chip.classList.add('qi-cat-chip-full');
+    else if(selCount>0) chip.classList.add('qi-cat-chip-partial');
+  });
+}
+
+// Clicking a category chip selects (or deselects, if already fully selected)
+// every importable service in that category — regardless of the current
+// search/category filter — so you don't have to filter+select-all by hand.
+function qiToggleCatChip(el){
+  var cat=el.dataset.cat;
+  var provId=parseInt(document.getElementById('qi-provider').value);
+  var p=provs.find(function(x){return x.id===provId;});
+  if(!p||!p.services) return;
+  var importable=qiImportableInCat(p.services,cat);
+  if(!importable.length){toast('No importable services in "'+cat+'"','w');return;}
+  var ids=importable.map(function(s){return String(s.service||s.id||'');});
+  var allSelected=ids.every(function(id){return _qiSelected.has(id);});
+  ids.forEach(function(id){
+    if(allSelected) _qiSelected.delete(id);
+    else _qiSelected.add(id);
+  });
+  qiFilter(); // re-render the (possibly filtered) table so checkboxes reflect the change
+  qiRefreshCatChips();
+  toast((allSelected?'Deselected all in "':'Selected all in "')+cat+'" ('+ids.length+')','s');
 }
 
 function qiFilter(){
@@ -2505,6 +2581,7 @@ function qiToggleCb(cb){
   if(cb.checked) _qiSelected.add(String(id));
   else _qiSelected.delete(String(id));
   updateQiCount();
+  qiRefreshCatChips();
 }
 
 function qiSelectAllVisible(checked){
@@ -2519,6 +2596,7 @@ function qiSelectAllVisible(checked){
   var allCb=document.getElementById('qi-all-cb');
   if(allCb) allCb.checked=checked;
   updateQiCount();
+  qiRefreshCatChips();
   toast(checked?'✅ '+_qiSelected.size+' services selected':'Selection cleared','s');
 }
 
