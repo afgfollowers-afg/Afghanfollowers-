@@ -117,17 +117,21 @@ svg.icon{display:inline-block;vertical-align:middle;}
 .page.active{display:block;}
 
 /* ══════════════════════════════
-   ANNOUNCEMENT BANNERS
+   ANNOUNCEMENT FEED (mini blog — multiple dated posts, always visible)
 ══════════════════════════════ */
-.ann-banner{position:relative;display:flex;gap:10px;align-items:flex-start;padding:12px 36px 12px 14px;border-radius:12px;margin-bottom:12px;border:1px solid;animation:svcPop .25s ease both;}
-.ann-banner-title{font-weight:700;font-size:13px;margin-bottom:2px;}
-.ann-banner-msg{font-size:12px;line-height:1.4;opacity:.9;}
-.ann-banner-close{position:absolute;top:10px;right:10px;cursor:pointer;font-size:15px;opacity:.6;line-height:1;background:none;border:none;color:inherit;padding:4px;}
-.ann-banner-close:hover{opacity:1;}
-.ann-info{background:color-mix(in srgb,var(--accent) 12%,transparent);border-color:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent2);}
-.ann-success{background:rgba(0,210,160,.1);border-color:rgba(0,210,160,.3);color:var(--green);}
-.ann-warning{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:var(--yellow);}
-.ann-danger{background:rgba(255,92,125,.1);border-color:rgba(255,92,125,.3);color:var(--red);}
+.ann-feed{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;}
+.ann-feed-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--white);}
+.ann-feed-list{max-height:340px;overflow-y:auto;}
+.ann-post{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.ann-post:last-child{border-bottom:none;}
+.ann-post-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+.ann-post-title{font-weight:700;font-size:13px;color:var(--white);margin-bottom:2px;}
+.ann-post-date{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.ann-post-msg{font-size:12px;line-height:1.5;color:var(--text);}
+.ann-info .ann-post-dot,.ann-dot-info{background:var(--accent);}
+.ann-success .ann-post-dot,.ann-dot-success{background:var(--green);}
+.ann-warning .ann-post-dot,.ann-dot-warning{background:var(--yellow);}
+.ann-danger .ann-post-dot,.ann-dot-danger{background:var(--red);}
 
 /* ══════════════════════════════
    SOCIAL ICONS
@@ -1143,30 +1147,31 @@ var _currentUser=null;
   }
 })();
 
-// ── ANNOUNCEMENTS ──
-var ANN_DISMISSED_KEY='smm_ann_dismissed';
+// ── ANNOUNCEMENTS (mini blog feed — every active post shown, newest first) ──
+var ANN_FEED_LIMIT=10;
 function renderAnnouncements(){
   var wrap=document.getElementById('ann-banners');
   if(!wrap) return;
   var list=[];try{list=JSON.parse(localStorage.getItem('smm_announcements')||'[]');}catch(e){}
-  var dismissed={};try{dismissed=JSON.parse(localStorage.getItem(ANN_DISMISSED_KEY)||'{}');}catch(e){}
-  var active=list.filter(function(a){return a.active&&!dismissed[a.id];});
+  var active=list.filter(function(a){return a.active;})
+    .sort(function(x,y){return new Date(y.createdAt||0)-new Date(x.createdAt||0);})
+    .slice(0,ANN_FEED_LIMIT);
   if(!active.length){wrap.innerHTML='';return;}
-  wrap.innerHTML=active.map(function(a){
+  var posts=active.map(function(a){
     var type=['info','success','warning','danger'].indexOf(a.type)>-1?a.type:'info';
-    var icon={info:'ℹ️',success:'✅',warning:'⚠️',danger:'🚨'}[type];
-    return '<div class="ann-banner ann-'+type+'">'
-      +'<span style="font-size:18px;line-height:1">'+icon+'</span>'
-      +'<div><div class="ann-banner-title">'+escHtml(a.title)+'</div><div class="ann-banner-msg">'+escHtml(a.msg)+'</div></div>'
-      +'<button class="ann-banner-close" data-id="'+escHtml(String(a.id))+'" onclick="dismissAnnouncement(this.dataset.id)" title="Dismiss">✕</button>'
-      +'</div>';
+    var dateStr=a.createdAt?new Date(a.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+    return '<div class="ann-post">'
+      +'<div class="ann-post-dot ann-dot-'+type+'"></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="ann-post-title">'+escHtml(a.title)+'</div>'
+      +(dateStr?'<div class="ann-post-date">'+dateStr+'</div>':'')
+      +'<div class="ann-post-msg">'+escHtml(a.msg)+'</div>'
+      +'</div></div>';
   }).join('');
-}
-function dismissAnnouncement(id){
-  var dismissed={};try{dismissed=JSON.parse(localStorage.getItem(ANN_DISMISSED_KEY)||'{}');}catch(e){}
-  dismissed[id]=true;
-  localStorage.setItem(ANN_DISMISSED_KEY,JSON.stringify(dismissed));
-  renderAnnouncements();
+  wrap.innerHTML='<div class="ann-feed">'
+    +'<div class="ann-feed-head">📢 Announcements</div>'
+    +'<div class="ann-feed-list">'+posts+'</div>'
+    +'</div>';
 }
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 (function pullAnnouncementsEarly(){
