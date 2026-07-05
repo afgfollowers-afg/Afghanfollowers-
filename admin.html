@@ -389,6 +389,14 @@ textarea.fi{resize:vertical;min-height:75px;}
           </select>
         </div>
 
+        <!-- Row 1b: Search — filters the checkbox table below, so you can tick
+             several matching services at once (not limited to one category). -->
+        <div class="fg" style="position:relative">
+          <label class="fl">Search</label>
+          <input class="fi" id="qi-search" placeholder="Search services by name…" style="padding:8px 32px 8px 10px;font-size:13px" oninput="qiFilter()">
+          <span onclick="qiSearchClear()" title="Clear" style="position:absolute;right:10px;top:31px;cursor:pointer;color:var(--mt);font-size:13px;line-height:1">✕</span>
+        </div>
+
         <!-- Row 2: Category dropdown + Select button -->
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-end">
           <div style="flex:1;min-width:160px">
@@ -411,12 +419,11 @@ textarea.fi{resize:vertical;min-height:75px;}
           <button class="btn btn-p" style="padding:8px 16px;font-size:13px" onclick="qiSelectServiceDD()">Select</button>
         </div>
 
-        <!-- Kept in the DOM (hidden) — qiFilter()/qiRender() still read these two;
-             the Category dropdown above drives them programmatically. -->
+        <!-- Kept in the DOM (hidden) — qiFilter() still reads this; the
+             Category dropdown above drives it programmatically. -->
         <select class="fi" id="qi-cat-filter" onchange="qiFilter()" style="display:none">
           <option value="">All Categories</option>
         </select>
-        <input class="fi" id="qi-search" style="display:none">
 
         <!-- Row 2: Price + Category settings -->
         <div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
@@ -2532,6 +2539,11 @@ function qiSelectServiceDD(){
   qiFilter();
   var svcName=document.querySelector('#qi-svc-dd option[value="'+svcId+'"]');
   toast('✅ Selected '+(svcName?svcName.textContent:'service'),'s');
+}
+
+function qiSearchClear(){
+  document.getElementById('qi-search').value='';
+  qiFilter();
 }
 
 function qiFilter(){
