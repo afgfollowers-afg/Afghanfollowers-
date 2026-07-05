@@ -2431,12 +2431,13 @@ function qiEsc(s){
   return d.innerHTML;
 }
 
-// Services from this category that aren't already sitting in the live catalog
+// Services in this category (or, if cat is '', across ALL categories) that
+// aren't already sitting in the live catalog.
 function qiImportableInCat(services,cat){
   var existing=JSON.parse(localStorage.getItem(SVC_KEY)||'[]');
   var existingIds=new Set(existing.map(function(s){return s.svcId?String(s.svcId):null;}).filter(Boolean));
   return services.filter(function(s){
-    return (s.category||'Other')===cat && !existingIds.has(String(s.service||s.id||''));
+    return (!cat||(s.category||'Other')===cat) && !existingIds.has(String(s.service||s.id||''));
   });
 }
 
@@ -2447,7 +2448,7 @@ function qiPopulateCatDd(services){
   var cur=sel.value;
   var catCounts={};
   services.forEach(function(s){var c=s.category||'Other';catCounts[c]=(catCounts[c]||0)+1;});
-  sel.innerHTML='<option value="">— Select Category —</option>';
+  sel.innerHTML='<option value="">— All Categories ('+services.length+') —</option>';
   Object.keys(catCounts).sort().forEach(function(c){
     sel.innerHTML+='<option value="'+qiEsc(c)+'"'+(cur===c?' selected':'')+'>'+qiEsc(c)+' ('+catCounts[c]+')</option>';
   });
@@ -2455,8 +2456,8 @@ function qiPopulateCatDd(services){
 }
 
 // When the Category dropdown changes: (1) narrow the table below to that
-// category so you can see what's in it, (2) fill the Service dropdown with
-// just that category's services.
+// category (or show everything, if "All Categories" is chosen), (2) fill
+// the Service dropdown with that same set of services.
 function qiCatDdChange(){
   var cat=document.getElementById('qi-cat-dd').value;
   document.getElementById('qi-cat-filter').value=cat;
@@ -2467,26 +2468,29 @@ function qiCatDdChange(){
   var svcSel=document.getElementById('qi-svc-dd');
   if(!svcSel) return;
   svcSel.innerHTML='<option value="">— Select Service —</option>';
-  if(!p||!p.services||!cat) return;
-  p.services.filter(function(s){return (s.category||'Other')===cat;}).forEach(function(s){
+  if(!p||!p.services) return;
+  var list=cat?p.services.filter(function(s){return (s.category||'Other')===cat;}):p.services;
+  list.forEach(function(s){
     var svcId=String(s.service||s.id||'');
-    svcSel.innerHTML+='<option value="'+qiEsc(svcId)+'">'+qiEsc(s.name)+'</option>';
+    var label=cat?s.name:(s.name+' ('+(s.category||'Other')+')');
+    svcSel.innerHTML+='<option value="'+qiEsc(svcId)+'">'+qiEsc(label)+'</option>';
   });
 }
 
 // "Select" next to Category: add every importable service in the chosen
-// category to the selection in one click.
+// category (or, if "All Categories" is chosen, every importable service
+// from the provider) to the selection in one click.
 function qiSelectCategoryDD(){
   var cat=document.getElementById('qi-cat-dd').value;
-  if(!cat){toast('Choose a category first','w');return;}
   var provId=parseInt(document.getElementById('qi-provider').value);
   var p=provs.find(function(x){return x.id===provId;});
   if(!p||!p.services) return;
   var importable=qiImportableInCat(p.services,cat);
-  if(!importable.length){toast('No importable services in "'+cat+'"','w');return;}
+  var label=cat||'All Categories';
+  if(!importable.length){toast('No importable services in "'+label+'"','w');return;}
   importable.forEach(function(s){_qiSelected.add(String(s.service||s.id||''));});
   qiFilter();
-  toast('✅ Selected all in "'+cat+'" ('+importable.length+')','s');
+  toast('✅ Selected all in "'+label+'" ('+importable.length+')','s');
 }
 
 // "Select" next to Service: add just the one chosen service.
