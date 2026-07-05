@@ -541,6 +541,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <div class="set-mi" onclick="setSec('integrations',this)">Integrations</div>
           <div class="set-mi" onclick="setSec('bonuses',this)">Bonuses</div>
           <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
+          <div class="set-mi" onclick="setSec('announcements',this)">📢 Announcements</div>
           <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
           <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
           <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
@@ -642,6 +643,13 @@ textarea.fi{resize:vertical;min-height:75px;}
           <div class="set-pnl" id="sp-coupons">
             <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-coupon')">Add Coupon +</button>
             <div class="tw" id="cup-tbl"></div>
+          </div>
+
+          <!-- ANNOUNCEMENTS -->
+          <div class="set-pnl" id="sp-announcements">
+            <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Shown as a dismissible banner at the top of the customer panel. Each customer only sees a given announcement until they close it.</div>
+            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-ann')">Add Announcement +</button>
+            <div class="tw" id="ann-tbl"></div>
           </div>
 
           <!-- EMAIL -->
@@ -975,6 +983,22 @@ textarea.fi{resize:vertical;min-height:75px;}
     </div>
   </div>
   <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-coupon')">Cancel</button><button class="btn btn-p" onclick="addCoupon()">Save</button></div>
+</div></div>
+
+<!-- Add Announcement -->
+<div class="mo" id="m-add-ann"><div class="md">
+  <div class="md-h"><div class="md-t">Add Announcement</div><div class="md-x" onclick="cm('m-add-ann')">✕</div></div>
+  <div class="md-b">
+    <div class="fg"><label class="fl">Title</label><input class="fi" id="an-title" placeholder="🎉 New Year Sale!"></div>
+    <div class="fg"><label class="fl">Message</label><textarea class="fi" id="an-msg" rows="3" placeholder="Get 20% off all Instagram services this week only."></textarea></div>
+    <div class="fg"><label class="fl">Type</label><select class="fi" id="an-type">
+      <option value="info">ℹ️ Info (blue)</option>
+      <option value="success">✅ Success (green)</option>
+      <option value="warning">⚠️ Warning (yellow)</option>
+      <option value="danger">🚨 Danger (red)</option>
+    </select></div>
+  </div>
+  <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-ann')">Cancel</button><button class="btn btn-p" onclick="addAnnouncement()">Save</button></div>
 </div></div>
 
 <!-- Ticket Reply -->
@@ -3839,6 +3863,7 @@ function setSec(id, el){
   if(id==='integrations') rIntg();
   if(id==='bonuses') rBonuses();
   if(id==='coupons') rCoupons();
+  if(id==='announcements') rAnnouncements();
   if(id==='email') rEmail();
   if(id==='signup') rSignup();
   if(id==='security') rSecurity();
@@ -4426,11 +4451,18 @@ function saveSignup(){
 }
 var BON_KEY='smm_bonuses';
 var CUP_KEY='smm_coupons';
+var ANN_KEY='smm_announcements';
 
 function getBonuses(){try{var d=localStorage.getItem(BON_KEY);if(d)return JSON.parse(d);}catch(e){}return bonuses;}
 function saveBonuses(b){localStorage.setItem(BON_KEY,JSON.stringify(b));bonuses=b;}
 function getCoupons(){try{var d=localStorage.getItem(CUP_KEY);if(d)return JSON.parse(d);}catch(e){}return coupons;}
 function saveCoupons(c){localStorage.setItem(CUP_KEY,JSON.stringify(c));coupons=c;}
+function getAnnouncements(){try{var d=localStorage.getItem(ANN_KEY);if(d)return JSON.parse(d);}catch(e){}return [];}
+function saveAnnouncements(list){
+  localStorage.setItem(ANN_KEY,JSON.stringify(list));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_announcements:list,smm_ts:Date.now()})}).catch(function(){});
+}
 
 // Load saved data on init
 (function(){
@@ -4494,6 +4526,33 @@ function addCoupon(){
   list.push({id:Date.now(),code:code,disc:v,type:document.getElementById('cp-type').value,uses:0,max:parseInt(document.getElementById('cp-max').value)||100,exp:document.getElementById('cp-exp').value||'2099-12-31',active:true});
   saveCoupons(list);rCoupons();cm('m-add-coupon');toast('Coupon created!','s');
   document.getElementById('cp-code').value='';document.getElementById('cp-val').value='';
+}
+
+// announcements
+var annTypeLabel={info:'ℹ️ Info',success:'✅ Success',warning:'⚠️ Warning',danger:'🚨 Danger'};
+var annTypeBadge={info:'bp',success:'bg',warning:'by',danger:'br'};
+function rAnnouncements(){
+  var list=getAnnouncements();
+  if(!list.length){document.getElementById('ann-tbl').innerHTML='<div class="emp"><div class="emp-i">📢</div><div class="emp-t">No announcements</div></div>';return;}
+  var h='<table><thead><tr><th>Title</th><th>Type</th><th>Active</th><th></th></tr></thead><tbody>';
+  list.forEach(function(a,i){
+    h+='<tr><td style="font-weight:600">'+a.title+'</td>'
+      +'<td><span class="b '+(annTypeBadge[a.type]||'bp')+'">'+(annTypeLabel[a.type]||a.type)+'</span></td>'
+      +'<td><div class="tog '+(a.active?'on':'')+'" onclick="togAnn('+i+')"></div></td>'
+      +'<td><button class="btn btn-d btn-sm btn-ico" onclick="delAnn('+i+')">✕</button></td></tr>';
+  });
+  document.getElementById('ann-tbl').innerHTML=h+'</tbody></table>';
+}
+function togAnn(i){var list=getAnnouncements();list[i].active=!list[i].active;saveAnnouncements(list);rAnnouncements();toast(list[i].title+(list[i].active?' enabled':' disabled'),'s');}
+function delAnn(i){var list=getAnnouncements();list.splice(i,1);saveAnnouncements(list);rAnnouncements();toast('Announcement deleted','e');}
+function addAnnouncement(){
+  var title=document.getElementById('an-title').value.trim();
+  var msg=document.getElementById('an-msg').value.trim();
+  if(!title||!msg){toast('Fill all fields','e');return;}
+  var list=getAnnouncements();
+  list.unshift({id:Date.now(),title:title,msg:msg,type:document.getElementById('an-type').value,active:true,createdAt:new Date().toISOString()});
+  saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement published!','s');
+  document.getElementById('an-title').value='';document.getElementById('an-msg').value='';
 }
 
 // email
@@ -4581,6 +4640,10 @@ var ADMIN_CREDS_KEY='smm_admin_creds';
       if(d.smm_auth_settings&&typeof d.smm_auth_settings==='object'){
         localStorage.setItem('smm_auth_settings',JSON.stringify(d.smm_auth_settings));
         if(document.getElementById('intg-a')) rIntg();
+      }
+      if(d.smm_announcements&&Array.isArray(d.smm_announcements)){
+        localStorage.setItem(ANN_KEY,JSON.stringify(d.smm_announcements));
+        if(document.getElementById('ann-tbl')) rAnnouncements();
       }
     }).catch(function(){});
 })();
