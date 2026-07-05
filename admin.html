@@ -1301,7 +1301,7 @@ function rProvs(){
     h+='<tr><td><div style="font-weight:700;font-size:13px">'+p.name+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'%</div></td>';
     h+='<td style="font-size:11px;color:var(--mt)">'+p.url+'</td>';
     h+='<td><span id="bal-'+p.id+'" style="cursor:pointer;color:'+(p.balance?'var(--gr)':'var(--mt)')+';font-weight:700;font-size:13px" onclick="chkBal('+p.id+')" title="Click to check balance">'+(p.balance?'$'+p.balance:'↻ Check')+'</span></td>';
-    h+='<td><span class="b '+(sc?'bg':'by')+'" style="cursor:pointer" onclick="loadProvServices('+p.id+')" title="Load/view services">'+(sc?sc+' services':'Load Services')+'</span></td>';
+    h+='<td><span class="b '+(sc?'bg':'by')+'" style="cursor:pointer" onclick="showQuickImport('+p.id+')" title="Search, filter and import services from this provider">'+(sc?sc+' services':'Load Services')+'</span></td>';
     h+='<td><div style="display:flex;gap:5px"><button class="btn btn-p btn-sm" onclick="editProv('+p.id+')">⚙ Edit</button><button class="btn btn-d btn-sm btn-ico" onclick="delProv('+p.id+')">✕</button></div></td></tr>';
   }
   document.getElementById('prov-tbl').innerHTML=h+'</tbody></table>';
@@ -1371,123 +1371,11 @@ function chkBal(id){
     });
 }
 
-function loadProvServices(id){
-  var p=provs.find(function(x){return x.id===id;});
-  if(!p||!p.key){
-    // Show services if already loaded
-    if(p&&p.services&&p.services.length){showProvServices(id);return;}
-    toast('Add API key first (Edit provider)','e');return;
-  }
-  if(p.services&&p.services.length){showProvServices(id);return;}
-  toast('Loading services from '+p.name+'...','w');
-  callProviderAPI(p.url, p.key, 'services')
-    .then(function(data){
-      if(data.error){toast('API Error: '+data.error,'e');return;}
-      if(!Array.isArray(data)){toast('Invalid API response — check URL and key','e');return;}
-      p.services=data;saveProvs();rProvs();
-      showProvServices(id);
-      toast('✅ Loaded '+data.length+' services from '+p.name,'s');
-    }).catch(function(e){
-      toast('Failed to load services: '+e.message,'e');
-    });
-}
-
-function showProvServices(provId){
-  var p=provs.find(function(x){return x.id===provId;});
-  if(!p){return;}
-  // Load imported svcs
-  var imported=JSON.parse(localStorage.getItem('smm_imported_svcs')||'[]');
-  var margin=p.margin||20;
-  var services=p.services||[];
-  var ex=document.getElementById('m-prov-svcs');if(ex)ex.remove();
-  var div=document.createElement('div');div.className='mo open';div.id='m-prov-svcs';
-  var rows='';
-  if(!services.length){
-    rows='<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--mt)">No services loaded yet.<br>Add API key and click "Load Services".</td></tr>';
-  } else {
-    rows=services.slice(0,300).map(function(s){
-      var myRate=(parseFloat(s.rate||s.price||0)*(1+margin/100)).toFixed(4);
-      var isImported=imported.find(function(x){return x.provId===provId&&String(x.svcId)===String(s.service);});
-      return '<tr style="'+(isImported?'background:rgba(0,210,160,.05)':'')+'">'
-        +'<td style="font-size:11px;color:var(--mt)">#'+s.service+'</td>'
-        +'<td style="font-size:12px;font-weight:600;max-width:220px">'+s.name+'</td>'
-        +'<td style="font-size:11px;color:var(--mt)">'+s.category+'</td>'
-        +'<td style="color:var(--mt);font-size:12px">$'+parseFloat(s.rate||s.price||0).toFixed(4)+'/K</td>'
-        +'<td style="color:var(--gr);font-weight:700;font-size:12px">$'+myRate+'/K</td>'
-        +'<td style="font-size:11px">'+s.min+' – '+s.max+'</td>'
-        +'<td>'+(isImported
-          ?'<span class="b bg" style="font-size:10px">✓ Added</span>'
-          :'<button class="btn btn-p btn-sm" style="padding:4px 10px;font-size:11px" onclick="importSvc('+provId+',\''+s.service+'\')">+ Add</button>')
-        +'</td></tr>';
-    }).join('');
-  }
-  div.innerHTML='<div class="md" style="max-width:920px;max-height:90vh">'
-    +'<div class="md-h"><div class="md-t">'+p.name+' — '+services.length+' services</div><div class="md-x" onclick="document.getElementById(\'m-prov-svcs\').remove()">✕</div></div>'
-    +'<div style="padding:10px 16px;background:rgba(0,210,160,.07);border-bottom:1px solid var(--bd);font-size:12px;color:var(--gr)">💡 Margin: +'+margin+'% applied. Edit in provider settings.</div>'
-    +'<div style="padding:8px 16px;border-bottom:1px solid var(--bd);display:flex;gap:8px">'
-    +'<input class="fi" placeholder="Search services..." style="flex:1;padding:7px 10px;font-size:12px" oninput="filterProvSvcs(this.value,'+provId+')">'
-    +'</div>'
-    +'<div class="md-b" style="overflow-y:auto;max-height:52vh;padding:0">'
-    +'<table id="prov-svc-table"><thead><tr><th>ID</th><th>Service</th><th>Category</th><th>Provider/K</th><th>Your Price/K</th><th>Min-Max</th><th>Action</th></tr></thead>'
-    +'<tbody id="prov-svc-body">'+rows+'</tbody></table></div>'
-    +'<div class="md-f">'
-    +'<button class="btn btn-g" onclick="document.getElementById(\'m-prov-svcs\').remove()">Close</button>'
-    +'<button class="btn btn-p" onclick="importAllSvcs('+provId+')">📥 Import All ('+services.length+')</button>'
-    +'</div></div>';
-  document.body.appendChild(div);
-}
-
-function filterProvSvcs(q,provId){
-  var p=provs.find(function(x){return x.id===provId;});if(!p||!p.services)return;
-  var margin=p.margin||20;
-  var imported=JSON.parse(localStorage.getItem('smm_imported_svcs')||'[]');
-  var filtered=q?p.services.filter(function(s){return s.name.toLowerCase().indexOf(q.toLowerCase())>-1||s.category.toLowerCase().indexOf(q.toLowerCase())>-1;}):p.services;
-  var body=document.getElementById('prov-svc-body');if(!body)return;
-  body.innerHTML=filtered.slice(0,200).map(function(s){
-    var myRate=(parseFloat(s.rate||s.price||0)*(1+margin/100)).toFixed(4);
-    var isImported=imported.find(function(x){return x.provId===provId&&String(x.svcId)===String(s.service);});
-    return '<tr><td style="font-size:11px;color:var(--mt)">#'+s.service+'</td>'
-      +'<td style="font-size:12px;font-weight:600">'+s.name+'</td>'
-      +'<td style="font-size:11px;color:var(--mt)">'+s.category+'</td>'
-      +'<td style="color:var(--mt);font-size:12px">$'+parseFloat(s.rate||0).toFixed(4)+'/K</td>'
-      +'<td style="color:var(--gr);font-weight:700;font-size:12px">$'+myRate+'/K</td>'
-      +'<td style="font-size:11px">'+s.min+'-'+s.max+'</td>'
-      +'<td>'+(isImported?'<span class="b bg" style="font-size:10px">✓ Added</span>':'<button class="btn btn-p btn-sm" style="padding:4px 10px;font-size:11px" onclick="importSvc('+provId+',\''+s.service+'\')">+Add</button>')+'</td></tr>';
-  }).join('');
-}
-
-function importSvc(provId,svcId){
-  var p=provs.find(function(x){return x.id===provId;});if(!p)return;
-  var s=(p.services||[]).find(function(x){return String(x.service||x.id||'')===String(svcId);});if(!s)return;
-  var margin=p.margin||20;
-  var myRate=parseFloat((parseFloat(s.rate||s.price||0)*(1+margin/100)).toFixed(4));
-  var svcs=getServices();
-  if(svcs.find(function(x){return String(x.svcId)===String(svcId)&&x.provId===provId;})){toast('Already imported','w');return;}
-  svcs.unshift({id:Date.now(),svcId:String(svcId),provId:provId,provName:p.name,name:s.name,category:s.category||'General',provRate:parseFloat(s.rate||0),myRate:myRate,price:myRate,min:parseInt(s.min)||100,max:parseInt(s.max)||50000,active:true,importedAt:new Date().toISOString()});
-  saveServices(svcs);syncServicesToPanel(svcs);
-  toast('✅ '+s.name+' → $'+myRate+'/K','s');
-  // Refresh the modal view
-  if(document.getElementById('m-prov-svcs')) showProvServices(provId);
-}
-
-function importAllSvcs(provId){
-  var p=provs.find(function(x){return x.id===provId;});if(!p||!p.services)return;
-  var margin=p.margin||20;
-  var svcs=JSON.parse(localStorage.getItem('smm_imported_svcs')||'[]');
-  var added=0;
-  p.services.forEach(function(s){
-    if(!svcs.find(function(x){return x.provId===provId&&String(x.svcId)===String(s.service);})){
-      var myRate=parseFloat((parseFloat(s.rate||0)*(1+margin/100)).toFixed(4));
-      svcs.unshift({id:Date.now()+Math.random(),provId:provId,provName:p.name,svcId:s.service,name:s.name,category:s.category||'General',provRate:parseFloat(s.rate||0),myRate:myRate,min:s.min,max:s.max,active:true});
-      added++;
-    }
-  });
-  localStorage.setItem('smm_imported_svcs',JSON.stringify(svcs));
-  var ex=document.getElementById('m-prov-svcs');if(ex)ex.remove();
-  syncServicesToPanel(svcs);
-  toast('✅ Imported '+added+' new services!','s');
-  rProvs();
-}
+// NOTE: services are now searched/filtered/imported exclusively through the
+// "⚡ Quick Import from Provider" modal (showQuickImport) — see the Services
+// page. It replaced the old per-provider "Load Services" modal, which wrote
+// imports to a separate, unused "smm_imported_svcs" localStorage key and
+// never actually surfaced them in the real service catalog.
 
 function filterProviders(q){}
 function testProv(){
@@ -3163,7 +3051,6 @@ function moveSvcOrder(id,dir){
 }
 function closeEditSvc(){var e=document.getElementById('m-edit-svc');if(e)e.remove();}
 function closeBulkEdit(){var e=document.getElementById('m-bulk-edit');if(e)e.remove();}
-function closeProvSvcs(){var e=document.getElementById('m-prov-svcs');if(e)e.remove();}
 
 
 function deletBonus(id){
