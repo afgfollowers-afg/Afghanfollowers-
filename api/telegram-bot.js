@@ -1,9 +1,10 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
 const SITE = 'https://afghanfollowers.online';
+const { dbHeaders } = require('./_dbkey');
 
 async function lookupOrder(orderId) {
   try {
-    const r = await fetch(SITE + '/api/db');
+    const r = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const orders = db.smm_orders || [];
     return orders.find(o => String(o.id) === String(orderId)) || null;
@@ -19,7 +20,7 @@ function statusEmoji(status) {
 
 async function createTicket(chatId, username, message) {
   try {
-    const r = await fetch(SITE + '/api/db');
+    const r = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const tickets = db.smm_tickets || [];
     const ticket = {
@@ -39,7 +40,7 @@ async function createTicket(chatId, username, message) {
     tickets.unshift(ticket);
     await fetch(SITE + '/api/db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: dbHeaders(),
       body: JSON.stringify({ smm_tickets: tickets, smm_ts: Date.now() })
     });
     return ticket;
@@ -87,7 +88,7 @@ module.exports = async (req, res) => {
       const token = process.env.TG_BOT_TOKEN;
       if (token) {
         try {
-          const cfg = await fetch(SITE + '/api/db').then(r => r.json());
+          const cfg = await fetch(SITE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
           const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
           if (adminChat) {
             await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

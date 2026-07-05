@@ -1,12 +1,14 @@
 // Vercel Serverless Function — Sends a password-reset email via Resend.io
 // Env vars needed: RESEND_API_KEY (and everything db.js already needs)
 
+const crypto = require('crypto');
 const SITE = 'https://afghanfollowers.online';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const { dbHeaders } = require('./_dbkey');
 
 function randomToken() {
-  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
+  return crypto.randomBytes(32).toString('hex');
 }
 
 module.exports = async (req, res) => {
@@ -23,15 +25,16 @@ module.exports = async (req, res) => {
     }
 
     // Look up the user
-    const dbResp = await fetch(SITE + '/api/db');
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const users = db.smm_users || [];
     const user = users.find(u => (u.email || '').toLowerCase() === email);
 
     // Always respond success (don't reveal whether the email exists) — but only
-    // actually send an email if we found a matching user.
+    // actually send an email if we found a matching user. The response must
+    // be identical either way, so no debug/error info leaks account existence.
     if (!user) {
-      return res.status(200).json({ ok: true, debug: 'user_not_found_in_server_db' });
+      return res.status(200).json({ ok: true });
     }
 
     {
@@ -41,7 +44,7 @@ module.exports = async (req, res) => {
 
       await fetch(SITE + '/api/db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: dbHeaders(),
         body: JSON.stringify({ smm_resets: resets, smm_ts: Date.now() })
       });
 
@@ -68,7 +71,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ ok: true, debug: 'sent' });
+    return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }

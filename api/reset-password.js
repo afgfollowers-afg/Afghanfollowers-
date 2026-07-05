@@ -1,6 +1,8 @@
 // Vercel Serverless Function — Verifies a password-reset token and updates the password
 
 const SITE = 'https://afghanfollowers.online';
+const { dbHeaders } = require('./_dbkey');
+const { hashPass, genSalt } = require('./_passhash');
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -14,7 +16,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: false, error: 'Invalid request.' });
     }
 
-    const dbResp = await fetch(SITE + '/api/db');
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const resets = db.smm_resets || [];
     const entry = resets.find(r => r.token === token);
@@ -26,33 +28,21 @@ module.exports = async (req, res) => {
     const user = users.find(u => (u.email || '').toLowerCase() === entry.email);
     if (!user) return res.status(200).json({ ok: false, error: 'Account not found.' });
 
-    // btoa equivalent in Node (matches the client's btoa(password) scheme)
-    const newHash = Buffer.from(newPassword, 'utf8').toString('base64');
-    user.password = newHash;
+    const salt = genSalt();
+    user.salt = salt;
+    user.password = hashPass(newPassword, salt);
 
+    // A reset token is single-use: drop it (and any other expired ones) once consumed.
     const remainingResets = resets.filter(r => r.token !== token && r.expires > Date.now());
 
     const pushResp = await fetch(SITE + '/api/db', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: dbHeaders(),
       body: JSON.stringify({ smm_users: users, smm_resets: remainingResets, smm_ts: Date.now() })
     });
-    const pushResult = await pushResp.json();
+    if (!pushResp.ok) return res.status(200).json({ ok: false, error: 'Failed to save new password.' });
 
-    // Verify by reading back immediately
-    const verifyResp = await fetch(SITE + '/api/db');
-    const verifyDb = await verifyResp.json();
-    const verifyUser = (verifyDb.smm_users || []).find(u => (u.email || '').toLowerCase() === entry.email);
-
-    return res.status(200).json({
-      ok: true,
-      debug: {
-        userIdFound: user.id,
-        newHashComputed: newHash,
-        pushResult: pushResult,
-        verifyHashAfterPush: verifyUser ? verifyUser.password : 'USER NOT FOUND ON VERIFY'
-      }
-    });
+    return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }

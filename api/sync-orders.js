@@ -4,11 +4,12 @@
 // current status/remains and updates our database automatically.
 
 const SITE = 'https://afghanfollowers.online';
+const { dbHeaders } = require('./_dbkey');
 
 module.exports = async (req, res) => {
   try {
     // 1. Get current data
-    const dbResp = await fetch(SITE + '/api/db');
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const orders = db.smm_orders || [];
     const providers = db.smm_providers || [];
@@ -64,7 +65,7 @@ module.exports = async (req, res) => {
     if (retried > 0) {
       await fetch(SITE + '/api/db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: dbHeaders(),
         body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
       });
     }
@@ -148,7 +149,7 @@ module.exports = async (req, res) => {
     if (updated > 0) {
       await fetch(SITE + '/api/db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: dbHeaders(),
         body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
       });
     }

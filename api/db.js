@@ -6,11 +6,13 @@
 // Env vars needed: JSONBIN_BIN_ID, JSONBIN_SVC_BIN_ID, JSONBIN_API_KEY
 
 const zlib = require('zlib');
+const { DB_SERVICE_KEY } = require('./_dbkey');
 
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const SVC_BIN_ID = process.env.JSONBIN_SVC_BIN_ID;
 const API_KEY = process.env.JSONBIN_API_KEY;
 const BASE = 'https://api.jsonbin.io/v3/b/';
+const SITE_ORIGIN = 'https://afghanfollowers.online';
 
 async function readBin(binId) {
   const r = await fetch(BASE + binId + '/latest', { headers: { 'X-Master-Key': API_KEY } });
@@ -45,12 +47,20 @@ function base64ToObj(b64) {
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Origin', SITE_ORIGIN);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Require the shared service key (once configured) so this endpoint isn't
+  // wide open to the entire internet. Server-side callers send it via
+  // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
+  // injected near the top of admin.html/smm-panel.html/auth.html.
+  if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   if (!BIN_ID || !API_KEY) {
     return res.status(500).json({ error: 'Database not configured. Set JSONBIN_BIN_ID and JSONBIN_API_KEY.' });

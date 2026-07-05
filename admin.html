@@ -1080,6 +1080,101 @@ textarea.fi{resize:vertical;min-height:75px;}
 <div class="toast" id="toast"></div>
 
 <script>
+// ── First-party API guard: tags every /api/db request with a shared key so
+// the endpoint can reject requests that don't come from our own pages.
+// NOTE: this key lives in page source (view-source), so it stops generic
+// internet-wide scanners/bots hitting the open endpoint directly — it does
+// NOT stop someone who reads this file and copies the key. This value must
+// match the DB_SERVICE_KEY environment variable set in Vercel.
+var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+(function(){
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    if(typeof url==='string' && url.indexOf('/api/db')===0){
+      opts=opts||{};
+      opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+    }
+    return _fetch(url,opts);
+  };
+})();
+
+// ── Password hashing (salted + stretched SHA-256). Replaces the old
+// btoa(password) scheme, which was reversible (not a real hash) and let
+// anyone with read access to the database recover every password instantly.
+// verifyPass() transparently upgrades legacy btoa-encoded accounts the next
+// time they successfully log in.
+function sha256Hex(input){
+  function rrot(x,n){return (x>>>n)|(x<<(32-n));}
+  var K=[
+  0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  var bytes=[];
+  for(var i=0;i<input.length;i++){
+    var c=input.codePointAt(i);
+    if(c>0xFFFF)i++;
+    if(c<0x80)bytes.push(c);
+    else if(c<0x800){bytes.push(0xc0|(c>>6),0x80|(c&0x3f));}
+    else if(c<0x10000){bytes.push(0xe0|(c>>12),0x80|((c>>6)&0x3f),0x80|(c&0x3f));}
+    else{bytes.push(0xf0|(c>>18),0x80|((c>>12)&0x3f),0x80|((c>>6)&0x3f),0x80|(c&0x3f));}
+  }
+  var bitLen=bytes.length*8;
+  bytes.push(0x80);
+  while(bytes.length%64!==56)bytes.push(0);
+  var hi=Math.floor(bitLen/0x100000000);
+  var lo=bitLen>>>0;
+  bytes.push((hi>>>24)&0xff,(hi>>>16)&0xff,(hi>>>8)&0xff,hi&0xff);
+  bytes.push((lo>>>24)&0xff,(lo>>>16)&0xff,(lo>>>8)&0xff,lo&0xff);
+  var w=new Array(64);
+  for(var off=0;off<bytes.length;off+=64){
+    for(var t=0;t<16;t++){
+      var j=off+t*4;
+      w[t]=((bytes[j]<<24)|(bytes[j+1]<<16)|(bytes[j+2]<<8)|(bytes[j+3]))>>>0;
+    }
+    for(t=16;t<64;t++){
+      var s0=rrot(w[t-15],7)^rrot(w[t-15],18)^(w[t-15]>>>3);
+      var s1=rrot(w[t-2],17)^rrot(w[t-2],19)^(w[t-2]>>>10);
+      w[t]=(w[t-16]+s0+w[t-7]+s1)>>>0;
+    }
+    var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(t=0;t<64;t++){
+      var S1=rrot(e,6)^rrot(e,11)^rrot(e,25);
+      var ch=(e&f)^((~e)&g);
+      var temp1=(h+S1+ch+K[t]+w[t])>>>0;
+      var S0=rrot(a,2)^rrot(a,13)^rrot(a,22);
+      var maj=(a&b)^(a&c)^(b&c);
+      var temp2=(S0+maj)>>>0;
+      h=g;g=f;f=e;e=(d+temp1)>>>0;d=c;c=b;b=a;a=(temp1+temp2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+  }
+  var out='';
+  for(i=0;i<8;i++)out+=('00000000'+H[i].toString(16)).slice(-8);
+  return out;
+}
+function genSalt(){
+  var a=new Uint8Array(16);
+  (window.crypto||window.msCrypto).getRandomValues(a);
+  return Array.prototype.map.call(a,function(b){return ('0'+b.toString(16)).slice(-2);}).join('');
+}
+function hashPass(pw,salt){
+  var h=salt+':'+pw;
+  for(var i=0;i<3000;i++) h=sha256Hex(h+salt);
+  return h;
+}
+function verifyPass(pw,user){
+  if(!user||!user.password) return false;
+  if(user.salt) return hashPass(pw,user.salt)===user.password;
+  if(btoa(pw)===user.password){ var s=genSalt(); user.salt=s; user.password=hashPass(pw,s); return true; }
+  return false;
+}
 // ═══ REAL DATA FROM LOCALSTORAGE ═══
 function getRealUsers(){
   try{return JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){return [];}
@@ -3179,7 +3274,8 @@ function addUser(){
   if(!email||!email.includes('@')){toast('Invalid email','e');return;}
   var users=getRealUsers();
   if(users.find(function(u){return u.email===email;})){toast('Email already exists','e');return;}
-  var newUser={id:Date.now(),fname:'New',lname:'User',email:email,phone:'',password:btoa('password123'),role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]};
+  var _npSalt=genSalt();
+  var newUser={id:Date.now(),fname:'New',lname:'User',email:email,phone:'',password:hashPass('password123',_npSalt),salt:_npSalt,role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]};
   users.push(newUser);
   localStorage.setItem('smm_users',JSON.stringify(users));
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -4333,7 +4429,7 @@ function getAdminCreds(){
     if(d) return JSON.parse(d);
   }catch(e){}
   // Default credentials
-  return {username:'admin',password:btoa('admin123')};
+  return {username:'admin',password:hashPass('admin123','a1f9c3e7b2d84605'),salt:'a1f9c3e7b2d84605'};
 }
 
 function checkAdminSession(){
@@ -4369,7 +4465,13 @@ function doAdminLogin(){
     }
   }).catch(function(){}).then(function(){
     var creds=getAdminCreds();
-    var ok=(username===creds.username && btoa(password)===creds.password);
+    var ok=(username===creds.username && verifyPass(password,creds));
+    if(ok){
+      // Persist any legacy-scheme upgrade (verifyPass may have rewritten creds.password/.salt in place)
+      localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(creds));
+      fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({smm_admin_creds:creds,smm_ts:Date.now()})}).catch(function(){});
+    }
 
     if(!ok){
       btn.innerHTML='🔐 Sign In';
@@ -4478,7 +4580,7 @@ function saveAdminCredentials(){
   // Validate current password
   if(!currPass){showSecAlert('Please enter your current password','e');return;}
   var creds=getAdminCreds();
-  if(btoa(currPass)!==creds.password){showSecAlert('❌ Current password is incorrect','e');return;}
+  if(!verifyPass(currPass,creds)){showSecAlert('❌ Current password is incorrect','e');return;}
 
   // Validate new password
   if(!newPass){showSecAlert('Please enter a new password','e');return;}
@@ -4486,9 +4588,11 @@ function saveAdminCredentials(){
   if(newPass!==confPass){showSecAlert('New passwords do not match','e');return;}
 
   // Save
+  var _newSalt=genSalt();
   var updated={
     username:newUser||creds.username,
-    password:btoa(newPass)
+    password:hashPass(newPass,_newSalt),
+    salt:_newSalt
   };
   localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(updated));
   // Push to server so the new username/password work from any browser

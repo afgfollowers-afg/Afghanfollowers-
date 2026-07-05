@@ -4,6 +4,7 @@
 // without needing to know the bot token itself.
 
 const SITE = 'https://afghanfollowers.online';
+const { dbHeaders } = require('./_dbkey');
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
@@ -14,7 +15,7 @@ module.exports = async (req, res) => {
     const message = body.message;
     if (!message) return res.status(200).json({ ok: false, error: 'No message provided' });
 
-    const dbResp = await fetch(SITE + '/api/db');
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
 
