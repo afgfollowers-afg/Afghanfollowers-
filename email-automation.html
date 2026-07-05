@@ -245,6 +245,80 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
   </div>
 </div>
 
+<!-- ONE-TIME BULK ANNOUNCEMENT (imported list, e.g. old panel export) -->
+<div class="card">
+  <div class="ch">📢 One-Time Announcement — Import Custom List</div>
+  <div class="cb">
+    <div class="alert a-i">
+      <span>ℹ️</span>
+      <div>Use this to send a one-off announcement (e.g. "new website launched") to a list of emails from a CSV export — not limited to users currently registered on this site. Sends use the Resend config saved above.</div>
+    </div>
+    <div class="fg">
+      <label class="fl">Upload CSV</label>
+      <input type="file" accept=".csv,text/csv" class="fi" id="bc-file" onchange="handleBulkCsv(this)" style="padding:9px">
+      <div style="font-size:11px;color:var(--mt);margin-top:4px">Expects a header row with at least an <code>email</code> column (a <code>username</code>/<code>status</code> column will be used if present).</div>
+    </div>
+    <div id="bc-status-filter" style="display:none;margin-bottom:14px">
+      <label class="fl">Include Statuses</label>
+      <div id="bc-status-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
+    </div>
+    <div id="bc-summary" style="display:none;margin-bottom:14px">
+      <div class="alert a-w" id="bc-summary-txt"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Email Subject</label>
+      <input class="fi" id="bc-subj" value="🚀 وب‌سایت جدید افغان‌فالوورز راه‌اندازی شد">
+    </div>
+    <div class="fg">
+      <label class="fl">Email Body (HTML)</label>
+      <textarea class="fi" id="bc-body" rows="14">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
+  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+    &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🚀 افغان‌فالوورز&lt;/h1&gt;
+  &lt;/div&gt;
+  &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);direction:rtl;text-align:right"&gt;
+    &lt;h2 style="color:#1a202c;margin-bottom:8px"&gt;سلام {{name}} عزیز 👋&lt;/h2&gt;
+    &lt;p style="color:#555;line-height:1.9;margin-bottom:16px"&gt;
+      با افتخار به اطلاع می‌رسانیم که وب‌سایت و پنل کاملاً جدید ما، &lt;strong&gt;{{site_name}}&lt;/strong&gt;، هم‌اکنون فعال شده است! چون شما پیش‌تر مشتری ما بوده‌اید، خواستیم شخصاً به شما اطلاع بدهیم.
+    &lt;/p&gt;
+    &lt;p style="color:#555;line-height:1.9;margin-bottom:20px"&gt;
+      در پنل جدید چه چیزی تغییر کرده؟&lt;br&gt;
+      ✅ سریع‌تر، امن‌تر و پایدارتر&lt;br&gt;
+      ✅ فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، تلگرام، یوتیوب و فیسبوک&lt;br&gt;
+      ✅ روش‌های پرداخت متنوع — کریپتو، پی‌پال، حواله/نقدی&lt;br&gt;
+      ✅ پشتیبانی ۲۴ ساعته
+    &lt;/p&gt;
+    &lt;div style="text-align:center;margin-bottom:20px"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+        🌐 بازدید از وب‌سایت جدید
+      &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:0"&gt;
+      این یک اطلاعیه یک‌باره است و به این دلیل ارسال شده که آدرس ایمیل شما در پنل قبلی ما ثبت شده بود.&lt;br&gt;
+      © {{site_name}} · تمامی حقوق محفوظ است
+    &lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</textarea>
+    </div>
+    <div id="bc-preview-box" style="display:none;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">📬 Preview (Sample Data)</div>
+      <div style="border:2px solid var(--bd);border-radius:12px;overflow:hidden">
+        <div style="background:var(--s2);padding:10px 14px;font-size:12px;color:var(--mt)">
+          <strong style="color:var(--tx)">Subject:</strong> <span id="bc-prev-subj"></span>
+        </div>
+        <iframe id="bc-prev-frame" style="width:100%;height:380px;border:none;background:#fff"></iframe>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-g" onclick="showBulkPreview()">👁 Preview</button>
+      <button class="btn btn-g" onclick="testBulkEmail()">🧪 Send Test Email</button>
+      <button class="btn btn-s" onclick="sendBulkCampaign()" id="bc-send-btn">📤 Send To All Filtered</button>
+      <button class="btn btn-d" onclick="stopBulkCampaign()" id="bc-stop-btn" style="display:none">⏹ Stop</button>
+      <button class="btn btn-g" onclick="resetBulkSentLog()">♻️ Reset "Already Sent" Log</button>
+    </div>
+    <div class="log" id="bc-log"><div style="color:var(--mt)">No activity yet.</div></div>
+  </div>
+</div>
+
 <!-- INACTIVE USERS -->
 <div class="card">
   <div class="ch">
@@ -419,6 +493,208 @@ function fillVars(text,user,daysInactive){
     .replace(/\{\{balance\}\}/g,(user.balance||0).toFixed(2))
     .replace(/\{\{panel_link\}\}/g,panelLink)
     .replace(/\{\{site_name\}\}/g,siteName);
+}
+
+// ═══ ONE-TIME BULK ANNOUNCEMENT (imported CSV list) ═══
+var BULK_SENT_KEY='smm_bulk_campaign_sent';
+var _bulkAll=[]; // {email,name,status}
+var _bulkStatuses={}; // status -> checked bool
+var _bulkStop=false;
+var _bulkRunning=false;
+
+function parseCSV(text){
+  var rows=[];
+  var lines=text.replace(/^﻿/,'').split(/\r\n|\n|\r/).filter(function(l){return l.length;});
+  if(!lines.length) return rows;
+  function splitLine(line){
+    var out=[],cur='',inQ=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(ch===','&&!inQ){ out.push(cur);cur=''; }
+      else cur+=ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  var headers=splitLine(lines[0]).map(function(h){return h.trim().toLowerCase();});
+  for(var i=1;i<lines.length;i++){
+    var vals=splitLine(lines[i]);
+    var obj={};
+    headers.forEach(function(h,idx){obj[h]=(vals[idx]||'').trim();});
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function handleBulkCsv(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{ parseBulkCsv(e.target.result); }
+    catch(err){ addBulkLog('❌ Could not parse CSV: '+err.message,'e'); }
+  };
+  reader.readAsText(file);
+}
+
+function parseBulkCsv(text){
+  var rows=parseCSV(text);
+  var byStatus={};
+  var all=[];
+  var seen={};
+  rows.forEach(function(r){
+    var email=(r.email||'').trim().toLowerCase();
+    if(!email||email.indexOf('@')<0||seen[email]) return;
+    seen[email]=true;
+    var status=(r.status||'Active').trim()||'Active';
+    byStatus[status]=(byStatus[status]||0)+1;
+    all.push({email:email,name:r.username||r.name||'',status:status});
+  });
+  _bulkAll=all;
+  _bulkStatuses={};
+  Object.keys(byStatus).forEach(function(s){ _bulkStatuses[s]=(s==='Active'); });
+  renderBulkStatusChips(byStatus);
+  updateBulkSummary();
+  addBulkLog('📥 Loaded '+all.length+' unique emails from CSV ('+Object.keys(byStatus).map(function(s){return s+': '+byStatus[s];}).join(', ')+')','i');
+}
+
+function renderBulkStatusChips(byStatus){
+  var wrap=document.getElementById('bc-status-chips');
+  var filterEl=document.getElementById('bc-status-filter');
+  if(!Object.keys(byStatus).length){ filterEl.style.display='none'; return; }
+  filterEl.style.display='block';
+  wrap.innerHTML=Object.keys(byStatus).map(function(s){
+    var checked=_bulkStatuses[s]?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">'
+      +'<input type="checkbox" '+checked+' onchange="toggleBulkStatus(\''+s.replace(/'/g,"\\'")+'\',this.checked)"> '+s+' ('+byStatus[s]+')'
+      +'</label>';
+  }).join('');
+}
+
+function toggleBulkStatus(status,checked){
+  _bulkStatuses[status]=checked;
+  updateBulkSummary();
+}
+
+function getBulkSentSet(){
+  try{ return JSON.parse(localStorage.getItem(BULK_SENT_KEY)||'{}'); }catch(e){ return {}; }
+}
+function markBulkSent(email){
+  var s=getBulkSentSet();
+  s[email]=new Date().toISOString();
+  localStorage.setItem(BULK_SENT_KEY,JSON.stringify(s));
+}
+function resetBulkSentLog(){
+  if(!confirm('Clear the "already sent" record for this one-time campaign? This lets you re-send to everyone.')) return;
+  localStorage.removeItem(BULK_SENT_KEY);
+  addBulkLog('♻️ "Already sent" log cleared','w');
+  updateBulkSummary();
+}
+
+function getBulkFilteredRecipients(){
+  var sentSet=getBulkSentSet();
+  return _bulkAll.filter(function(r){
+    return _bulkStatuses[r.status] && !sentSet[r.email];
+  });
+}
+
+function updateBulkSummary(){
+  var box=document.getElementById('bc-summary');
+  var txt=document.getElementById('bc-summary-txt');
+  if(!_bulkAll.length){ box.style.display='none'; return; }
+  var filtered=getBulkFilteredRecipients();
+  var sentSet=getBulkSentSet();
+  var alreadySent=_bulkAll.filter(function(r){return sentSet[r.email];}).length;
+  box.style.display='block';
+  txt.innerHTML='<strong>'+filtered.length+'</strong> emails will be sent with the current status filter'
+    +(alreadySent?' · <strong>'+alreadySent+'</strong> already marked as sent in a previous run (skipped)':'')
+    +'.';
+}
+
+function fillBulkVars(text,r){
+  var siteName=document.getElementById('cfg-fname').value||'Afghan Followers';
+  var panelLink=window.location.origin+'/smm-panel.html';
+  return text
+    .replace(/\{\{name\}\}/g,r.name||'دوست عزیز')
+    .replace(/\{\{email\}\}/g,r.email||'')
+    .replace(/\{\{site_name\}\}/g,siteName)
+    .replace(/\{\{panel_link\}\}/g,panelLink);
+}
+
+function showBulkPreview(){
+  var demo={email:'ahmad@example.com',name:'Ahmad'};
+  var subject=fillBulkVars(document.getElementById('bc-subj').value,demo);
+  var html=fillBulkVars(document.getElementById('bc-body').value,demo);
+  document.getElementById('bc-prev-subj').textContent=subject;
+  document.getElementById('bc-prev-frame').srcdoc=html;
+  document.getElementById('bc-preview-box').style.display='block';
+}
+
+async function testBulkEmail(){
+  var c=getCfg();
+  if(!c.apiKey||!c.from){ toast('Configure API Key and From Email first','e'); return; }
+  var toEmail=prompt('Send test to email:','');
+  if(!toEmail) return;
+  var demo={email:toEmail,name:'Test'};
+  var subject=fillBulkVars(document.getElementById('bc-subj').value,demo);
+  var html=fillBulkVars(document.getElementById('bc-body').value,demo);
+  addBulkLog('🧪 Sending test to '+toEmail+'...','i');
+  var result=await sendEmail(toEmail,'Test',subject,html);
+  if(result.ok){ addBulkLog('✅ Test sent to '+toEmail,'s'); toast('Test email sent!','s'); }
+  else{ addBulkLog('❌ Test failed: '+result.error,'e'); toast('Test failed: '+result.error,'e'); }
+}
+
+function stopBulkCampaign(){
+  _bulkStop=true;
+  addBulkLog('⏹ Stop requested — will halt after the current email','w');
+}
+
+async function sendBulkCampaign(){
+  var c=getCfg();
+  if(!c.apiKey||!c.from){ toast('Configure API Key and From Email first','e'); return; }
+  if(!_bulkAll.length){ toast('Upload a CSV first','e'); return; }
+  var recipients=getBulkFilteredRecipients();
+  if(!recipients.length){ toast('No recipients match the current status filter','e'); return; }
+  if(!confirm('This will send a REAL email to '+recipients.length+' addresses right now. This cannot be undone. Continue?')) return;
+
+  _bulkStop=false;
+  _bulkRunning=true;
+  document.getElementById('bc-send-btn').disabled=true;
+  document.getElementById('bc-stop-btn').style.display='inline-flex';
+  addBulkLog('🚀 Starting one-time campaign: '+recipients.length+' recipients','s');
+
+  var subjTpl=document.getElementById('bc-subj').value;
+  var bodyTpl=document.getElementById('bc-body').value;
+  var sent=0,failed=0;
+  for(var i=0;i<recipients.length;i++){
+    if(_bulkStop){ addBulkLog('⏹ Stopped by user at '+i+'/'+recipients.length,'w'); break; }
+    var r=recipients[i];
+    var subject=fillBulkVars(subjTpl,r);
+    var html=fillBulkVars(bodyTpl,r);
+    var result=await sendEmail(r.email,r.name,subject,html);
+    if(result.ok){ markBulkSent(r.email); sent++; addBulkLog('✅ ('+(i+1)+'/'+recipients.length+') '+r.email,'s'); }
+    else{ failed++; addBulkLog('❌ ('+(i+1)+'/'+recipients.length+') '+r.email+' — '+result.error,'e'); }
+    updateBulkSummary();
+    await new Promise(function(res){ setTimeout(res,600); });
+  }
+  _bulkRunning=false;
+  document.getElementById('bc-send-btn').disabled=false;
+  document.getElementById('bc-stop-btn').style.display='none';
+  addBulkLog('📊 Campaign finished: '+sent+' sent, '+failed+' failed','s');
+  toast('Done: '+sent+' sent, '+failed+' failed',failed?'w':'s');
+}
+
+var _bulkLogs=[];
+function addBulkLog(msg,type){
+  var now=new Date();
+  var time=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  _bulkLogs.unshift({msg:msg,type:type||'i',time:time});
+  if(_bulkLogs.length>1000) _bulkLogs=_bulkLogs.slice(0,1000);
+  var el=document.getElementById('bc-log');
+  el.innerHTML=_bulkLogs.map(function(l){
+    return '<div class="li l'+l.type+'"><span style="color:var(--mt)">['+l.time+']</span> '+l.msg+'</div>';
+  }).join('');
 }
 
 // ═══ GET INACTIVE USERS ═══
