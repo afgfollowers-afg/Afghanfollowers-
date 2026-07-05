@@ -279,6 +279,9 @@ body.rtl .btn{font-family:var(--fn-fa);}
           <button class="eye" onclick="toggleEye('r-pass2',this)">👁</button>
         </div>
       </div>
+      <div id="r-recaptcha-wrap" style="display:none;margin-bottom:14px">
+        <div id="r-recaptcha"></div>
+      </div>
       <div class="tr">
         <input type="checkbox" id="r-terms">
         <label for="r-terms" id="t-tlbl">I agree to the <a href="#" id="t-tos">Terms of Service</a> and <a href="#" id="t-pp">Privacy Policy</a></label>
@@ -692,9 +695,37 @@ var AK='smm_users',SK='smm_session';
     if(d&&d.smm_auth_settings&&typeof d.smm_auth_settings==='object'){
       localStorage.setItem('smm_auth_settings',JSON.stringify(d.smm_auth_settings));
       if(typeof renderExtraFields==='function') renderExtraFields();
+      initRecaptchaWidget();
     }
   }).catch(function(){});
 })();
+
+// ═══ reCAPTCHA ═══
+var _recaptchaWidgetId=null;
+function initRecaptchaWidget(){
+  var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
+  var siteKey=cfg.recaptchaSiteKey;
+  var wrap=document.getElementById('r-recaptcha-wrap');
+  if(!siteKey||!wrap){if(wrap)wrap.style.display='none';return;}
+  wrap.style.display='block';
+  if(_recaptchaWidgetId!==null) return; // already rendered
+  if(window.grecaptcha&&window.grecaptcha.render){
+    _recaptchaWidgetId=grecaptcha.render('r-recaptcha',{sitekey:siteKey});
+    return;
+  }
+  if(document.getElementById('recaptcha-script')) return; // already loading
+  window.__onRecaptchaLoad=function(){
+    if(document.getElementById('r-recaptcha')&&!document.getElementById('r-recaptcha').hasChildNodes()){
+      _recaptchaWidgetId=grecaptcha.render('r-recaptcha',{sitekey:siteKey});
+    }
+  };
+  var s=document.createElement('script');
+  s.id='recaptcha-script';
+  s.src='https://www.google.com/recaptcha/api.js?onload=__onRecaptchaLoad&render=explicit';
+  s.async=true;s.defer=true;
+  document.head.appendChild(s);
+}
+initRecaptchaWidget(); // in case settings were already cached from a previous visit
 function getUsers(){try{var d=localStorage.getItem(AK);return d?JSON.parse(d):[{id:1,fname:'Admin',lname:'',email:'admin@panel.com',phone:'',password:hashPass('admin123','a1f9c3e7b2d84605'),salt:'a1f9c3e7b2d84605',role:'admin',balance:500,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]}];}catch(e){return[];}}
 function saveUsers(u){
   localStorage.setItem(AK,JSON.stringify(u));
@@ -752,23 +783,50 @@ function doReg(){
   if(pass.length<8){showA('Password min 8 characters','e');return;}
   if(pass!==pass2){showA('Passwords do not match','e');return;}
   if(!document.getElementById('r-terms').checked){showA('Please accept Terms','e');return;}
+
+  var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
+  var recaptchaToken='';
+  if(cfg.recaptchaSiteKey){
+    recaptchaToken=(window.grecaptcha&&_recaptchaWidgetId!==null)?grecaptcha.getResponse(_recaptchaWidgetId):'';
+    if(!recaptchaToken){showA('Please complete the reCAPTCHA','e');return;}
+  }
+
   setBtnL('r-btn',true);
-  setTimeout(function(){
-    var users=getUsers();
-    var email=_rm==='email'?document.getElementById('r-email').value.trim().toLowerCase():'';
-    var phone=_rm==='phone'?(document.getElementById('r-code').value+document.getElementById('r-phone').value.trim()):'';
-    var extra={};
-    _efDefs.forEach(function(d){var el=document.getElementById('ef-'+d.key);if(el&&el.value.trim())extra[d.key]=el.value.trim();});
-    var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
-    var bonus=parseFloat(cfg.welcomeBonus)||0;
-    var _regSalt=genSalt();
-    var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:hashPass(pass,_regSalt),salt:_regSalt,inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:bonus,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:bonus>0?[{id:Date.now(),type:'bonus',amount:bonus,desc:'Welcome bonus',date:new Date().toISOString()}]:[],extra:extra};
-    users.push(u);saveUsers(users);createSess(u);
-    setBtnL('r-btn',false);
-    tgAuthNotify('🆕 <b>New Registration</b>\nName: '+u.fname+' '+u.lname+'\n'+(u.email?'Email: '+u.email:'Phone: '+u.phone));
-    showA('🎉 Account created! Redirecting...','s');
-    setTimeout(function(){window.location.href='smm-panel.html';},900);
-  },700);
+
+  function verifyThenCreate(){
+    setTimeout(function(){
+      var users=getUsers();
+      var email=_rm==='email'?document.getElementById('r-email').value.trim().toLowerCase():'';
+      var phone=_rm==='phone'?(document.getElementById('r-code').value+document.getElementById('r-phone').value.trim()):'';
+      var extra={};
+      _efDefs.forEach(function(d){var el=document.getElementById('ef-'+d.key);if(el&&el.value.trim())extra[d.key]=el.value.trim();});
+      var bonus=parseFloat(cfg.welcomeBonus)||0;
+      var _regSalt=genSalt();
+      var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:hashPass(pass,_regSalt),salt:_regSalt,inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:bonus,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:bonus>0?[{id:Date.now(),type:'bonus',amount:bonus,desc:'Welcome bonus',date:new Date().toISOString()}]:[],extra:extra};
+      users.push(u);saveUsers(users);createSess(u);
+      setBtnL('r-btn',false);
+      tgAuthNotify('🆕 <b>New Registration</b>\nName: '+u.fname+' '+u.lname+'\n'+(u.email?'Email: '+u.email:'Phone: '+u.phone));
+      showA('🎉 Account created! Redirecting...','s');
+      setTimeout(function(){window.location.href='smm-panel.html';},900);
+    },700);
+  }
+
+  if(!recaptchaToken){verifyThenCreate();return;}
+
+  fetch('/api/verify-recaptcha',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({token:recaptchaToken})})
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res&&res.ok){verifyThenCreate();return;}
+      setBtnL('r-btn',false);
+      if(window.grecaptcha&&_recaptchaWidgetId!==null) grecaptcha.reset(_recaptchaWidgetId);
+      showA('reCAPTCHA verification failed. Please try again.','e');
+    })
+    .catch(function(){
+      // Verification endpoint unreachable — don't block signups over an
+      // infra hiccup, but do reset the widget for a fresh token.
+      verifyThenCreate();
+    });
 }
 
 // ═══ GOOGLE ═══

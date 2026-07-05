@@ -4264,7 +4264,7 @@ function togMod(key,el){
 // integrations
 var intgA=[
   {name:'Google Sign-In',desc:'Allow users to login with Google. Get Client ID from console.cloud.google.com → APIs → Credentials → Create OAuth Client ID. Set Authorized Origin to https://afghanfollowers.online',ico:'G',bg:'#4285F4',key:'googleClientId',placeholder:'123456789-abc.apps.googleusercontent.com'},
-  {name:'Google reCAPTCHA v2',desc:'Protect registration from bots. Get keys from google.com/recaptcha',ico:'🔒',bg:'#EA4335',key:'recaptchaSiteKey',placeholder:'6LcXXXXXXXXXX...site key'},
+  {name:'Google reCAPTCHA v2',desc:'Protect registration from bots. Get a Site Key + Secret Key from google.com/recaptcha. Enter the Site Key here — it is safe to expose. The Secret Key must NOT go here; set it as RECAPTCHA_SECRET_KEY in Vercel → Environment Variables instead, so the server can verify submissions without exposing it.',ico:'🔒',bg:'#EA4335',key:'recaptchaSiteKey',placeholder:'6LcXXXXXXXXXX...site key (public)'},
   {name:'Google Analytics',desc:'Track user behavior. Get ID from analytics.google.com',ico:'📈',bg:'#F4B400',key:'gaId',placeholder:'G-XXXXXXXXXX'},
 ];
 var intgO=[
@@ -4275,13 +4275,12 @@ function rIntg(){
   var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
   function card(it,isActive){
     var key=it.key||'';var val=key?(cfg[key]||''):'';var configured=!!(val);
-    var html='<div class="ic" style="flex-direction:column;align-items:stretch;gap:10px">';
-    html+='<div style="display:flex;align-items:center;gap:12px">';
-    html+='<div class="ic-ico" style="background:'+it.bg+';color:#fff;font-size:16px;font-weight:800">'+it.ico+'</div>';
-    html+='<div style="flex:1"><div style="font-size:13px;font-weight:700">'+it.name+'</div><div style="font-size:12px;color:var(--mt);margin-top:2px">'+it.desc+'</div></div>';
-    html+='<span class="b '+(configured||isActive?'bg':'by')+'">'+(configured||isActive?'✓ Active':'Not Set')+'</span></div>';
-    if(key){html+='<div style="display:flex;gap:8px"><input class="fi" id="intg-'+key+'" value="'+(val)+'" placeholder="'+it.placeholder+'" style="flex:1;font-size:12px;padding:8px 10px"><button class="btn btn-p btn-sm" onclick="saveIntgKey(\''+key+'\',\'intg-'+key+'\',\''+it.name+'\')">Save</button></div>';}
-    else{html+='<button class="btn btn-g btn-sm" onclick="toast(\''+it.name+' is built-in and always active.\',\'s\')">Info</button>';}
+    var html='<div class="ic" style="flex-wrap:wrap">';
+    html+='<div class="ic-ico" style="background:'+it.bg+';color:#fff;font-size:16px;font-weight:800;flex-shrink:0">'+it.ico+'</div>';
+    html+='<div style="flex:1;min-width:140px;overflow-wrap:break-word"><div style="font-size:13px;font-weight:700">'+it.name+'</div><div style="font-size:12px;color:var(--mt);margin-top:2px;overflow-wrap:break-word">'+it.desc+'</div></div>';
+    html+='<span class="b '+(configured||isActive?'bg':'by')+'" style="flex-shrink:0;white-space:nowrap">'+(configured||isActive?'✓ Active':'Not Set')+'</span>';
+    if(key){html+='<button class="btn btn-p btn-sm" style="flex-shrink:0" onclick="editIntg(\''+key+'\')">Edit</button>';}
+    else{html+='<button class="btn btn-g btn-sm" style="flex-shrink:0" onclick="toast(\''+it.name+' is built-in and always active.\',\'s\')">Info</button>';}
     html+='</div>';return html;
   }
   document.getElementById('intg-a').innerHTML=intgA.map(function(it){return card(it,true);}).join('');
@@ -4371,6 +4370,27 @@ function saveTgBot(){
 function pushAuthSettings(cfg){
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_auth_settings:cfg,smm_ts:Date.now()})}).catch(function(){});
+}
+
+function editIntg(key){
+  var it=intgA.find(function(x){return x.key===key;});
+  if(!it) return;
+  var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
+  var val=cfg[key]||'';
+  var ex=document.getElementById('m-edit-intg');if(ex)ex.remove();
+  var div=document.createElement('div');div.className='mo open';div.id='m-edit-intg';
+  div.innerHTML='<div class="md" style="max-width:480px">'
+    +'<div class="md-h"><div class="md-t">Edit '+it.name+'</div><div class="md-x" onclick="document.getElementById(\'m-edit-intg\').remove()">✕</div></div>'
+    +'<div class="md-b">'
+    +'<div class="fg"><label class="fl">Status</label><input class="fi" value="'+(val?'Active':'Inactive')+'" disabled style="opacity:.7;cursor:default"></div>'
+    +'<div class="fg"><label class="fl">'+it.name+'</label><input class="fi" id="intg-'+key+'" value="'+val+'" placeholder="'+it.placeholder+'"></div>'
+    +'<div style="font-size:11px;color:var(--mt)">'+it.desc+'</div>'
+    +'</div>'
+    +'<div class="md-f">'
+    +'<button class="btn btn-g" onclick="document.getElementById(\'m-edit-intg\').remove()">Cancel</button>'
+    +'<button class="btn btn-p" onclick="saveIntgKey(\''+key+'\',\'intg-'+key+'\',\''+it.name+'\');var m=document.getElementById(\'m-edit-intg\');if(m)m.remove();">Update settings</button>'
+    +'</div></div>';
+  document.body.appendChild(div);
 }
 
 function saveIntgKey(key,inputId,name){
