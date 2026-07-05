@@ -106,6 +106,8 @@ textarea.fi{resize:vertical;min-height:75px;}
 .qi-cat-chip:hover{border-color:var(--acc);}
 .qi-cat-chip.qi-cat-chip-full{border-color:var(--acc);background:rgba(124,92,252,.15);color:var(--acc2);}
 .qi-cat-chip.qi-cat-chip-partial{border-color:var(--gr);color:var(--gr);}
+.qi-suggest-item:hover{background:var(--s2);}
+.qi-suggest-hd{padding:6px 12px;font-size:10px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.4px;}
 .full{grid-column:1/-1;}
 
 /* TOGGLE */
@@ -378,7 +380,7 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="md-h"><div class="md-t">⚡ Quick Import from Provider</div><div class="md-x" onclick="cm('m-quick-import')">✕</div></div>
       <div class="md-b" style="overflow-y:auto;max-height:78vh;padding:12px 16px">
 
-        <!-- Row 1: Provider + Category -->
+        <!-- Row 1: Provider + unified Service-or-Category finder -->
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <div style="flex:1;min-width:180px">
             <label class="fl">Provider</label>
@@ -386,16 +388,20 @@ textarea.fi{resize:vertical;min-height:75px;}
               <option value="">— Select Provider —</option>
             </select>
           </div>
-          <div style="flex:1;min-width:160px">
-            <label class="fl">Category</label>
-            <select class="fi" id="qi-cat-filter" onchange="qiFilter()" style="padding:8px 10px;font-size:13px">
-              <option value="">All Categories</option>
-            </select>
+          <div style="flex:2;min-width:260px;position:relative">
+            <label class="fl">Find Service or Category</label>
+            <input class="fi" id="qi-unified-search" placeholder="Type a service name or category…" autocomplete="off"
+              style="padding:8px 32px 8px 10px;font-size:13px"
+              oninput="qiUnifiedInput()" onfocus="qiUnifiedInput()" onkeydown="qiUnifiedKeydown(event)">
+            <span onclick="qiUnifiedClear()" title="Clear" style="position:absolute;right:10px;top:31px;cursor:pointer;color:var(--mt);font-size:13px;line-height:1">✕</span>
+            <div id="qi-unified-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:280px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.5)"></div>
           </div>
-          <div style="flex:1;min-width:140px">
-            <label class="fl">Search</label>
-            <input class="fi" id="qi-search" placeholder="Search services..." style="padding:8px 10px;font-size:13px" oninput="qiFilter()">
-          </div>
+          <!-- Kept in the DOM (hidden) — qiFilter()/qiRender() still read these two;
+               the unified box above drives them programmatically. -->
+          <select class="fi" id="qi-cat-filter" onchange="qiFilter()" style="display:none">
+            <option value="">All Categories</option>
+          </select>
+          <input class="fi" id="qi-search" style="display:none">
         </div>
 
         <!-- Row 1b: Select whole categories at once -->
@@ -2371,6 +2377,9 @@ document.addEventListener('change',function(e){
 
 function qiLoadServices(){
   var provId=parseInt(document.getElementById('qi-provider').value);
+  var uni=document.getElementById('qi-unified-search');if(uni)uni.value='';
+  var cf=document.getElementById('qi-cat-filter');if(cf)cf.value='';
+  var sr=document.getElementById('qi-search');if(sr)sr.value='';
   if(!provId){document.getElementById('qi-list').innerHTML='';return;}
   var p=provs.find(function(x){return x.id===provId;});
   _qiSelected=new Set();
@@ -2493,6 +2502,93 @@ function qiToggleCatChip(el){
   qiRefreshCatChips();
   toast((allSelected?'Deselected all in "':'Selected all in "')+cat+'" ('+ids.length+')','s');
 }
+
+// ── Unified "find service or category" box (drives the hidden qi-cat-filter/qi-search) ──
+function qiUnifiedInput(){
+  var val=(document.getElementById('qi-unified-search').value||'').toLowerCase().trim();
+  var box=document.getElementById('qi-unified-suggest');
+  var provId=parseInt(document.getElementById('qi-provider').value);
+  var p=provs.find(function(x){return x.id===provId;});
+  if(!box||!p||!p.services){if(box)box.style.display='none';return;}
+
+  var catCounts={};
+  p.services.forEach(function(s){var c=s.category||'Other';catCounts[c]=(catCounts[c]||0)+1;});
+  var catMatches=Object.keys(catCounts).filter(function(c){return !val||c.toLowerCase().indexOf(val)>-1;}).sort();
+  var svcMatches=val?p.services.filter(function(s){return (s.name||'').toLowerCase().indexOf(val)>-1;}).slice(0,25):[];
+
+  if(!catMatches.length&&!svcMatches.length){
+    box.innerHTML='<div style="padding:10px 14px;color:var(--mt);font-size:12px">No matches</div>';
+    box.style.display='block';
+    return;
+  }
+
+  var html='';
+  if(catMatches.length){
+    html+='<div class="qi-suggest-hd">Categories</div>';
+    catMatches.slice(0,10).forEach(function(c){
+      html+='<div class="qi-suggest-item" onclick="qiPickCategory(this.dataset.cat)" data-cat="'+qiEsc(c)+'" style="padding:8px 14px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between">'
+        +'<span>📁 '+qiEsc(c)+'</span><span style="color:var(--mt)">'+catCounts[c]+'</span></div>';
+    });
+  }
+  if(svcMatches.length){
+    html+='<div class="qi-suggest-hd" style="border-top:1px solid var(--bd);margin-top:4px">Services</div>';
+    svcMatches.forEach(function(s){
+      var svcId=String(s.service||s.id||'');
+      html+='<div class="qi-suggest-item" onclick="qiPickService(this.dataset.svcid)" data-svcid="'+qiEsc(svcId)+'" style="padding:8px 14px;cursor:pointer;font-size:13px">'
+        +'🔧 '+qiEsc(s.name)+' <span style="color:var(--mt);font-size:11px">('+qiEsc(s.category||'—')+')</span></div>';
+    });
+  }
+  box.innerHTML=html;
+  box.style.display='block';
+}
+
+function qiUnifiedKeydown(e){
+  if(e.key==='Escape'){document.getElementById('qi-unified-suggest').style.display='none';}
+  if(e.key==='Enter'){
+    e.preventDefault();
+    document.getElementById('qi-cat-filter').value='';
+    document.getElementById('qi-search').value=document.getElementById('qi-unified-search').value;
+    document.getElementById('qi-unified-suggest').style.display='none';
+    qiFilter();
+  }
+}
+
+function qiUnifiedClear(){
+  document.getElementById('qi-unified-search').value='';
+  document.getElementById('qi-cat-filter').value='';
+  document.getElementById('qi-search').value='';
+  document.getElementById('qi-unified-suggest').style.display='none';
+  qiFilter();
+}
+
+function qiPickCategory(cat){
+  document.getElementById('qi-cat-filter').value=cat;
+  document.getElementById('qi-search').value='';
+  document.getElementById('qi-unified-search').value='📁 '+cat;
+  document.getElementById('qi-unified-suggest').style.display='none';
+  qiFilter();
+}
+
+function qiPickService(svcId){
+  var provId=parseInt(document.getElementById('qi-provider').value);
+  var p=provs.find(function(x){return x.id===provId;});
+  var s=p&&p.services?p.services.find(function(x){return String(x.service||x.id||'')===String(svcId);}):null;
+  document.getElementById('qi-cat-filter').value='';
+  document.getElementById('qi-search').value='';
+  document.getElementById('qi-unified-search').value=s?('🔧 '+s.name):'';
+  document.getElementById('qi-unified-suggest').style.display='none';
+  if(s) qiRender([s],provId);
+  var statusEl=document.getElementById('qi-status');
+  if(statusEl&&s) statusEl.textContent='Showing 1 of '+p.services.length+' services · '+_qiSelected.size+' selected';
+}
+
+document.addEventListener('click',function(e){
+  var box=document.getElementById('qi-unified-suggest');
+  var inp=document.getElementById('qi-unified-search');
+  if(!box||box.style.display==='none') return;
+  if(e.target===inp||box.contains(e.target)) return;
+  box.style.display='none';
+});
 
 function qiFilter(){
   var provId=parseInt(document.getElementById('qi-provider').value);
