@@ -2419,10 +2419,15 @@ function qiBuildCatFilter(services){
     var c=s.category||'Other';
     catCounts[c]=(catCounts[c]||0)+1;
   });
-  sel.innerHTML='<option value="">All Categories ('+services.length+')</option>';
+  // Build the whole option list as one string and set innerHTML once —
+  // appending to innerHTML inside a loop re-parses the growing string on
+  // every iteration and can freeze the tab when a provider has thousands
+  // of services.
+  var opts=['<option value="">All Categories ('+services.length+')</option>'];
   Object.keys(catCounts).sort().forEach(function(c){
-    sel.innerHTML+='<option value="'+c+'"'+(cur===c?' selected':'')+'>'+c+' ('+catCounts[c]+')</option>';
+    opts.push('<option value="'+c+'"'+(cur===c?' selected':'')+'>'+c+' ('+catCounts[c]+')</option>');
   });
+  sel.innerHTML=opts.join('');
 }
 
 function qiEsc(s){
@@ -2448,10 +2453,13 @@ function qiPopulateCatDd(services){
   var cur=sel.value;
   var catCounts={};
   services.forEach(function(s){var c=s.category||'Other';catCounts[c]=(catCounts[c]||0)+1;});
-  sel.innerHTML='<option value="">— All Categories ('+services.length+') —</option>';
+  // Build as an array + join once (see qiCatDdChange for why this matters
+  // once a provider catalog has thousands of services).
+  var opts=['<option value="">— All Categories ('+services.length+') —</option>'];
   Object.keys(catCounts).sort().forEach(function(c){
-    sel.innerHTML+='<option value="'+qiEsc(c)+'"'+(cur===c?' selected':'')+'>'+qiEsc(c)+' ('+catCounts[c]+')</option>';
+    opts.push('<option value="'+qiEsc(c)+'"'+(cur===c?' selected':'')+'>'+qiEsc(c)+' ('+catCounts[c]+')</option>');
   });
+  sel.innerHTML=opts.join('');
   qiCatDdChange();
 }
 
@@ -2468,13 +2476,23 @@ function qiCatDdChange(){
   var svcSel=document.getElementById('qi-svc-dd');
   if(!svcSel) return;
   var list=(p&&p.services)?(cat?p.services.filter(function(s){return (s.category||'Other')===cat;}):p.services):[];
-  svcSel.innerHTML='<option value="">— All Services ('+list.length+') —</option>';
-  if(!p||!p.services) return;
-  list.forEach(function(s){
+  // IMPORTANT: build the option list as an array and set innerHTML ONCE.
+  // Appending to innerHTML inside the loop (svcSel.innerHTML+=...) forces
+  // the browser to re-serialize and re-parse the whole growing string on
+  // every single iteration — with a large provider catalog (real SMM
+  // providers can list many thousands of services under "All Categories")
+  // that's O(n²) and freezes the tab ("page isn't responding"). Also cap
+  // at 2000 options so a huge catalog still opens instantly; narrow by
+  // category to see the rest.
+  var CAP=2000;
+  var opts=['<option value="">— All Services ('+list.length+') —</option>'];
+  list.slice(0,CAP).forEach(function(s){
     var svcId=String(s.service||s.id||'');
     var label=cat?s.name:(s.name+' ('+(s.category||'Other')+')');
-    svcSel.innerHTML+='<option value="'+qiEsc(svcId)+'">'+qiEsc(label)+'</option>';
+    opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(label)+'</option>');
   });
+  if(list.length>CAP) opts.push('<option value="" disabled>… '+(list.length-CAP)+' more — pick a category to narrow down</option>');
+  svcSel.innerHTML=opts.join('');
 }
 
 // "Select" next to Category: add every importable service in the chosen
