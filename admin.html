@@ -2467,9 +2467,9 @@ function qiCatDdChange(){
   var p=provs.find(function(x){return x.id===provId;});
   var svcSel=document.getElementById('qi-svc-dd');
   if(!svcSel) return;
-  svcSel.innerHTML='<option value="">— Select Service —</option>';
+  var list=(p&&p.services)?(cat?p.services.filter(function(s){return (s.category||'Other')===cat;}):p.services):[];
+  svcSel.innerHTML='<option value="">— All Services ('+list.length+') —</option>';
   if(!p||!p.services) return;
-  var list=cat?p.services.filter(function(s){return (s.category||'Other')===cat;}):p.services;
   list.forEach(function(s){
     var svcId=String(s.service||s.id||'');
     var label=cat?s.name:(s.name+' ('+(s.category||'Other')+')');
@@ -2493,10 +2493,23 @@ function qiSelectCategoryDD(){
   toast('✅ Selected all in "'+label+'" ('+importable.length+')','s');
 }
 
-// "Select" next to Service: add just the one chosen service.
+// "Select" next to Service: add just the one chosen service — or, if "All
+// Services" is chosen, every service currently listed in the dropdown
+// (i.e. every importable service in the active Category filter).
 function qiSelectServiceDD(){
   var svcId=document.getElementById('qi-svc-dd').value;
-  if(!svcId){toast('Choose a service first','w');return;}
+  if(!svcId){
+    var cat=document.getElementById('qi-cat-dd').value;
+    var provId=parseInt(document.getElementById('qi-provider').value);
+    var p=provs.find(function(x){return x.id===provId;});
+    if(!p||!p.services) return;
+    var importable=qiImportableInCat(p.services,cat);
+    if(!importable.length){toast('No importable services in "'+(cat||'All Services')+'"','w');return;}
+    importable.forEach(function(s){_qiSelected.add(String(s.service||s.id||''));});
+    qiFilter();
+    toast('✅ Selected all services ('+importable.length+')','s');
+    return;
+  }
   _qiSelected.add(String(svcId));
   qiFilter();
   var svcName=document.querySelector('#qi-svc-dd option[value="'+svcId+'"]');
