@@ -2513,6 +2513,7 @@ function onAfMethodChange(){
     var acct=cfg.account||'';var instr=cfg.instructions||'Contact us via WhatsApp to arrange payment.';
     info='<div style="background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:11px;padding:14px;font-size:13px">'
       +'<div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:8px">💵 Cash / Hawala Payment</div>'
+      +(cfg.qrCode?'<div style="text-align:center;margin-bottom:12px"><img src="'+cfg.qrCode+'" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px"><div style="font-size:11px;color:var(--muted);margin-top:6px">Scan to pay</div></div>':'')
       +(acct?'<div style="color:var(--muted);margin-bottom:6px">Account / Contact: <strong style="color:var(--white)">'+acct+'</strong></div>':'')
       +'<div style="color:var(--muted);font-size:12px;line-height:1.7">'+instr+'</div>'
       +'</div>';

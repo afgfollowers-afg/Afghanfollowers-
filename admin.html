@@ -3999,8 +3999,55 @@ function getPmEditFields(m){
     f+='<div class="fg"><label class="fl">Secret Key</label><input type="password" class="fi" id="pme-ssec" value="'+(m.secKey||'')+'" placeholder="sk_live_..."></div>';
   } else {
     f+='<div class="fg"><label class="fl">Account / Address</label><input class="fi" id="pme-acc" value="'+(m.account||'')+'" placeholder="Account number, phone, wallet..."></div>';
+    f+='<div class="fg"><label class="fl">QR Code <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — shown to customers at checkout)</span></label>'
+      +'<div style="display:flex;gap:12px;align-items:center">'
+      +'<div id="pme-qr-preview" style="width:72px;height:72px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">'
+      +(m.qrCode?'<img src="'+m.qrCode+'" style="width:100%;height:100%;object-fit:contain">':'<span style="font-size:22px;opacity:.4">▦</span>')
+      +'</div>'
+      +'<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
+      +'<input type="file" accept="image/*" class="fi" id="pme-qr-file" onchange="handleQrUpload(this)" style="padding:6px;font-size:11px">'
+      +'<button type="button" class="btn btn-g btn-sm" onclick="removeQrPreview()">Remove QR Code</button>'
+      +'</div></div>'
+      +'<input type="hidden" id="pme-qr-data" value="'+(m.qrCode||'')+'">'
+      +'</div>';
   }
   return f;
+}
+
+// Reads the uploaded image, downsizes it to a small square canvas and
+// re-encodes as compressed JPEG so the resulting Data URL stays well
+// within JSONBin's ~100KB per-record cap even though it's stored inline
+// in the payment-method JSON (no separate file storage in this app).
+function handleQrUpload(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  if(!file.type.match(/^image\//)){toast('Please choose an image file','e');return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX=400;
+      var scale=Math.min(1,MAX/Math.max(img.width,img.height));
+      var w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+      var canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h); // flatten transparency onto white for JPEG
+      ctx.drawImage(img,0,0,w,h);
+      var dataUrl=canvas.toDataURL('image/jpeg',0.8);
+      document.getElementById('pme-qr-data').value=dataUrl;
+      document.getElementById('pme-qr-preview').innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+      toast('QR code ready — click Save Settings to apply','s');
+    };
+    img.onerror=function(){toast('Could not read that image','e');};
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function removeQrPreview(){
+  document.getElementById('pme-qr-data').value='';
+  document.getElementById('pme-qr-preview').innerHTML='<span style="font-size:22px;opacity:.4">▦</span>';
+  var f=document.getElementById('pme-qr-file');if(f)f.value='';
 }
 
 function savePmEdit(){
@@ -4053,6 +4100,7 @@ function savePmEdit(){
   } else {
     el=document.getElementById('pme-acc');if(el)m.account=el.value.trim();
     el=document.getElementById('pme-email');if(el&&el.value.trim())m.email=el.value.trim();
+    el=document.getElementById('pme-qr-data');if(el)m.qrCode=el.value||'';
   }
 
   // Save pms array directly
