@@ -4365,11 +4365,20 @@ function saveTgBot(){
   rIntg();
   toast(token?'✅ Telegram Bot saved!':'Telegram Bot removed','s');
 }
+// Push smm_auth_settings (Google Sign-In client ID, reCAPTCHA, extra signup
+// fields, welcome bonus, etc.) to the server so every visitor's browser
+// sees it — not just the admin's own browser where it was set.
+function pushAuthSettings(cfg){
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_auth_settings:cfg,smm_ts:Date.now()})}).catch(function(){});
+}
+
 function saveIntgKey(key,inputId,name){
   var val=document.getElementById(inputId).value.trim();
   var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');}catch(e){}
   if(val)cfg[key]=val;else delete cfg[key];
   localStorage.setItem('smm_auth_settings',JSON.stringify(cfg));
+  pushAuthSettings(cfg);
   // Also save to integrations key
   var intgCfg={};try{intgCfg=JSON.parse(localStorage.getItem('smm_integrations')||'{}');}catch(e){}
   if(val)intgCfg[key]=val;else delete intgCfg[key];
@@ -4391,6 +4400,7 @@ function saveSignup(){
   if(termsEl) cfg.termsUrl=termsEl.value.trim();
   if(bonusEl) cfg.welcomeBonus=parseFloat(bonusEl.value)||0;
   localStorage.setItem('smm_auth_settings',JSON.stringify(cfg));
+  pushAuthSettings(cfg);
   notifyPanel();
   toast('✅ Signup settings saved!','s');
 }
@@ -4521,6 +4531,7 @@ function togExtraField(key,el){
   if(el.classList.contains('on')){if(idx===-1)authCfg.extraFields.push(key);}
   else{if(idx>-1)authCfg.extraFields.splice(idx,1);}
   localStorage.setItem('smm_auth_settings',JSON.stringify(authCfg));
+  pushAuthSettings(authCfg);
   toast((el.classList.contains('on')?'✅':'❌')+' '+key+' field '+(el.classList.contains('on')?'enabled':'disabled'),'s');
 }
 
@@ -4546,6 +4557,10 @@ var ADMIN_CREDS_KEY='smm_admin_creds';
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
+      }
+      if(d.smm_auth_settings&&typeof d.smm_auth_settings==='object'){
+        localStorage.setItem('smm_auth_settings',JSON.stringify(d.smm_auth_settings));
+        if(document.getElementById('intg-a')) rIntg();
       }
     }).catch(function(){});
 })();

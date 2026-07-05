@@ -152,6 +152,9 @@ module.exports = async (req, res) => {
       if (body.smm_tg_bot && typeof body.smm_tg_bot === 'object') {
         current.smm_tg_bot = body.smm_tg_bot;
       }
+      if (body.smm_auth_settings && typeof body.smm_auth_settings === 'object') {
+        current.smm_auth_settings = body.smm_auth_settings;
+      }
       if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;

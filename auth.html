@@ -681,6 +681,20 @@ var AK='smm_users',SK='smm_session';
     }
   }).catch(function(){});
 })();
+
+// Pull admin-configured auth settings (Google Sign-In client ID, extra
+// signup fields, welcome bonus, terms URL) from the server — these used to
+// only ever be saved to the admin's own browser's localStorage, so every
+// other visitor's browser never actually saw them (Google Sign-In always
+// showed "not configured" outside the admin's own browser).
+(function pullAuthSettingsEarly(){
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    if(d&&d.smm_auth_settings&&typeof d.smm_auth_settings==='object'){
+      localStorage.setItem('smm_auth_settings',JSON.stringify(d.smm_auth_settings));
+      if(typeof renderExtraFields==='function') renderExtraFields();
+    }
+  }).catch(function(){});
+})();
 function getUsers(){try{var d=localStorage.getItem(AK);return d?JSON.parse(d):[{id:1,fname:'Admin',lname:'',email:'admin@panel.com',phone:'',password:hashPass('admin123','a1f9c3e7b2d84605'),salt:'a1f9c3e7b2d84605',role:'admin',balance:500,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]}];}catch(e){return[];}}
 function saveUsers(u){
   localStorage.setItem(AK,JSON.stringify(u));
