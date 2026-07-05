@@ -361,9 +361,14 @@ textarea.fi{resize:vertical;min-height:75px;}
         </div>
         <!-- Search -->
         <div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap">
-          <input class="fi" placeholder="🔍 Search..." style="flex:1;min-width:140px;padding:7px 10px;font-size:12px" oninput="filterSvcs(this.value)">
-          <select class="fi" style="width:140px;padding:7px 9px;font-size:12px" onchange="filterSvcCat(this.value)" id="svc-cat-filter"><option value="">All Categories</option></select>
+          <div style="flex:1;min-width:200px;position:relative">
+            <input class="fi" id="svc-unified-search" placeholder="🔍 Find service or category..." autocomplete="off" style="padding:7px 32px 7px 10px;font-size:12px" oninput="svcUnifiedInput()" onfocus="svcUnifiedInput()" onkeydown="svcUnifiedKeydown(event)">
+            <span onclick="svcUnifiedClear()" title="Clear" style="position:absolute;right:10px;top:8px;cursor:pointer;color:var(--mt);font-size:13px;line-height:1">✕</span>
+            <div id="svc-unified-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:280px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.5)"></div>
+          </div>
           <select class="fi" style="width:110px;padding:7px 9px;font-size:12px" onchange="filterSvcStatus(this.value)"><option value="">All</option><option value="active">Active</option><option value="inactive">Hidden</option></select>
+          <!-- Kept hidden — rSvcs() still reads svc-cat-filter's value via _svcCat; the unified box above drives it. -->
+          <select class="fi" id="svc-cat-filter" style="display:none"><option value="">All Categories</option></select>
         </div>
         <!-- Stats -->
         <div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap">
@@ -1851,6 +1856,7 @@ function saveCategories(c){localStorage.setItem(CAT_KEY,JSON.stringify(c));}
 var _svcFilter='';
 var _svcCat='';
 var _svcStatus='';
+var _svcPinnedId=null;
 
 function rSvcs(){
   if(!document.getElementById('svcs-tbl')) return;
@@ -1887,6 +1893,7 @@ function rSvcs(){
 
   // Filter
   var list=all.filter(function(s){
+    if(_svcPinnedId!=null) return s.id===_svcPinnedId;
     if(_svcFilter&&s.name.toLowerCase().indexOf(_svcFilter.toLowerCase())<0) return false;
     if(_svcCat&&(s.category||'Uncategorized')!==_svcCat) return false;
     if(_svcStatus==='active'&&s.active===false) return false;
@@ -2230,6 +2237,93 @@ function filterSvcCat(v){
 function filterSvcStatus(v){_svcStatus=v;rSvcs();}
 function filterSvcCat(v){_svcCat=v;rSvcs();}
 function filterSvcStatus(v){_svcStatus=v;rSvcs();}
+
+// ── Unified "find service or category" box for the live Services page ──
+function svcUnifiedInput(){
+  var val=(document.getElementById('svc-unified-search').value||'').toLowerCase().trim();
+  var box=document.getElementById('svc-unified-suggest');
+  if(!box) return;
+  var all=getServices();
+
+  var catCounts={};
+  all.forEach(function(s){var c=s.category||'Uncategorized';catCounts[c]=(catCounts[c]||0)+1;});
+  var catMatches=Object.keys(catCounts).filter(function(c){return !val||c.toLowerCase().indexOf(val)>-1;}).sort();
+  var svcMatches=val?all.filter(function(s){return (s.name||'').toLowerCase().indexOf(val)>-1;}).slice(0,25):[];
+
+  if(!catMatches.length&&!svcMatches.length){
+    box.innerHTML='<div style="padding:10px 14px;color:var(--mt);font-size:12px">No matches</div>';
+    box.style.display='block';
+    return;
+  }
+
+  var html='';
+  if(catMatches.length){
+    html+='<div class="qi-suggest-hd">Categories</div>';
+    catMatches.slice(0,10).forEach(function(c){
+      html+='<div class="qi-suggest-item" onclick="svcPickCategory(this.dataset.cat)" data-cat="'+qiEsc(c)+'" style="padding:8px 14px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between">'
+        +'<span>📁 '+qiEsc(c)+'</span><span style="color:var(--mt)">'+catCounts[c]+'</span></div>';
+    });
+  }
+  if(svcMatches.length){
+    html+='<div class="qi-suggest-hd" style="border-top:1px solid var(--bd);margin-top:4px">Services</div>';
+    svcMatches.forEach(function(s){
+      html+='<div class="qi-suggest-item" onclick="svcPickService('+s.id+')" style="padding:8px 14px;cursor:pointer;font-size:13px">'
+        +'🔧 '+qiEsc(s.name)+' <span style="color:var(--mt);font-size:11px">('+qiEsc(s.category||'—')+')</span></div>';
+    });
+  }
+  box.innerHTML=html;
+  box.style.display='block';
+}
+
+function svcUnifiedKeydown(e){
+  if(e.key==='Escape'){document.getElementById('svc-unified-suggest').style.display='none';}
+  if(e.key==='Enter'){
+    e.preventDefault();
+    _svcPinnedId=null;
+    _svcCat='';
+    document.getElementById('svc-cat-filter').value='';
+    filterSvcs(document.getElementById('svc-unified-search').value);
+    document.getElementById('svc-unified-suggest').style.display='none';
+  }
+}
+
+function svcUnifiedClear(){
+  document.getElementById('svc-unified-search').value='';
+  document.getElementById('svc-cat-filter').value='';
+  document.getElementById('svc-unified-suggest').style.display='none';
+  _svcPinnedId=null;
+  _svcCat='';
+  filterSvcs('');
+}
+
+function svcPickCategory(cat){
+  document.getElementById('svc-cat-filter').value=cat;
+  document.getElementById('svc-unified-search').value='📁 '+cat;
+  document.getElementById('svc-unified-suggest').style.display='none';
+  _svcPinnedId=null;
+  _svcFilter='';
+  _svcCat=cat;
+  rSvcs();
+}
+
+function svcPickService(id){
+  var s=getServices().find(function(x){return x.id===id;});
+  document.getElementById('svc-cat-filter').value='';
+  document.getElementById('svc-unified-search').value=s?('🔧 '+s.name):'';
+  document.getElementById('svc-unified-suggest').style.display='none';
+  _svcFilter='';
+  _svcCat='';
+  _svcPinnedId=id;
+  rSvcs();
+}
+
+document.addEventListener('click',function(e){
+  var box=document.getElementById('svc-unified-suggest');
+  var inp=document.getElementById('svc-unified-search');
+  if(!box||box.style.display==='none') return;
+  if(e.target===inp||box.contains(e.target)) return;
+  box.style.display='none';
+});
 
 function togSvc(id){
   var svcs=getServices();
