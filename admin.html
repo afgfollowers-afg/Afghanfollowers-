@@ -1746,9 +1746,20 @@ function saveServices(arr){
       toast('❌ Storage full. Go to reset.html to clear data.','e');
     }
   }
-  // Push to server so services show up on every device, not just this browser
+  // Push to server so services show up on every device, not just this browser.
+  // Must check the response — db.js returns ok:false/diag on failure (e.g. the
+  // JSONBIN_SVC_BIN_ID env var missing, or the write to JSONBin failing) with
+  // an HTTP 200, so a bare .catch() alone would never surface those failures
+  // and every other device would silently see zero services forever.
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_svc:c,smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_svc:c,smm_ts:Date.now()})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&(d.error||d.diag)){
+        toast('❌ Services did NOT sync to server: '+(d.diag||'')+(d.error?' — '+d.error:''),'e');
+      }
+    })
+    .catch(function(){toast('❌ Could not reach server — services only saved on this device','e');});
 }
 
 function getServices(){
@@ -2875,10 +2886,11 @@ function syncServicesToPanel(svcs){
     body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})})
     .then(function(r){return r.json();})
     .then(function(d){
-      // TEMP DIAGNOSTIC — remove after debugging
-      alert('SYNC PUSH RESULT:\n'+JSON.stringify(d,null,2));
+      if(d&&(d.error||d.diag)){
+        toast('❌ Services did NOT sync to server: '+(d.diag||'')+(d.error?' — '+d.error:''),'e');
+      }
     })
-    .catch(function(e){alert('SYNC PUSH FAILED (network/JS error):\n'+e.message);});
+    .catch(function(){toast('❌ Could not reach server — services only saved on this device','e');});
   toast('✅ Synced '+active.length+' services to panel','s');notifyPanel();
 }
 
