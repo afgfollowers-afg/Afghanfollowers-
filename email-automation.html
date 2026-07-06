@@ -104,26 +104,19 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
 
 <!-- RESEND CONFIG -->
 <div class="card">
-  <div class="ch">🔑 Resend API Configuration</div>
+  <div class="ch">🔑 Resend Sender Settings</div>
   <div class="cb">
     <div class="alert a-i">
       <span>ℹ️</span>
       <div>
-        <strong>Setup Resend (Free — 3,000 emails/month):</strong><br>
-        1. Go to <a href="https://resend.com" target="_blank" style="color:var(--gr)">resend.com</a> → Create free account<br>
-        2. Settings → API Keys → Create API Key → Copy it<br>
-        3. Add your domain (or use <code>onboarding@resend.dev</code> for testing)<br>
-        4. Paste API Key below → Save → Enable Automation
+        <strong>Setup:</strong> the Resend API key lives on the server, not here — browsers can't call Resend's API directly (it has no CORS support, so pasting a key into a page field would just fail with "Failed to fetch", and would also expose the secret in your browser).<br><br>
+        In your Vercel project → <strong>Settings → Environment Variables</strong>, set <code>RESEND_API_KEY</code> to your key from <a href="https://resend.com" target="_blank" style="color:var(--gr)">resend.com</a> → API Keys, then redeploy. Verify your sending domain under Resend → Domains first.
       </div>
     </div>
     <div class="fgrid">
       <div class="fg">
-        <label class="fl">Resend API Key <span style="color:var(--rd)">*</span></label>
-        <input class="fi" id="cfg-key" type="password" placeholder="re_XXXXXXXXXXXXXXXXXXXX">
-      </div>
-      <div class="fg">
         <label class="fl">From Email <span style="color:var(--rd)">*</span></label>
-        <input class="fi" id="cfg-from" placeholder="noreply@afghanfollowers.shop">
+        <input class="fi" id="cfg-from" placeholder="noreply@afghanfollowers.online">
       </div>
       <div class="fg">
         <label class="fl">From Name</label>
@@ -131,7 +124,7 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
       </div>
       <div class="fg">
         <label class="fl">Reply-To Email</label>
-        <input class="fi" id="cfg-reply" placeholder="support@afghanfollowers.shop">
+        <input class="fi" id="cfg-reply" placeholder="support@afghanfollowers.online">
       </div>
     </div>
     <div style="display:flex;gap:10px">
@@ -351,6 +344,32 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
 <div class="toast" id="toast"></div>
 
 <script>
+// Admin-only page — bounce anyone without a live admin session back to login.
+(function requireAdmin(){
+  try{
+    var d=localStorage.getItem('smm_admin_session');
+    if(!d){ window.location.replace('admin.html'); return; }
+    var s=JSON.parse(d);
+    var durH=parseInt(localStorage.getItem('smm_admin_session_dur')||'8');
+    if(!s.ts||Date.now()-s.ts>durH*3600000){ window.location.replace('admin.html'); return; }
+  }catch(e){ window.location.replace('admin.html'); }
+})();
+
+// Same shared secret admin.html/smm-panel.html/auth.html use for /api/* —
+// stops the open endpoint from being hit by generic internet scanners.
+// Must match the DB_SERVICE_KEY environment variable set in Vercel.
+var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+(function(){
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    if(typeof url==='string' && url.indexOf('/api/')===0){
+      opts=opts||{};
+      opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+    }
+    return _fetch(url,opts);
+  };
+})();
+
 var CFG_KEY='smm_email_auto_cfg';
 var LOG_KEY='smm_email_auto_log';
 var _interval=null;
@@ -362,7 +381,6 @@ function saveCfgData(c){localStorage.setItem(CFG_KEY,JSON.stringify(c));}
 
 function saveCfg(){
   var c=getCfg();
-  c.apiKey=document.getElementById('cfg-key').value.trim();
   c.from=document.getElementById('cfg-from').value.trim();
   c.fromName=document.getElementById('cfg-fname').value.trim()||'Afghan Followers';
   c.replyTo=document.getElementById('cfg-reply').value.trim();
@@ -386,7 +404,6 @@ function saveRules(){
 
 function loadCfgUI(){
   var c=getCfg();
-  if(c.apiKey) document.getElementById('cfg-key').value=c.apiKey;
   if(c.from) document.getElementById('cfg-from').value=c.from;
   if(c.fromName) document.getElementById('cfg-fname').value=c.fromName;
   if(c.replyTo) document.getElementById('cfg-reply').value=c.replyTo;
@@ -407,8 +424,8 @@ function toggleAuto(el){
 
 function startAutomation(){
   var c=getCfg();
-  if(!c.apiKey||!c.from){
-    toast('Configure API Key and From Email first','e');
+  if(!c.from){
+    toast('Configure From Email first','e');
     document.getElementById('auto-tog').classList.remove('on');
     return;
   }
@@ -445,36 +462,36 @@ function updateNextRun(hours){
   document.getElementById('st-next').textContent=next.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 }
 
-// ═══ CORE: SEND EMAIL via Resend API ═══
+// ═══ CORE: SEND EMAIL via server-side /api/send-email (Resend key lives in
+// Vercel env vars — browsers can't call api.resend.com directly, it has no
+// CORS support, so that always fails with "Failed to fetch") ═══
 async function sendEmail(toEmail,toName,subject,htmlBody){
   var c=getCfg();
-  if(!c.apiKey||!c.from){
-    addLog('❌ Missing API key or from email','e');
+  if(!c.from){
+    addLog('❌ Missing From Email — configure it above first','e');
     return{ok:false,error:'Not configured'};
   }
 
   var payload={
-    from:c.fromName?c.fromName+' <'+c.from+'>':c.from,
-    to:[toEmail],
+    to:toEmail,
+    from:c.from,
+    fromName:c.fromName||'',
+    replyTo:c.replyTo||'',
     subject:subject,
     html:htmlBody
   };
-  if(c.replyTo) payload.reply_to=c.replyTo;
 
   try{
-    var res=await fetch('https://api.resend.com/emails',{
+    var res=await fetch('/api/send-email',{
       method:'POST',
-      headers:{
-        'Authorization':'Bearer '+c.apiKey,
-        'Content-Type':'application/json'
-      },
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
     var data=await res.json();
-    if(res.ok&&data.id){
+    if(data.ok&&data.id){
       return{ok:true,id:data.id};
     } else {
-      return{ok:false,error:data.message||data.error||JSON.stringify(data)};
+      return{ok:false,error:data.error||JSON.stringify(data)};
     }
   }catch(e){
     return{ok:false,error:e.message};
@@ -633,7 +650,7 @@ function showBulkPreview(){
 
 async function testBulkEmail(){
   var c=getCfg();
-  if(!c.apiKey||!c.from){ toast('Configure API Key and From Email first','e'); return; }
+  if(!c.from){ toast('Configure From Email first','e'); return; }
   var toEmail=prompt('Send test to email:','');
   if(!toEmail) return;
   var demo={email:toEmail,name:'Test'};
@@ -652,7 +669,7 @@ function stopBulkCampaign(){
 
 async function sendBulkCampaign(){
   var c=getCfg();
-  if(!c.apiKey||!c.from){ toast('Configure API Key and From Email first','e'); return; }
+  if(!c.from){ toast('Configure From Email first','e'); return; }
   if(!_bulkAll.length){ toast('Upload a CSV first','e'); return; }
   var recipients=getBulkFilteredRecipients();
   if(!recipients.length){ toast('No recipients match the current status filter','e'); return; }
@@ -793,9 +810,8 @@ async function sendToUser(userId){
 
 // ═══ TEST EMAIL ═══
 async function testEmail(){
-  var apiKey=document.getElementById('cfg-key').value.trim();
   var from=document.getElementById('cfg-from').value.trim();
-  if(!apiKey||!from){toast('Enter API Key and From Email first','e');return;}
+  if(!from){toast('Enter From Email first','e');return;}
   var toEmail=prompt('Send test to email:','');
   if(!toEmail) return;
   document.getElementById('test-status').textContent='Sending...';
@@ -821,7 +837,7 @@ async function testEmail(){
 // ═══ RUN NOW ═══
 async function runCampaignNow(){
   var c=getCfg();
-  if(!c.apiKey||!c.from){toast('Configure API Key first','e');return;}
+  if(!c.from){toast('Configure From Email first','e');return;}
   if(!confirm('Send emails to all eligible inactive users now?')) return;
   toast('Campaign started...','s');
   addLog('🚀 Manual campaign triggered','i');
@@ -918,7 +934,7 @@ function toast(msg,t){
 
   // restore active state if was running
   var c=getCfg();
-  if(c.active&&c.apiKey&&c.from){
+  if(c.active&&c.from){
     document.getElementById('auto-tog').classList.add('on');
     setStatus(true);
     restartTimer(c.intervalH||24);
