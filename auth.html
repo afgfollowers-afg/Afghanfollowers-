@@ -839,7 +839,7 @@ function handleGoogleCredential(res){
     var p=JSON.parse(atob(res.credential.split('.')[1]));
     var users=getUsers();var ex=users.find(function(u){return u.email===p.email;});
     if(ex){createSess(ex);showA('Welcome back, '+ex.fname+'!','s');}
-    else{var nu={id:Date.now(),fname:(p.name||'').split(' ')[0]||'User',lname:(p.name||'').split(' ').slice(1).join(' '),email:p.email,phone:'',password:'',googleId:p.sub,role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],avatar:p.picture||''};users.push(nu);saveUsers(users);createSess(nu);showA('Welcome! 🎉','s');}
+    else{var nu={id:Date.now(),fname:(p.name||'').split(' ')[0]||'User',lname:(p.name||'').split(' ').slice(1).join(' '),email:p.email,phone:'',password:'',googleId:p.sub,role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],avatar:p.picture||''};users.push(nu);saveUsers(users);createSess(nu);showA('Welcome! 🎉','s');tgAuthNotify('🆕 <b>New Registration</b> (Google)\nName: '+nu.fname+' '+nu.lname+'\nEmail: '+nu.email);}
     showA('✅ Logged in! Redirecting...','s');
     setTimeout(function(){window.location.href='smm-panel.html';},900);
   }catch(e){showA('Google error','e');}
