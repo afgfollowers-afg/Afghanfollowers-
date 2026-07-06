@@ -989,9 +989,23 @@ function pwaDismiss(){
   try{sessionStorage.setItem('pwa_install_dismissed','1');}catch(e){}
 }
 function pwaInstallClick(){
-  if(!_pwaDeferredPrompt) return;
-  _pwaDeferredPrompt.prompt();
-  _pwaDeferredPrompt.userChoice.finally(function(){_pwaDeferredPrompt=null;pwaDismiss();});
+  if(!_pwaDeferredPrompt){
+    // This browser never fired beforeinstallprompt (Samsung Internet, Firefox,
+    // some Android WebViews, etc.) — there's no programmatic install API to
+    // call, so guide the user to their browser's own menu instead of doing
+    // nothing silently.
+    showA('Open your browser menu (⋮) → "Add to Home screen" / "Install app"','w');
+    return;
+  }
+  try{
+    _pwaDeferredPrompt.prompt();
+    _pwaDeferredPrompt.userChoice.finally(function(){_pwaDeferredPrompt=null;pwaDismiss();});
+  }catch(e){
+    // The captured event can only be used once — if it was already consumed
+    // (e.g. the browser's own mini-infobar beat us to it), prompt() throws.
+    showA('Open your browser menu (⋮) → "Add to Home screen" / "Install app"','w');
+    _pwaDeferredPrompt=null;
+  }
 }
 (function initPwa(){
   if(isPwaStandalone()) return;
