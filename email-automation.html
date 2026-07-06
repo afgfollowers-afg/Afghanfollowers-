@@ -462,9 +462,12 @@ function updateNextRun(hours){
   document.getElementById('st-next').textContent=next.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 }
 
-// ═══ CORE: SEND EMAIL via server-side /api/send-email (Resend key lives in
-// Vercel env vars — browsers can't call api.resend.com directly, it has no
-// CORS support, so that always fails with "Failed to fetch") ═══
+// ═══ CORE: SEND EMAIL via server-side /api/send-reset-email (same endpoint
+// that sends password-reset mail — it also handles a generic authenticated
+// {to,html,...} send so this stays under Vercel's serverless function cap).
+// Resend key lives in Vercel env vars — browsers can't call api.resend.com
+// directly, it has no CORS support, so that always fails with "Failed to
+// fetch" no matter how correct the key is. ═══
 async function sendEmail(toEmail,toName,subject,htmlBody){
   var c=getCfg();
   if(!c.from){
@@ -482,7 +485,7 @@ async function sendEmail(toEmail,toName,subject,htmlBody){
   };
 
   try{
-    var res=await fetch('/api/send-email',{
+    var res=await fetch('/api/send-reset-email',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
