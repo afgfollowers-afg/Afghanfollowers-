@@ -597,11 +597,19 @@ tr:hover td{background:rgba(30,35,54,.5);}
     </div>
 
 
-    <!-- Service type — simple dropdown -->
-    <div id="order-svc-section" style="margin-bottom:14px;display:none">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Service</div>
-      <select id="order-svc-dropdown" class="form-input" onchange="onSvcDropChange(this)">
-      </select>
+    <!-- Service type — custom dropdown, styled like the Category dropdown above -->
+    <div class="card" id="order-svc-section" style="margin-bottom:14px;display:none">
+      <div class="card-body" style="padding:12px 10px 4px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Service</div>
+        <div id="order-svc-trigger" onclick="toggleOrderSvc()" style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:0;transition:border-color .2s">
+          <span id="order-svc-label" style="flex:1;font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Select service</span>
+          <span id="order-svc-arr" style="font-size:11px;color:var(--muted);transition:transform .25s;display:inline-block">▼</span>
+        </div>
+      </div>
+      <div id="order-svc-list" style="border-top:1px solid var(--border);display:none">
+        <div id="order-svc-items" style="padding:4px 0;max-height:300px;overflow-y:auto"></div>
+      </div>
+      <select id="order-svc-dropdown" style="display:none" onchange="onSvcDropChange(this)"></select>
     </div>
 
     <!-- hidden select for price logic -->
@@ -1750,6 +1758,65 @@ function renderServiceList2(svcs){
   dd.selectedIndex=0;
   S.selSvcIdx=0;
   syncServiceFromDropdown2(svcs);
+  renderSvcItemsList(svcs);
+  updateSvcTriggerLabel();
+  setSvcOpen(false);
+}
+
+// ── Custom Service dropdown — mirrors the Category dropdown's look/behavior
+// instead of a native <select>. The hidden #order-svc-dropdown select above
+// stays the source of truth (price/time/cancel/refill datasets, read by
+// updatePrice()/placeOrder()) so none of that logic has to change. ──
+var _svcOpen=false;
+function setSvcOpen(open){
+  _svcOpen=open;
+  var list=document.getElementById('order-svc-list');
+  var arr=document.getElementById('order-svc-arr');
+  if(!list) return;
+  if(open){ list.style.display='block'; if(arr) arr.textContent='▲'; }
+  else { list.style.display='none'; if(arr) arr.textContent='▼'; }
+}
+function toggleOrderSvc(){ setSvcOpen(!_svcOpen); }
+
+function updateSvcTriggerLabel(){
+  var dd=document.getElementById('order-svc-dropdown');
+  var label=document.getElementById('order-svc-label');
+  if(!label) return;
+  label.textContent=(dd&&dd.options.length&&dd.selectedIndex>=0)?dd.options[dd.selectedIndex].text:'Select service';
+}
+
+function renderSvcItemsList(svcs){
+  var wrap=document.getElementById('order-svc-items');
+  if(!wrap) return;
+  var selIdx=S.selSvcIdx||0;
+  var html='';
+  for(var i=0;i<svcs.length;i++){
+    var isActive=(i===selIdx);
+    html+='<div class="svc-list-item" data-idx="'+i+'" style="'
+      +'padding:11px 14px;cursor:pointer;font-size:13px;line-height:1.4;'
+      +'font-weight:'+(isActive?'700':'400')+';'
+      +'color:'+(isActive?'#f97316':'#94a3b8')+';'
+      +'background:'+(isActive?'rgba(249,115,22,.08)':'transparent')+';'
+      +'border-bottom:1px solid rgba(37,43,64,.5)">'
+      +escHtml(svcs[i].name)+' — '+fmt(svcs[i].p)+'/K ('+(svcs[i].time||'1-24h')+')'
+      +'</div>';
+  }
+  wrap.innerHTML=html;
+  document.querySelectorAll('.svc-list-item').forEach(function(el){
+    el.addEventListener('mouseover',function(){if(parseInt(this.dataset.idx)!==(S.selSvcIdx||0))this.style.background='rgba(255,255,255,.04)';});
+    el.addEventListener('mouseout',function(){this.style.background=(parseInt(this.dataset.idx)===(S.selSvcIdx||0))?'rgba(249,115,22,.08)':'transparent';});
+    el.addEventListener('click',function(){selectSvcListItem(parseInt(this.dataset.idx),svcs);});
+  });
+}
+
+function selectSvcListItem(idx,svcs){
+  var dd=document.getElementById('order-svc-dropdown');
+  if(dd) dd.selectedIndex=idx;
+  S.selSvcIdx=idx;
+  syncServiceFromDropdown2(svcs);
+  updateSvcTriggerLabel();
+  renderSvcItemsList(svcs);
+  setSvcOpen(false);
 }
 
 function syncServiceFromDropdown2(svcs){
