@@ -1017,24 +1017,33 @@ function pwaInstallClick(){
     navigator.serviceWorker.register('/sw.js').catch(function(){});
   }
 
+  var promptFired=false;
   window.addEventListener('beforeinstallprompt',function(e){
     e.preventDefault();
+    promptFired=true;
     _pwaDeferredPrompt=e;
     var bar=document.getElementById('pwa-install-bar');
     if(bar) bar.style.display='flex';
   });
 
-  // iOS Safari never fires beforeinstallprompt — show manual instructions instead
-  if(/iphone|ipad|ipod/i.test(navigator.userAgent)){
+  // Browsers that can never fire beforeinstallprompt (every iOS browser —
+  // Apple mandates WebKit, so Safari/Chrome/Firefox on iOS all lack it —
+  // plus Samsung Internet, Firefox Android, etc.) are NOT reliably detectable
+  // via User-Agent sniffing: Safari's "Request Desktop Website" mode strips
+  // every iOS hint out of the UA string, which is exactly what silently broke
+  // this before. Instead, just wait — if nothing fired after a couple
+  // seconds, show manual instructions instead of a dead "Install" button.
+  setTimeout(function(){
+    if(promptFired) return;
     var bar=document.getElementById('pwa-install-bar');
     var sub=document.getElementById('pwa-install-sub');
     var btn=document.getElementById('pwa-install-btn');
     if(bar&&sub&&btn){
-      sub.textContent='Tap Share → Add to Home Screen';
+      sub.textContent='Open your browser menu → Add to Home Screen / Install App';
       btn.style.display='none';
       bar.style.display='flex';
     }
-  }
+  },2000);
 })();
 </script>
 </body>
