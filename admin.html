@@ -997,6 +997,8 @@ textarea.fi{resize:vertical;min-height:75px;}
       <option value="warning">⚠️ Warning (yellow)</option>
       <option value="danger">🚨 Danger (red)</option>
     </select></div>
+    <div class="fg"><label class="fl">Link URL <span style="color:var(--mt);font-weight:400;text-transform:none">(optional)</span></label><input class="fi" id="an-link" placeholder="https://afghancoins.online"></div>
+    <div class="fg"><label class="fl">Link Button Text <span style="color:var(--mt);font-weight:400;text-transform:none">(optional)</span></label><input class="fi" id="an-link-text" placeholder="Visit Afghan Coins"></div>
   </div>
   <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-ann')">Cancel</button><button class="btn btn-p" onclick="addAnnouncement()">Save</button></div>
 </div></div>
@@ -4597,10 +4599,13 @@ function addAnnouncement(){
   var title=document.getElementById('an-title').value.trim();
   var msg=document.getElementById('an-msg').value.trim();
   if(!title||!msg){toast('Fill all fields','e');return;}
+  var link=document.getElementById('an-link').value.trim();
+  var linkText=document.getElementById('an-link-text').value.trim();
   var list=getAnnouncements();
-  list.unshift({id:Date.now(),title:title,msg:msg,type:document.getElementById('an-type').value,active:true,createdAt:new Date().toISOString()});
+  list.unshift({id:Date.now(),title:title,msg:msg,type:document.getElementById('an-type').value,link:link,linkText:linkText,active:true,createdAt:new Date().toISOString()});
   saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement published!','s');
   document.getElementById('an-title').value='';document.getElementById('an-msg').value='';
+  document.getElementById('an-link').value='';document.getElementById('an-link-text').value='';
 }
 
 // email

@@ -137,6 +137,8 @@ svg.icon{display:inline-block;vertical-align:middle;}
 .ann-success .ann-post-dot,.ann-dot-success{background:var(--green);}
 .ann-warning .ann-post-dot,.ann-dot-warning{background:var(--yellow);}
 .ann-danger .ann-post-dot,.ann-dot-danger{background:var(--red);}
+.ann-post-link{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:6px 12px;border-radius:8px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;text-decoration:none;}
+.ann-post-link:hover{opacity:.9;}
 
 /* ══════════════════════════════
    SOCIAL ICONS
@@ -1165,12 +1167,15 @@ function renderAnnouncements(){
   var posts=active.map(function(a){
     var type=['info','success','warning','danger'].indexOf(a.type)>-1?a.type:'info';
     var dateStr=a.createdAt?new Date(a.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+    var link=(a.link||'').trim();
+    var isSafeLink=/^https?:\/\//i.test(link);
     return '<div class="ann-post">'
       +'<div class="ann-post-dot ann-dot-'+type+'"></div>'
       +'<div style="flex:1;min-width:0">'
       +'<div class="ann-post-title">'+escHtml(a.title)+'</div>'
       +(dateStr?'<div class="ann-post-date">'+dateStr+'</div>':'')
       +'<div class="ann-post-msg">'+escHtml(a.msg)+'</div>'
+      +(isSafeLink?'<a class="ann-post-link" href="'+escHtml(link)+'" target="_blank" rel="noopener noreferrer">🔗 '+escHtml(a.linkText||link)+'</a>':'')
       +'</div></div>';
   }).join('');
   wrap.innerHTML='<div class="ann-feed" id="ann-feed">'
