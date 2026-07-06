@@ -648,7 +648,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <!-- ANNOUNCEMENTS -->
           <div class="set-pnl" id="sp-announcements">
             <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Shown as a dismissible banner at the top of the customer panel. Each customer only sees a given announcement until they close it.</div>
-            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-ann')">Add Announcement +</button>
+            <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddAnn()">Add Announcement +</button>
             <div class="tw" id="ann-tbl"></div>
           </div>
 
@@ -987,7 +987,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 
 <!-- Add Announcement -->
 <div class="mo" id="m-add-ann"><div class="md">
-  <div class="md-h"><div class="md-t">Add Announcement</div><div class="md-x" onclick="cm('m-add-ann')">✕</div></div>
+  <div class="md-h"><div class="md-t" id="ann-modal-title">Add Announcement</div><div class="md-x" onclick="cm('m-add-ann')">✕</div></div>
   <div class="md-b">
     <div class="fg"><label class="fl">Title</label><input class="fi" id="an-title" placeholder="🎉 New Year Sale!"></div>
     <div class="fg"><label class="fl">Message</label><textarea class="fi" id="an-msg" rows="3" placeholder="Get 20% off all Instagram services this week only."></textarea></div>
@@ -4589,23 +4589,56 @@ function rAnnouncements(){
     h+='<tr><td style="font-weight:600">'+a.title+'</td>'
       +'<td><span class="b '+(annTypeBadge[a.type]||'bp')+'">'+(annTypeLabel[a.type]||a.type)+'</span></td>'
       +'<td><div class="tog '+(a.active?'on':'')+'" onclick="togAnn('+i+')"></div></td>'
-      +'<td><button class="btn btn-d btn-sm btn-ico" onclick="delAnn('+i+')">✕</button></td></tr>';
+      +'<td><div style="display:flex;gap:5px"><button class="btn btn-g btn-sm btn-ico" onclick="editAnn('+i+')">✏️</button><button class="btn btn-d btn-sm btn-ico" onclick="delAnn('+i+')">✕</button></div></td></tr>';
   });
   document.getElementById('ann-tbl').innerHTML=h+'</tbody></table>';
 }
 function togAnn(i){var list=getAnnouncements();list[i].active=!list[i].active;saveAnnouncements(list);rAnnouncements();toast(list[i].title+(list[i].active?' enabled':' disabled'),'s');}
 function delAnn(i){var list=getAnnouncements();list.splice(i,1);saveAnnouncements(list);rAnnouncements();toast('Announcement deleted','e');}
+var _editAnnIndex=null;
+function clearAnnForm(){
+  document.getElementById('an-title').value='';
+  document.getElementById('an-msg').value='';
+  document.getElementById('an-type').value='info';
+  document.getElementById('an-link').value='';
+  document.getElementById('an-link-text').value='';
+}
+function openAddAnn(){
+  _editAnnIndex=null;
+  clearAnnForm();
+  document.getElementById('ann-modal-title').textContent='Add Announcement';
+  om('m-add-ann');
+}
+function editAnn(i){
+  var a=getAnnouncements()[i];
+  if(!a) return;
+  _editAnnIndex=i;
+  document.getElementById('an-title').value=a.title||'';
+  document.getElementById('an-msg').value=a.msg||'';
+  document.getElementById('an-type').value=a.type||'info';
+  document.getElementById('an-link').value=a.link||'';
+  document.getElementById('an-link-text').value=a.linkText||'';
+  document.getElementById('ann-modal-title').textContent='Edit Announcement';
+  om('m-add-ann');
+}
 function addAnnouncement(){
   var title=document.getElementById('an-title').value.trim();
   var msg=document.getElementById('an-msg').value.trim();
   if(!title||!msg){toast('Fill all fields','e');return;}
   var link=document.getElementById('an-link').value.trim();
   var linkText=document.getElementById('an-link-text').value.trim();
+  var type=document.getElementById('an-type').value;
   var list=getAnnouncements();
-  list.unshift({id:Date.now(),title:title,msg:msg,type:document.getElementById('an-type').value,link:link,linkText:linkText,active:true,createdAt:new Date().toISOString()});
+  if(_editAnnIndex!==null&&list[_editAnnIndex]){
+    var existing=list[_editAnnIndex];
+    existing.title=title;existing.msg=msg;existing.type=type;existing.link=link;existing.linkText=linkText;
+    saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement updated!','s');
+    _editAnnIndex=null;clearAnnForm();
+    return;
+  }
+  list.unshift({id:Date.now(),title:title,msg:msg,type:type,link:link,linkText:linkText,active:true,createdAt:new Date().toISOString()});
   saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement published!','s');
-  document.getElementById('an-title').value='';document.getElementById('an-msg').value='';
-  document.getElementById('an-link').value='';document.getElementById('an-link-text').value='';
+  clearAnnForm();
 }
 
 // email
