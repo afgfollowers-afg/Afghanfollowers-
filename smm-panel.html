@@ -6,6 +6,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SMM Panel</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#7c5cfc">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AF Panel">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -1021,6 +1028,17 @@ tr:hover td{background:rgba(30,35,54,.5);}
 <style>
 @keyframes ppSpin{to{transform:rotate(360deg)}}
 </style>
+
+<!-- PWA install prompt -->
+<div id="pwa-install-bar" style="display:none;position:fixed;left:12px;right:12px;bottom:78px;z-index:500;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.4)">
+  <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#7c5cfc,#00d2a0);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff">AF</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:13px;font-weight:700;color:var(--white)">Install App</div>
+    <div id="pwa-install-sub" style="font-size:11px;color:var(--muted)">Add to your home screen for quick access</div>
+  </div>
+  <button id="pwa-install-btn" onclick="pwaInstallClick()" style="background:var(--accent);color:#fff;border:none;border-radius:9px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Install</button>
+  <span onclick="pwaDismiss()" style="cursor:pointer;color:var(--muted);font-size:16px;padding:0 4px;flex-shrink:0">✕</span>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -3821,6 +3839,51 @@ renderCategoryList();
 renderPaymentMethods(); // load from admin settings
 updateBalanceUI();      // show correct balance and currency
 checkTicketDot();       // show ticket notification if any
+
+// ══ PWA install prompt ══
+var _pwaDeferredPrompt=null;
+function isPwaStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+}
+function pwaDismiss(){
+  var bar=document.getElementById('pwa-install-bar');
+  if(bar) bar.style.display='none';
+  try{sessionStorage.setItem('pwa_install_dismissed','1');}catch(e){}
+}
+function pwaInstallClick(){
+  if(!_pwaDeferredPrompt) return;
+  _pwaDeferredPrompt.prompt();
+  _pwaDeferredPrompt.userChoice.finally(function(){_pwaDeferredPrompt=null;pwaDismiss();});
+}
+(function initPwa(){
+  if(isPwaStandalone()) return;
+  var dismissed=false;
+  try{dismissed=sessionStorage.getItem('pwa_install_dismissed')==='1';}catch(e){}
+  if(dismissed) return;
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  }
+
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();
+    _pwaDeferredPrompt=e;
+    var bar=document.getElementById('pwa-install-bar');
+    if(bar) bar.style.display='flex';
+  });
+
+  // iOS Safari never fires beforeinstallprompt — show manual instructions instead
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent)){
+    var bar=document.getElementById('pwa-install-bar');
+    var sub=document.getElementById('pwa-install-sub');
+    var btn=document.getElementById('pwa-install-btn');
+    if(bar&&sub&&btn){
+      sub.textContent='Tap Share → Add to Home Screen';
+      btn.style.display='none';
+      bar.style.display='flex';
+    }
+  }
+})();
 
 </script>
 </body>
