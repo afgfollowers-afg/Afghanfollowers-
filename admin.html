@@ -542,6 +542,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <div class="set-mi" onclick="setSec('bonuses',this)">Bonuses</div>
           <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
           <div class="set-mi" onclick="setSec('announcements',this)">📢 Announcements</div>
+          <div class="set-mi" onclick="setSec('blog',this)">📝 Blog</div>
           <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
           <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
           <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
@@ -650,6 +651,13 @@ textarea.fi{resize:vertical;min-height:75px;}
             <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Shown as a dismissible banner at the top of the customer panel. Each customer only sees a given announcement until they close it.</div>
             <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddAnn()">Add Announcement +</button>
             <div class="tw" id="ann-tbl"></div>
+          </div>
+
+          <!-- BLOG -->
+          <div class="set-pnl" id="sp-blog">
+            <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Public blog posts at <a href="/blog.html" target="_blank" style="color:var(--acc2)">/blog.html</a> — helps SEO by giving Google fresh, keyword-rich pages to index. Publishing a post also broadcasts it to your Telegram channel (if configured under Integrations).</div>
+            <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddBlog()">Add Blog Post +</button>
+            <div class="tw" id="blog-tbl"></div>
           </div>
 
           <!-- EMAIL -->
@@ -1001,6 +1009,25 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="fg"><label class="fl">Link Button Text <span style="color:var(--mt);font-weight:400;text-transform:none">(optional)</span></label><input class="fi" id="an-link-text" placeholder="Visit Afghan Coins"></div>
   </div>
   <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-ann')">Cancel</button><button class="btn btn-p" onclick="addAnnouncement()">Save</button></div>
+</div></div>
+
+<!-- Add/Edit Blog Post -->
+<div class="mo" id="m-add-blog"><div class="md" style="max-width:640px">
+  <div class="md-h"><div class="md-t" id="blog-modal-title">Add Blog Post</div><div class="md-x" onclick="cm('m-add-blog')">✕</div></div>
+  <div class="md-b">
+    <div class="fg"><label class="fl">Title</label><input class="fi" id="bl-title" placeholder="۵ راه افزایش فالوور واقعی اینستاگرام" oninput="blogAutoSlug()"></div>
+    <div class="fg"><label class="fl">Slug (URL) <span style="color:var(--mt);font-weight:400;text-transform:none">/blog.html?post=...</span></label><input class="fi" id="bl-slug" placeholder="5-ways-grow-instagram-followers"></div>
+    <div class="fg"><label class="fl">Excerpt <span style="color:var(--mt);font-weight:400;text-transform:none">(used for the card + meta description)</span></label><textarea class="fi" id="bl-excerpt" rows="2" placeholder="خلاصه‌ی کوتاه یک تا دو خطی از مقاله..."></textarea></div>
+    <div class="fg"><label class="fl">Content <span style="color:var(--mt);font-weight:400;text-transform:none">(HTML — p, strong, ul/li, a, h2/h3 allowed)</span></label><textarea class="fi" id="bl-content" rows="10" placeholder="<p>متن کامل مقاله...</p>"></textarea></div>
+    <div class="fgrid">
+      <div class="fg"><label class="fl">Cover Emoji</label><input class="fi" id="bl-emoji" placeholder="📈" value="📝"></div>
+      <div class="fg"><label class="fl">Status</label><select class="fi" id="bl-published">
+        <option value="1">✅ Published</option>
+        <option value="0">📝 Draft</option>
+      </select></div>
+    </div>
+  </div>
+  <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-blog')">Cancel</button><button class="btn btn-p" onclick="saveBlogPost()">Save</button></div>
 </div></div>
 
 <!-- Ticket Reply -->
@@ -3878,6 +3905,7 @@ function setSec(id, el){
   if(id==='bonuses') rBonuses();
   if(id==='coupons') rCoupons();
   if(id==='announcements') rAnnouncements();
+  if(id==='blog') rBlog();
   if(id==='email') rEmail();
   if(id==='signup') rSignup();
   if(id==='security') rSecurity();
@@ -4389,6 +4417,10 @@ function rIntg(){
     +'<div class="fg"><label class="fl">Bot Token</label><input class="fi" id="tg-token" value="'+(tgCfg.token||'')+'" placeholder="1234567890:ABCdefGHI..." style="font-size:12px"></div>'
     +'<div class="fg"><label class="fl">Chat ID (Admin)</label><input class="fi" id="tg-chatid" value="'+(tgCfg.chatId||'')+'" placeholder="@Afgfollowers_bot" style="font-size:12px"></div>'
     +'<div class="fg"><label class="fl">Bot Username (for users)</label><input class="fi" id="tg-username" value="'+(tgCfg.username||'')+'" placeholder="@Afgfollowers_bot" style="font-size:12px"></div>'
+    +'<div class="fg"><label class="fl">Channel ID <span style="color:var(--mt);font-weight:400;text-transform:none">(for public broadcasts, optional)</span></label><input class="fi" id="tg-channelid" value="'+(tgCfg.channelId||'')+'" placeholder="@YourChannel or -1001234567890" style="font-size:12px"></div>'
+    +'</div>'
+    +'<div style="background:rgba(0,210,160,.08);border:1px solid rgba(0,210,160,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#7ee0c4">'
+    +'📢 <b>Channel ID</b> is where new Announcements and Blog posts get auto-broadcast. The bot must be an <b>admin</b> of that channel first. Leave empty to disable broadcasting.'
     +'</div>'
     +'<div style="background:rgba(42,171,238,.1);border:1px solid rgba(42,171,238,.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#7eb8f7">'
     +'📌 <b>Users chat with bot at:</b> <a href="https://t.me/'+(tgCfg.username||'Afgfollowers_bot').replace('@','')+'" target="_blank" style="color:#2AABEE">https://t.me/'+(tgCfg.username||'Afgfollowers_bot').replace('@','')+'</a>'
@@ -4445,11 +4477,26 @@ function checkTgWebhook(){
 function saveTgBot(){
   var token=document.getElementById('tg-token').value.trim();
   var chatId=document.getElementById('tg-chatid').value.trim();
-  localStorage.setItem('smm_tg_bot',JSON.stringify({token:token,chatId:chatId}));
+  var channelId=document.getElementById('tg-channelid').value.trim();
+  var cfg={token:token,chatId:chatId,channelId:channelId};
+  localStorage.setItem('smm_tg_bot',JSON.stringify(cfg));
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_tg_bot:{token:token,chatId:chatId},smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_tg_bot:cfg,smm_ts:Date.now()})}).catch(function(){});
   rIntg();
   toast(token?'✅ Telegram Bot saved!':'Telegram Bot removed','s');
+}
+
+// Broadcasts to the public Telegram channel (if configured) — used when
+// publishing a new Announcement or Blog post, separate from tgSend() which
+// always targets the admin's own notification chat.
+function tgBroadcast(text){
+  var cfg=getTgCfg();
+  if(!cfg.channelId) return;
+  fetch('/api/notify-telegram',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:text,chatId:cfg.channelId})
+  }).catch(function(){});
 }
 // Push smm_auth_settings (Google Sign-In client ID, reCAPTCHA, extra signup
 // fields, welcome bonus, etc.) to the server so every visitor's browser
@@ -4650,7 +4697,101 @@ function addAnnouncement(){
   }
   list.unshift({id:Date.now(),title:title,msg:msg,type:type,link:link,linkText:linkText,active:true,createdAt:new Date().toISOString()});
   saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement published!','s');
+  tgBroadcast('📢 <b>'+title+'</b>\n\n'+msg+(link?'\n\n🔗 '+link:''));
   clearAnnForm();
+}
+
+// ═══ BLOG ═══
+var BLOG_KEY='smm_blog';
+var _editBlogIndex=null;
+function getBlogPosts(){try{var d=localStorage.getItem(BLOG_KEY);if(d)return JSON.parse(d);}catch(e){}return [];}
+function saveBlogPosts(list){
+  localStorage.setItem(BLOG_KEY,JSON.stringify(list));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_blog:list,smm_ts:Date.now()})}).catch(function(){});
+}
+function rBlog(){
+  var list=getBlogPosts();
+  if(!list.length){document.getElementById('blog-tbl').innerHTML='<div class="emp"><div class="emp-i">📝</div><div class="emp-t">No blog posts yet</div></div>';return;}
+  var h='<table><thead><tr><th>Title</th><th>Slug</th><th>Status</th><th></th></tr></thead><tbody>';
+  list.forEach(function(p,i){
+    h+='<tr><td style="font-weight:600">'+p.emoji+' '+escHtmlAdmin(p.title)+'</td>'
+      +'<td style="color:var(--mt);font-size:12px">/blog.html?post='+escHtmlAdmin(p.slug)+'</td>'
+      +'<td><span class="b '+(p.published?'bg':'by')+'">'+(p.published?'✅ Published':'📝 Draft')+'</span></td>'
+      +'<td><div style="display:flex;gap:5px"><button class="btn btn-g btn-sm btn-ico" onclick="editBlog('+i+')">✏️</button><button class="btn btn-d btn-sm btn-ico" onclick="delBlog('+i+')">✕</button></div></td></tr>';
+  });
+  document.getElementById('blog-tbl').innerHTML=h+'</tbody></table>';
+}
+function escHtmlAdmin(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
+function delBlog(i){var list=getBlogPosts();list.splice(i,1);saveBlogPosts(list);rBlog();toast('Blog post deleted','e');}
+function clearBlogForm(){
+  document.getElementById('bl-title').value='';
+  document.getElementById('bl-slug').value='';
+  document.getElementById('bl-excerpt').value='';
+  document.getElementById('bl-content').value='';
+  document.getElementById('bl-emoji').value='📝';
+  document.getElementById('bl-published').value='1';
+}
+function blogAutoSlug(){
+  // Only auto-fill the slug while adding a brand-new post — don't clobber a
+  // slug the admin already set (or an existing post's slug) while editing.
+  if(_editBlogIndex!==null) return;
+  var slugEl=document.getElementById('bl-slug');
+  if(slugEl.dataset.manual==='1') return;
+  var title=document.getElementById('bl-title').value;
+  slugEl.value=title.trim().toLowerCase()
+    .replace(/[^؀-ۿa-z0-9\s-]/g,'')
+    .replace(/\s+/g,'-')
+    .replace(/-+/g,'-')
+    .replace(/^-|-$/g,'');
+}
+function openAddBlog(){
+  _editBlogIndex=null;
+  clearBlogForm();
+  document.getElementById('bl-slug').dataset.manual='0';
+  document.getElementById('blog-modal-title').textContent='Add Blog Post';
+  om('m-add-blog');
+}
+function editBlog(i){
+  var p=getBlogPosts()[i];
+  if(!p) return;
+  _editBlogIndex=i;
+  document.getElementById('bl-title').value=p.title||'';
+  document.getElementById('bl-slug').value=p.slug||'';
+  document.getElementById('bl-slug').dataset.manual='1';
+  document.getElementById('bl-excerpt').value=p.excerpt||'';
+  document.getElementById('bl-content').value=p.content||'';
+  document.getElementById('bl-emoji').value=p.emoji||'📝';
+  document.getElementById('bl-published').value=p.published?'1':'0';
+  document.getElementById('blog-modal-title').textContent='Edit Blog Post';
+  om('m-add-blog');
+}
+function saveBlogPost(){
+  var title=document.getElementById('bl-title').value.trim();
+  var slug=document.getElementById('bl-slug').value.trim().toLowerCase().replace(/[^؀-ۿa-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+  var excerpt=document.getElementById('bl-excerpt').value.trim();
+  var content=document.getElementById('bl-content').value.trim();
+  var emoji=document.getElementById('bl-emoji').value.trim()||'📝';
+  var published=document.getElementById('bl-published').value==='1';
+  if(!title||!slug||!content){toast('Title, slug and content are required','e');return;}
+
+  var list=getBlogPosts();
+  var slugTaken=list.some(function(p,idx){return p.slug===slug&&idx!==_editBlogIndex;});
+  if(slugTaken){toast('That slug is already used by another post','e');return;}
+
+  if(_editBlogIndex!==null&&list[_editBlogIndex]){
+    var existing=list[_editBlogIndex];
+    existing.title=title;existing.slug=slug;existing.excerpt=excerpt;existing.content=content;existing.emoji=emoji;existing.published=published;
+    saveBlogPosts(list);rBlog();cm('m-add-blog');toast('Blog post updated!','s');
+    _editBlogIndex=null;clearBlogForm();
+    return;
+  }
+  list.unshift({id:Date.now(),title:title,slug:slug,excerpt:excerpt,content:content,emoji:emoji,published:published,createdAt:new Date().toISOString()});
+  saveBlogPosts(list);rBlog();cm('m-add-blog');toast('Blog post published!','s');
+  if(published){
+    tgBroadcast('📝 <b>New Blog Post</b>\n\n'+emoji+' <b>'+title+'</b>\n'+(excerpt||'')+'\n\n🔗 https://afghanfollowers.online/blog.html?post='+slug);
+  }
+  clearBlogForm();
 }
 
 // email
@@ -4742,6 +4883,10 @@ var ADMIN_CREDS_KEY='smm_admin_creds';
       if(d.smm_announcements&&Array.isArray(d.smm_announcements)){
         localStorage.setItem(ANN_KEY,JSON.stringify(d.smm_announcements));
         if(document.getElementById('ann-tbl')) rAnnouncements();
+      }
+      if(d.smm_blog&&Array.isArray(d.smm_blog)){
+        localStorage.setItem(BLOG_KEY,JSON.stringify(d.smm_blog));
+        if(document.getElementById('blog-tbl')) rBlog();
       }
     }).catch(function(){});
 })();

@@ -19,14 +19,19 @@ module.exports = async (req, res) => {
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
 
-    if (!cfg.token || !cfg.chatId) {
+    // Callers (e.g. the "broadcast to public channel" feature) can target a
+    // different chat than the admin notification chat by passing chatId —
+    // still requires the same server-configured bot token either way.
+    const targetChatId = body.chatId || cfg.chatId;
+
+    if (!cfg.token || !targetChatId) {
       return res.status(200).json({ ok: false, error: 'Telegram bot not configured on server' });
     }
 
     const tgResp = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: cfg.chatId, text: message, parse_mode: 'HTML' })
+      body: JSON.stringify({ chat_id: targetChatId, text: message, parse_mode: 'HTML', disable_web_page_preview: false })
     });
     const tgResult = await tgResp.json();
 
