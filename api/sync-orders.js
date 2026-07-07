@@ -3,10 +3,13 @@
 // sent to a provider and isn't finished yet, asks the provider for its
 // current status/remains and updates our database automatically.
 //
-// Also doubles as the weekly re-engagement email cron
-// (?job=email-campaign, see runEmailCampaignJob below) — folded into this
-// same file rather than a new one to stay under Vercel's Hobby-plan cap of
-// 12 serverless functions per deployment.
+// Also doubles as two other scheduled jobs, folded into this same file
+// (rather than new ones) to stay under Vercel's Hobby-plan caps of 12
+// serverless functions AND 2 cron jobs per deployment:
+//   - ?job=email-campaign — weekly re-engagement emails (runEmailCampaignJob)
+//   - the default daily run (this same 3am cron) ALSO generates fresh blog
+//     content afterwards (runDailyContentJob) — there was no cron slot left
+//     to give it its own schedule.
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders } = require('./_dbkey');
@@ -85,7 +88,9 @@ module.exports = async (req, res) => {
     const pending = orders.filter(o => o.provOrderId && !finished.includes(o.status));
 
     if (!pending.length) {
-      return res.status(200).json({ ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders' });
+      let contentResultEarly = null;
+      try { contentResultEarly = await runDailyContentJob(); } catch (e) { contentResultEarly = { ok: false, error: e.message }; }
+      return res.status(200).json({ ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders', content: contentResultEarly });
     }
 
     // 3. Group pending orders by provider (matched via provId stored on the order, if present,
@@ -164,7 +169,12 @@ module.exports = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo });
+    // 5. Same daily invocation also refreshes blog content — failures here
+    // must never break order syncing above, so they're caught separately.
+    let contentResult = null;
+    try { contentResult = await runDailyContentJob(); } catch (e) { contentResult = { ok: false, error: e.message }; }
+
+    return res.status(200).json({ ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo, content: contentResult });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
@@ -308,4 +318,112 @@ async function runEmailCampaignJob(req, res) {
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
+}
+
+// ── Daily blog content refresh ──
+// Generates 3 AI-written Instagram/TikTok growth-tip posts per day (rotating
+// topics, standing in for "daily trending hashtags" — there is no free/
+// reliable live Google Trends API reachable from here). New posts are
+// prepended and the list is capped at BLOG_POST_CAP so JSONBin's ~100KB
+// per-record limit is never at risk, while still keeping weeks of content
+// live long enough for Google to actually index it.
+const BLOG_POST_CAP = 60;
+const GROWTH_TOPICS = [
+  { platform: 'instagram', topic: 'افزایش فالوور واقعی اینستاگرام با استفاده از ریلز' },
+  { platform: 'tiktok', topic: 'چگونه یک ویدیوی تیک‌تاک وایرال شود' },
+  { platform: 'instagram', topic: 'بهترین زمان پست گذاشتن در اینستاگرام برای مخاطب افغان و ایرانی' },
+  { platform: 'tiktok', topic: 'انتخاب هشتگ درست برای افزایش فالوور تیک‌تاک' },
+  { platform: 'instagram', topic: 'چگونه پست اینستاگرام به اکسپلور برسد' },
+  { platform: 'tiktok', topic: 'بهترین زمان پست تیک‌تاک برای بیشترین ویو' },
+  { platform: 'instagram', topic: 'افزایش لایک و کامنت واقعی روی پست اینستاگرام' },
+  { platform: 'tiktok', topic: 'نکات الگوریتم تیک‌تاک برای صفحات کوچک' },
+  { platform: 'instagram', topic: 'نکات افزایش فالوور برای صفحه بیزینسی اینستاگرام' },
+  { platform: 'tiktok', topic: 'ادیت حرفه‌ای ویدیو برای افزایش ویو تیک‌تاک' }
+];
+
+function dayOfYear() {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
+  return Math.floor((now - start) / 86400000);
+}
+
+async function generateAiBlogPost(topic) {
+  const resp = await fetch(SITE + '/api/ai-chat', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ mode: 'generate_blog', topic: topic })
+  });
+  const data = await resp.json();
+  if (!data.ok) return null;
+  return {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    title: data.title,
+    slug: slugify(data.title),
+    excerpt: data.excerpt,
+    content: data.html,
+    emoji: data.emoji || '📈',
+    published: true,
+    source: 'ai',
+    createdAt: new Date().toISOString()
+  };
+}
+
+function slugify(title) {
+  return String(title).trim().toLowerCase()
+    .replace(/[^؀-ۿa-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
+}
+
+async function broadcastNewPost(post, tgCfg) {
+  if (!tgCfg.token || !tgCfg.channelId) return;
+  const text = '📝 <b>مقاله جدید</b>'
+    + '\n\n' + post.emoji + ' <b>' + post.title + '</b>\n' + (post.excerpt || '')
+    + '\n\n🔗 ' + SITE + '/blog.html?post=' + post.slug;
+  try {
+    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: tgCfg.channelId, text: text, parse_mode: 'HTML' })
+    });
+  } catch (e) { /* best-effort — a broadcast failure must not break the cron */ }
+}
+
+async function runDailyContentJob() {
+  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const existing = db.smm_blog || [];
+  const tgCfg = db.smm_tg_bot || {};
+
+  const doy = dayOfYear();
+  const topics = [
+    GROWTH_TOPICS[doy % GROWTH_TOPICS.length],
+    GROWTH_TOPICS[(doy + 3) % GROWTH_TOPICS.length],
+    GROWTH_TOPICS[(doy + 6) % GROWTH_TOPICS.length]
+  ]; // three offset picks so consecutive days rarely repeat the same topic
+
+  const newPosts = [];
+  for (const t of topics) {
+    const post = await generateAiBlogPost(t.topic).catch(() => null);
+    if (post) newPosts.push(post);
+  }
+
+  if (!newPosts.length) {
+    return { ok: true, added: 0, reason: 'No posts generated (AI unavailable)' };
+  }
+
+  const combined = newPosts.concat(existing).slice(0, BLOG_POST_CAP);
+
+  await fetch(SITE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_blog: combined, smm_ts: Date.now() })
+  });
+
+  for (const p of newPosts) {
+    await broadcastNewPost(p, tgCfg);
+  }
+
+  return { ok: true, added: newPosts.length, total: combined.length };
 }
