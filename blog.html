@@ -95,12 +95,33 @@ var PLATFORM_COLORS={
   tiktok:'#010101',telegram:'#2AABEE',youtube:'#FF0000',
   facebook:'#1877F2',other:'linear-gradient(135deg,#7c5cfc,#00d2a0)'
 };
+var PLATFORM_KEYWORDS={
+  instagram:['اینستاگرام','instagram','ریلز','اکسپلور'],
+  tiktok:['تیک‌تاک','تیک تاک','تیکتاک','tiktok'],
+  telegram:['تلگرام','telegram'],
+  youtube:['یوتیوب','youtube'],
+  facebook:['فیسبوک','فیس‌بوک','facebook']
+};
+function inferPlatform(post){
+  var text=((post.title||'')+' '+(post.excerpt||'')).toLowerCase();
+  for(var p in PLATFORM_KEYWORDS){
+    var kws=PLATFORM_KEYWORDS[p];
+    for(var i=0;i<kws.length;i++){
+      if(text.indexOf(kws[i].toLowerCase())>-1) return p;
+    }
+  }
+  return null;
+}
 function platformIconHtml(post,sizeClass){
   var platform=(post.platform||'').toLowerCase();
   var hasIcon=['instagram','tiktok','telegram','youtube','facebook'].indexOf(platform)>-1;
+  if(!hasIcon){
+    // Older posts saved before the platform field existed — guess from the title/excerpt text
+    var guessed=inferPlatform(post);
+    if(guessed){ platform=guessed; hasIcon=true; }
+  }
   var bg=PLATFORM_COLORS[hasIcon?platform:'other'];
   if(!hasIcon){
-    // Older/manual posts without a recognized platform fall back to the emoji they were saved with
     return '<div class="'+sizeClass+'" style="background:'+bg+';font-size:'+(sizeClass==='hd-icon'?'26px':'18px')+'">'+(post.emoji||'📝')+'</div>';
   }
   var iconSize=sizeClass==='hd-icon'?28:20;
