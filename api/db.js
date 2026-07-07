@@ -162,6 +162,22 @@ module.exports = async (req, res) => {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;
       }
+      if (body.smm_email_auto_cfg && typeof body.smm_email_auto_cfg === 'object') {
+        // Re-engagement email settings (template, thresholds, daily limit) —
+        // pushed from email-automation.html so the weekly server-side cron
+        // (sync-orders.js?job=email-campaign) can read them without needing
+        // that admin's browser tab to stay open.
+        current.smm_email_auto_cfg = body.smm_email_auto_cfg;
+      }
+      if (body.smm_users_email_log && Array.isArray(body.smm_users_email_log)) {
+        // Used by the weekly email-campaign cron job to write back which
+        // users were emailed and when, without touching other user fields.
+        const logById = {};
+        body.smm_users_email_log.forEach(u => { logById[u.id] = u.emailLog; });
+        current.smm_users = (current.smm_users || []).map(u =>
+          logById[u.id] ? Object.assign({}, u, { emailLog: logById[u.id] }) : u
+        );
+      }
       current.smm_ts = Date.now();
 
       const w2 = await writeBin(BIN_ID, current);

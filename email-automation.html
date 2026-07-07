@@ -86,7 +86,7 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
   <div class="hdr-ico">📧</div>
   <div style="flex:1">
     <h1>Email Automation — Re-engagement System</h1>
-    <div class="sub">Automatically sends emails to users inactive for 30+ days using Resend API</div>
+    <div class="sub">Automatically sends emails to inactive users every Monday via a server-side cron (Resend API) — works even with this tab closed</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <span class="dot d-r pulse" id="s-dot"></span>
@@ -154,13 +154,9 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
         <div style="font-size:11px;color:var(--mt);margin-top:4px">Send email if not visited for X days</div>
       </div>
       <div class="fg">
-        <label class="fl">Check Every</label>
-        <select class="fi" id="r-interval">
-          <option value="1">1 Hour</option>
-          <option value="6">6 Hours</option>
-          <option value="24" selected>24 Hours (recommended)</option>
-          <option value="168">1 Week</option>
-        </select>
+        <label class="fl">Schedule</label>
+        <div class="fi" style="display:flex;align-items:center;color:var(--tx)">🕐 Every Monday (server-side)</div>
+        <div style="font-size:11px;color:var(--mt);margin-top:4px">Runs automatically on Vercel's cron — no browser tab needs to stay open</div>
       </div>
       <div class="fg">
         <label class="fl">Max Emails per User</label>
@@ -381,12 +377,20 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 
 var CFG_KEY='smm_email_auto_cfg';
 var LOG_KEY='smm_email_auto_log';
-var _interval=null;
 var _logs=[];
 
 // ═══ CONFIG ═══
 function getCfg(){try{return JSON.parse(localStorage.getItem(CFG_KEY)||'{}');}catch(e){return{};}}
 function saveCfgData(c){localStorage.setItem(CFG_KEY,JSON.stringify(c));}
+
+// Push settings to the server so the weekly server-side cron
+// (api/sync-orders.js?job=email-campaign) can read them — a browser tab
+// left open cannot reliably run anything on a week-long timer, so the
+// actual sending now happens server-side regardless of any open tab.
+function pushEmailCfgToServer(c){
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_email_auto_cfg:c,smm_ts:Date.now()})}).catch(function(){});
+}
 
 function saveCfg(){
   var c=getCfg();
@@ -394,7 +398,10 @@ function saveCfg(){
   c.fromName=document.getElementById('cfg-fname').value.trim()||'Afghan Followers';
   c.replyTo=document.getElementById('cfg-reply').value.trim();
   c.dailyLimit=parseInt(document.getElementById('cfg-daily-limit').value)||0;
+  c.subject=document.getElementById('t-subj').value;
+  c.bodyHtml=document.getElementById('t-body').value;
   saveCfgData(c);
+  pushEmailCfgToServer(c);
   toast('Config saved!','s');
   addLog('⚙️ Config saved','i');
   updateDailyLimitStatus();
@@ -403,14 +410,15 @@ function saveCfg(){
 function saveRules(){
   var c=getCfg();
   c.days=parseInt(document.getElementById('r-days').value)||30;
-  c.intervalH=parseInt(document.getElementById('r-interval').value)||24;
   c.maxEmails=parseInt(document.getElementById('r-max').value)||3;
   c.cooldownDays=parseInt(document.getElementById('r-cool').value)||7;
   c.target=document.getElementById('r-target').value||'all';
+  c.subject=document.getElementById('t-subj').value;
+  c.bodyHtml=document.getElementById('t-body').value;
   saveCfgData(c);
+  pushEmailCfgToServer(c);
   toast('Rules saved!','s');
-  addLog('⚙️ Rules saved: check every '+c.intervalH+'h, inactive '+c.days+' days','i');
-  if(c.active) restartTimer(c.intervalH);
+  addLog('⚙️ Rules saved: runs weekly (server-side), inactive '+c.days+' days','i');
 }
 
 function loadCfgUI(){
@@ -421,58 +429,55 @@ function loadCfgUI(){
   document.getElementById('cfg-daily-limit').value=c.dailyLimit||0;
   updateDailyLimitStatus();
   if(c.days) document.getElementById('r-days').value=c.days;
-  if(c.intervalH) document.getElementById('r-interval').value=c.intervalH;
   if(c.maxEmails) document.getElementById('r-max').value=c.maxEmails;
   if(c.cooldownDays) document.getElementById('r-cool').value=c.cooldownDays;
   if(c.target) document.getElementById('r-target').value=c.target;
+  if(c.subject) document.getElementById('t-subj').value=c.subject;
+  if(c.bodyHtml) document.getElementById('t-body').value=c.bodyHtml;
+  setStatus(!!c.active);
 }
 
-// ═══ AUTOMATION TOGGLE ═══
+// Pull the latest config from the server on load, so this stays correct
+// even when opened from a different browser/device than where it was set.
+function pullEmailCfgFromServer(){
+  fetch('/api/db',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.smm_email_auto_cfg&&typeof d.smm_email_auto_cfg==='object'){
+        saveCfgData(d.smm_email_auto_cfg);
+        loadCfgUI();
+      }
+    }).catch(function(){});
+}
+
+// ═══ AUTOMATION TOGGLE — the weekly send itself runs entirely server-side
+// via Vercel Cron (see vercel.json), so this toggle just flips an on/off
+// flag the cron job checks before doing anything; it does NOT start a
+// browser timer (a setInterval can't survive a closed tab for a week). ═══
 function toggleAuto(el){
   el.classList.toggle('on');
   var on=el.classList.contains('on');
-  var c=getCfg();c.active=on;saveCfgData(c);
-  if(on){startAutomation();}else{stopAutomation();}
-}
-
-function startAutomation(){
-  var c=getCfg();
-  if(!c.from){
+  if(on&&!getCfg().from){
     toast('Configure From Email first','e');
-    document.getElementById('auto-tog').classList.remove('on');
+    el.classList.remove('on');
     return;
   }
-  setStatus(true);
-  addLog('▶️ Automation STARTED — checks every '+c.intervalH+'h','s');
-  runEmailCampaign(); // run immediately
-  restartTimer(c.intervalH);
-}
-
-function restartTimer(hours){
-  clearInterval(_interval);
-  _interval=setInterval(function(){
-    addLog('⏰ Scheduled check triggered','i');
-    runEmailCampaign();
-  }, hours*3600000);
-  updateNextRun(hours);
-}
-
-function stopAutomation(){
-  clearInterval(_interval);_interval=null;
-  setStatus(false);
-  addLog('⏹ Automation STOPPED','w');
-  document.getElementById('st-next').textContent='—';
+  var c=getCfg();c.active=on;
+  c.subject=document.getElementById('t-subj').value;
+  c.bodyHtml=document.getElementById('t-body').value;
+  saveCfgData(c);
+  pushEmailCfgToServer(c);
+  setStatus(on);
+  addLog(on?'▶️ Weekly automation ENABLED — server sends every Monday':'⏹ Weekly automation DISABLED','s');
 }
 
 function setStatus(on){
   document.getElementById('s-dot').className='dot pulse '+(on?'d-g':'d-r');
-  document.getElementById('s-txt').textContent=on?'Running':'Off';
+  document.getElementById('s-txt').textContent=on?'Running (weekly, server-side)':'Off';
   document.getElementById('s-txt').style.color=on?'var(--gr)':'var(--mt)';
-}
-
-function updateNextRun(hours){
-  var next=new Date(Date.now()+hours*3600000);
-  document.getElementById('st-next').textContent=next.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('auto-tog').classList[on?'add':'remove']('on');
+  var next=document.getElementById('st-next');
+  if(next) next.textContent=on?'Every Monday':'—';
 }
 
 // ═══ AI EMAIL GENERATION — reuses the same /api/ai-chat function that powers
@@ -1013,15 +1018,7 @@ function toast(msg,t){
   renderLogs();
   loadCfgUI();
   updateStats();
-
-  // restore active state if was running
-  var c=getCfg();
-  if(c.active&&c.from){
-    document.getElementById('auto-tog').classList.add('on');
-    setStatus(true);
-    restartTimer(c.intervalH||24);
-    addLog('🔄 Automation restored from previous session','i');
-  }
+  pullEmailCfgFromServer();
 
   // track current user visit
   try{
