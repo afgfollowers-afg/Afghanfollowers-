@@ -88,6 +88,22 @@ footer a{color:var(--acc2);text-decoration:none;}
 </div>
 
 <script>
+// Public read-only page — still needs the shared key to pass db.js's auth
+// gate (it rejects every /api/db request, GET included, without it). Without
+// this, the fetch below 401s and the page silently falls back to an empty
+// post list for anyone visiting without cached localStorage from admin.html.
+var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+(function(){
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    if(typeof url==='string' && url.indexOf('/api/db')===0){
+      opts=opts||{};
+      opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+    }
+    return _fetch(url,opts);
+  };
+})();
+
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 
 var PLATFORM_COLORS={
