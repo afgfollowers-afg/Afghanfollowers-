@@ -347,7 +347,7 @@ function dayOfYear() {
   return Math.floor((now - start) / 86400000);
 }
 
-async function generateAiBlogPost(topic) {
+async function generateAiBlogPost(topic, platform) {
   const resp = await fetch(SITE + '/api/ai-chat', {
     method: 'POST',
     headers: dbHeaders(),
@@ -361,6 +361,7 @@ async function generateAiBlogPost(topic) {
     slug: slugify(data.title),
     excerpt: data.excerpt,
     content: data.html,
+    platform: platform || 'other',
     emoji: data.emoji || '📈',
     published: true,
     source: 'ai',
@@ -405,7 +406,7 @@ async function runDailyContentJob() {
 
   const newPosts = [];
   for (const t of topics) {
-    const post = await generateAiBlogPost(t.topic).catch(() => null);
+    const post = await generateAiBlogPost(t.topic, t.platform).catch(() => null);
     if (post) newPosts.push(post);
   }
 

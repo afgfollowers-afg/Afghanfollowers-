@@ -1020,7 +1020,14 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="fg"><label class="fl">Excerpt <span style="color:var(--mt);font-weight:400;text-transform:none">(used for the card + meta description)</span></label><textarea class="fi" id="bl-excerpt" rows="2" placeholder="خلاصه‌ی کوتاه یک تا دو خطی از مقاله..."></textarea></div>
     <div class="fg"><label class="fl">Content <span style="color:var(--mt);font-weight:400;text-transform:none">(HTML — p, strong, ul/li, a, h2/h3 allowed)</span></label><textarea class="fi" id="bl-content" rows="10" placeholder="<p>متن کامل مقاله...</p>"></textarea></div>
     <div class="fgrid">
-      <div class="fg"><label class="fl">Cover Emoji</label><input class="fi" id="bl-emoji" placeholder="📈" value="📝"></div>
+      <div class="fg"><label class="fl">Platform Icon</label><select class="fi" id="bl-platform">
+        <option value="instagram">📷 Instagram</option>
+        <option value="tiktok">🎵 TikTok</option>
+        <option value="telegram">✈️ Telegram</option>
+        <option value="youtube">▶️ YouTube</option>
+        <option value="facebook">📘 Facebook</option>
+        <option value="other">📝 Other / General</option>
+      </select></div>
       <div class="fg"><label class="fl">Status</label><select class="fi" id="bl-published">
         <option value="1">✅ Published</option>
         <option value="0">📝 Draft</option>
@@ -4715,7 +4722,7 @@ function rBlog(){
   if(!list.length){document.getElementById('blog-tbl').innerHTML='<div class="emp"><div class="emp-i">📝</div><div class="emp-t">No blog posts yet</div></div>';return;}
   var h='<table><thead><tr><th>Title</th><th>Slug</th><th>Status</th><th></th></tr></thead><tbody>';
   list.forEach(function(p,i){
-    h+='<tr><td style="font-weight:600">'+p.emoji+' '+escHtmlAdmin(p.title)+'</td>'
+    h+='<tr><td style="font-weight:600">'+blogPlatformEmoji(p)+' '+escHtmlAdmin(p.title)+'</td>'
       +'<td style="color:var(--mt);font-size:12px">/blog.html?post='+escHtmlAdmin(p.slug)+'</td>'
       +'<td><span class="b '+(p.published?'bg':'by')+'">'+(p.published?'✅ Published':'📝 Draft')+'</span></td>'
       +'<td><div style="display:flex;gap:5px"><button class="btn btn-g btn-sm btn-ico" onclick="editBlog('+i+')">✏️</button><button class="btn btn-d btn-sm btn-ico" onclick="delBlog('+i+')">✕</button></div></td></tr>';
@@ -4724,12 +4731,14 @@ function rBlog(){
 }
 function escHtmlAdmin(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 function delBlog(i){var list=getBlogPosts();list.splice(i,1);saveBlogPosts(list);rBlog();toast('Blog post deleted','e');}
+var BLOG_PLATFORM_EMOJI={instagram:'📷',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'📘',other:'📝'};
+function blogPlatformEmoji(p){return BLOG_PLATFORM_EMOJI[p.platform]||p.emoji||'📝';}
 function clearBlogForm(){
   document.getElementById('bl-title').value='';
   document.getElementById('bl-slug').value='';
   document.getElementById('bl-excerpt').value='';
   document.getElementById('bl-content').value='';
-  document.getElementById('bl-emoji').value='📝';
+  document.getElementById('bl-platform').value='instagram';
   document.getElementById('bl-published').value='1';
 }
 function blogAutoSlug(){
@@ -4761,7 +4770,7 @@ function editBlog(i){
   document.getElementById('bl-slug').dataset.manual='1';
   document.getElementById('bl-excerpt').value=p.excerpt||'';
   document.getElementById('bl-content').value=p.content||'';
-  document.getElementById('bl-emoji').value=p.emoji||'📝';
+  document.getElementById('bl-platform').value=p.platform||'other';
   document.getElementById('bl-published').value=p.published?'1':'0';
   document.getElementById('blog-modal-title').textContent='Edit Blog Post';
   om('m-add-blog');
@@ -4771,7 +4780,8 @@ function saveBlogPost(){
   var slug=document.getElementById('bl-slug').value.trim().toLowerCase().replace(/[^؀-ۿa-z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
   var excerpt=document.getElementById('bl-excerpt').value.trim();
   var content=document.getElementById('bl-content').value.trim();
-  var emoji=document.getElementById('bl-emoji').value.trim()||'📝';
+  var platform=document.getElementById('bl-platform').value;
+  var emoji=BLOG_PLATFORM_EMOJI[platform]||'📝';
   var published=document.getElementById('bl-published').value==='1';
   if(!title||!slug||!content){toast('Title, slug and content are required','e');return;}
 
@@ -4781,12 +4791,12 @@ function saveBlogPost(){
 
   if(_editBlogIndex!==null&&list[_editBlogIndex]){
     var existing=list[_editBlogIndex];
-    existing.title=title;existing.slug=slug;existing.excerpt=excerpt;existing.content=content;existing.emoji=emoji;existing.published=published;
+    existing.title=title;existing.slug=slug;existing.excerpt=excerpt;existing.content=content;existing.platform=platform;existing.emoji=emoji;existing.published=published;
     saveBlogPosts(list);rBlog();cm('m-add-blog');toast('Blog post updated!','s');
     _editBlogIndex=null;clearBlogForm();
     return;
   }
-  list.unshift({id:Date.now(),title:title,slug:slug,excerpt:excerpt,content:content,emoji:emoji,published:published,createdAt:new Date().toISOString()});
+  list.unshift({id:Date.now(),title:title,slug:slug,excerpt:excerpt,content:content,platform:platform,emoji:emoji,published:published,createdAt:new Date().toISOString()});
   saveBlogPosts(list);rBlog();cm('m-add-blog');toast('Blog post published!','s');
   if(published){
     tgBroadcast('📝 <b>New Blog Post</b>\n\n'+emoji+' <b>'+title+'</b>\n'+(excerpt||'')+'\n\n🔗 https://afghanfollowers.online/blog.html?post='+slug);
