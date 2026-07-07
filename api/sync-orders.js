@@ -438,21 +438,31 @@ async function runDailyContentJob() {
 const AUTOPOST_ADMIN_CHAT_ID = '7993801735';
 
 async function runAutoPostJob() {
+  // Reuse the Telegram bot already configured in Admin → Settings → Integrations
+  // (same smm_tg_bot record used for blog broadcasts) instead of requiring the
+  // token/channel to be duplicated as separate Vercel env vars.
+  let tgCfg = {};
   try {
-    return await runAutoPostJobInner();
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const db = await dbResp.json();
+    tgCfg = db.smm_tg_bot || {};
+  } catch (e) { /* fall through with empty tgCfg — job still runs, just skips Telegram */ }
+
+  try {
+    return await runAutoPostJobInner(tgCfg);
   } catch (err) {
-    if (process.env.TG_BOT_TOKEN) {
-      await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+    if (tgCfg.token) {
+      await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: AUTOPOST_ADMIN_CHAT_ID, text: '❌ خطا در پست خودکار:\n' + err.message })
+        body: JSON.stringify({ chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, text: '❌ خطا در پست خودکار:\n' + err.message })
       }).catch(() => {});
     }
     throw err;
   }
 }
 
-async function runAutoPostJobInner() {
+async function runAutoPostJobInner(tgCfg) {
   const results = { facebook: null, telegram: null };
   const isPromoDay = dayOfYear() % 2 === 0;
 
@@ -507,24 +517,25 @@ async function runAutoPostJobInner() {
     results.facebook = '⏭ تنظیم نشده';
   }
 
-  if (process.env.TG_BOT_TOKEN && process.env.TG_CHANNEL) {
-    const tgResp = await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+  const tgChannel = tgCfg.channelId || tgCfg.chatId;
+  if (tgCfg.token && tgChannel) {
+    const tgResp = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: process.env.TG_CHANNEL, text: postText })
+      body: JSON.stringify({ chat_id: tgChannel, text: postText })
     });
     const tgData = await tgResp.json();
     results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
   } else {
-    results.telegram = '⏭ تنظیم نشده';
+    results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';
   }
 
-  if (process.env.TG_BOT_TOKEN) {
-    await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+  if (tgCfg.token) {
+    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: AUTOPOST_ADMIN_CHAT_ID,
+        chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
         text: `📢 گزارش پست خودکار (${isPromoDay ? 'تبلیغ' : 'گیمینگ'})\n\n`
           + `فیسبوک: ${results.facebook}\n`
           + `تلگرام: ${results.telegram}\n\n`
