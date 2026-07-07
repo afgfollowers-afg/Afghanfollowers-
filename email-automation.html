@@ -126,7 +126,12 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
         <label class="fl">Reply-To Email</label>
         <input class="fi" id="cfg-reply" placeholder="support@afghanfollowers.online">
       </div>
+      <div class="fg">
+        <label class="fl">Daily Send Limit <span style="color:var(--mt);font-weight:400;text-transform:none">(0 = unlimited)</span></label>
+        <input type="number" class="fi" id="cfg-daily-limit" value="0" min="0" placeholder="e.g. 100">
+      </div>
     </div>
+    <div style="font-size:11px;color:var(--mt);margin-bottom:12px" id="daily-limit-status"></div>
     <div style="display:flex;gap:10px">
       <button class="btn btn-p" onclick="saveCfg()">💾 Save Config</button>
       <button class="btn btn-g" onclick="testEmail()">🧪 Send Test Email</button>
@@ -185,7 +190,10 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
 <div class="card">
   <div class="ch">
     ✉️ Email Template
-    <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="showPreview()">👁 Preview</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="generateEmailAI('t-subj','t-body')">🤖 Generate with AI</button>
+      <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="showPreview()">👁 Preview</button>
+    </div>
   </div>
   <div class="cb">
     <div style="font-size:12px;color:var(--mt);margin-bottom:12px;background:var(--s2);padding:10px 12px;border-radius:8px;line-height:1.8">
@@ -302,6 +310,7 @@ code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
       </div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn btn-g" onclick="generateEmailAI('bc-subj','bc-body')">🤖 Generate with AI</button>
       <button class="btn btn-g" onclick="showBulkPreview()">👁 Preview</button>
       <button class="btn btn-g" onclick="testBulkEmail()">🧪 Send Test Email</button>
       <button class="btn btn-s" onclick="sendBulkCampaign()" id="bc-send-btn">📤 Send To All Filtered</button>
@@ -384,9 +393,11 @@ function saveCfg(){
   c.from=document.getElementById('cfg-from').value.trim();
   c.fromName=document.getElementById('cfg-fname').value.trim()||'Afghan Followers';
   c.replyTo=document.getElementById('cfg-reply').value.trim();
+  c.dailyLimit=parseInt(document.getElementById('cfg-daily-limit').value)||0;
   saveCfgData(c);
   toast('Config saved!','s');
   addLog('⚙️ Config saved','i');
+  updateDailyLimitStatus();
 }
 
 function saveRules(){
@@ -407,6 +418,8 @@ function loadCfgUI(){
   if(c.from) document.getElementById('cfg-from').value=c.from;
   if(c.fromName) document.getElementById('cfg-fname').value=c.fromName;
   if(c.replyTo) document.getElementById('cfg-reply').value=c.replyTo;
+  document.getElementById('cfg-daily-limit').value=c.dailyLimit||0;
+  updateDailyLimitStatus();
   if(c.days) document.getElementById('r-days').value=c.days;
   if(c.intervalH) document.getElementById('r-interval').value=c.intervalH;
   if(c.maxEmails) document.getElementById('r-max').value=c.maxEmails;
@@ -462,6 +475,63 @@ function updateNextRun(hours){
   document.getElementById('st-next').textContent=next.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 }
 
+// ═══ AI EMAIL GENERATION — reuses the same /api/ai-chat function that powers
+// the customer support chat widget (mode:'generate_email' instead of a chat
+// message), so this doesn't need a new serverless function. ═══
+async function generateEmailAI(subjId,bodyId){
+  var topic=prompt('What should this email be about? (e.g. "announce the new website launch")','');
+  if(!topic) return;
+  var btns=document.querySelectorAll('button[onclick*="generateEmailAI(\''+subjId+'\'"]');
+  btns.forEach(function(b){b.disabled=true;b.textContent='🤖 Generating...';});
+  try{
+    var res=await fetch('/api/ai-chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode:'generate_email',topic:topic})
+    });
+    var data=await res.json();
+    if(data.ok&&data.subject&&data.html){
+      document.getElementById(subjId).value=data.subject;
+      document.getElementById(bodyId).value=data.html;
+      toast('✅ AI draft generated — review before sending!','s');
+    } else {
+      toast('❌ AI generation failed: '+(data.error||'unknown error'),'e');
+    }
+  }catch(e){
+    toast('❌ Could not reach AI service: '+e.message,'e');
+  }
+  btns.forEach(function(b){b.disabled=false;b.textContent='🤖 Generate with AI';});
+}
+
+// ═══ DAILY SEND LIMIT — shared by automation + bulk campaign, since both
+// funnel through sendEmail() below and both draw on the same Resend account
+// reputation/quota. Counter resets automatically when the calendar date
+// changes (local browser date). ═══
+var DAILY_COUNT_KEY='smm_email_daily_count';
+function getDailyCount(){
+  var today=new Date().toDateString();
+  try{
+    var d=JSON.parse(localStorage.getItem(DAILY_COUNT_KEY)||'{}');
+    if(d.date===today) return d.count||0;
+  }catch(e){}
+  return 0;
+}
+function incrementDailyCount(){
+  var today=new Date().toDateString();
+  var count=getDailyCount()+1;
+  localStorage.setItem(DAILY_COUNT_KEY,JSON.stringify({date:today,count:count}));
+  updateDailyLimitStatus();
+  return count;
+}
+function updateDailyLimitStatus(){
+  var el=document.getElementById('daily-limit-status');
+  if(!el) return;
+  var c=getCfg();
+  var limit=c.dailyLimit||0;
+  var sent=getDailyCount();
+  el.textContent=limit>0?('Sent today: '+sent+' / '+limit):('Sent today: '+sent+' (no daily limit set)');
+}
+
 // ═══ CORE: SEND EMAIL via server-side /api/send-reset-email (same endpoint
 // that sends password-reset mail — it also handles a generic authenticated
 // {to,html,...} send so this stays under Vercel's serverless function cap).
@@ -473,6 +543,10 @@ async function sendEmail(toEmail,toName,subject,htmlBody){
   if(!c.from){
     addLog('❌ Missing From Email — configure it above first','e');
     return{ok:false,error:'Not configured'};
+  }
+  var limit=c.dailyLimit||0;
+  if(limit>0&&getDailyCount()>=limit){
+    return{ok:false,error:'Daily send limit reached ('+limit+'). Resumes tomorrow.',limitReached:true};
   }
 
   var payload={
@@ -492,6 +566,7 @@ async function sendEmail(toEmail,toName,subject,htmlBody){
     });
     var data=await res.json();
     if(data.ok&&data.id){
+      incrementDailyCount();
       return{ok:true,id:data.id};
     } else {
       return{ok:false,error:data.error||JSON.stringify(data)};
@@ -694,6 +769,7 @@ async function sendBulkCampaign(){
     var html=fillBulkVars(bodyTpl,r);
     var result=await sendEmail(r.email,r.name,subject,html);
     if(result.ok){ markBulkSent(r.email); sent++; addBulkLog('✅ ('+(i+1)+'/'+recipients.length+') '+r.email,'s'); }
+    else if(result.limitReached){ addBulkLog('🛑 Daily send limit reached at '+(i+1)+'/'+recipients.length+' — remaining recipients will resume tomorrow','w'); break; }
     else{ failed++; addBulkLog('❌ ('+(i+1)+'/'+recipients.length+') '+r.email+' — '+result.error,'e'); }
     updateBulkSummary();
     await new Promise(function(res){ setTimeout(res,600); });
@@ -777,6 +853,9 @@ async function runEmailCampaign(){
       }
       addLog('✅ Sent to '+u.email+' | ID: '+result.id,'s');
       sent++;
+    } else if(result.limitReached){
+      addLog('🛑 Daily send limit reached — remaining users will get their email on the next scheduled run','w');
+      break;
     } else {
       addLog('❌ Failed: '+u.email+' — '+result.error,'e');
       failed++;

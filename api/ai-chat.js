@@ -4,6 +4,7 @@
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SITE = 'https://afghanfollowers.online';
+const { DB_SERVICE_KEY } = require('./_dbkey');
 
 const SYSTEM_PROMPT = `شما دستیار پشتیبانی سایت Afghan Followers (${SITE}) هستید — یک فروشگاه آنلاین فروش فالوور، لایک، ویو و ممبر برای شبکه‌های اجتماعی (اینستاگرام، تیک‌تاک، یوتیوب، فیسبوک، توییتر، تلگرام).
 
@@ -42,47 +43,90 @@ const SYSTEM_PROMPT = `شما دستیار پشتیبانی سایت Afghan Foll
 ۸. وضعیت سفارش از بخش «My Orders» قابل پیگیری است.
 اگر موجودی کافی نبود، اول باید از «Add Funds» شارژ کنند.`;
 
+// System prompt for the second mode this function serves: generating a
+// marketing/re-engagement email for email-automation.html. Kept in the same
+// file as the chat assistant (rather than a new endpoint) to stay under
+// Vercel's Hobby-plan cap of 12 serverless functions per deployment.
+const EMAIL_SYSTEM_PROMPT = `شما کپی‌رایتر بازاریابی ایمیلی برای Afghan Followers (افغان فالوورز) هستید — یک پنل فروش فالوور، لایک، ویو و ممبر شبکه‌های اجتماعی (اینستاگرام، تیک‌تاک، تلگرام، یوتیوب، فیسبوک) در افغانستان.
+
+وظیفه‌ات نوشتن متن یک ایمیل بازاریابی/اطلاع‌رسانی کوتاه، جذاب و دوستانه به زبان فارسی است، بر اساس موضوعی که کاربر می‌دهد.
+
+قوانین:
+1. فقط یک شیء JSON خام برگردان، دقیقاً به این شکل و بدون هیچ متن اضافه یا markdown fence: {"subject":"...","html":"..."}
+2. "subject" باید کوتاه، جذاب، و با حداکثر یک ایموجی باشد.
+3. "html" باید HTML ساده و امن باشد (فقط تگ‌های div/p/strong/br/a/ul/li — بدون script/style/iframe)، حداکثر ۱۲۰ کلمه، لحن گرم و صمیمی.
+4. اگر می‌خواهی جای نام یا لینک بگذاری، دقیقاً از {{name}}، {{site_name}} یا {{panel_link}} استفاده کن (این‌ها بعداً جایگزین می‌شوند).
+5. هیچ قیمت، تخفیف یا وعده‌ی دروغ نساز مگر کاربر دقیقاً آن را در موضوع خواسته باشد.`;
+
+async function callGroq(messages, maxTokens) {
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + GROQ_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: messages,
+      temperature: 0.6,
+      max_tokens: maxTokens
+    })
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error('Groq API error: ' + JSON.stringify(data));
+  const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  if (!content) throw new Error('No reply from AI');
+  return content.trim();
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const message = (body.message || '').trim();
-    const history = Array.isArray(body.history) ? body.history.slice(-6) : []; // last 6 messages for context
-
-    if (!message) return res.status(200).json({ ok: false, error: 'No message provided' });
     if (!GROQ_API_KEY) return res.status(200).json({ ok: false, error: 'AI assistant not configured (GROQ_API_KEY missing).' });
 
-    const messages = [
+    // ── Mode 2: generate an email subject+body from a short topic brief
+    // (used by email-automation.html's "Generate with AI" button) ──
+    if (body.mode === 'generate_email') {
+      // Admin-only mode — must not be usable by anonymous visitors who find it,
+      // since it burns the same Groq quota shared with the public chat widget.
+      if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const topic = (body.topic || '').trim();
+      if (!topic) return res.status(200).json({ ok: false, error: 'No topic provided' });
+
+      const raw = await callGroq([
+        { role: 'system', content: EMAIL_SYSTEM_PROMPT },
+        { role: 'user', content: topic }
+      ], 500);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, '').trim());
+      } catch (e) {
+        return res.status(200).json({ ok: false, error: 'AI returned invalid format, try again' });
+      }
+      if (!parsed.subject || !parsed.html) {
+        return res.status(200).json({ ok: false, error: 'AI response missing subject/html' });
+      }
+      return res.status(200).json({ ok: true, subject: parsed.subject, html: parsed.html });
+    }
+
+    // ── Mode 1 (default): customer support chat reply ──
+    const message = (body.message || '').trim();
+    const history = Array.isArray(body.history) ? body.history.slice(-6) : []; // last 6 messages for context
+    if (!message) return res.status(200).json({ ok: false, error: 'No message provided' });
+
+    const reply = await callGroq([
       { role: 'system', content: SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: message }
-    ];
+    ], 400);
 
-    const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + GROQ_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: messages,
-        temperature: 0.4,
-        max_tokens: 400
-      })
-    });
-
-    const groqData = await groqResp.json();
-    if (!groqResp.ok) {
-      return res.status(200).json({ ok: false, error: 'Groq API error: ' + JSON.stringify(groqData) });
-    }
-
-    const reply = groqData.choices && groqData.choices[0] && groqData.choices[0].message && groqData.choices[0].message.content;
-    if (!reply) return res.status(200).json({ ok: false, error: 'No reply from AI' });
-
-    return res.status(200).json({ ok: true, reply: reply.trim() });
+    return res.status(200).json({ ok: true, reply: reply });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
