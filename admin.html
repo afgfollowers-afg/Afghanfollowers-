@@ -4799,9 +4799,22 @@ function saveBlogPost(){
   list.unshift({id:Date.now(),title:title,slug:slug,excerpt:excerpt,content:content,platform:platform,emoji:emoji,published:published,createdAt:new Date().toISOString()});
   saveBlogPosts(list);rBlog();cm('m-add-blog');toast('Blog post published!','s');
   if(published){
-    tgBroadcast('📝 <b>New Blog Post</b>\n\n'+emoji+' <b>'+title+'</b>\n'+(excerpt||'')+'\n\n🔗 https://afghanfollowers.online/blog.html?post='+slug);
+    broadcastNewBlogPost(title,excerpt,emoji,slug);
   }
   clearBlogForm();
+}
+function broadcastNewBlogPost(title,excerpt,emoji,slug){
+  var url='https://afghanfollowers.online/blog.html?post='+slug;
+  var cfg=getTgCfg();
+  fetch('/api/notify-telegram',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      message:'📝 <b>New Blog Post</b>\n\n'+emoji+' <b>'+title+'</b>\n'+(excerpt||'')+'\n\n🔗 '+url,
+      chatId:cfg.channelId,
+      fbMessage:'📝 مقاله جدید\n\n'+emoji+' '+title+'\n'+(excerpt||'')+'\n\n🔗 '+url
+    })
+  }).catch(function(){});
 }
 
 // email

@@ -384,17 +384,31 @@ function slugify(title) {
 }
 
 async function broadcastNewPost(post, tgCfg) {
-  if (!tgCfg.token || !tgCfg.channelId) return;
-  const text = '📝 <b>مقاله جدید</b>'
-    + '\n\n' + post.emoji + ' <b>' + post.title + '</b>\n' + (post.excerpt || '')
-    + '\n\n🔗 ' + SITE + '/blog.html?post=' + post.slug;
-  try {
-    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: tgCfg.channelId, text: text, parse_mode: 'HTML' })
-    });
-  } catch (e) { /* best-effort — a broadcast failure must not break the cron */ }
+  const url = SITE + '/blog.html?post=' + post.slug;
+
+  if (tgCfg.token && tgCfg.channelId) {
+    const text = '📝 <b>مقاله جدید</b>'
+      + '\n\n' + post.emoji + ' <b>' + post.title + '</b>\n' + (post.excerpt || '')
+      + '\n\n🔗 ' + url;
+    try {
+      await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgCfg.channelId, text: text, parse_mode: 'HTML' })
+      });
+    } catch (e) { /* best-effort — a broadcast failure must not break the cron */ }
+  }
+
+  if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
+    const fbText = '📝 مقاله جدید\n\n' + post.emoji + ' ' + post.title + '\n' + (post.excerpt || '') + '\n\n🔗 ' + url;
+    try {
+      await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: fbText, access_token: process.env.FB_PAGE_TOKEN })
+      });
+    } catch (e) { /* best-effort — a broadcast failure must not break the cron */ }
+  }
 }
 
 async function runDailyContentJob() {
