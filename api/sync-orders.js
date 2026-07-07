@@ -462,30 +462,28 @@ async function runAutoPostJob() {
   }
 }
 
+const AUTOPOST_FOCUS = [
+  'افزایش فالوور اینستاگرام',
+  'لایک و ویو تیک‌تاک',
+  'ممبر و بازدید کانال تلگرام',
+  'ساب‌اسکرایب و ویو یوتیوب',
+  'لایک و کامنت واقعی اینستاگرام',
+  'فالوور واقعی تیک‌تاک'
+];
+
 async function runAutoPostJobInner(tgCfg) {
   const results = { facebook: null, telegram: null };
-  const isPromoDay = dayOfYear() % 2 === 0;
+  const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
 
-  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری بنویس برای یکی از این دو سرویس (خودت یکی را انتخاب کن):
-1. AfghanCoins (afghancoins.online) — فروش یوسی پابجی، جم فری‌فایر، الماس موبایل لجندز با قیمت مناسب و تحویل فوری
-2. AfghanFollowers (afghanfollowers.online) — خرید فالوور، لایک و ویو برای انستاگرام، تیک‌تاک، یوتیوب و تلگرام
+  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب و تلگرام، مخصوصاً برای مخاطب افغان و ایرانی.
 
-قوانین:
-- حداکثر ۶ خط
-- با ایموجی‌های مناسب
-- در آخر آدرس سایت و ۳-۴ هشتگ فارسی
-- فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
-
-  const gamingPrompt = `یک پست کوتاه و جذاب به زبان فارسی/دری درباره دنیای گیمینگ بنویس. خودت یکی از این موضوع‌ها را انتخاب کن:
-- ترفند یا نکته مفید برای PUBG Mobile یا Free Fire یا Mobile Legends
-- معرفی یک قابلیت یا آپدیت جالب بازی‌های موبایل
-- نکته جالب و دانستنی از دنیای گیم
+امروز تمرکز پست را روی این موضوع بگذار: ${focus}
 
 قوانین:
 - حداکثر ۶ خط
 - با ایموجی‌های مناسب
-- در آخر بنویس: 🎮 خرید یوسی و جم با بهترین قیمت: afghancoins.online
-- ۳-۴ هشتگ فارسی
+- درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس
+- در آخر آدرس سایت afghanfollowers.online و ۳-۴ هشتگ فارسی مرتبط
 - فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
 
   const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -496,7 +494,7 @@ async function runAutoPostJobInner(tgCfg) {
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: isPromoDay ? promoPrompt : gamingPrompt }],
+      messages: [{ role: 'user', content: promoPrompt }],
       temperature: 0.9,
       max_tokens: 500
     })
@@ -536,7 +534,7 @@ async function runAutoPostJobInner(tgCfg) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
-        text: `📢 گزارش پست خودکار (${isPromoDay ? 'تبلیغ' : 'گیمینگ'})\n\n`
+        text: `📢 گزارش پست خودکار (${focus})\n\n`
           + `فیسبوک: ${results.facebook}\n`
           + `تلگرام: ${results.telegram}\n\n`
           + `متن پست:\n${postText}`
@@ -544,5 +542,5 @@ async function runAutoPostJobInner(tgCfg) {
     }).catch(() => {});
   }
 
-  return { ok: true, type: isPromoDay ? 'promo' : 'gaming', results };
+  return { ok: true, focus, results };
 }
