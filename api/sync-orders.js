@@ -3,13 +3,14 @@
 // sent to a provider and isn't finished yet, asks the provider for its
 // current status/remains and updates our database automatically.
 //
-// Also doubles as two other scheduled jobs, folded into this same file
+// Also doubles as other scheduled jobs, folded into this same file
 // (rather than new ones) to stay under Vercel's Hobby-plan caps of 12
 // serverless functions AND 2 cron jobs per deployment:
 //   - ?job=email-campaign — weekly re-engagement emails (runEmailCampaignJob)
 //   - the default daily run (this same 3am cron) ALSO generates fresh blog
-//     content afterwards (runDailyContentJob) — there was no cron slot left
-//     to give it its own schedule.
+//     content afterwards (runDailyContentJob), then posts a promo/gaming
+//     update to Facebook + Telegram (runAutoPostJob) — there was no cron
+//     slot left to give either of these their own schedule.
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders } = require('./_dbkey');
@@ -90,7 +91,9 @@ module.exports = async (req, res) => {
     if (!pending.length) {
       let contentResultEarly = null;
       try { contentResultEarly = await runDailyContentJob(); } catch (e) { contentResultEarly = { ok: false, error: e.message }; }
-      return res.status(200).json({ ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders', content: contentResultEarly });
+      let autoPostResultEarly = null;
+      try { autoPostResultEarly = await runAutoPostJob(); } catch (e) { autoPostResultEarly = { ok: false, error: e.message }; }
+      return res.status(200).json({ ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders', content: contentResultEarly, autoPost: autoPostResultEarly });
     }
 
     // 3. Group pending orders by provider (matched via provId stored on the order, if present,
@@ -174,7 +177,10 @@ module.exports = async (req, res) => {
     let contentResult = null;
     try { contentResult = await runDailyContentJob(); } catch (e) { contentResult = { ok: false, error: e.message }; }
 
-    return res.status(200).json({ ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo, content: contentResult });
+    let autoPostResult = null;
+    try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
+
+    return res.status(200).json({ ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo, content: contentResult, autoPost: autoPostResult });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
@@ -427,4 +433,105 @@ async function runDailyContentJob() {
   }
 
   return { ok: true, added: newPosts.length, total: combined.length };
+}
+
+const AUTOPOST_ADMIN_CHAT_ID = '7993801735';
+
+async function runAutoPostJob() {
+  try {
+    return await runAutoPostJobInner();
+  } catch (err) {
+    if (process.env.TG_BOT_TOKEN) {
+      await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: AUTOPOST_ADMIN_CHAT_ID, text: '❌ خطا در پست خودکار:\n' + err.message })
+      }).catch(() => {});
+    }
+    throw err;
+  }
+}
+
+async function runAutoPostJobInner() {
+  const results = { facebook: null, telegram: null };
+  const isPromoDay = dayOfYear() % 2 === 0;
+
+  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری بنویس برای یکی از این دو سرویس (خودت یکی را انتخاب کن):
+1. AfghanCoins (afghancoins.online) — فروش یوسی پابجی، جم فری‌فایر، الماس موبایل لجندز با قیمت مناسب و تحویل فوری
+2. AfghanFollowers (afghanfollowers.online) — خرید فالوور، لایک و ویو برای انستاگرام، تیک‌تاک، یوتیوب و تلگرام
+
+قوانین:
+- حداکثر ۶ خط
+- با ایموجی‌های مناسب
+- در آخر آدرس سایت و ۳-۴ هشتگ فارسی
+- فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
+
+  const gamingPrompt = `یک پست کوتاه و جذاب به زبان فارسی/دری درباره دنیای گیمینگ بنویس. خودت یکی از این موضوع‌ها را انتخاب کن:
+- ترفند یا نکته مفید برای PUBG Mobile یا Free Fire یا Mobile Legends
+- معرفی یک قابلیت یا آپدیت جالب بازی‌های موبایل
+- نکته جالب و دانستنی از دنیای گیم
+
+قوانین:
+- حداکثر ۶ خط
+- با ایموجی‌های مناسب
+- در آخر بنویس: 🎮 خرید یوسی و جم با بهترین قیمت: afghancoins.online
+- ۳-۴ هشتگ فارسی
+- فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
+
+  const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: isPromoDay ? promoPrompt : gamingPrompt }],
+      temperature: 0.9,
+      max_tokens: 500
+    })
+  });
+  const groqData = await groqResp.json();
+  const postText = groqData?.choices?.[0]?.message?.content?.trim();
+  if (!postText) throw new Error('Groq هیچ متنی تولید نکرد: ' + JSON.stringify(groqData));
+
+  if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
+    const fbResp = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: postText, access_token: process.env.FB_PAGE_TOKEN })
+    });
+    const fbData = await fbResp.json();
+    results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
+  } else {
+    results.facebook = '⏭ تنظیم نشده';
+  }
+
+  if (process.env.TG_BOT_TOKEN && process.env.TG_CHANNEL) {
+    const tgResp = await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: process.env.TG_CHANNEL, text: postText })
+    });
+    const tgData = await tgResp.json();
+    results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
+  } else {
+    results.telegram = '⏭ تنظیم نشده';
+  }
+
+  if (process.env.TG_BOT_TOKEN) {
+    await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: AUTOPOST_ADMIN_CHAT_ID,
+        text: `📢 گزارش پست خودکار (${isPromoDay ? 'تبلیغ' : 'گیمینگ'})\n\n`
+          + `فیسبوک: ${results.facebook}\n`
+          + `تلگرام: ${results.telegram}\n\n`
+          + `متن پست:\n${postText}`
+      })
+    }).catch(() => {});
+  }
+
+  return { ok: true, type: isPromoDay ? 'promo' : 'gaming', results };
 }
