@@ -21,36 +21,131 @@ module.exports = async (req, res) => {
   if (req.query && req.query.job === 'email-campaign') {
     return runEmailCampaignJob(req, res);
   }
+
+  // Order syncing, daily content, and auto-post are three independent jobs
+  // piggybacked on this one daily cron invocation (see the file header for
+  // why). Each runs in its own try/catch so a failure in one (e.g. a
+  // provider API being down) can never silently prevent the others from
+  // running — previously an uncaught error anywhere in the order-sync logic
+  // below skipped content/auto-post entirely while still returning HTTP 200,
+  // which is exactly the kind of failure that's invisible unless someone
+  // reads the response body instead of just the status code.
+  let syncResult;
   try {
-    // 1. Get current data
-    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
-    const db = await dbResp.json();
-    const orders = db.smm_orders || [];
-    const providers = db.smm_providers || [];
-    const svcList = db.smm_svc || []; // compact array format: [id, svcId, fullDesc, category, provName, provId, cost, price, min, max, active]
+    syncResult = await runOrderSyncJob();
+  } catch (e) {
+    syncResult = { ok: false, error: e.message };
+  }
 
-    // 1b. Retry orders that were never actually sent to the provider (no provOrderId yet)
-    const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded'];
-    const neverSent = orders.filter(o => !o.provOrderId && !finishedStatuses.includes(o.status));
-    let retried = 0;
-    const retryDebug = [];
+  let contentResult = null;
+  try { contentResult = await runDailyContentJob(); } catch (e) { contentResult = { ok: false, error: e.message }; }
 
-    for (const o of neverSent) {
-      // Find the matching service by name to get its provider numeric service id
-      const svcRow = svcList.find(s => s[2] === o.svcName || s[2] === o.svc || s[3] === o.svcName);
-      if (!svcRow) { retryDebug.push({ orderId: o.id, error: 'Service not found in catalog' }); continue; }
-      const provNumericId = svcRow[1]; // provider's numeric service id
-      const provId = svcRow[5];
-      const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
-      if (!prov || !prov.url || !prov.key) { retryDebug.push({ orderId: o.id, error: 'Provider config not found' }); continue; }
+  let autoPostResult = null;
+  try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
 
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult }));
+};
+
+async function runOrderSyncJob() {
+  // 1. Get current data
+  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const orders = db.smm_orders || [];
+  const providers = db.smm_providers || [];
+  const svcList = db.smm_svc || []; // compact array format: [id, svcId, fullDesc, category, provName, provId, cost, price, min, max, active]
+
+  // 1b. Retry orders that were never actually sent to the provider (no provOrderId yet)
+  const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded'];
+  const neverSent = orders.filter(o => !o.provOrderId && !finishedStatuses.includes(o.status));
+  let retried = 0;
+  const retryDebug = [];
+
+  for (const o of neverSent) {
+    // Find the matching service by name to get its provider numeric service id
+    const svcRow = svcList.find(s => s[2] === o.svcName || s[2] === o.svc || s[3] === o.svcName);
+    if (!svcRow) { retryDebug.push({ orderId: o.id, error: 'Service not found in catalog' }); continue; }
+    const provNumericId = svcRow[1]; // provider's numeric service id
+    const provId = svcRow[5];
+    const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
+    if (!prov || !prov.url || !prov.key) { retryDebug.push({ orderId: o.id, error: 'Provider config not found' }); continue; }
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append('key', prov.key);
+      formData.append('action', 'add');
+      formData.append('service', provNumericId);
+      formData.append('link', o.link);
+      formData.append('quantity', o.qty);
+
+      const r = await fetch(prov.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      });
+      const text = await r.text();
+      let result;
+      try { result = JSON.parse(text); } catch (e) {
+        retryDebug.push({ orderId: o.id, error: 'Bad response', rawText: text.slice(0, 200) });
+        continue;
+      }
+      if (result.order) {
+        o.provOrderId = result.order;
+        o.status = 'processing';
+        retried++;
+        retryDebug.push({ orderId: o.id, ok: true, newProvOrderId: result.order });
+      } else {
+        retryDebug.push({ orderId: o.id, error: result.error || 'No order id returned', rawResponse: result });
+      }
+    } catch (e) {
+      retryDebug.push({ orderId: o.id, error: e.message });
+    }
+  }
+
+  if (retried > 0) {
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
+    });
+  }
+
+  // 2. Find orders that still need checking (sent to a provider, not finished)
+  const finished = ['completed', 'canceled', 'cancelled', 'refunded'];
+  const pending = orders.filter(o => o.provOrderId && !finished.includes(o.status));
+
+  if (!pending.length) {
+    return { ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders' };
+  }
+
+  // 3. Group pending orders by provider (matched via provId stored on the order, if present,
+  //    otherwise fall back to trying every provider — most panels have one provider anyway)
+  const byProvider = {};
+  pending.forEach(o => {
+    const key = o.provId || 'default';
+    if (!byProvider[key]) byProvider[key] = [];
+    byProvider[key].push(o);
+  });
+
+  let updated = 0;
+  const idToOrder = {};
+  orders.forEach(o => { idToOrder[o.id] = o; });
+  const debugInfo = [];
+
+  for (const provId of Object.keys(byProvider)) {
+    let prov = providers.find(p => String(p.id) === String(provId));
+    if (!prov) prov = providers[0]; // fallback to the only/first configured provider
+    if (!prov || !prov.url || !prov.key) continue;
+
+    const group = byProvider[provId];
+
+    // Check each order individually — this provider does not reliably
+    // support bulk/comma-separated status requests.
+    for (const o of group) {
       try {
         const formData = new URLSearchParams();
         formData.append('key', prov.key);
-        formData.append('action', 'add');
-        formData.append('service', provNumericId);
-        formData.append('link', o.link);
-        formData.append('quantity', o.qty);
+        formData.append('action', 'status');
+        formData.append('order', String(o.provOrderId));
 
         const r = await fetch(prov.url, {
           method: 'POST',
@@ -58,133 +153,48 @@ module.exports = async (req, res) => {
           body: formData.toString()
         });
         const text = await r.text();
-        let result;
-        try { result = JSON.parse(text); } catch (e) {
-          retryDebug.push({ orderId: o.id, error: 'Bad response', rawText: text.slice(0, 200) });
+        let info;
+        try { info = JSON.parse(text); } catch (e) {
+          debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: 'JSON parse failed', rawText: text.slice(0, 200) });
           continue;
         }
-        if (result.order) {
-          o.provOrderId = result.order;
-          o.status = 'processing';
-          retried++;
-          retryDebug.push({ orderId: o.id, ok: true, newProvOrderId: result.order });
-        } else {
-          retryDebug.push({ orderId: o.id, error: result.error || 'No order id returned', rawResponse: result });
+
+        debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, rawResponse: info });
+
+        if (!info || info.error) continue;
+
+        let changed = false;
+        if (info.status) {
+          const mapped = mapStatus(info.status);
+          if (mapped && mapped !== o.status) { o.status = mapped; changed = true; }
         }
+        if (info.remains !== undefined) {
+          const remainNum = parseInt(info.remains);
+          if (!isNaN(remainNum) && remainNum !== o.remain) { o.remain = remainNum; changed = true; }
+        }
+        if (info.start_count !== undefined) {
+          const startNum = parseInt(info.start_count);
+          if (!isNaN(startNum) && startNum !== o.startCount) { o.startCount = startNum; changed = true; }
+        }
+        if (changed) updated++;
       } catch (e) {
-        retryDebug.push({ orderId: o.id, error: e.message });
+        debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: e.message });
+        continue;
       }
     }
-
-    if (retried > 0) {
-      await fetch(SITE + '/api/db', {
-        method: 'POST',
-        headers: dbHeaders(),
-        body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
-      });
-    }
-
-    // 2. Find orders that still need checking (sent to a provider, not finished)
-    const finished = ['completed', 'canceled', 'cancelled', 'refunded'];
-    const pending = orders.filter(o => o.provOrderId && !finished.includes(o.status));
-
-    if (!pending.length) {
-      let contentResultEarly = null;
-      try { contentResultEarly = await runDailyContentJob(); } catch (e) { contentResultEarly = { ok: false, error: e.message }; }
-      let autoPostResultEarly = null;
-      try { autoPostResultEarly = await runAutoPostJob(); } catch (e) { autoPostResultEarly = { ok: false, error: e.message }; }
-      return res.status(200).json({ ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders', content: contentResultEarly, autoPost: autoPostResultEarly });
-    }
-
-    // 3. Group pending orders by provider (matched via provId stored on the order, if present,
-    //    otherwise fall back to trying every provider — most panels have one provider anyway)
-    const byProvider = {};
-    pending.forEach(o => {
-      const key = o.provId || 'default';
-      if (!byProvider[key]) byProvider[key] = [];
-      byProvider[key].push(o);
-    });
-
-    let updated = 0;
-    const idToOrder = {};
-    orders.forEach(o => { idToOrder[o.id] = o; });
-    const debugInfo = [];
-
-    for (const provId of Object.keys(byProvider)) {
-      let prov = providers.find(p => String(p.id) === String(provId));
-      if (!prov) prov = providers[0]; // fallback to the only/first configured provider
-      if (!prov || !prov.url || !prov.key) continue;
-
-      const group = byProvider[provId];
-
-      // Check each order individually — this provider does not reliably
-      // support bulk/comma-separated status requests.
-      for (const o of group) {
-        try {
-          const formData = new URLSearchParams();
-          formData.append('key', prov.key);
-          formData.append('action', 'status');
-          formData.append('order', String(o.provOrderId));
-
-          const r = await fetch(prov.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: formData.toString()
-          });
-          const text = await r.text();
-          let info;
-          try { info = JSON.parse(text); } catch (e) {
-            debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: 'JSON parse failed', rawText: text.slice(0, 200) });
-            continue;
-          }
-
-          debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, rawResponse: info });
-
-          if (!info || info.error) continue;
-
-          let changed = false;
-          if (info.status) {
-            const mapped = mapStatus(info.status);
-            if (mapped && mapped !== o.status) { o.status = mapped; changed = true; }
-          }
-          if (info.remains !== undefined) {
-            const remainNum = parseInt(info.remains);
-            if (!isNaN(remainNum) && remainNum !== o.remain) { o.remain = remainNum; changed = true; }
-          }
-          if (info.start_count !== undefined) {
-            const startNum = parseInt(info.start_count);
-            if (!isNaN(startNum) && startNum !== o.startCount) { o.startCount = startNum; changed = true; }
-          }
-          if (changed) updated++;
-        } catch (e) {
-          debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: e.message });
-          continue;
-        }
-      }
-    }
-
-    // 4. Write updated orders back if anything changed
-    if (updated > 0) {
-      await fetch(SITE + '/api/db', {
-        method: 'POST',
-        headers: dbHeaders(),
-        body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
-      });
-    }
-
-    // 5. Same daily invocation also refreshes blog content — failures here
-    // must never break order syncing above, so they're caught separately.
-    let contentResult = null;
-    try { contentResult = await runDailyContentJob(); } catch (e) { contentResult = { ok: false, error: e.message }; }
-
-    let autoPostResult = null;
-    try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
-
-    return res.status(200).json({ ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo, content: contentResult, autoPost: autoPostResult });
-  } catch (e) {
-    return res.status(200).json({ ok: false, error: e.message });
   }
-};
+
+  // 4. Write updated orders back if anything changed
+  if (updated > 0) {
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
+    });
+  }
+
+  return { ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo };
+}
 
 function mapStatus(providerStatus) {
   const s = String(providerStatus).toLowerCase();
