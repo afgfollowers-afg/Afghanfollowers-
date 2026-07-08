@@ -3603,6 +3603,21 @@ function onAdminUpdate(){
 // ══ PULL FROM SERVER (cross-device sync on load) ══
 // Without this, a user visiting from a new device/browser sees no orders/tickets
 // because data only ever gets pushed to the server, never pulled back.
+// Merges by id, preferring the server's copy of any record that exists on
+// both sides (status/balance/replies changed server-side by admin or a cron
+// job), while keeping any local-only record the server doesn't have yet
+// (e.g. an order just placed that hasn't round-tripped). A plain
+// "server.length > local.length" check used to gate this instead, which
+// silently dropped every status/balance update whenever the record count
+// didn't change — a completed order still showed "processing" forever
+// unless a new order also happened to arrive.
+function mergeByIdPreferServer(serverArr,localArr){
+  var map={};
+  (localArr||[]).forEach(function(item){ if(item&&item.id!==undefined) map[item.id]=item; });
+  (serverArr||[]).forEach(function(item){ if(item&&item.id!==undefined) map[item.id]=item; });
+  return Object.keys(map).map(function(k){return map[k];});
+}
+
 function pullFromServerOnLoad(){
   fetch('/api/db',{method:'GET'})
     .then(function(r){return r.json();})
@@ -3612,24 +3627,18 @@ function pullFromServerOnLoad(){
       var u=getCurrentUser();
       if(d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length){
         var local=[];try{local=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
-        if(d.smm_users.length>=local.length){
-          localStorage.setItem('smm_users',JSON.stringify(d.smm_users));
-          changed=true;
-        }
+        localStorage.setItem('smm_users',JSON.stringify(mergeByIdPreferServer(d.smm_users,local)));
+        changed=true;
       }
       if(d.smm_orders&&Array.isArray(d.smm_orders)&&d.smm_orders.length){
         var localO=[];try{localO=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-        if(d.smm_orders.length>localO.length){
-          localStorage.setItem('smm_orders',JSON.stringify(d.smm_orders));
-          changed=true;
-        }
+        localStorage.setItem('smm_orders',JSON.stringify(mergeByIdPreferServer(d.smm_orders,localO)));
+        changed=true;
       }
       if(d.smm_tickets&&Array.isArray(d.smm_tickets)&&d.smm_tickets.length){
         var localT=[];try{localT=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
-        if(d.smm_tickets.length>localT.length){
-          localStorage.setItem('smm_tickets',JSON.stringify(d.smm_tickets));
-          changed=true;
-        }
+        localStorage.setItem('smm_tickets',JSON.stringify(mergeByIdPreferServer(d.smm_tickets,localT)));
+        changed=true;
       }
       var svcChanged=false;
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){

@@ -6025,6 +6025,22 @@ function notifyPanel(){
 // Pull from server every 3 seconds for cross-device sync
 var _lastServerTs=0;
 
+// Merges by id, preferring the server's copy of any record that exists on
+// both sides (order status/remain updated by the sync-orders cron, user
+// balance changed by another admin device, etc.), while keeping any
+// local-only record the server doesn't have yet. A plain
+// "server.length > local.length" check used to gate every one of these
+// instead, which silently dropped every status/balance update whenever the
+// record count didn't change — e.g. an order the cron marked "completed"
+// kept showing "processing" here forever unless the total order count also
+// happened to grow.
+function mergeByIdPreferServer(serverArr,localArr){
+  var map={};
+  (localArr||[]).forEach(function(item){ if(item&&item.id!==undefined) map[item.id]=item; });
+  (serverArr||[]).forEach(function(item){ if(item&&item.id!==undefined) map[item.id]=item; });
+  return Object.keys(map).map(function(k){return map[k];});
+}
+
 function forceSync(){
   // Show local users immediately
   loadAllRealData();
@@ -6035,10 +6051,11 @@ function forceSync(){
   fetch('/api/db')
     .then(function(r){return r.json();})
     .then(function(d){
-      if(d&&d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length>local.length){
-        localStorage.setItem('smm_users',JSON.stringify(d.smm_users));
-        rUsers(d.smm_users);
-        toast('✅ '+d.smm_users.length+' user(s) from server','s');
+      if(d&&d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length){
+        var merged=mergeByIdPreferServer(d.smm_users,local);
+        localStorage.setItem('smm_users',JSON.stringify(merged));
+        rUsers(merged);
+        toast('✅ '+merged.length+' user(s) from server','s');
       }
     }).catch(function(){});
 }
@@ -6052,28 +6069,20 @@ function pullFromServer(){
       if(serverTs<=_lastServerTs) return; // No new data
       _lastServerTs=serverTs;
       var changed=false;
-      // Merge users - keep more recent data
       if(d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length){
         var local=getRealUsers();
-        // Use server data if it has more users OR newer timestamp
-        if(d.smm_users.length>=local.length){
-          localStorage.setItem('smm_users',JSON.stringify(d.smm_users));
-          changed=true;
-        }
+        localStorage.setItem('smm_users',JSON.stringify(mergeByIdPreferServer(d.smm_users,local)));
+        changed=true;
       }
       if(d.smm_orders&&Array.isArray(d.smm_orders)&&d.smm_orders.length){
         var localO=getRealOrders();
-        if(d.smm_orders.length>localO.length){
-          localStorage.setItem('smm_orders',JSON.stringify(d.smm_orders));
-          changed=true;
-        }
+        localStorage.setItem('smm_orders',JSON.stringify(mergeByIdPreferServer(d.smm_orders,localO)));
+        changed=true;
       }
       if(d.smm_tickets&&Array.isArray(d.smm_tickets)&&d.smm_tickets.length){
         var localT=getRealTickets();
-        if(d.smm_tickets.length>localT.length){
-          localStorage.setItem('smm_tickets',JSON.stringify(d.smm_tickets));
-          changed=true;
-        }
+        localStorage.setItem('smm_tickets',JSON.stringify(mergeByIdPreferServer(d.smm_tickets,localT)));
+        changed=true;
       }
       if(d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
         localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
