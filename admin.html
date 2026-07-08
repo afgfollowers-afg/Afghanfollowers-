@@ -190,6 +190,34 @@ textarea.fi{resize:vertical;min-height:75px;}
 .emp-i{font-size:38px;margin-bottom:9px;}
 .emp-t{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:3px;}
 ::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
+
+/* EMAIL AUTOMATION TAB */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:16px;}
+.ch{padding:14px 18px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:8px;justify-content:space-between;}
+.cb{padding:18px;}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center;}
+.stat-v{font-size:22px;font-weight:900;color:var(--wh);}
+.stat-l{font-size:11px;color:var(--mt);margin-top:3px;}
+.log{background:var(--bg);border:1px solid var(--bd);border-radius:9px;padding:12px;font-family:monospace;font-size:12px;max-height:280px;overflow-y:auto;}
+.li{padding:4px 0;border-bottom:1px solid rgba(35,42,61,.3);}
+.li:last-child{border-bottom:none;}
+.ls{color:var(--gr);}
+.le{color:var(--rd);}
+.lw{color:var(--yw);}
+.li-i{color:var(--acc2);}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.d-g{background:var(--gr);}
+.d-y{background:var(--yw);}
+.d-r{background:var(--rd);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.pulse{animation:pulse 1.5s ease infinite;}
+.alert{padding:12px 15px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.a-s{background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
+.a-e{background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
+.a-w{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yw);}
+.a-i{background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);}
+#sp-emailauto code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
 </style>
 </head>
 <body>
@@ -543,6 +571,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
           <div class="set-mi" onclick="setSec('announcements',this)">📢 Announcements</div>
           <div class="set-mi" onclick="setSec('blog',this)">📝 Blog</div>
+          <div class="set-mi" onclick="setSec('emailauto',this)">🤖 Email Automation</div>
           <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
           <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
           <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
@@ -658,6 +687,192 @@ textarea.fi{resize:vertical;min-height:75px;}
             <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Public blog posts at <a href="/blog.html" target="_blank" style="color:var(--acc2)">/blog.html</a> — helps SEO by giving Google fresh, keyword-rich pages to index. Publishing a post also broadcasts it to your Telegram channel (if configured under Integrations).</div>
             <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddBlog()">Add Blog Post +</button>
             <div class="tw" id="blog-tbl"></div>
+          </div>
+
+          <!-- EMAIL AUTOMATION -->
+          <div class="set-pnl" id="sp-emailauto">
+            <div style="font-size:12px;color:var(--mt);margin-bottom:16px">Automatically sends emails to inactive users every Monday via a server-side cron (Resend API) — works even with this tab closed.</div>
+
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-v" id="ea-st-total">0</div><div class="stat-l">Total Users</div></div>
+              <div class="stat"><div class="stat-v" id="ea-st-inactive">0</div><div class="stat-l">Inactive &gt;30 days</div></div>
+              <div class="stat"><div class="stat-v" id="ea-st-sent">0</div><div class="stat-l">Emails Sent</div></div>
+              <div class="stat"><div class="stat-v" id="ea-st-next">—</div><div class="stat-l">Next Run</div></div>
+            </div>
+
+            <div class="card">
+              <div class="ch">🔑 Resend Sender Settings</div>
+              <div class="cb">
+                <div class="alert a-i">
+                  <span>ℹ️</span>
+                  <div>
+                    <strong>Setup:</strong> the Resend API key lives on the server, not here. In your Vercel project → <strong>Settings → Environment Variables</strong>, set <code>RESEND_API_KEY</code> to your key from <a href="https://resend.com" target="_blank" style="color:var(--gr)">resend.com</a> → API Keys, then redeploy. Verify your sending domain under Resend → Domains first.
+                  </div>
+                </div>
+                <div class="fgrid">
+                  <div class="fg"><label class="fl">From Email <span style="color:var(--rd)">*</span></label><input class="fi" id="ea-cfg-from" placeholder="noreply@afghanfollowers.online"></div>
+                  <div class="fg"><label class="fl">From Name</label><input class="fi" id="ea-cfg-fname" value="Afghan Followers" placeholder="Afghan Followers"></div>
+                  <div class="fg"><label class="fl">Reply-To Email</label><input class="fi" id="ea-cfg-reply" placeholder="support@afghanfollowers.online"></div>
+                  <div class="fg"><label class="fl">Daily Send Limit <span style="color:var(--mt);font-weight:400;text-transform:none">(0 = unlimited)</span></label><input type="number" class="fi" id="ea-cfg-daily-limit" value="0" min="0" placeholder="e.g. 100"></div>
+                </div>
+                <div style="font-size:11px;color:var(--mt);margin-bottom:12px" id="ea-daily-limit-status"></div>
+                <div style="display:flex;gap:10px">
+                  <button class="btn btn-p" onclick="eaSaveCfg()">💾 Save Config</button>
+                  <button class="btn btn-g" onclick="eaTestEmail()">🧪 Send Test Email</button>
+                  <span id="ea-test-status" style="font-size:12px;color:var(--mt);align-self:center"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ch">⚙️ Automation Rules<div class="tog" id="ea-auto-tog" onclick="eaToggleAuto(this)"></div></div>
+              <div class="cb">
+                <div class="fgrid">
+                  <div class="fg"><label class="fl">Inactive Period (days)</label><input type="number" class="fi" id="ea-r-days" value="30" min="1" max="365">
+                    <div style="font-size:11px;color:var(--mt);margin-top:4px">Send email if not visited for X days</div></div>
+                  <div class="fg"><label class="fl">Schedule</label><div class="fi" style="display:flex;align-items:center;color:var(--tx)">🕐 Every Monday (server-side)</div>
+                    <div style="font-size:11px;color:var(--mt);margin-top:4px">Runs automatically on Vercel's cron — no browser tab needs to stay open</div></div>
+                  <div class="fg"><label class="fl">Max Emails per User</label><input type="number" class="fi" id="ea-r-max" value="3" min="1" max="10">
+                    <div style="font-size:11px;color:var(--mt);margin-top:4px">Stop after sending X emails to same user</div></div>
+                  <div class="fg"><label class="fl">Cooldown Between Emails (days)</label><input type="number" class="fi" id="ea-r-cool" value="7" min="1">
+                    <div style="font-size:11px;color:var(--mt);margin-top:4px">Wait X days before next email to same user</div></div>
+                </div>
+                <div class="fg"><label class="fl">Target Audience</label>
+                  <select class="fi" id="ea-r-target">
+                    <option value="all">All inactive users</option>
+                    <option value="no_orders">Never ordered (inactive)</option>
+                    <option value="has_orders">Ordered before (inactive)</option>
+                    <option value="low_balance">Low balance &lt; $5 (inactive)</option>
+                  </select>
+                </div>
+                <button class="btn btn-p" onclick="eaSaveRules()">💾 Save Rules</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ch">✉️ Email Template
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="generateEmailAI('ea-t-subj','ea-t-body')">🤖 Generate with AI</button>
+                  <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="eaShowPreview()">👁 Preview</button>
+                </div>
+              </div>
+              <div class="cb">
+                <div style="font-size:12px;color:var(--mt);margin-bottom:12px;background:var(--s2);padding:10px 12px;border-radius:8px;line-height:1.8">
+                  Variables: <code>{{name}}</code> <code>{{email}}</code> <code>{{days}}</code> <code>{{balance}}</code> <code>{{panel_link}}</code> <code>{{site_name}}</code>
+                </div>
+                <div class="fg"><label class="fl">Email Subject</label><input class="fi" id="ea-t-subj" value="We miss you, {{name}}! 🌟 Come back and grow your social media"></div>
+                <div class="fg"><label class="fl">Email Body (HTML)</label><textarea class="fi" id="ea-t-body" rows="12">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
+  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+    &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🌟 Afghan Followers&lt;/h1&gt;
+  &lt;/div&gt;
+  &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08)"&gt;
+    &lt;h2 style="color:#1a202c;margin-bottom:8px"&gt;Hi {{name}}, we miss you! 👋&lt;/h2&gt;
+    &lt;p style="color:#555;line-height:1.7;margin-bottom:16px"&gt;
+      You haven't visited &lt;strong&gt;{{site_name}}&lt;/strong&gt; for &lt;strong style="color:#7c5cfc"&gt;{{days}} days&lt;/strong&gt;.
+      Your account balance is &lt;strong style="color:#00d2a0"&gt;${{balance}}&lt;/strong&gt; — ready to use!
+    &lt;/p&gt;
+    &lt;p style="color:#555;line-height:1.7;margin-bottom:20px"&gt;
+      Come back and grow your social media presence with:&lt;br&gt;
+      ✅ Real Instagram, TikTok &amp; Telegram followers&lt;br&gt;
+      ✅ Fast delivery, starting from $0.30/1K&lt;br&gt;
+      ✅ 24/7 support team ready to help
+    &lt;/p&gt;
+    &lt;div style="text-align:center;margin-bottom:20px"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+        🚀 Back to Panel
+      &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:0"&gt;
+      You received this because you registered at {{site_name}}.
+      &lt;br&gt;© {{site_name}} · All rights reserved
+    &lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</textarea></div>
+                <div id="ea-preview-box" style="display:none">
+                  <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">📬 Preview (Sample Data)</div>
+                  <div style="border:2px solid var(--bd);border-radius:12px;overflow:hidden">
+                    <div style="background:var(--s2);padding:10px 14px;font-size:12px;color:var(--mt)"><strong style="color:var(--tx)">Subject:</strong> <span id="ea-prev-subj"></span></div>
+                    <iframe id="ea-prev-frame" style="width:100%;height:400px;border:none;background:#fff"></iframe>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ch">📢 One-Time Announcement — Import Custom List</div>
+              <div class="cb">
+                <div class="alert a-i"><span>ℹ️</span><div>Use this to send a one-off announcement (e.g. "new website launched") to a list of emails from a CSV export — not limited to users currently registered on this site. Sends use the Resend config saved above.</div></div>
+                <div class="fg"><label class="fl">Upload CSV</label><input type="file" accept=".csv,text/csv" class="fi" id="ea-bc-file" onchange="eaHandleBulkCsv(this)" style="padding:9px">
+                  <div style="font-size:11px;color:var(--mt);margin-top:4px">Expects a header row with at least an <code>email</code> column (a <code>username</code>/<code>status</code> column will be used if present).</div>
+                </div>
+                <div id="ea-bc-status-filter" style="display:none;margin-bottom:14px"><label class="fl">Include Statuses</label><div id="ea-bc-status-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div></div>
+                <div id="ea-bc-summary" style="display:none;margin-bottom:14px"><div class="alert a-w" id="ea-bc-summary-txt"></div></div>
+                <div class="fg"><label class="fl">Email Subject</label><input class="fi" id="ea-bc-subj" value="🚀 وب‌سایت جدید افغان‌فالوورز راه‌اندازی شد"></div>
+                <div class="fg"><label class="fl">Email Body (HTML)</label><textarea class="fi" id="ea-bc-body" rows="14">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
+  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+    &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🚀 افغان‌فالوورز&lt;/h1&gt;
+  &lt;/div&gt;
+  &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);direction:rtl;text-align:right"&gt;
+    &lt;h2 style="color:#1a202c;margin-bottom:8px"&gt;سلام {{name}} عزیز 👋&lt;/h2&gt;
+    &lt;p style="color:#555;line-height:1.9;margin-bottom:16px"&gt;
+      با افتخار به اطلاع می‌رسانیم که وب‌سایت و پنل کاملاً جدید ما، &lt;strong&gt;{{site_name}}&lt;/strong&gt;، هم‌اکنون فعال شده است! چون شما پیش‌تر مشتری ما بوده‌اید، خواستیم شخصاً به شما اطلاع بدهیم.
+    &lt;/p&gt;
+    &lt;p style="color:#555;line-height:1.9;margin-bottom:20px"&gt;
+      در پنل جدید چه چیزی تغییر کرده؟&lt;br&gt;
+      ✅ سریع‌تر، امن‌تر و پایدارتر&lt;br&gt;
+      ✅ فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، تلگرام، یوتیوب و فیسبوک&lt;br&gt;
+      ✅ روش‌های پرداخت متنوع — کریپتو، پی‌پال، حواله/نقدی&lt;br&gt;
+      ✅ پشتیبانی ۲۴ ساعته
+    &lt;/p&gt;
+    &lt;div style="text-align:center;margin-bottom:20px"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+        🌐 بازدید از وب‌سایت جدید
+      &lt;/a&gt;
+    &lt;/div&gt;
+    &lt;p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:0"&gt;
+      این یک اطلاعیه یک‌باره است و به این دلیل ارسال شده که آدرس ایمیل شما در پنل قبلی ما ثبت شده بود.&lt;br&gt;
+      © {{site_name}} · تمامی حقوق محفوظ است
+    &lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</textarea></div>
+                <div id="ea-bc-preview-box" style="display:none;margin-bottom:14px">
+                  <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">📬 Preview (Sample Data)</div>
+                  <div style="border:2px solid var(--bd);border-radius:12px;overflow:hidden">
+                    <div style="background:var(--s2);padding:10px 14px;font-size:12px;color:var(--mt)"><strong style="color:var(--tx)">Subject:</strong> <span id="ea-bc-prev-subj"></span></div>
+                    <iframe id="ea-bc-prev-frame" style="width:100%;height:380px;border:none;background:#fff"></iframe>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+                  <button class="btn btn-g" onclick="generateEmailAI('ea-bc-subj','ea-bc-body')">🤖 Generate with AI</button>
+                  <button class="btn btn-g" onclick="eaShowBulkPreview()">👁 Preview</button>
+                  <button class="btn btn-g" onclick="eaTestBulkEmail()">🧪 Send Test Email</button>
+                  <button class="btn btn-s" onclick="eaSendBulkCampaign()" id="ea-bc-send-btn">📤 Send To All Filtered</button>
+                  <button class="btn btn-d" onclick="eaStopBulkCampaign()" id="ea-bc-stop-btn" style="display:none">⏹ Stop</button>
+                  <button class="btn btn-g" onclick="eaResetBulkSentLog()">♻️ Reset "Already Sent" Log</button>
+                </div>
+                <div class="log" id="ea-bc-log"><div style="color:var(--mt)">No activity yet.</div></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ch">👥 Inactive Users
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="eaLoadUsers()">🔄 Refresh</button>
+                  <button class="btn btn-s" style="padding:6px 12px;font-size:11px" onclick="eaRunCampaignNow()">📤 Run Campaign Now</button>
+                </div>
+              </div>
+              <div style="overflow-x:auto" id="ea-users-tbl"><div style="text-align:center;padding:30px;color:var(--mt)">Click Refresh to load inactive users</div></div>
+            </div>
+
+            <div class="card">
+              <div class="ch">📋 Activity Logs
+                <div style="display:flex;gap:8px">
+                  <span id="ea-log-count" style="font-size:11px;color:var(--mt)"></span>
+                  <button class="btn btn-d" style="padding:5px 10px;font-size:11px" onclick="eaClearLogs()">Clear</button>
+                </div>
+              </div>
+              <div class="cb"><div class="log" id="ea-log"><div style="color:var(--mt)">No activity yet.</div></div></div>
+            </div>
           </div>
 
           <!-- EMAIL -->
@@ -3913,6 +4128,7 @@ function setSec(id, el){
   if(id==='coupons') rCoupons();
   if(id==='announcements') rAnnouncements();
   if(id==='blog') rBlog();
+  if(id==='emailauto') eaInit();
   if(id==='email') rEmail();
   if(id==='signup') rSignup();
   if(id==='security') rSecurity();
@@ -4815,6 +5031,592 @@ function broadcastNewBlogPost(title,excerpt,emoji,slug){
       fbMessage:'📝 مقاله جدید\n\n'+emoji+' '+title+'\n'+(excerpt||'')+'\n\n🔗 '+url
     })
   }).catch(function(){});
+}
+
+// ═══ EMAIL AUTOMATION (ported from the old standalone email-automation.html
+// so it lives as a tab here instead of a separate page/URL) ═══
+var EA_CFG_KEY='smm_email_auto_cfg';
+var EA_LOG_KEY='smm_email_auto_log';
+var _eaLogs=[];
+
+function eaGetCfg(){try{return JSON.parse(localStorage.getItem(EA_CFG_KEY)||'{}');}catch(e){return{};}}
+function eaSaveCfgData(c){localStorage.setItem(EA_CFG_KEY,JSON.stringify(c));}
+
+function eaPushCfgToServer(c){
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_email_auto_cfg:c,smm_ts:Date.now()})}).catch(function(){});
+}
+
+function eaSaveCfg(){
+  var c=eaGetCfg();
+  c.from=document.getElementById('ea-cfg-from').value.trim();
+  c.fromName=document.getElementById('ea-cfg-fname').value.trim()||'Afghan Followers';
+  c.replyTo=document.getElementById('ea-cfg-reply').value.trim();
+  c.dailyLimit=parseInt(document.getElementById('ea-cfg-daily-limit').value)||0;
+  c.subject=document.getElementById('ea-t-subj').value;
+  c.bodyHtml=document.getElementById('ea-t-body').value;
+  eaSaveCfgData(c);
+  eaPushCfgToServer(c);
+  toast('Config saved!','s');
+  eaAddLog('⚙️ Config saved','i');
+  eaUpdateDailyLimitStatus();
+}
+
+function eaSaveRules(){
+  var c=eaGetCfg();
+  c.days=parseInt(document.getElementById('ea-r-days').value)||30;
+  c.maxEmails=parseInt(document.getElementById('ea-r-max').value)||3;
+  c.cooldownDays=parseInt(document.getElementById('ea-r-cool').value)||7;
+  c.target=document.getElementById('ea-r-target').value||'all';
+  c.subject=document.getElementById('ea-t-subj').value;
+  c.bodyHtml=document.getElementById('ea-t-body').value;
+  eaSaveCfgData(c);
+  eaPushCfgToServer(c);
+  toast('Rules saved!','s');
+  eaAddLog('⚙️ Rules saved: runs weekly (server-side), inactive '+c.days+' days','i');
+}
+
+function eaLoadCfgUI(){
+  var c=eaGetCfg();
+  if(c.from) document.getElementById('ea-cfg-from').value=c.from;
+  if(c.fromName) document.getElementById('ea-cfg-fname').value=c.fromName;
+  if(c.replyTo) document.getElementById('ea-cfg-reply').value=c.replyTo;
+  document.getElementById('ea-cfg-daily-limit').value=c.dailyLimit||0;
+  eaUpdateDailyLimitStatus();
+  if(c.days) document.getElementById('ea-r-days').value=c.days;
+  if(c.maxEmails) document.getElementById('ea-r-max').value=c.maxEmails;
+  if(c.cooldownDays) document.getElementById('ea-r-cool').value=c.cooldownDays;
+  if(c.target) document.getElementById('ea-r-target').value=c.target;
+  if(c.subject) document.getElementById('ea-t-subj').value=c.subject;
+  if(c.bodyHtml) document.getElementById('ea-t-body').value=c.bodyHtml;
+  eaSetStatus(!!c.active);
+}
+
+function eaPullCfgFromServer(){
+  fetch('/api/db',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.smm_email_auto_cfg&&typeof d.smm_email_auto_cfg==='object'){
+        eaSaveCfgData(d.smm_email_auto_cfg);
+        eaLoadCfgUI();
+      }
+    }).catch(function(){});
+}
+
+function eaToggleAuto(el){
+  el.classList.toggle('on');
+  var on=el.classList.contains('on');
+  if(on&&!eaGetCfg().from){
+    toast('Configure From Email first','e');
+    el.classList.remove('on');
+    return;
+  }
+  var c=eaGetCfg();c.active=on;
+  c.subject=document.getElementById('ea-t-subj').value;
+  c.bodyHtml=document.getElementById('ea-t-body').value;
+  eaSaveCfgData(c);
+  eaPushCfgToServer(c);
+  eaSetStatus(on);
+  eaAddLog(on?'▶️ Weekly automation ENABLED — server sends every Monday':'⏹ Weekly automation DISABLED','s');
+}
+
+function eaSetStatus(on){
+  var next=document.getElementById('ea-st-next');
+  if(next) next.textContent=on?'Every Monday':'—';
+  var tog=document.getElementById('ea-auto-tog');
+  if(tog) tog.classList[on?'add':'remove']('on');
+}
+
+async function generateEmailAI(subjId,bodyId){
+  var topic=prompt('What should this email be about? (e.g. "announce the new website launch")','');
+  if(!topic) return;
+  var btns=document.querySelectorAll('button[onclick*="generateEmailAI(\''+subjId+'\'"]');
+  btns.forEach(function(b){b.disabled=true;b.textContent='🤖 Generating...';});
+  try{
+    var res=await fetch('/api/ai-chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode:'generate_email',topic:topic})
+    });
+    var data=await res.json();
+    if(data.ok&&data.subject&&data.html){
+      document.getElementById(subjId).value=data.subject;
+      document.getElementById(bodyId).value=data.html;
+      toast('✅ AI draft generated — review before sending!','s');
+    } else {
+      toast('❌ AI generation failed: '+(data.error||'unknown error'),'e');
+    }
+  }catch(e){
+    toast('❌ Could not reach AI service: '+e.message,'e');
+  }
+  btns.forEach(function(b){b.disabled=false;b.textContent='🤖 Generate with AI';});
+}
+
+var EA_DAILY_COUNT_KEY='smm_email_daily_count';
+function eaGetDailyCount(){
+  var today=new Date().toDateString();
+  try{
+    var d=JSON.parse(localStorage.getItem(EA_DAILY_COUNT_KEY)||'{}');
+    if(d.date===today) return d.count||0;
+  }catch(e){}
+  return 0;
+}
+function eaIncrementDailyCount(){
+  var today=new Date().toDateString();
+  var count=eaGetDailyCount()+1;
+  localStorage.setItem(EA_DAILY_COUNT_KEY,JSON.stringify({date:today,count:count}));
+  eaUpdateDailyLimitStatus();
+  return count;
+}
+function eaUpdateDailyLimitStatus(){
+  var el=document.getElementById('ea-daily-limit-status');
+  if(!el) return;
+  var c=eaGetCfg();
+  var limit=c.dailyLimit||0;
+  var sent=eaGetDailyCount();
+  el.textContent=limit>0?('Sent today: '+sent+' / '+limit):('Sent today: '+sent+' (no daily limit set)');
+}
+
+async function eaSendEmail(toEmail,toName,subject,htmlBody){
+  var c=eaGetCfg();
+  if(!c.from){
+    eaAddLog('❌ Missing From Email — configure it above first','e');
+    return{ok:false,error:'Not configured'};
+  }
+  var limit=c.dailyLimit||0;
+  if(limit>0&&eaGetDailyCount()>=limit){
+    return{ok:false,error:'Daily send limit reached ('+limit+'). Resumes tomorrow.',limitReached:true};
+  }
+  var payload={to:toEmail,from:c.from,fromName:c.fromName||'',replyTo:c.replyTo||'',subject:subject,html:htmlBody};
+  try{
+    var res=await fetch('/api/send-reset-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    var data=await res.json();
+    if(data.ok&&data.id){ eaIncrementDailyCount(); return{ok:true,id:data.id}; }
+    return{ok:false,error:data.error||JSON.stringify(data)};
+  }catch(e){ return{ok:false,error:e.message}; }
+}
+
+function eaFillVars(text,user,daysInactive){
+  var siteName=document.getElementById('ea-cfg-fname').value||'Afghan Followers';
+  var panelLink=window.location.origin+'/smm-panel.html';
+  return text
+    .replace(/\{\{name\}\}/g,user.fname||'User')
+    .replace(/\{\{email\}\}/g,user.email||'')
+    .replace(/\{\{days\}\}/g,daysInactive||0)
+    .replace(/\{\{balance\}\}/g,(user.balance||0).toFixed(2))
+    .replace(/\{\{panel_link\}\}/g,panelLink)
+    .replace(/\{\{site_name\}\}/g,siteName);
+}
+
+var EA_BULK_SENT_KEY='smm_bulk_campaign_sent';
+var _eaBulkAll=[];
+var _eaBulkStatuses={};
+var _eaBulkStop=false;
+var _eaBulkRunning=false;
+
+function eaParseCSV(text){
+  var rows=[];
+  var lines=text.replace(/^﻿/,'').split(/\r\n|\n|\r/).filter(function(l){return l.length;});
+  if(!lines.length) return rows;
+  function splitLine(line){
+    var out=[],cur='',inQ=false;
+    for(var i=0;i<line.length;i++){
+      var ch=line[i];
+      if(ch==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(ch===','&&!inQ){ out.push(cur);cur=''; }
+      else cur+=ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  var headers=splitLine(lines[0]).map(function(h){return h.trim().toLowerCase();});
+  for(var i=1;i<lines.length;i++){
+    var vals=splitLine(lines[i]);
+    var obj={};
+    headers.forEach(function(h,idx){obj[h]=(vals[idx]||'').trim();});
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function eaHandleBulkCsv(input){
+  var file=input.files&&input.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{ eaParseBulkCsv(e.target.result); }
+    catch(err){ eaAddBulkLog('❌ Could not parse CSV: '+err.message,'e'); }
+  };
+  reader.readAsText(file);
+}
+
+function eaParseBulkCsv(text){
+  var rows=eaParseCSV(text);
+  var byStatus={};
+  var all=[];
+  var seen={};
+  rows.forEach(function(r){
+    var email=(r.email||'').trim().toLowerCase();
+    if(!email||email.indexOf('@')<0||seen[email]) return;
+    seen[email]=true;
+    var status=(r.status||'Active').trim()||'Active';
+    byStatus[status]=(byStatus[status]||0)+1;
+    all.push({email:email,name:r.username||r.name||'',status:status});
+  });
+  _eaBulkAll=all;
+  _eaBulkStatuses={};
+  Object.keys(byStatus).forEach(function(s){ _eaBulkStatuses[s]=(s==='Active'); });
+  eaRenderBulkStatusChips(byStatus);
+  eaUpdateBulkSummary();
+  eaAddBulkLog('📥 Loaded '+all.length+' unique emails from CSV ('+Object.keys(byStatus).map(function(s){return s+': '+byStatus[s];}).join(', ')+')','i');
+}
+
+function eaRenderBulkStatusChips(byStatus){
+  var wrap=document.getElementById('ea-bc-status-chips');
+  var filterEl=document.getElementById('ea-bc-status-filter');
+  if(!Object.keys(byStatus).length){ filterEl.style.display='none'; return; }
+  filterEl.style.display='block';
+  wrap.innerHTML=Object.keys(byStatus).map(function(s){
+    var checked=_eaBulkStatuses[s]?'checked':'';
+    return '<label style="display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">'
+      +'<input type="checkbox" '+checked+' onchange="eaToggleBulkStatus(\''+s.replace(/'/g,"\\'")+'\',this.checked)"> '+s+' ('+byStatus[s]+')'
+      +'</label>';
+  }).join('');
+}
+
+function eaToggleBulkStatus(status,checked){
+  _eaBulkStatuses[status]=checked;
+  eaUpdateBulkSummary();
+}
+
+function eaGetBulkSentSet(){
+  try{ return JSON.parse(localStorage.getItem(EA_BULK_SENT_KEY)||'{}'); }catch(e){ return {}; }
+}
+function eaMarkBulkSent(email){
+  var s=eaGetBulkSentSet();
+  s[email]=new Date().toISOString();
+  localStorage.setItem(EA_BULK_SENT_KEY,JSON.stringify(s));
+}
+function eaResetBulkSentLog(){
+  if(!confirm('Clear the "already sent" record for this one-time campaign? This lets you re-send to everyone.')) return;
+  localStorage.removeItem(EA_BULK_SENT_KEY);
+  eaAddBulkLog('♻️ "Already sent" log cleared','w');
+  eaUpdateBulkSummary();
+}
+
+function eaGetBulkFilteredRecipients(){
+  var sentSet=eaGetBulkSentSet();
+  return _eaBulkAll.filter(function(r){
+    return _eaBulkStatuses[r.status] && !sentSet[r.email];
+  });
+}
+
+function eaUpdateBulkSummary(){
+  var box=document.getElementById('ea-bc-summary');
+  var txt=document.getElementById('ea-bc-summary-txt');
+  if(!_eaBulkAll.length){ box.style.display='none'; return; }
+  var filtered=eaGetBulkFilteredRecipients();
+  var sentSet=eaGetBulkSentSet();
+  var alreadySent=_eaBulkAll.filter(function(r){return sentSet[r.email];}).length;
+  box.style.display='block';
+  txt.innerHTML='<strong>'+filtered.length+'</strong> emails will be sent with the current status filter'
+    +(alreadySent?' · <strong>'+alreadySent+'</strong> already marked as sent in a previous run (skipped)':'')
+    +'.';
+}
+
+function eaFillBulkVars(text,r){
+  var siteName=document.getElementById('ea-cfg-fname').value||'Afghan Followers';
+  var panelLink=window.location.origin+'/smm-panel.html';
+  return text
+    .replace(/\{\{name\}\}/g,r.name||'دوست عزیز')
+    .replace(/\{\{email\}\}/g,r.email||'')
+    .replace(/\{\{site_name\}\}/g,siteName)
+    .replace(/\{\{panel_link\}\}/g,panelLink);
+}
+
+function eaShowBulkPreview(){
+  var demo={email:'ahmad@example.com',name:'Ahmad'};
+  var subject=eaFillBulkVars(document.getElementById('ea-bc-subj').value,demo);
+  var html=eaFillBulkVars(document.getElementById('ea-bc-body').value,demo);
+  document.getElementById('ea-bc-prev-subj').textContent=subject;
+  document.getElementById('ea-bc-prev-frame').srcdoc=html;
+  document.getElementById('ea-bc-preview-box').style.display='block';
+}
+
+async function eaTestBulkEmail(){
+  var c=eaGetCfg();
+  if(!c.from){ toast('Configure From Email first','e'); return; }
+  var toEmail=prompt('Send test to email:','');
+  if(!toEmail) return;
+  var demo={email:toEmail,name:'Test'};
+  var subject=eaFillBulkVars(document.getElementById('ea-bc-subj').value,demo);
+  var html=eaFillBulkVars(document.getElementById('ea-bc-body').value,demo);
+  eaAddBulkLog('🧪 Sending test to '+toEmail+'...','i');
+  var result=await eaSendEmail(toEmail,'Test',subject,html);
+  if(result.ok){ eaAddBulkLog('✅ Test sent to '+toEmail,'s'); toast('Test email sent!','s'); }
+  else{ eaAddBulkLog('❌ Test failed: '+result.error,'e'); toast('Test failed: '+result.error,'e'); }
+}
+
+function eaStopBulkCampaign(){
+  _eaBulkStop=true;
+  eaAddBulkLog('⏹ Stop requested — will halt after the current email','w');
+}
+
+async function eaSendBulkCampaign(){
+  var c=eaGetCfg();
+  if(!c.from){ toast('Configure From Email first','e'); return; }
+  if(!_eaBulkAll.length){ toast('Upload a CSV first','e'); return; }
+  var recipients=eaGetBulkFilteredRecipients();
+  if(!recipients.length){ toast('No recipients match the current status filter','e'); return; }
+  if(!confirm('This will send a REAL email to '+recipients.length+' addresses right now. This cannot be undone. Continue?')) return;
+
+  _eaBulkStop=false;
+  _eaBulkRunning=true;
+  document.getElementById('ea-bc-send-btn').disabled=true;
+  document.getElementById('ea-bc-stop-btn').style.display='inline-flex';
+  eaAddBulkLog('🚀 Starting one-time campaign: '+recipients.length+' recipients','s');
+
+  var subjTpl=document.getElementById('ea-bc-subj').value;
+  var bodyTpl=document.getElementById('ea-bc-body').value;
+  var sent=0,failed=0;
+  for(var i=0;i<recipients.length;i++){
+    if(_eaBulkStop){ eaAddBulkLog('⏹ Stopped by user at '+i+'/'+recipients.length,'w'); break; }
+    var r=recipients[i];
+    var subject=eaFillBulkVars(subjTpl,r);
+    var html=eaFillBulkVars(bodyTpl,r);
+    var result=await eaSendEmail(r.email,r.name,subject,html);
+    if(result.ok){ eaMarkBulkSent(r.email); sent++; eaAddBulkLog('✅ ('+(i+1)+'/'+recipients.length+') '+r.email,'s'); }
+    else if(result.limitReached){ eaAddBulkLog('🛑 Daily send limit reached at '+(i+1)+'/'+recipients.length+' — remaining recipients will resume tomorrow','w'); break; }
+    else{ failed++; eaAddBulkLog('❌ ('+(i+1)+'/'+recipients.length+') '+r.email+' — '+result.error,'e'); }
+    eaUpdateBulkSummary();
+    await new Promise(function(res){ setTimeout(res,600); });
+  }
+  _eaBulkRunning=false;
+  document.getElementById('ea-bc-send-btn').disabled=false;
+  document.getElementById('ea-bc-stop-btn').style.display='none';
+  eaAddBulkLog('📊 Campaign finished: '+sent+' sent, '+failed+' failed','s');
+  toast('Done: '+sent+' sent, '+failed+' failed',failed?'w':'s');
+}
+
+var _eaBulkLogs=[];
+function eaAddBulkLog(msg,type){
+  var now=new Date();
+  var time=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  _eaBulkLogs.unshift({msg:msg,type:type||'i',time:time});
+  if(_eaBulkLogs.length>1000) _eaBulkLogs=_eaBulkLogs.slice(0,1000);
+  var el=document.getElementById('ea-bc-log');
+  el.innerHTML=_eaBulkLogs.map(function(l){
+    return '<div class="li l'+l.type+'"><span style="color:var(--mt)">['+l.time+']</span> '+l.msg+'</div>';
+  }).join('');
+}
+
+function eaGetUsers(){
+  try{return JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){return[];}
+}
+
+function eaGetInactiveUsers(){
+  var c=eaGetCfg();
+  var thresholdMs=(c.days||30)*24*60*60*1000;
+  var now=Date.now();
+  var target=c.target||'all';
+  return eaGetUsers().filter(function(u){
+    if(!u.email||u.email.indexOf('@')<0) return false;
+    if(u.status==='suspended') return false;
+    var last=u.lastVisit?new Date(u.lastVisit).getTime():new Date(u.joined).getTime();
+    if(now-last<thresholdMs) return false;
+    if(target==='no_orders'&&(u.orders||0)>0) return false;
+    if(target==='has_orders'&&(u.orders||0)===0) return false;
+    if(target==='low_balance'&&(u.balance||0)>=5) return false;
+    return true;
+  });
+}
+
+function eaCanSendTo(u){
+  var c=eaGetCfg();
+  var log=u.emailLog||[];
+  if(log.length>=(c.maxEmails||3)) return false;
+  if(log.length>0){
+    var lastMs=new Date(log[log.length-1]).getTime();
+    if(Date.now()-lastMs<(c.cooldownDays||7)*24*60*60*1000) return false;
+  }
+  return true;
+}
+
+async function eaRunEmailCampaign(){
+  var inactive=eaGetInactiveUsers();
+  var eligible=inactive.filter(eaCanSendTo);
+  eaAddLog('🔍 Check: '+inactive.length+' inactive users, '+eligible.length+' eligible for email','i');
+  eaUpdateStats();
+
+  var sent=0,failed=0;
+  for(var i=0;i<eligible.length;i++){
+    var u=eligible[i];
+    var last=u.lastVisit||u.joined;
+    var days=Math.floor((Date.now()-new Date(last).getTime())/(24*60*60*1000));
+    var subject=eaFillVars(document.getElementById('ea-t-subj').value,u,days);
+    var html=eaFillVars(document.getElementById('ea-t-body').value,u,days);
+    eaAddLog('📤 Sending to '+u.email+' ('+days+' days inactive)...','i');
+    var result=await eaSendEmail(u.email,u.fname,subject,html);
+    if(result.ok){
+      var users=eaGetUsers();
+      var uu=users.find(function(x){return x.id===u.id;});
+      if(uu){
+        if(!uu.emailLog) uu.emailLog=[];
+        uu.emailLog.push(new Date().toISOString());
+        localStorage.setItem('smm_users',JSON.stringify(users));
+      }
+      eaAddLog('✅ Sent to '+u.email+' | ID: '+result.id,'s');
+      sent++;
+    } else if(result.limitReached){
+      eaAddLog('🛑 Daily send limit reached — remaining users will get their email on the next scheduled run','w');
+      break;
+    } else {
+      eaAddLog('❌ Failed: '+u.email+' — '+result.error,'e');
+      failed++;
+    }
+    await new Promise(function(r){setTimeout(r,500);});
+  }
+  eaAddLog('📊 Campaign complete: '+sent+' sent, '+failed+' failed','s');
+  eaUpdateStats();
+  return{sent:sent,failed:failed};
+}
+
+async function eaSendToUser(userId){
+  var u=eaGetUsers().find(function(x){return x.id===userId;});
+  if(!u){toast('User not found','e');return;}
+  var days=Math.floor((Date.now()-new Date(u.lastVisit||u.joined).getTime())/(24*60*60*1000));
+  var subject=eaFillVars(document.getElementById('ea-t-subj').value,u,days);
+  var html=eaFillVars(document.getElementById('ea-t-body').value,u,days);
+  eaAddLog('📤 Manual send to '+u.email+'...','i');
+  var result=await eaSendEmail(u.email,u.fname,subject,html);
+  if(result.ok){
+    var users=eaGetUsers();
+    var uu=users.find(function(x){return x.id===userId;});
+    if(uu){if(!uu.emailLog)uu.emailLog=[];uu.emailLog.push(new Date().toISOString());localStorage.setItem('smm_users',JSON.stringify(users));}
+    eaAddLog('✅ Manual email sent to '+u.email,'s');
+    toast('Email sent to '+u.email,'s');
+    eaLoadUsers();eaUpdateStats();
+  } else {
+    eaAddLog('❌ Failed: '+result.error,'e');
+    toast('Failed: '+result.error,'e');
+  }
+}
+
+async function eaTestEmail(){
+  var from=document.getElementById('ea-cfg-from').value.trim();
+  if(!from){toast('Enter From Email first','e');return;}
+  var toEmail=prompt('Send test to email:','');
+  if(!toEmail) return;
+  document.getElementById('ea-test-status').textContent='Sending...';
+  var testUser={fname:'Test',email:toEmail,balance:10};
+  var subject=eaFillVars(document.getElementById('ea-t-subj').value,testUser,35);
+  var html=eaFillVars(document.getElementById('ea-t-body').value,testUser,35);
+  eaSaveCfg();
+  var result=await eaSendEmail(toEmail,'Test',subject,html);
+  if(result.ok){
+    document.getElementById('ea-test-status').textContent='✅ Sent! Check inbox.';
+    document.getElementById('ea-test-status').style.color='var(--gr)';
+    eaAddLog('🧪 Test email sent to '+toEmail,'s');
+    toast('Test email sent!','s');
+  } else {
+    document.getElementById('ea-test-status').textContent='❌ '+result.error;
+    document.getElementById('ea-test-status').style.color='var(--rd)';
+    eaAddLog('🧪 Test failed: '+result.error,'e');
+    toast('Test failed: '+result.error,'e');
+  }
+}
+
+async function eaRunCampaignNow(){
+  var c=eaGetCfg();
+  if(!c.from){toast('Configure From Email first','e');return;}
+  if(!confirm('Send emails to all eligible inactive users now?')) return;
+  toast('Campaign started...','s');
+  eaAddLog('🚀 Manual campaign triggered','i');
+  var result=await eaRunEmailCampaign();
+  toast('Done: '+result.sent+' sent, '+result.failed+' failed','s');
+  eaLoadUsers();
+}
+
+function eaLoadUsers(){
+  var inactive=eaGetInactiveUsers();
+  var c=eaGetCfg();
+  if(!inactive.length){
+    document.getElementById('ea-users-tbl').innerHTML='<div style="text-align:center;padding:30px;color:var(--mt)">✅ No inactive users found</div>';
+    return;
+  }
+  var h='<table><thead><tr><th>User</th><th>Email</th><th>Last Visit</th><th>Inactive</th><th>Emails</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+  inactive.forEach(function(u){
+    var last=u.lastVisit||u.joined;
+    var days=Math.floor((Date.now()-new Date(last).getTime())/(24*60*60*1000));
+    var sent=(u.emailLog||[]).length;
+    var max=c.maxEmails||3;
+    var can=eaCanSendTo(u);
+    var lastSent=u.emailLog&&u.emailLog.length?new Date(u.emailLog[u.emailLog.length-1]).toLocaleDateString():'—';
+    h+='<tr>'
+      +'<td style="font-weight:600">'+u.fname+' '+(u.lname||'')+'</td>'
+      +'<td style="color:var(--mt);font-size:12px">'+u.email+'</td>'
+      +'<td style="font-size:12px;color:var(--mt)">'+new Date(last).toLocaleDateString()+'</td>'
+      +'<td><span class="b '+(days>90?'br':days>30?'by':'bp')+'">'+days+'d</span></td>'
+      +'<td style="font-size:12px">'+sent+'/'+max+'<br><span style="color:var(--mt);font-size:10px">last: '+lastSent+'</span></td>'
+      +'<td style="color:var(--gr);font-weight:700">$'+(u.balance||0).toFixed(2)+'</td>'
+      +'<td><span class="b '+(can?'bg':sent>=max?'br':'by')+'">'+(can?'Ready':sent>=max?'Max Reached':'Cooldown')+'</span></td>'
+      +'<td>'+(can?'<button class="btn btn-s" style="padding:5px 10px;font-size:11px" onclick="eaSendToUser('+u.id+')">📤 Send</button>':'—')+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('ea-users-tbl').innerHTML=h+'</tbody></table>';
+}
+
+function eaUpdateStats(){
+  var users=eaGetUsers();
+  var inactive=eaGetInactiveUsers();
+  var totalSent=users.reduce(function(t,u){return t+(u.emailLog?u.emailLog.length:0);},0);
+  document.getElementById('ea-st-total').textContent=users.length;
+  document.getElementById('ea-st-inactive').textContent=inactive.length;
+  document.getElementById('ea-st-sent').textContent=totalSent;
+}
+
+function eaShowPreview(){
+  var demoUser={fname:'Ahmad',email:'ahmad@example.com',balance:12.50};
+  var subject=eaFillVars(document.getElementById('ea-t-subj').value,demoUser,35);
+  var html=eaFillVars(document.getElementById('ea-t-body').value,demoUser,35);
+  document.getElementById('ea-prev-subj').textContent=subject;
+  document.getElementById('ea-prev-frame').srcdoc=html;
+  document.getElementById('ea-preview-box').style.display='block';
+}
+
+function eaAddLog(msg,type){
+  var now=new Date();
+  var time=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  var date=now.toLocaleDateString();
+  _eaLogs.unshift({msg:msg,type:type||'i',time:time,date:date});
+  if(_eaLogs.length>500) _eaLogs=_eaLogs.slice(0,500);
+  try{localStorage.setItem(EA_LOG_KEY,JSON.stringify(_eaLogs.slice(0,200)));}catch(e){}
+  eaRenderLogs();
+}
+function eaRenderLogs(){
+  var el=document.getElementById('ea-log');
+  var count=document.getElementById('ea-log-count');
+  if(!el) return;
+  if(count) count.textContent=_eaLogs.length+' entries';
+  if(!_eaLogs.length){el.innerHTML='<div style="color:var(--mt)">No activity yet.</div>';return;}
+  el.innerHTML=_eaLogs.map(function(l){
+    return '<div class="li l'+(l.type||'i')+'"><span style="color:var(--mt)">['+l.date+' '+l.time+']</span> '+l.msg+'</div>';
+  }).join('');
+}
+function eaClearLogs(){_eaLogs=[];localStorage.removeItem(EA_LOG_KEY);eaRenderLogs();toast('Logs cleared','s');}
+
+var _eaInited=false;
+function eaInit(){
+  if(!_eaInited){
+    try{_eaLogs=JSON.parse(localStorage.getItem(EA_LOG_KEY)||'[]');}catch(e){_eaLogs=[];}
+    eaLoadCfgUI();
+    eaPullCfgFromServer();
+    eaAddLog('📧 Email Automation panel opened','i');
+    _eaInited=true;
+  }
+  eaRenderLogs();
+  eaUpdateStats();
+  eaLoadUsers();
 }
 
 // email
