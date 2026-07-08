@@ -1970,10 +1970,10 @@ var SVC_KEY='smm_services';
 var CAT_KEY='smm_categories';
 
 // getServices defined above with compression support
-var MAX_SERVICES=500;
+var MAX_SERVICES=1000;
 
 function saveServices(arr){
-  // Enforce max 500 — newest at front, oldest removed from end
+  // Enforce max 1000 — newest at front, oldest removed from end
   if(arr.length>MAX_SERVICES){
     arr=arr.slice(0,MAX_SERVICES);
     // No toast needed — silent trim
@@ -2871,8 +2871,8 @@ function qiRender(services,provId){
     return;
   }
 
-  // Limit to 500 per page
-  var PAGE_SIZE=500;
+  // Limit to 1000 per page
+  var PAGE_SIZE=1000;
   var totalCount=services.length;
   var displayList=services.slice(0,PAGE_SIZE);
 
@@ -3046,7 +3046,7 @@ function qiImportSelected(){
       return;
     }
 
-    // Merge: new (provider order) at TOP, existing below, max 500
+    // Merge: new (provider order) at TOP, existing below, max MAX_SERVICES
     svcs=newSvcs.concat(svcs);
     if(svcs.length>MAX_SERVICES){
       svcs=svcs.slice(0,MAX_SERVICES);
