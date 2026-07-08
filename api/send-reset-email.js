@@ -4,8 +4,8 @@
 //   1. Password reset (public — called by logged-out visitors from
 //      auth.html): body { email } → looks up the user, issues a reset
 //      token, emails a reset link.
-//   2. Generic authenticated send (called from email-automation.html's
-//      re-engagement/bulk-announcement tools): body { to, html, subject,
+//   2. Generic authenticated send (called from the admin panel's Email
+//      Automation tab re-engagement/bulk-announcement tools): body { to, html, subject,
 //      from, fromName, replyTo } → requires the shared x-db-key header so
 //      this can't be used as an open email relay by anyone who finds the URL.
 // Env vars needed: RESEND_API_KEY, RESEND_FROM_EMAIL (and everything db.js needs)

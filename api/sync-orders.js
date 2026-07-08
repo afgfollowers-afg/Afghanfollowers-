@@ -200,9 +200,10 @@ function mapStatus(providerStatus) {
 
 // ── Weekly re-engagement email campaign (server-side) ──
 // Runs entirely on the server via vercel.json's cron schedule, so it fires
-// reliably every week regardless of whether anyone has email-automation.html
-// open in a browser — a client-side setInterval() only ever ran while that
-// exact tab stayed open continuously, which is not realistic over a week.
+// reliably every week regardless of whether anyone has the admin panel's
+// Email Automation tab open in a browser — a client-side setInterval() only
+// ever ran while that exact tab stayed open continuously, which is not
+// realistic over a week.
 const DEFAULT_SUBJECT = 'We miss you, {{name}}! 🌟 Come back and grow your social media';
 const DEFAULT_BODY = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa">'
   + '<div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center">'
@@ -270,13 +271,13 @@ async function runEmailCampaignJob(req, res) {
     const cfg = db.smm_email_auto_cfg || {};
 
     if (!cfg.active) {
-      return res.status(200).json({ ok: true, skipped: true, reason: 'Automation is disabled (toggle it on in email-automation.html)' });
+      return res.status(200).json({ ok: true, skipped: true, reason: 'Automation is disabled (toggle it on in Admin -> Settings -> Email Automation)' });
     }
     if (!RESEND_API_KEY) {
       return res.status(200).json({ ok: false, error: 'RESEND_API_KEY missing in Vercel env vars' });
     }
     if (!cfg.from) {
-      return res.status(200).json({ ok: false, error: 'From Email not configured in email-automation.html' });
+      return res.status(200).json({ ok: false, error: 'From Email not configured in Admin -> Settings -> Email Automation' });
     }
 
     const inactive = getInactiveUsers(users, cfg);

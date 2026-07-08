@@ -3,7 +3,6 @@ Allow: /
 Allow: /auth.html
 Disallow: /admin.html
 Disallow: /smm-panel.html
-Disallow: /email-automation.html
 Disallow: /api/
 Disallow: /payment/
 Disallow: /paypal-checkout.html

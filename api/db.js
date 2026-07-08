@@ -167,8 +167,8 @@ module.exports = async (req, res) => {
       }
       if (body.smm_email_auto_cfg && typeof body.smm_email_auto_cfg === 'object') {
         // Re-engagement email settings (template, thresholds, daily limit) —
-        // pushed from email-automation.html so the weekly server-side cron
-        // (sync-orders.js?job=email-campaign) can read them without needing
+        // pushed from the admin panel's Email Automation tab so the weekly
+        // server-side cron (sync-orders.js?job=email-campaign) can read them without needing
         // that admin's browser tab to stay open.
         current.smm_email_auto_cfg = body.smm_email_auto_cfg;
       }

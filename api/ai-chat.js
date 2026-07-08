@@ -44,8 +44,8 @@ const SYSTEM_PROMPT = `شما دستیار پشتیبانی سایت Afghan Foll
 اگر موجودی کافی نبود، اول باید از «Add Funds» شارژ کنند.`;
 
 // System prompt for the second mode this function serves: generating a
-// marketing/re-engagement email for email-automation.html. Kept in the same
-// file as the chat assistant (rather than a new endpoint) to stay under
+// marketing/re-engagement email for the admin panel's Email Automation tab.
+// Kept in the same file as the chat assistant (rather than a new endpoint) to stay under
 // Vercel's Hobby-plan cap of 12 serverless functions per deployment.
 const EMAIL_SYSTEM_PROMPT = `شما کپی‌رایتر بازاریابی ایمیلی برای Afghan Followers (افغان فالوورز) هستید — یک پنل فروش فالوور، لایک، ویو و ممبر شبکه‌های اجتماعی (اینستاگرام، تیک‌تاک، تلگرام، یوتیوب، فیسبوک) در افغانستان.
 
@@ -104,7 +104,7 @@ module.exports = async (req, res) => {
     if (!GROQ_API_KEY) return res.status(200).json({ ok: false, error: 'AI assistant not configured (GROQ_API_KEY missing).' });
 
     // ── Mode 2: generate an email subject+body from a short topic brief
-    // (used by email-automation.html's "Generate with AI" button) ──
+    // (used by the admin panel's Email Automation tab "Generate with AI" button) ──
     if (body.mode === 'generate_email') {
       // Admin-only mode — must not be usable by anonymous visitors who find it,
       // since it burns the same Groq quota shared with the public chat widget.
