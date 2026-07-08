@@ -499,6 +499,7 @@ async function runAutoPostJobInner(tgCfg) {
 - با ایموجی‌های مناسب
 - درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس
 - در آخر آدرس سایت afghanfollowers.online و ۳-۴ هشتگ فارسی مرتبط
+- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری (جز خود "AfghanFollowers" و آدرس سایت) داخل جمله‌ها استفاده نکن
 - فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
 
   const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
