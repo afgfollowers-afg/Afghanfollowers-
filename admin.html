@@ -1396,7 +1396,12 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
-    if(typeof url==='string' && url.indexOf('/api/db')===0){
+    // Broader than the /api/db-only wrapper other pages use: the admin panel
+    // also calls other x-db-key-gated endpoints (send-reset-email's generic
+    // send mode, ai-chat's generate_email mode) that the old standalone
+    // email-automation.html covered with this same wider match — narrowing
+    // it to /api/db during the port silently broke both with 401s.
+    if(typeof url==='string' && url.indexOf('/api/')===0){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
     }
