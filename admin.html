@@ -3840,10 +3840,11 @@ function rWallets(list){
   var h='<table><thead><tr><th>User</th><th>Email</th><th>Balance</th><th>Orders</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var u=list[i];
-    h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+u.name[0]+'</div><div style="font-size:13px;font-weight:600">'+u.name+'</div></div></td>';
+    var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+    h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+(u.fname||wName||'U')[0]+'</div><div style="font-size:13px;font-weight:600">'+wName+'</div></div></td>';
     h+='<td style="font-size:12px;color:var(--mt)">'+u.email+'</td>';
-    h+='<td><div class="bc">$'+u.balance.toFixed(2)+'</div></td>';
-    h+='<td style="text-align:center">'+u.orders+'</td>';
+    h+='<td><div class="bc">$'+(u.balance||0).toFixed(2)+'</div></td>';
+    h+='<td style="text-align:center">'+(u.orders||0)+'</td>';
     h+='<td><div style="display:flex;gap:5px"><button class="btn btn-s btn-sm" onclick="qAdd('+u.id+')">+ Add</button><button class="btn btn-d btn-sm" onclick="qDed('+u.id+')">- Deduct</button></div></td></tr>';
   }
   h+='</tbody></table>';
