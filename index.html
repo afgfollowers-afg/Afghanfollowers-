@@ -62,7 +62,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .wrap{max-width:1000px;margin:0 auto;padding:24px 20px;position:relative;z-index:1;}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--wh);}
-.logo-ic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--gr));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0;}
+.logo-ic{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:block;object-fit:cover;}
 .nav-cta{display:flex;gap:10px;}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid transparent;transition:transform .15s;}
 .btn:hover{transform:translateY(-1px);}
@@ -112,7 +112,7 @@ footer a{color:var(--acc2);text-decoration:none;}
 <div class="wrap">
 
 <header>
-  <div class="logo"><span class="logo-ic">AF</span> Afghan Followers</div>
+  <div class="logo"><img class="logo-ic" src="/icons/nav-badge.png" alt="Afghan Followers"> Afghan Followers</div>
   <nav class="nav-cta">
     <a class="btn btn-g" href="/blog.html">📝 وبلاگ</a>
     <a class="btn btn-g" href="/auth.html">ورود</a>

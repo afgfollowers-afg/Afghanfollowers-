@@ -24,7 +24,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .wrap{max-width:820px;margin:0 auto;padding:24px 20px 60px;position:relative;z-index:1;}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:36px;flex-wrap:wrap;gap:12px;}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:var(--wh);text-decoration:none;}
-.logo-ic{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--gr));display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#fff;flex-shrink:0;}
+.logo-ic{width:32px;height:32px;border-radius:9px;flex-shrink:0;display:block;object-fit:cover;}
 .nav-cta{display:flex;gap:10px;}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;border:1px solid transparent;}
 .btn-p{background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;}
@@ -70,7 +70,7 @@ footer a{color:var(--acc2);text-decoration:none;}
 <div class="wrap">
 
 <header>
-  <a class="logo" href="/"><span class="logo-ic">AF</span> Afghan Followers</a>
+  <a class="logo" href="/"><img class="logo-ic" src="/icons/nav-badge.png" alt="Afghan Followers"> Afghan Followers</a>
   <nav class="nav-cta">
     <a class="btn btn-g" href="/">🏠 خانه</a>
     <a class="btn btn-p" href="/auth.html">ورود / ثبت‌نام</a>
