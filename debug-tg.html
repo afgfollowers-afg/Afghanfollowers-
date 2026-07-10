@@ -12,12 +12,15 @@ button{background:#7c5cfc;color:#fff;border:none;padding:14px 20px;border-radius
 </head>
 <body>
 <h2>تست ارسال تلگرام</h2>
-<button onclick="run()">تست کن</button>
+<button onclick="run()">تست مستقیم به سرور</button>
+<button onclick="checkDedup()" style="background:#00d2a0">نمایش وضعیت دکمه تکراری (dedup)</button>
+<button onclick="resetAndFire()" style="background:#ff5c7d">پاک کردن dedup و اجرای واقعی اسکریپت بازدید</button>
 <pre id="out">هنوز تست نشده...</pre>
 <script>
+function log(t){ document.getElementById('out').textContent = t; }
+
 async function run(){
-  var out = document.getElementById('out');
-  out.textContent = 'در حال ارسال...';
+  log('در حال ارسال...');
   try{
     var res = await fetch('/api/notify-telegram',{
       method:'POST',
@@ -26,9 +29,39 @@ async function run(){
     });
     var status = res.status;
     var data = await res.json();
-    out.textContent = 'HTTP Status: ' + status + '\n\n' + JSON.stringify(data, null, 2);
+    log('HTTP Status: ' + status + '\n\n' + JSON.stringify(data, null, 2));
   }catch(e){
-    out.textContent = 'خطا در fetch: ' + e.message;
+    log('خطا در fetch: ' + e.message);
+  }
+}
+
+function checkDedup(){
+  var KEY='smm_visit_notified_date';
+  var val = localStorage.getItem(KEY);
+  var today = new Date().toDateString();
+  log('مقدار ذخیره‌شده: ' + (val || '(خالی)') + '\nامروز: ' + today + '\n\n' + (val===today ? '⛔ همین امروز قبلاً یک پیام رفته — برای همین دوباره نمی‌فرستد.' : '✅ هنوز برای امروز پیامی ثبت نشده — باید بفرستد.'));
+}
+
+async function resetAndFire(){
+  localStorage.removeItem('smm_visit_notified_date');
+  log('dedup پاک شد. در حال اجرای اسکریپت واقعی بازدید...');
+  try{
+    var KEY='smm_visit_notified_date';
+    var today=new Date().toDateString();
+    localStorage.setItem(KEY,today);
+    var msg='👀 <b>بازدید جدید از سایت</b>\n\n'
+      +'📄 صفحه: '+location.pathname+'\n'
+      +'🔗 ارجاع: '+(document.referrer||'مستقیم')+'\n'
+      +'📱 دستگاه: '+navigator.userAgent.slice(0,90);
+    var res = await fetch('/api/notify-telegram',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg})
+    });
+    var data = await res.json();
+    log('نتیجه اجرای واقعی اسکریپت:\nHTTP ' + res.status + '\n' + JSON.stringify(data, null, 2));
+  }catch(e){
+    log('خطا: ' + e.message);
   }
 }
 </script>
