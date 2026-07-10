@@ -7,14 +7,35 @@
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders } = require('./_dbkey');
 
+// Vercel only gives a 2-letter ISO country code — spell out the ones most
+// relevant to this site's audience so the notification reads naturally;
+// anything else falls back to the raw code (still useful, just terser).
+const COUNTRY_NAMES = {
+  AF: 'افغانستان', IR: 'ایران', PK: 'پاکستان', TR: 'ترکیه', DE: 'آلمان',
+  US: 'آمریکا', GB: 'انگلستان', AE: 'امارات', SA: 'عربستان', TJ: 'تاجیکستان',
+  UZ: 'ازبکستان', IN: 'هند', CA: 'کانادا', AU: 'استرالیا', NL: 'هلند',
+  SE: 'سوئد', FR: 'فرانسه', RU: 'روسیه', QA: 'قطر', KW: 'کویت'
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const message = body.message;
+    let message = body.message;
     if (!message) return res.status(200).json({ ok: false, error: 'No message provided' });
+
+    // Vercel's edge network geolocates every request by IP and passes it
+    // along as headers — free, no external API call, and reflects whoever's
+    // browser actually triggered this request (visitor, customer, etc.).
+    const country = req.headers['x-vercel-ip-country'];
+    const city = req.headers['x-vercel-ip-city'];
+    if (country) {
+      const countryName = COUNTRY_NAMES[country] || country;
+      const cityDecoded = city ? decodeURIComponent(city) : null;
+      message += '\n🌍 ' + (cityDecoded ? cityDecoded + ', ' : '') + countryName;
+    }
 
     const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
