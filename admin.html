@@ -1018,7 +1018,7 @@ textarea.fi{resize:vertical;min-height:75px;}
   <div class="md-h"><div class="md-t">Add New Provider</div><div class="md-x" onclick="cm('m-add-prov')">✕</div></div>
   <div class="md-b">
     <div class="fg"><label class="fl">API URL</label><input class="fi" id="pv-url" placeholder="https://fastersmm.com/api/v2"></div>
-    <div class="fg"><label class="fl">API Key</label><input type="password" class="fi" id="pv-key" placeholder="your-api-key"><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><button class="btn btn-g btn-sm" onclick="testProv()">🔍 Test</button><span id="pv-res" style="font-size:12px"></span></div></div>
+    <div class="fg"><label class="fl">API Key</label><div style="position:relative"><input type="password" class="fi" id="pv-key" placeholder="your-api-key" style="padding-right:36px"><button type="button" onclick="toggleSecEye('pv-key',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mt);cursor:pointer;font-size:14px">👁</button></div><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><button class="btn btn-g btn-sm" onclick="testProv()">🔍 Test</button><span id="pv-res" style="font-size:12px"></span></div></div>
     <div class="fg"><label class="fl">Balance Limit <span style="font-size:10px;color:var(--mt)">(pause if below)</span></label><input type="number" class="fi" id="pv-limit" placeholder="e.g. 10"></div>
     <div class="fg"><label class="fl">Loss Protection</label><select class="fi" id="pv-loss"><option value="disabled">Disabled</option><option value="low">Low (10 failures)</option><option value="medium">Medium (5 failures)</option><option value="high">High (3 failures)</option></select></div>
   </div>
@@ -1606,7 +1606,7 @@ function editProv(id){
     +'<div class="md-b">'
     +'<div class="fg"><label class="fl">Provider Name</label><input class="fi" id="ep-name" value="'+p.name+'"></div>'
     +'<div class="fg"><label class="fl">API URL</label><input class="fi" id="ep-url" value="'+p.url+'"></div>'
-    +'<div class="fg"><label class="fl">API Key</label><input type="password" class="fi" id="ep-key" value="'+(p.key||'')+'" placeholder="Enter API Key"></div>'
+    +'<div class="fg"><label class="fl">API Key</label><div style="position:relative"><input type="password" class="fi" id="ep-key" value="'+(p.key||'')+'" placeholder="Enter API Key" style="padding-right:36px"><button type="button" onclick="toggleSecEye(\'ep-key\',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mt);cursor:pointer;font-size:14px">👁</button></div></div>'
     +'<div class="fg"><label class="fl">Profit Margin (%)</label>'
     +'<input type="number" class="fi" id="ep-margin" value="'+(p.margin||20)+'" min="0" max="500">'
     +'<div style="font-size:11px;color:var(--mt);margin-top:5px">Your price = Provider price × (1 + margin/100)</div></div>'
