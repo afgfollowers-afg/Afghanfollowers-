@@ -191,6 +191,29 @@ footer a{color:var(--acc2);text-decoration:none;}
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
 </footer>
 
+<script>
+// Notify admin via Telegram on each new visitor — deduped to once per
+// browser per day (shared localStorage key across index/blog/auth.html)
+// so a page refresh or clicking between pages doesn't spam the bot.
+(function(){
+  try{
+    var KEY='smm_visit_notified_date';
+    var today=new Date().toDateString();
+    if(localStorage.getItem(KEY)===today) return;
+    localStorage.setItem(KEY,today);
+    var msg='👀 <b>بازدید جدید از سایت</b>\n\n'
+      +'📄 صفحه: '+location.pathname+'\n'
+      +'🔗 ارجاع: '+(document.referrer||'مستقیم')+'\n'
+      +'📱 دستگاه: '+navigator.userAgent.slice(0,90);
+    fetch('/api/notify-telegram',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:msg})
+    }).catch(function(){});
+  }catch(e){}
+})();
+</script>
+
 </div>
 </body>
 </html>
