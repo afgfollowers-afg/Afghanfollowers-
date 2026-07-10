@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debug Telegram</title>
+<style>
+body{background:#08090d;color:#e2e8f0;font-family:sans-serif;padding:20px;font-size:16px;line-height:1.8;}
+pre{background:#161b28;padding:14px;border-radius:10px;white-space:pre-wrap;word-break:break-word;border:1px solid #232a3d;}
+button{background:#7c5cfc;color:#fff;border:none;padding:14px 20px;border-radius:10px;font-size:16px;margin-bottom:16px;width:100%;}
+</style>
+</head>
+<body>
+<h2>تست ارسال تلگرام</h2>
+<button onclick="run()">تست کن</button>
+<pre id="out">هنوز تست نشده...</pre>
+<script>
+async function run(){
+  var out = document.getElementById('out');
+  out.textContent = 'در حال ارسال...';
+  try{
+    var res = await fetch('/api/notify-telegram',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:'🧪 تست دستی از debug-tg.html'})
+    });
+    var status = res.status;
+    var data = await res.json();
+    out.textContent = 'HTTP Status: ' + status + '\n\n' + JSON.stringify(data, null, 2);
+  }catch(e){
+    out.textContent = 'خطا در fetch: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
