@@ -1062,11 +1062,17 @@ function pwaInstallClick(){
       +'📄 صفحه: '+location.pathname+'\n'
       +'🔗 ارجاع: '+(document.referrer||'مستقیم')+'\n'
       +'📱 دستگاه: '+navigator.userAgent.slice(0,90);
-    fetch('/api/notify-telegram',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:msg})
-    }).catch(function(){});
+    var payload=JSON.stringify({message:msg});
+    if(navigator.sendBeacon){
+      navigator.sendBeacon('/api/notify-telegram', new Blob([payload],{type:'application/json'}));
+    } else {
+      fetch('/api/notify-telegram',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:payload,
+        keepalive:true
+      }).catch(function(){});
+    }
   }catch(e){}
 })();
 </script>

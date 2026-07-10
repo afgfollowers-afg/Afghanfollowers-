@@ -205,11 +205,22 @@ footer a{color:var(--acc2);text-decoration:none;}
       +'📄 صفحه: '+location.pathname+'\n'
       +'🔗 ارجاع: '+(document.referrer||'مستقیم')+'\n'
       +'📱 دستگاه: '+navigator.userAgent.slice(0,90);
-    fetch('/api/notify-telegram',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:msg})
-    }).catch(function(){});
+    var payload=JSON.stringify({message:msg});
+    // sendBeacon is designed to survive the page being closed/navigated away
+    // from right after load — a plain fetch() can get silently cancelled by
+    // the browser mid-flight in that case (common on mobile: someone glances
+    // at the homepage for a second, then taps away before the request
+    // finishes), which was likely why some real visits never notified.
+    if(navigator.sendBeacon){
+      navigator.sendBeacon('/api/notify-telegram', new Blob([payload],{type:'application/json'}));
+    } else {
+      fetch('/api/notify-telegram',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:payload,
+        keepalive:true
+      }).catch(function(){});
+    }
   }catch(e){}
 })();
 </script>
