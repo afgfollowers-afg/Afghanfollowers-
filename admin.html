@@ -2755,7 +2755,10 @@ function qiPopulateCatDd(services){
   // Build as an array + join once (see qiCatDdChange for why this matters
   // once a provider catalog has thousands of services).
   var opts=['<option value="">— All Categories ('+services.length+') —</option>'];
-  Object.keys(catCounts).sort().forEach(function(c){
+  // Object.keys() preserves insertion order for string keys, which here is
+  // the order categories first appear in the provider's own service list —
+  // keep that order (don't alphabetize) so it matches the provider exactly.
+  Object.keys(catCounts).forEach(function(c){
     opts.push('<option value="'+qiEsc(c)+'"'+(cur===c?' selected':'')+'>'+qiEsc(c)+' ('+catCounts[c]+')</option>');
   });
   sel.innerHTML=opts.join('');
@@ -2812,7 +2815,9 @@ function qiCatDdChange(){
       if(!groups[c]){groups[c]=[];order.push(c);}
       groups[c].push(s);
     });
-    order.sort().forEach(function(c){
+    // Keep the provider's own category order (order[] is built in
+    // first-appearance order) instead of alphabetizing.
+    order.forEach(function(c){
       opts.push('<optgroup label="'+qiEsc(c)+' ('+groups[c].length+')">');
       groups[c].forEach(function(s){
         var svcId=String(s.service||s.id||'');
@@ -2960,7 +2965,10 @@ function qiRender(services,provId){
       groups[c].push(s);
     });
     html='';
-    order.sort().forEach(function(catName){
+    // Keep the provider's own category order (order[] is built in
+    // first-appearance order) instead of alphabetizing — the group list
+    // should read top-to-bottom exactly like the provider's own list.
+    order.forEach(function(catName){
       var glist=groups[catName];
       html+='<div style="margin-bottom:10px">'
         +'<div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.15);border-radius:9px 9px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px">'
