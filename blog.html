@@ -151,6 +151,15 @@ function platformIconHtml(post,sizeClass){
   return '<div class="'+sizeClass+'" style="background:'+bg+'"><svg width="'+iconSize+'" height="'+iconSize+'"><use href="#ico-'+platform+'"/></svg></div>';
 }
 
+function freeLikesBannerHtml(){
+  return '<div class="cta-band" style="margin-bottom:30px;background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">'
+    +'<div style="font-size:32px;margin-bottom:8px">🎁</div>'
+    +'<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">لایک رایگان بگیرید!</div>'
+    +'<div style="font-size:13px;color:var(--mt);margin-bottom:16px">۵ دوستتان را با لینک اختصاصی‌تان دعوت کنید و ۱۰۰ لایک رایگان اینستاگرام یا تیک‌تاک بگیرید. برای دعوت دوستان و دریافت جایزه، ابتدا باید ثبت‌نام کنید.</div>'
+    +'<a class="btn btn-p" href="/auth.html">🎉 ثبت‌نام کن و دعوت را شروع کن</a>'
+    +'</div>';
+}
+
 function getBlogPosts(){
   try{var d=localStorage.getItem('smm_blog');if(d)return JSON.parse(d);}catch(e){}
   return [];
@@ -166,7 +175,8 @@ function renderList(posts){
     .sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
 
   var html='<h1 class="pg">📝 وبلاگ افغان فالوورز</h1>'
-    +'<div class="sub">راهنما و نکات رشد واقعی شبکه‌های اجتماعی — اینستاگرام، تیک‌تاک، تلگرام و یوتیوب</div>';
+    +'<div class="sub">راهنما و نکات رشد واقعی شبکه‌های اجتماعی — اینستاگرام، تیک‌تاک، تلگرام و یوتیوب</div>'
+    +freeLikesBannerHtml();
 
   if(!published.length){
     html+='<div class="empty"><div class="ic">📝</div>هنوز مقاله‌ای منتشر نشده — به‌زودی برمی‌گردیم!</div>';
@@ -207,6 +217,7 @@ function renderPost(post, posts){
   var others=posts.filter(function(p){return p.published&&p.slug!==post.slug;}).slice(0,3);
 
   var html='<a class="back-link" href="/blog.html">→ بازگشت به وبلاگ</a>'
+    +freeLikesBannerHtml()
     +'<article class="post-detail">'
     +platformIconHtml(post,'hd-icon')
     +'<h1>'+escHtml(post.title)+'</h1>'
