@@ -416,7 +416,10 @@ async function broadcastNewPost(post, tgCfg) {
       await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: fbText, access_token: process.env.FB_PAGE_TOKEN })
+        // Explicit `link` (not just a URL buried in the message text) is what
+        // makes Facebook reliably attach a link-preview card with the site's
+        // og:image — text-only URL detection is inconsistent.
+        body: JSON.stringify({ message: fbText, link: url, access_token: process.env.FB_PAGE_TOKEN })
       });
     } catch (e) { /* best-effort — a broadcast failure must not break the cron */ }
   }
@@ -533,7 +536,10 @@ async function runAutoPostJobInner(tgCfg) {
     const fbResp = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: postText, access_token: process.env.FB_PAGE_TOKEN })
+      // Explicit `link` — the AI-generated text only mentions the bare
+      // domain (no https://) so Facebook won't auto-detect it as a URL to
+      // scrape for a preview card; without this param the post had no image.
+      body: JSON.stringify({ message: postText, link: SITE + '/', access_token: process.env.FB_PAGE_TOKEN })
     });
     const fbData = await fbResp.json();
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
