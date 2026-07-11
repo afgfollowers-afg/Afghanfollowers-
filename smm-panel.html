@@ -1708,7 +1708,8 @@ function submitTicket(){
   if(!msg||!msg.value.trim()){showToast('Enter your message','e');return;}
   var u=getCurrentUser();
   if(!u){showToast('Please login first','e');return;}
-  
+  if(u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
+
   var ticket={
     id:'T'+Date.now(),
     userId:u.id,
@@ -2958,11 +2959,6 @@ function selectGwMethod(method){
   if(method==='binance') startBinTimer();
 }
 
-function backToMethods(){
-  document.getElementById('gw-step1').style.display='block';
-  document.getElementById('gw-step2').style.display='none';
-  _gwMethod=null;
-}
 
 // ── CURRENCY SYSTEM ──
 var _CURRENCIES={
@@ -3214,6 +3210,8 @@ function afUpdateSummary(){
 }
 
 function afPay(){
+  var _u=getCurrentUser();
+  if(_u&&_u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
   if(!_afMethod||!_afAmount||_afAmount<=0){showToast('Select method and enter amount','e');return;}
   // Get min amount from payment method settings
   var cfg=getPmCfg(_afMethod);
@@ -3239,6 +3237,7 @@ function afSubmitManual(){
   if(!_afAmount||_afAmount<=0){showToast('Please enter amount first','e');return;}
   // Save pending deposit
   var u=getCurrentUser();
+  if(u&&u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
   if(u){
     if(!u.transactions) u.transactions=[];
     u.transactions.unshift({
@@ -3297,7 +3296,6 @@ function backToMethods(){
 }
 function updateGwSummary(){afUpdateSummary();}
 function setAmt(n){afSetAmt(n);}
-function renderAmtButtons(){}
 function openCurrencyModal(){
   var cur=getCurrency();
   var modal=document.getElementById('cur-modal');
@@ -3428,6 +3426,7 @@ function showProfAlert(msg,type){
 function saveProfile(){
   var u=getCurrentUser();
   if(!u) return;
+  if(u.status==='suspended'){showProfAlert('Your account is suspended — contact support.','e');return;}
 
   var fname=document.getElementById('prof-fname').value.trim();
   var email=document.getElementById('prof-email').value.trim();
@@ -3594,67 +3593,42 @@ function checkPayPalReturn(){
   if(isReturn&&pending&&pending.amt&&(Date.now()-pending.ts)<3600000){
     localStorage.removeItem('pp_pending');
     sessionStorage.removeItem('pp_pending');
-    ppAutoCredit(pending.amt,pending.feeAmt||0,pending.receive||pending.amt);
-    navTo('add-funds');
+    showPpConfirmStep(pending.amt,pending.feeAmt||0,pending.receive||pending.amt);
   } else if(isReturn){
-    // Return without pending data
+    // Return without pending data (session expired or opened on another
+    // device) — nothing to safely confirm, so send them back to re-submit.
     localStorage.removeItem('pp_pending');
     navTo('add-funds');
-    showToast('Payment received! Balance updated.','s');
+    showToast('Please enter your payment details to confirm.','w');
   }
 }
 
-function ppAutoCredit(amt, feeAmt, receive){
-  var u=getCurrentUser();
-  if(!u){try{u=JSON.parse(localStorage.getItem('smm_session')||'null');}catch(e){}}
-  if(!u){showToast('❌ Not logged in','e');return;}
-  var allUsers=[];
-  try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
-  var me=allUsers.find(function(x){return String(x.id)===String(u.id||u.userId);})||
-         allUsers.find(function(x){return x.email===u.email;});
-  if(!me){showToast('❌ User not found. Contact admin.','e');return;}
-  var credit=parseFloat(receive||amt);
-  me.balance=Math.round((parseFloat(me.balance||0)+credit)*100)/100;
-  if(!me.transactions) me.transactions=[];
-  me.transactions.unshift({id:Date.now(),type:'deposit',method:'PayPal',
-    amount:parseFloat(amt),fee:parseFloat(feeAmt||0),credit:credit,
-    desc:'PayPal — auto credited',date:new Date().toISOString(),status:'approved'});
-  localStorage.setItem('smm_users',JSON.stringify(allUsers));
-  _currentUser=me;
-  try{var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');
-    sess.balance=me.balance;sess.id=me.id;
-    localStorage.setItem('smm_session',JSON.stringify(sess));}catch(e){}
-  localStorage.setItem('smm_admin_updated',Date.now().toString());
-  // Push to server — without this, the credit only lived in this browser's
-  // localStorage and never reached the admin panel or any other device.
-  try{
-    var _syncOrders=[];
-    try{_syncOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e2){}
-    fetch('/api/db',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_users:allUsers,smm_orders:_syncOrders,smm_ts:Date.now()})
-    }).catch(function(){});
-  }catch(e){}
-  tgPanelSend('✅ <b>PayPal Credited</b>\nUser: '+(me.fname||me.name||'')+'\nAmount: $'+parseFloat(amt).toFixed(2)+'\nNew Balance: $'+me.balance.toFixed(2));
-  // Force update session with new balance
-  try{
-    var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');
-    sess.balance=me.balance;
-    localStorage.setItem('smm_session',JSON.stringify(sess));
-  }catch(e){}
-  _currentUser=me;
-  closePayPalModal();
-  // Force UI refresh
-  updateBalanceUI();
-  afRenderHistory();
-  // Also update all balance elements directly
-  var newBal=fmt(me.balance);
-  ['top-balance-amt','funds-balance','drawer-bal','prof-balance'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el) el.textContent=newBal;
-  });
-  showToast('✅ $'+credit.toFixed(2)+' added to your balance!','s');
+// PayPal never posts a server-verifiable callback to a static Vercel site,
+// so a completed payment can NOT be auto-credited from client-supplied data
+// alone (that data is fully attacker-controlled — anyone could set
+// localStorage.pp_pending and hit this URL without ever paying). Instead,
+// same as every other manual method, the customer confirms their PayPal
+// transaction ID/reference and an admin verifies + approves it in
+// Admin → Payments before any balance is credited.
+function showPpConfirmStep(amt, feeAmt, receive){
+  var modal=document.getElementById('pp-modal');
+  if(modal) modal.style.display='flex';
+  var amtEl=document.getElementById('pp-modal-amt');
+  if(amtEl) amtEl.textContent='$'+parseFloat(amt).toFixed(2)+' USD';
+  var body=document.getElementById('pp-modal-body');
+  if(!body) return;
+  var btnContainer=document.getElementById('paypal-btn-container');
+  if(btnContainer) btnContainer.innerHTML='';
+  body.innerHTML=
+    '<div style="padding:4px 0">'
+    +'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#166534">If you completed the PayPal payment, enter the Transaction ID / reference from your PayPal receipt below. An admin will verify it and credit your balance shortly.</div>'
+    +'<label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:6px">PayPal Transaction ID</label>'
+    +'<input id="pp-txid-input" placeholder="e.g. 9AB123456C789012D" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:14px;box-sizing:border-box">'
+    +'<button id="pp-txid-submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#003087,#009cde);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Submit for Verification</button>'
+    +'</div>';
+  var submitBtn=document.getElementById('pp-txid-submit');
+  if(submitBtn) submitBtn.onclick=function(){ppSubmitTxId(parseFloat(amt),parseFloat(feeAmt),parseFloat(receive));};
+  if(modal) modal.onclick=function(e){if(e.target===modal)closePayPalModal();};
 }
 
 function ppSubmitTxId(amt, feeAmt, receive){
@@ -3703,133 +3677,10 @@ function ppSubmitTxId(amt, feeAmt, receive){
   showToast('✅ Payment submitted! Admin will verify and credit your account.','s');
 }
 
-function goPayPalCheckout(amt, clientId, fee){
-  var old=document.getElementById('paypal-sdk');
-  if(old) old.remove();
-  window.paypal=undefined;
-
-  // Show loading - keep paypal-btn-container SEPARATE
-  document.getElementById('pp-modal-body').innerHTML=
-    '<div id="pp-loading" style="text-align:center;padding:20px;color:#555">'
-    +'<div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 12px"></div>'
-    +'<div style="font-size:13px">Loading PayPal...</div></div>'
-    +'<div id="paypal-btn-container" style="min-height:50px;margin-top:8px"></div>';
-
-  var script=document.createElement('script');
-  script.id='paypal-sdk';
-  script.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(clientId)+'&currency=USD&intent=capture&components=buttons&disable-funding=credit,card';
-  script.onload=function(){
-    var loading=document.getElementById('pp-loading');
-    if(loading) loading.remove();
-    var container=document.getElementById('paypal-btn-container');
-    if(!container){
-      // Recreate if missing
-      document.getElementById('pp-modal-body').innerHTML='<div id="paypal-btn-container" style="min-height:50px;margin-top:8px"></div>';
-      container=document.getElementById('paypal-btn-container');
-    }
-    container.innerHTML='';
-    try{
-      window.paypal.Buttons({
-        style:{layout:'vertical',color:'gold',shape:'rect',label:'pay',height:50},
-        createOrder:function(data,actions){
-          return actions.order.create({
-            purchase_units:[{
-              amount:{value:amt.toFixed(2),currency_code:'USD'},
-              description:'Afghan Followers Wallet Top-Up'
-            }]
-          });
-        },
-        onApprove:function(data,actions){
-          container.innerHTML='<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>';
-          return actions.order.capture().then(function(details){
-            onPayPalSuccess(details,amt,fee||0);
-          });
-        },
-        onCancel:function(){
-          container.innerHTML='<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>';
-        },
-        onError:function(err){
-          container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small><br><button onclick="goPayPalCheckout('+amt+',\''+clientId+'\','+fee+')" style="margin-top:8px;padding:6px 14px;background:#0070ba;color:#fff;border:none;border-radius:6px;cursor:pointer">Try Again</button></div>';
-        }
-      }).render('#paypal-btn-container').catch(function(e){
-        container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'<br><small>Make sure Client ID is valid and domain is authorized in PayPal Developer Dashboard</small></div>';
-      });
-    }catch(e){
-      container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>';
-    }
-  };
-  script.onerror=function(){
-    document.getElementById('pp-modal-body').innerHTML=
-      '<div style="background:#fee2e2;padding:14px;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">❌ Failed to load PayPal SDK.<br><small>Check Client ID or internet connection</small></div>';
-  };
-  document.head.appendChild(script);
-}
-
-
 function closePayPalModal(){
   document.getElementById('pp-modal').style.display='none';
   document.getElementById('paypal-btn-container').innerHTML='';
   document.getElementById('pp-modal-body').innerHTML='';
-}
-
-// PayPal SDK loaded on demand in goPayPalCheckout()
-
-function onPayPalSuccess(details, amount, fee){
-  var feeAmt=parseFloat((amount*(fee/100)).toFixed(2));
-  var credit=parseFloat((amount-feeAmt).toFixed(2));
-  var cur=getCurrency();
-
-  // Credit user wallet
-  var u=getCurrentUser();
-  if(u){
-    u.balance=parseFloat(((u.balance||0)+credit).toFixed(2));
-    if(!u.transactions) u.transactions=[];
-    u.transactions.unshift({
-      id:Date.now(),
-      type:'deposit',
-      method:'PayPal Checkout',
-      amount:amount,        // full amount paid
-      fee:feeAmt,           // PayPal fee deducted
-      credit:credit,        // net credited to wallet
-      feePercent:fee,
-      ppOrderId:details.id,
-      payer:details.payer?details.payer.email_address:'',
-      desc:'PayPal Checkout'+(fee>0?' ('+fee+'% fee deducted)':''),
-      date:new Date().toISOString(),
-      status:'approved'
-    });
-    saveCurrentUser(u);
-    updateBalanceUI();
-  }
-
-  // Show success in modal with fee breakdown
-  var feeRow=fee>0
-    ?'<div style="font-size:13px;color:#888;margin-bottom:4px">PayPal fee ('+fee+'%): -'+fmt(feeAmt)+'</div>'
-    :'';
-  document.getElementById('pp-modal-body').innerHTML=
-    '<div style="text-align:center;padding:20px">'
-    +'<div style="font-size:52px;margin-bottom:10px">✅</div>'
-    +'<div style="font-size:18px;font-weight:800;color:#166534;margin-bottom:8px">Payment Successful!</div>'
-    +'<div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:10px">'
-    +'<div style="font-size:13px;color:#555;margin-bottom:4px">Amount paid: '+fmt(amount)+'</div>'
-    +feeRow
-    +'<div style="font-size:17px;font-weight:900;color:#16a34a">Credited to wallet: '+fmt(credit)+'</div>'
-    +'</div>'
-    +'<div style="font-size:11px;color:#aaa">PayPal Order ID: '+details.id+'</div>'
-    +'</div>';
-  document.getElementById('paypal-btn-container').innerHTML='';
-
-  // Save to payment history
-  S.payments.unshift({id:Date.now(),method:'PayPal',amt:credit,fee:feeAmt,txid:details.id,status:'approved',date:new Date().toLocaleDateString()});
-  renderPayHistory();
-  showToast('💳 '+fmt(credit)+' added to wallet!','s');
-
-  // Auto close and return after 2.5s
-  setTimeout(function(){
-    closePayPalModal();
-    backToMethods();
-    navTo('new-order');
-  }, 2500);
 }
 
 function goPayPalCheckout(){
@@ -3860,29 +3711,11 @@ function deductFromWallet(amount){
   return true;
 }
 
-function setAmt(n){
-  document.getElementById('gw-amount').value=n;
-  document.querySelectorAll('.amt-quick').forEach(function(b){b.classList.remove('sel');});
-  event.target.classList.add('sel');
-  updateGwSummary();
-  if(_gwMethod==='binance'){document.getElementById('gw-instructions').innerHTML=gwMethods.binance.instructions();startBinTimer();}
-  if(_gwMethod==='paypal_manual'){document.getElementById('gw-instructions').innerHTML=gwMethods.paypal_manual.instructions();}
-  if(_gwMethod==='paypal'){document.getElementById('gw-instructions').innerHTML=gwMethods.paypal.instructions();}
-  if(_gwMethod==='usdt_trc20'){document.getElementById('gw-instructions').innerHTML=gwMethods.usdt_trc20.instructions();}
-}
-
 function renderAmtButtons(){
   var cur=getCurrency();
   var amts=[5,10,20,50,100,200,500];
   var btns=document.querySelectorAll('.amt-quick');
   if(btns.length) btns.forEach(function(b,i){if(amts[i])b.textContent=fmt(amts[i]);});
-}
-function updateGwSummary(){
-  var amt=parseFloat(document.getElementById('gw-amount').value);
-  if(!amt||!_gwMethod){document.getElementById('gw-summary').style.display='none';return;}
-  document.getElementById('gw-summary').style.display='block';
-  document.getElementById('gw-sum-amt').textContent=fmt(amt);
-  document.getElementById('gw-sum-method').textContent=gwMethods[_gwMethod].name;
 }
 
 function copyAddr(addr){
@@ -3891,46 +3724,6 @@ function copyAddr(addr){
   showToast('Copied to clipboard!','s');
 }
 
-function cancelPayment(){
-  clearInterval(_binTimer);
-  backToMethods();
-  showToast('Payment cancelled','e');
-}
-
-function submitPayment(){
-  var amt=parseFloat(document.getElementById('gw-amount').value);
-  if(!amt||amt<=0){showToast('Please enter an amount','e');return;}
-  // For binance, read order ID from the binance form
-  var txid=document.getElementById('gw-txid').value.trim();
-  if(_gwMethod==='binance'){
-    var binOrd=document.getElementById('bin-order-id');
-    if(binOrd&&binOrd.value.trim()) txid=binOrd.value.trim();
-  }
-  if(!txid){showToast('Please enter transaction ID or Order ID','e');return;}
-  var m=gwMethods[_gwMethod];
-  S.payments.unshift({id:Date.now(),method:m.name,amt:amt,txid:txid,status:'pending',date:new Date().toLocaleDateString()});
-  renderPayHistory();
-  clearInterval(_binTimer);
-  backToMethods();
-  showToast('Payment submitted! We will verify within 1–2 hours.','s');
-}
-function renderPayHistory(){
-  var c=document.getElementById('pay-history');
-  if(!S.payments.length){c.innerHTML='<div class="empty-state" style="padding:24px"><div class="empty-icon" style="font-size:32px">📋</div><div class="empty-title">No payments yet</div></div>';return;}
-  var statusColor={pending:'by',approved:'bg',rejected:'br'};
-  var html='';
-  for(var i=0;i<S.payments.length;i++){
-    var p=S.payments[i];
-    html+='<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(35,42,61,.5)">';
-    html+='<div style="width:38px;height:38px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">💳</div>';
-    html+='<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">'+p.method+'</div>';
-    html+='<div style="font-size:11px;color:var(--muted);margin-top:2px">'+p.date+(p.txid?' · Ref: '+p.txid.slice(0,16)+'…':'')+'</div></div>';
-    html+='<div style="text-align:right"><div style="font-size:14px;font-weight:800;color:var(--ag)">$'+p.amt.toFixed(2)+'</div>';
-    html+='<span class="badge '+(statusColor[p.status||'pending']||'by')+'" style="margin-top:4px;display:inline-flex">'+(p.status||'pending')+'</span></div>';
-    html+='</div>';
-  }
-  c.innerHTML=html;
-}
 function updateBalanceUI(){
   // Always read fresh from smm_users
   var u=getCurrentUser();
@@ -4017,11 +3810,33 @@ function renderBrowse(){
   }
   c.innerHTML=html;
 }
-function goOrder(plat){
+function goOrder(plat,svcId){
   navTo('new-order');
   S.selPlat=plat;
-  _selCatIdx=0;
+  var cats=(plat==='all')?Object.keys(catSvcsMap):(orderCats[plat]||[]);
+  var targetCatIdx=0;
+  if(svcId!==undefined){
+    for(var i=0;i<cats.length;i++){
+      var catSvcs=catSvcsMap[cats[i]]||[];
+      if(catSvcs.some(function(s){return String(s.v)===String(svcId);})){targetCatIdx=i;break;}
+    }
+  }
+  _selCatIdx=targetCatIdx;
   renderCategoryList();
+  // Pre-select the exact service the user clicked (not just its category)
+  if(svcId!==undefined){
+    var selSvcs=catSvcsMap[cats[targetCatIdx]]||[];
+    var svcIdx=-1;
+    for(var j=0;j<selSvcs.length;j++){if(String(selSvcs[j].v)===String(svcId)){svcIdx=j;break;}}
+    if(svcIdx>-1){
+      var dd=document.getElementById('order-svc-dropdown');
+      if(dd) dd.selectedIndex=svcIdx;
+      S.selSvcIdx=svcIdx;
+      syncServiceFromDropdown2(selSvcs);
+      renderSvcItemsList(selSvcs);
+      updateSvcTriggerLabel();
+    }
+  }
   // do NOT auto-open - user clicks to open
 }
 
@@ -4344,7 +4159,7 @@ function renderOrdersList(){
     var remain=o.remain!==undefined?o.remain:(status==='completed'?0:o.qty);
     var startCount=o.startCount||o.start_count||0;
     var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel!==false);
-    var canRefill=status==='completed'&&(o.refill||false);
+    var canRefill=status==='completed'&&(o.refill||false)&&!o.refillRequested;
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
     return '<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">'
@@ -4374,24 +4189,50 @@ function renderOrdersList(){
 }
 
 function cancelOrder(id){
+  var _cu=getCurrentUser();
+  if(_cu&&_cu.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
   if(!confirm('Cancel this order?')) return;
   var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
   var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(o){o.status='cancelled';localStorage.setItem('smm_orders',JSON.stringify(orders));renderOrdersList();showToast('Order cancelled','s');}
+  if(!o){showToast('Order not found','e');return;}
+  if(o.status==='cancelled'||o.status==='canceled'){showToast('Order already cancelled','w');return;}
+  var refund=parseFloat(o.cost||o.totalCost||0);
+  o.status='cancelled';
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+  var u=getCurrentUser();
+  if(u&&refund>0){
+    u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
+    if(!u.transactions) u.transactions=[];
+    u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,desc:'Order #'+id+' cancelled — refunded',date:new Date().toISOString(),status:'approved'});
+    saveCurrentUser(u);
+  }
+  try{
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_orders:orders,smm_ts:Date.now()})}).catch(function(){});
+  }catch(e){}
+  renderOrdersList();
+  showToast(refund>0?('Order cancelled — $'+refund.toFixed(2)+' refunded'):'Order cancelled','s');
 }
 
 function refillOrder(id){
-  showToast('Refill request submitted!','s');
-  // Submit ticket for refill
+  var u=getCurrentUser();
+  if(u&&u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
   var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
   var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(o){
-    var u=getCurrentUser();
-    var tickets=[];try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
-    tickets.unshift({id:'R'+Date.now(),userId:u&&u.id,user:u?(u.fname||''):'',subject:'Refill Request - Order #'+id,message:'Please refill order #'+id,status:'open',date:new Date().toISOString()});
-    localStorage.setItem('smm_tickets',JSON.stringify(tickets));
-    localStorage.setItem('smm_admin_updated',Date.now().toString());
-  }
+  if(!o){showToast('Order not found','e');return;}
+  if(o.refillRequested){showToast('Refill already requested for this order','w');return;}
+  var tickets=[];try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
+  tickets.unshift({id:'R'+Date.now(),userId:u&&u.id,user:u?(u.fname||''):'',subject:'Refill Request - Order #'+id,message:'Please refill order #'+id,status:'open',date:new Date().toISOString()});
+  localStorage.setItem('smm_tickets',JSON.stringify(tickets));
+  o.refillRequested=true;
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+  localStorage.setItem('smm_admin_updated',Date.now().toString());
+  try{
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_tickets:tickets,smm_orders:orders,smm_ts:Date.now()})}).catch(function(){});
+  }catch(e){}
+  renderOrdersList();
+  showToast('Refill request submitted!','s');
 }
 
 function showApiInfo(){

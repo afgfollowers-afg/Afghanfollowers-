@@ -2031,14 +2031,6 @@ function printUserReport(){
   w.document.open();w.document.write(html);w.document.close();
   w.onload=function(){ w.focus(); w.print(); };
 }
-function addUser(){
-  var name=document.getElementById('nu-name').value.trim(),email=document.getElementById('nu-email').value.trim();
-  if(!name||!email){toast('Fill all fields','e');return;}
-  users.push({id:Date.now(),name:name,email:email,role:document.getElementById('nu-role').value,balance:parseFloat(document.getElementById('nu-bal').value)||0,orders:0,joined:new Date().toISOString().split('T')[0],status:'active'});
-  rUsers(users);cm('m-add-user');toast('User added!','s');
-}
-function toggleUsr(id){var u=users.find(function(x){return x.id===id;});if(u){u.status=u.status==='active'?'suspended':'active';rUsers(users);toast('User '+u.status,'s');}}
-
 // ═══ ORDERS ═══
 function rOrders(list){
   var tbl=document.getElementById('orders-tbl');
@@ -2112,11 +2104,11 @@ function filterOrdersAdmin(){
     c.style.display=show?'block':'none';
   });
 }
-function filterOrders(){filterOrdersAdmin();}
-function updOrd(id,s){updateOrderStatus(id,s);}
-
-function filterOrders(){var s=document.getElementById('ord-filter').value;rOrders(s==='all'?orders:orders.filter(function(o){return o.status===s;}));}
-function updOrd(id,s){var o=orders.find(function(x){return x.id===id;});if(o){o.status=s;rOrders(orders);toast('Order updated','s');}}
+function filterOrders(){
+  var s=document.getElementById('ord-filter').value;
+  var all=getRealOrders();
+  rOrders(s==='all'?all:all.filter(function(o){return o.status===s;}));
+}
 
 // ═══ SERVICES ═══
 // ══ SERVICES MANAGER ══
@@ -2194,7 +2186,11 @@ function getCategories(){
   try{var d=localStorage.getItem(CAT_KEY);if(d)return JSON.parse(d);}catch(e){}
   return [];
 }
-function saveCategories(c){localStorage.setItem(CAT_KEY,JSON.stringify(c));}
+function saveCategories(c){
+  localStorage.setItem(CAT_KEY,JSON.stringify(c));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_categories:c,smm_ts:Date.now()})}).catch(function(){});
+}
 
 var _svcFilter='';
 var _svcCat='';
@@ -2578,8 +2574,6 @@ function filterSvcCat(v){
   rSvcs();
 }
 function filterSvcStatus(v){_svcStatus=v;rSvcs();}
-function filterSvcCat(v){_svcCat=v;rSvcs();}
-function filterSvcStatus(v){_svcStatus=v;rSvcs();}
 
 // ── Unified "find service or category" box for the live Services page ──
 function svcUnifiedInput(){
@@ -2701,7 +2695,7 @@ function addSvc(){
 
 function editSvc(id){
   var svcs=getServices();
-  var s=svcs.find(function(x){return x.id===id;});
+  var s=svcs.find(function(x){return String(x.id)===String(id);});
   if(!s)return;
   var ex=document.getElementById('m-edit-svc');if(ex)ex.remove();
   var cats=getCategories();
@@ -3495,12 +3489,6 @@ function toggleAllServices(active){
   var ex=document.getElementById('m-bulk-edit');if(ex)ex.remove();
 }
 
-function sortServices(by){
-  var svcs=getServices();
-  svcs.sort(function(a,b){return by==='price_asc'?(a.myRate-b.myRate):(b.myRate-a.myRate);});
-  saveServices(svcs);rSvcs();toast('Services sorted','s');
-}
-
 function exportServices(){
   var svcs=getServices();
   var blob=new Blob([JSON.stringify(svcs,null,2)],{type:'application/json'});
@@ -3549,18 +3537,6 @@ function bulkEditPrice(){
   saveServices(svcs);syncServicesToPanel(svcs);rSvcs();
   toast('✅ Price updated for '+updated+' services','s');
 }
-function selectAllSvcs(cb){
-  document.querySelectorAll('.svc-cb').forEach(function(c){c.checked=cb.checked;});
-  updateBulkBar();
-}
-function updateBulkBar(){
-  var checked=document.querySelectorAll('.svc-cb:checked').length;
-  var bar=document.getElementById('bulk-action-bar');
-  if(bar) bar.style.display=checked>0?'flex':'none';
-  var cnt=document.getElementById('bulk-count');
-  if(cnt) cnt.textContent=checked+' selected';
-}
-
 function clearBulkSel(){
   document.querySelectorAll('.svc-cb').forEach(function(c){c.checked=false;});
   _bulkSel=new Set();
@@ -3617,64 +3593,6 @@ function deleteCoupon(id){
   localStorage.setItem('smm_coupons',JSON.stringify(coupons));
   rCoupons();toast('Coupon removed','e');
 }
-function changeAdminPass(){
-  var cur=document.getElementById('sec-curr-pass');
-  var nw=document.getElementById('sec-new-pass');
-  var cf=document.getElementById('sec-conf-pass');
-  if(!cur||!nw||!cf){toast('Form not found','e');return;}
-  var creds={};
-  try{creds=JSON.parse(localStorage.getItem('smm_admin_creds')||'{"user":"admin","pass":"admin123"}');}catch(e){}
-  if(cur.value!==creds.pass&&cur.value!=='admin123'){toast('Current password incorrect','e');return;}
-  if(nw.value.length<6){toast('New password min 6 characters','e');return;}
-  if(nw.value!==cf.value){toast('Passwords do not match','e');return;}
-  creds.pass=nw.value;
-  localStorage.setItem('smm_admin_creds',JSON.stringify(creds));
-  cur.value='';nw.value='';cf.value='';
-  toast('✅ Password changed!','s');
-}
-function changeAdminUser(){
-  var el=document.getElementById('sec-new-user');
-  if(!el||!el.value.trim()){toast('Enter new username','e');return;}
-  var creds={};
-  try{creds=JSON.parse(localStorage.getItem('smm_admin_creds')||'{"user":"admin","pass":"admin123"}');}catch(e){}
-  creds.user=el.value.trim();
-  localStorage.setItem('smm_admin_creds',JSON.stringify(creds));
-  el.value='';
-  toast('✅ Username changed to: '+creds.user,'s');
-}
-// Alias - button calls saveAdminCredentials
-function saveAdminCredentials(){
-  var cur=document.getElementById('sec-curr-pass');
-  var nw=document.getElementById('sec-new-pass');
-  var cf=document.getElementById('sec-conf-pass');
-  var newUser=document.getElementById('sec-new-user');
-  var creds={user:'admin',pass:'admin123'};
-  try{creds=JSON.parse(localStorage.getItem('smm_admin_creds')||JSON.stringify(creds));}catch(e){}
-  var changed=false;
-  // Update username if provided
-  if(newUser&&newUser.value.trim()){
-    creds.user=newUser.value.trim();
-    changed=true;
-  }
-  // Update password if provided
-  if(nw&&nw.value){
-    if(!cur||!cur.value){toast('Enter current password','e');return;}
-    if(cur.value!==creds.pass&&cur.value!=='admin123'){toast('Current password incorrect','e');return;}
-    if(nw.value.length<6){toast('Password min 6 characters','e');return;}
-    if(cf&&nw.value!==cf.value){toast('Passwords do not match','e');return;}
-    creds.pass=nw.value;
-    changed=true;
-  }
-  if(!changed){toast('No changes made','w');return;}
-  localStorage.setItem('smm_admin_creds',JSON.stringify(creds));
-  if(cur) cur.value='';
-  if(nw) nw.value='';
-  if(cf) cf.value='';
-  if(newUser) newUser.value='';
-  toast('✅ Credentials updated successfully!','s');
-}
-
-
 // ══ MISSING FUNCTIONS - COMPLETE SET ══
 
 // User Management
@@ -3724,7 +3642,7 @@ function saveEditUser(id){
   if(status) u.status=status.value;
   localStorage.setItem('smm_users',JSON.stringify(users));
   var ex=document.getElementById('m-edit-user');if(ex)ex.remove();
-  rUsers(null);toast('✅ User updated','s');notifyPanel();
+  rUsers(null);toast('✅ User updated','s');notifyPanel();pushToServer();
 }
 
 function suspendUser(id){
@@ -3790,7 +3708,7 @@ function rejectPayment(userId,txId){
 function updateOrderStatus(id,status){
   var orders=getRealOrders();
   var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(o){o.status=status;localStorage.setItem('smm_orders',JSON.stringify(orders));toast('Order #'+id+' → '+status,'s');}
+  if(o){o.status=status;localStorage.setItem('smm_orders',JSON.stringify(orders));notifyPanel();pushToServer();toast('Order #'+id+' → '+status,'s');}
 }
 
 function addBalUser(id){
@@ -4126,11 +4044,6 @@ function saveEmail(){
   toast('✅ Email settings saved','s');
 }
 
-function saveBonus(){
-  // saveBonuses already exists, alias it
-  toast('✅ Bonus saved','s');
-}
-
 function addUser(){
   var email=prompt('Enter new user email:');
   if(!email||!email.includes('@')){toast('Invalid email','e');return;}
@@ -4144,9 +4057,6 @@ function addUser(){
     body:JSON.stringify({smm_users:users,smm_ts:Date.now()})}).catch(function(){});
   rUsers(null);toast('✅ User added. Default password: password123','s');
 }
-
-function addPm(){toast('Edit existing payment methods instead','w');}
-
 
 var _notifs=[];
 
@@ -4866,6 +4776,7 @@ function addPm(){
     on:document.getElementById('pm-vis').value==='1',
     fee:parseFloat(document.getElementById('pm-fee').value)||0
   });
+  savePmVisibility();
   rPms();cm('m-add-pm');toast('Payment method added!','s');
   // reset modal
   pmStep(1);document.getElementById('pm-vname').value='';document.getElementById('pm-fee').value='0';
@@ -5015,15 +4926,10 @@ function getModules(){
   try{var d=localStorage.getItem(MOD_KEY);if(d)return JSON.parse(d);}catch(e){}
   return mods.reduce(function(o,m){o[m.key]=m.on;return o;},{});
 }
-function saveModules(state){localStorage.setItem(MOD_KEY,JSON.stringify(state));}
-
-function togMod(key,el){
-  el.classList.toggle('on');
-  var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_modules')||'{}');}catch(e){}
-  cfg[key]=el.classList.contains('on');
-  localStorage.setItem('smm_modules',JSON.stringify(cfg));
-  toast(key+(cfg[key]?' enabled':' disabled'),'s');
-  notifyPanel();
+function saveModules(state){
+  localStorage.setItem(MOD_KEY,JSON.stringify(state));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_modules:state,smm_ts:Date.now()})}).catch(function(){});
 }
 
 function rMods(){
@@ -5235,9 +5141,17 @@ var CUP_KEY='smm_coupons';
 var ANN_KEY='smm_announcements';
 
 function getBonuses(){try{var d=localStorage.getItem(BON_KEY);if(d)return JSON.parse(d);}catch(e){}return bonuses;}
-function saveBonuses(b){localStorage.setItem(BON_KEY,JSON.stringify(b));bonuses=b;}
+function saveBonuses(b){
+  localStorage.setItem(BON_KEY,JSON.stringify(b));bonuses=b;
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_bonuses:b,smm_ts:Date.now()})}).catch(function(){});
+}
 function getCoupons(){try{var d=localStorage.getItem(CUP_KEY);if(d)return JSON.parse(d);}catch(e){}return coupons;}
-function saveCoupons(c){localStorage.setItem(CUP_KEY,JSON.stringify(c));coupons=c;}
+function saveCoupons(c){
+  localStorage.setItem(CUP_KEY,JSON.stringify(c));coupons=c;
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_coupons:c,smm_ts:Date.now()})}).catch(function(){});
+}
 function getAnnouncements(){try{var d=localStorage.getItem(ANN_KEY);if(d)return JSON.parse(d);}catch(e){}return [];}
 function saveAnnouncements(list){
   localStorage.setItem(ANN_KEY,JSON.stringify(list));
@@ -6122,11 +6036,6 @@ function eaInit(){
   eaLoadUsers();
 }
 
-// email
-var emls=['New Order','Order Completed','Order Failed','Payment Received','Payment Approved','New User Registered','New Ticket','Ticket Reply'];
-var emlOn=[true,true,true,true,true,false,true,true];
-function rEmail(){document.getElementById('eml-list').innerHTML=emls.map(function(e,i){return'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)"><span style="flex:1;font-size:13px;font-weight:600">'+e+'</span><div class="tog '+(emlOn[i]?'on':'')+'" onclick="emlOn['+i+']=!emlOn['+i+'];this.classList.toggle(\'on\')"></div></div>';}).join('');}
-
 // signup
 var sigFlds=['Full Name','Email Address','Password','Phone Number','Country','Referral Code'];
 var sigReq=[true,true,true,false,false,false];
@@ -6591,6 +6500,18 @@ function pullFromServer(){
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
+      }
+      if(d.smm_bonuses&&Array.isArray(d.smm_bonuses)){
+        localStorage.setItem(BON_KEY,JSON.stringify(d.smm_bonuses));bonuses=d.smm_bonuses;
+      }
+      if(d.smm_coupons&&Array.isArray(d.smm_coupons)){
+        localStorage.setItem(CUP_KEY,JSON.stringify(d.smm_coupons));coupons=d.smm_coupons;
+      }
+      if(d.smm_categories&&Array.isArray(d.smm_categories)){
+        localStorage.setItem(CAT_KEY,JSON.stringify(d.smm_categories));
+      }
+      if(d.smm_modules&&typeof d.smm_modules==='object'){
+        localStorage.setItem(MOD_KEY,JSON.stringify(d.smm_modules));
       }
       var refQChanged=false;
       if(d.smm_ref_visit_queue&&Array.isArray(d.smm_ref_visit_queue)){
