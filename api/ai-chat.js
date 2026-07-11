@@ -4,7 +4,25 @@
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SITE = 'https://afghanfollowers.online';
-const { DB_SERVICE_KEY } = require('./_dbkey');
+const { DB_SERVICE_KEY, dbHeaders } = require('./_dbkey');
+
+// Best-effort ping to the admin's personal Telegram so customer support
+// chat questions don't just vanish — reuses the same bot config the rest
+// of the site already sends notifications through.
+async function notifyAdminOfChat(message, reply) {
+  try {
+    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const db = await dbResp.json();
+    const cfg = db.smm_tg_bot || {};
+    if (!cfg.token || !cfg.chatId) return;
+    const text = '🤖 <b>پیام جدید در چت پشتیبانی AI</b>\n\n👤 مشتری: ' + message.slice(0, 400) + '\n\n💬 پاسخ AI: ' + reply.slice(0, 400);
+    await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: cfg.chatId, text: text, parse_mode: 'HTML' })
+    });
+  } catch (e) { /* best-effort — must not break the customer's reply */ }
+}
 
 const SYSTEM_PROMPT = `شما دستیار پشتیبانی سایت Afghan Followers (${SITE}) هستید — یک فروشگاه آنلاین فروش فالوور، لایک، ویو و ممبر برای شبکه‌های اجتماعی (اینستاگرام، تیک‌تاک، یوتیوب، فیسبوک، توییتر، تلگرام).
 
@@ -169,6 +187,8 @@ module.exports = async (req, res) => {
       ...history,
       { role: 'user', content: message }
     ], 400);
+
+    await notifyAdminOfChat(message, reply);
 
     return res.status(200).json({ ok: true, reply: reply });
   } catch (e) {

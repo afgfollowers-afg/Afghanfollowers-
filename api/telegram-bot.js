@@ -18,6 +18,21 @@ function statusEmoji(status) {
   return map[status] || '❔';
 }
 
+// Best-effort ping to the admin's personal chat (same bot, different chat id
+// — configured once in Settings → Integrations, stored as smm_tg_bot.chatId).
+async function notifyAdmin(token, text) {
+  try {
+    const cfg = await fetch(SITE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
+    const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
+    if (!adminChat) return;
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: adminChat, text: text, parse_mode: 'HTML' })
+    });
+  } catch (e) { /* best-effort — must not break the customer's reply */ }
+}
+
 async function createTicket(chatId, username, message) {
   try {
     const r = await fetch(SITE + '/api/db', { headers: dbHeaders() });
@@ -85,20 +100,7 @@ module.exports = async (req, res) => {
     const ticket = await createTicket(chatId, username, msgText);
     if (ticket) {
       reply = `✅ <b>تیکت شما ثبت شد!</b>\n\nشماره تیکت: ${ticket.id}\n\nادمین در اسرع وقت پاسخ می‌دهد. برای پیگیری وارد پنل شوید:\n${SITE}`;
-      const token = process.env.TG_BOT_TOKEN;
-      if (token) {
-        try {
-          const cfg = await fetch(SITE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
-          const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
-          if (adminChat) {
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: adminChat, text: `🎫 <b>New Ticket ${ticket.id}</b>\nFrom: ${username}\nMessage: ${msgText.slice(0, 300)}`, parse_mode: 'HTML' })
-            });
-          }
-        } catch (e) {}
-      }
+      if (token) await notifyAdmin(token, `🎫 <b>New Ticket ${ticket.id}</b>\nFrom: ${username}\nMessage: ${msgText.slice(0, 300)}`);
     } else {
       reply = '❌ خطا در ثبت تیکت. لطفاً دوباره امتحان کنید یا از پنل استفاده کنید.';
     }
@@ -169,6 +171,14 @@ module.exports = async (req, res) => {
 
   if (reply) {
     await sendMsg(chatId, reply);
+  }
+
+  // Ticket messages already send their own (richer) admin notice above —
+  // for everything else, let the admin know what customers are asking
+  // instead of it just vanishing into an automated reply.
+  if (!ticketMatch && text) {
+    const username = (msg.from && (msg.from.username ? '@' + msg.from.username : firstName)) || 'کاربر تلگرام';
+    await notifyAdmin(token, `💬 <b>پیام جدید در ربات تلگرام</b>\n\n👤 ${username}\n📩 ${text.slice(0, 500)}`);
   }
 
   return res.status(200).send('ok');
