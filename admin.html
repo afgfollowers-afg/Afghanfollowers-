@@ -3975,6 +3975,8 @@ function rejectPay(id){var p=payReqs.find(function(x){return x.id===id;});if(p){
 
 // ═══ WALLETS ═══
 function rWallets(list){
+  // Users with a balance first, highest balance on top.
+  list=list.slice().sort(function(a,b){return (parseFloat(b.balance)||0)-(parseFloat(a.balance)||0);});
   var h='<table><thead><tr><th>User</th><th>Email</th><th>Balance</th><th>Orders</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var u=list[i];
