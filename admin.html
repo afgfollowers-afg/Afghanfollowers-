@@ -312,6 +312,12 @@ textarea.fi{resize:vertical;min-height:75px;}
 
     <!-- ORDERS -->
     <div class="page" id="pg-orders">
+      <div class="sec" id="ref-visit-queue-sec" style="display:none">
+        <div class="sec-h">
+          <div class="sec-t">🎁 Free Likes — Visit Rewards Pending</div>
+        </div>
+        <div id="ref-visit-queue-list"></div>
+      </div>
       <div class="sec">
         <div class="sec-h">
           <div class="sec-t">📦 All Orders</div>
@@ -1770,7 +1776,7 @@ function go(pg,el){
   loadAllRealData();
   if(pg==='dashboard') initDash();
   else if(pg==='users') rUsers(getRealUsers());
-  else if(pg==='orders') rOrders(getRealOrders());
+  else if(pg==='orders'){rOrders(getRealOrders());rRefVisitQueue();}
   else if(pg==='services') rSvcs();
   else if(pg==='payments') rPayReqs(getRealPayments());
   else if(pg==='wallets') rWallets(getRealUsers());
@@ -2018,30 +2024,34 @@ function rOrders(list){
     +'<input id="ord-search" class="fi" placeholder="Search..." style="flex:1;padding:7px 10px;font-size:12px" oninput="filterOrdersAdmin()">'
     +'<select id="ord-filter-status" class="fi" style="padding:7px 10px;font-size:12px" onchange="filterOrdersAdmin()">'
     +'<option value="">All Status</option>'
+    +'<option value="pending_approval">🎁 Needs Approval</option>'
     +'<option value="pending">Pending</option><option value="processing">Processing</option>'
     +'<option value="completed">Completed</option><option value="partial">Partial</option>'
     +'<option value="cancelled">Cancelled</option><option value="failed">Failed</option>'
     +'</select></div><div id="ord-cards">';
   sorted.forEach(function(o){
     var st=o.status||'pending';
-    var sc=st==='completed'?'bg':st==='processing'?'bp':st==='failed'?'br':'by';
+    var needsApproval=(st==='pending_approval');
+    var sc=st==='completed'?'bg':st==='processing'?'bp':st==='failed'?'br':needsApproval?'bp':'by';
+    var stLabel=needsApproval?'🎁 Needs Approval':st;
     var cost=parseFloat(o.cost||0);
     var dt=o.date?new Date(o.date).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
     var oid=String(o.id||'');
     h+='<div class="ord-card" data-status="'+st+'" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">'
      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
        +'<span style="font-size:12px;color:var(--mt);font-weight:700">#'+oid.slice(-8)+'</span>'
-       +'<span class="b '+sc+'">'+st+'</span>'
-       +'<select data-oid="'+oid+'" onchange="updateOrderStatus(this.dataset.oid,this.value)" style="margin-left:auto;background:var(--s1);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:11px">'
+       +'<span class="b '+sc+'">'+stLabel+'</span>'
+       +(needsApproval?'':
+       '<select data-oid="'+oid+'" onchange="updateOrderStatus(this.dataset.oid,this.value)" style="margin-left:auto;background:var(--s1);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:11px">'
          +'<option value="pending"'+(st==='pending'?' selected':'')+'>⏳ Pending</option>'
          +'<option value="processing"'+(st==='processing'?' selected':'')+'>⚙️ Processing</option>'
          +'<option value="completed"'+(st==='completed'?' selected':'')+'>✅ Completed</option>'
          +'<option value="partial"'+(st==='partial'?' selected':'')+'>⚡ Partial</option>'
          +'<option value="cancelled"'+(st==='cancelled'?' selected':'')+'>❌ Cancelled</option>'
          +'<option value="failed"'+(st==='failed'?' selected':'')+'>❗ Failed</option>'
-       +'</select>'
+       +'</select>')
      +'</div>'
-     +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:8px">'+(o.service||o.svcName||'—')+'</div>'
+     +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:8px">'+(o.service||o.svcName||'—')+(o.free?' <span class="b bp" style="font-size:9px;vertical-align:middle">🎁 FREE CLAIM</span>':'')+'</div>'
      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;margin-bottom:8px">'
        +'<div><span style="color:var(--mt)">User</span><br><b>'+(o.user||o.email||'—')+'</b></div>'
        +'<div><span style="color:var(--mt)">Charge</span><br><b style="color:var(--gr)">$'+cost.toFixed(4)+'</b></div>'
@@ -2052,6 +2062,10 @@ function rOrders(list){
      +'</div>'
      +(o.link?'<div style="font-size:11px;color:var(--acc2);word-break:break-all;margin-bottom:8px">🔗 <a href="'+o.link+'" target="_blank" style="color:var(--acc2)">'+o.link+'</a></div>':'')
      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+       +(needsApproval?
+         '<button data-oid="'+oid+'" onclick="approveFreeLikes(this.dataset.oid)" style="padding:5px 10px;background:rgba(0,210,160,.15);border:1px solid rgba(0,210,160,.4);color:var(--gr);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✅ Approve</button>'
+        +'<button data-oid="'+oid+'" onclick="rejectFreeLikes(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.15);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>'
+        :'')
        +'<button data-oid="'+oid+'" onclick="adminSetOrderStart(this.dataset.oid)" style="padding:5px 10px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);border-radius:7px;font-size:11px;cursor:pointer">✏️ Start Count</button>'
        +'<button data-oid="'+oid+'" onclick="adminSetOrderRemain(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);border-radius:7px;font-size:11px;cursor:pointer">📊 Remains</button>'
        +'<button data-oid="'+oid+'" onclick="adminRefundOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);border-radius:7px;font-size:11px;cursor:pointer">💸 Refund</button>'
@@ -3804,6 +3818,153 @@ function adminRefundOrder(id){
   toast('✅ Refunded $'+cost.toFixed(2)+(u?' to '+(u.fname||u.name||'user'):''),'s');
 }
 
+// Free Likes (referral reward) approval — claims never reach the real
+// provider until an admin explicitly approves them here, closing the loop
+// on the referral system being gamed with fake/self-invited accounts.
+function approveFreeLikes(id){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o){toast('Order not found','e');return;}
+  if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
+  if(!confirm('Approve this free-likes claim for '+(o.user||o.email||'user')+' and start delivery to:\n'+o.link+'?')) return;
+
+  o.status='processing';
+  o.approvedAt=new Date().toISOString();
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+
+  // Dispatch to the real provider now that it's approved
+  if(o.svcId&&o.provId){
+    var provs=[];try{provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e){}
+    var prov=provs.find(function(p){return String(p.id)===String(o.provId);});
+    if(prov&&prov.url&&prov.key){
+      fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({providerUrl:prov.url,apiKey:prov.key,service:o.svcId,link:o.link,quantity:o.qty})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d&&d.order){
+          var ords2=getRealOrders();
+          var lo=ords2.find(function(x){return String(x.id)===String(o.id);});
+          if(lo){lo.provOrderId=d.order;localStorage.setItem('smm_orders',JSON.stringify(ords2));}
+        }
+      }).catch(function(){});
+    }
+  }
+
+  rOrders(getRealOrders());notifyPanel();pushToServer();
+  toast('✅ Approved — delivery started','s');
+}
+
+function rejectFreeLikes(id){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o){toast('Order not found','e');return;}
+  if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
+  var reason=prompt('Reason for rejecting this claim (kept for your records):','Suspicious invite activity');
+  if(reason===null) return;
+
+  o.status='cancelled';
+  o.rejectReason=reason||'Rejected by admin';
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+
+  // Give the unlock back — a rejected claim (e.g. wrong link) shouldn't cost
+  // the user their earned reward, and clearing the cooldown lets them retry.
+  var users=getRealUsers();
+  var u=users.find(function(x){return String(x.id)===String(o.userId);});
+  if(u){
+    u.freeLikesClaims=Math.max(0,(parseInt(u.freeLikesClaims)||0)-1);
+    delete u.lastClaimAt;
+    localStorage.setItem('smm_users',JSON.stringify(users));
+  }
+
+  rOrders(getRealOrders());notifyPanel();pushToServer();
+  toast('❌ Claim rejected — reward returned to user','s');
+}
+
+// Free Likes — "invite 100 → 50 confirmed visits" alt path. api/db.js
+// (track_ref_visit) writes pending entries here once a referral code hits
+// 50 unique, IP+browser-deduped visits; the admin has final say before
+// anything is credited, same as the direct-claim approval flow above.
+function getRefVisitQueue(){
+  try{return JSON.parse(localStorage.getItem('smm_ref_visit_queue')||'[]');}catch(e){return [];}
+}
+function saveRefVisitQueue(q){
+  localStorage.setItem('smm_ref_visit_queue',JSON.stringify(q));
+}
+function findUserByRefCode(ref){
+  var users=getRealUsers();
+  return users.find(function(u){return u.id&&Number(u.id).toString(36).toUpperCase()===ref;});
+}
+function rRefVisitQueue(){
+  var sec=document.getElementById('ref-visit-queue-sec');
+  var list=document.getElementById('ref-visit-queue-list');
+  if(!sec||!list) return;
+  var queue=getRefVisitQueue().filter(function(q){return q.status==='pending';});
+  if(!queue.length){sec.style.display='none';list.innerHTML='';return;}
+  sec.style.display='block';
+  list.innerHTML=queue.map(function(q){
+    var u=findUserByRefCode(q.ref);
+    var name=u?(u.fname||u.name||u.email||'User'):'(unknown user — code '+q.ref+')';
+    var dt=q.ts?new Date(q.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+    return '<div class="ord-card" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
+        +'<span class="b bp">🎁 Needs Approval</span>'
+        +'<span style="font-size:12px;color:var(--mt);margin-left:auto">'+dt+'</span>'
+      +'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:4px">'+name+'</div>'
+      +'<div style="font-size:11px;color:var(--mt);margin-bottom:10px">Referral code <b>'+q.ref+'</b> — <b style="color:var(--gr)">'+q.count+'</b> unique verified visits (IP + browser deduped)</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        +'<button data-ref="'+q.ref+'" onclick="approveRefVisit(this.dataset.ref)" style="padding:5px 10px;background:rgba(0,210,160,.15);border:1px solid rgba(0,210,160,.4);color:var(--gr);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✅ Approve</button>'
+        +'<button data-ref="'+q.ref+'" onclick="rejectRefVisit(this.dataset.ref)" style="padding:5px 10px;background:rgba(255,92,125,.15);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+function approveRefVisit(ref){
+  var queue=getRefVisitQueue();
+  var q=queue.find(function(x){return x.ref===ref&&x.status==='pending';});
+  if(!q){toast('Entry not found or already handled','e');return;}
+  var u=findUserByRefCode(ref);
+  if(!u){toast('No matching user account for code '+ref,'e');return;}
+  if(!confirm('Approve '+q.count+' verified visits for '+(u.fname||u.name||u.email)+' and credit one Free Likes unlock?')) return;
+
+  q.status='approved';
+  saveRefVisitQueue(queue);
+
+  var users=getRealUsers();
+  var me=users.find(function(x){return String(x.id)===String(u.id);});
+  if(me){
+    me.flVisitUnlocks=(parseInt(me.flVisitUnlocks)||0)+1;
+    me.transactions=me.transactions||[];
+    me.transactions.unshift({id:Date.now(),type:'referral',amount:0,desc:'Free Likes unlock: '+q.count+' verified referral visits',date:new Date().toISOString()});
+    localStorage.setItem('smm_users',JSON.stringify(users));
+  }
+
+  // Notify the user directly on Telegram if they've linked their account
+  if(me&&me.tgChatId){
+    var cfg={};try{cfg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');}catch(e){}
+    if(cfg.token){
+      fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({chat_id:me.tgChatId,parse_mode:'HTML',
+          text:'🎉 <b>Your Free Likes reward is approved!</b>\n\nYour '+q.count+' verified referral visits unlocked 100 free likes. Go claim them here:\n'+ (location.origin.replace('admin','')||'https://afghanfollowers.online') +'/smm-panel.html'})
+      }).catch(function(){});
+    }
+  }
+
+  rRefVisitQueue();notifyPanel();pushToServer();
+  toast('✅ Approved — Free Likes unlocked for '+(u.fname||u.name||u.email),'s');
+}
+function rejectRefVisit(ref){
+  var queue=getRefVisitQueue();
+  var q=queue.find(function(x){return x.ref===ref&&x.status==='pending';});
+  if(!q){toast('Entry not found or already handled','e');return;}
+  var reason=prompt('Reason for rejecting these visits (kept for your records):','Suspicious traffic pattern');
+  if(reason===null) return;
+  q.status='rejected';
+  q.rejectReason=reason||'Rejected by admin';
+  saveRefVisitQueue(queue);
+  rRefVisitQueue();notifyPanel();pushToServer();
+  toast('❌ Visit reward rejected','s');
+}
+
 // Ticket Management
 function viewTicket(id){
   var tickets=getRealTickets();
@@ -4954,7 +5115,8 @@ function saveTgBot(){
   var token=document.getElementById('tg-token').value.trim();
   var chatId=document.getElementById('tg-chatid').value.trim();
   var channelId=document.getElementById('tg-channelid').value.trim();
-  var cfg={token:token,chatId:chatId,channelId:channelId};
+  var username=(document.getElementById('tg-username').value||'').trim().replace(/^@/,'');
+  var cfg={token:token,chatId:chatId,channelId:channelId,username:username};
   localStorage.setItem('smm_tg_bot',JSON.stringify(cfg));
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_tg_bot:cfg,smm_ts:Date.now()})}).catch(function(){});
@@ -6342,6 +6504,19 @@ function pullFromServer(){
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
       }
+      var refQChanged=false;
+      if(d.smm_ref_visit_queue&&Array.isArray(d.smm_ref_visit_queue)){
+        var localRefQ=localStorage.getItem('smm_ref_visit_queue')||'[]';
+        var newRefQ=JSON.stringify(d.smm_ref_visit_queue);
+        if(newRefQ!==localRefQ){
+          localStorage.setItem('smm_ref_visit_queue',newRefQ);
+          refQChanged=true;
+        }
+      }
+      if(refQChanged){
+        var activePgQ=document.querySelector('.page.on');
+        if(activePgQ&&activePgQ.id==='pg-orders') rRefVisitQueue();
+      }
       if(changed){
         loadAllRealData();
         var activePg=document.querySelector('.page.on');
@@ -6349,7 +6524,7 @@ function pullFromServer(){
           var pgId=activePg.id;
           if(pgId==='pg-users') rUsers(getRealUsers());
           else if(pgId==='pg-payments') rPayReqs(getRealPayments());
-          else if(pgId==='pg-orders') rOrders(getRealOrders());
+          else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();}
           else if(pgId==='pg-wallets') rWallets(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
         }
@@ -6362,11 +6537,12 @@ function pullFromServer(){
 function pushToServer(){
   var users=getRealUsers();
   var orders=getRealOrders();
-  if(!users.length&&!orders.length) return;
+  var refQueue=getRefVisitQueue();
+  if(!users.length&&!orders.length&&!refQueue.length) return;
   fetch('/api/db',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_users:users,smm_orders:orders,smm_ts:Date.now()})
+    body:JSON.stringify({smm_users:users,smm_orders:orders,smm_ref_visit_queue:refQueue,smm_ts:Date.now()})
   }).catch(function(){});
 }
 setInterval(pullFromServer,30000);

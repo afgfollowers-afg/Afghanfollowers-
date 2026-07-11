@@ -98,6 +98,8 @@ h2{font-size:24px;font-weight:800;color:var(--wh);margin-bottom:8px;text-align:c
 .svc-list li{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--tx);}
 .cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:18px;padding:40px 24px;}
 .cta-band h2{margin-bottom:10px;}
+@keyframes giftWiggle{0%,100%{transform:rotate(0deg) translateY(0);}20%{transform:rotate(-12deg) translateY(-6px);}40%{transform:rotate(9deg) translateY(0);}60%{transform:rotate(-7deg) translateY(-4px);}80%{transform:rotate(5deg) translateY(0);}}
+.gift-emoji{display:inline-block;animation:giftWiggle 1.6s ease-in-out infinite;}
 footer{border-top:1px solid var(--bd);margin-top:60px;padding:24px 0;text-align:center;color:var(--mt);font-size:12px;}
 footer a{color:var(--acc2);text-decoration:none;}
 @media(max-width:720px){.platforms{grid-template-columns:repeat(3,1fr);}.grid3{grid-template-columns:1fr;}.svc-list{grid-template-columns:1fr;}.stats{grid-template-columns:repeat(2,1fr);}}
@@ -171,6 +173,13 @@ footer a{color:var(--acc2);text-decoration:none;}
   </ul>
 </section>
 
+<section class="cta-band" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
+  <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
+  <h2>🔥 ۱۰۰ لایک رایگان منتظرتونه!</h2>
+  <p class="sub" style="margin-bottom:20px"><b style="color:var(--wh)">۵ دوست</b> دعوت کن، <b style="color:var(--gr)">۱۰۰ لایک رایگان</b> ✨ اینستاگرام یا تیک‌تاک بگیر — کاملاً مجانی! 😍</p>
+  <a class="btn btn-p" href="/auth.html">🚀 ثبت‌نام رایگان و دریافت لایک هدیه</a>
+</section>
+
 <section>
   <h2>چرا افغان فالوورز؟</h2>
   <div class="grid3">
@@ -196,6 +205,45 @@ footer a{color:var(--acc2);text-decoration:none;}
 </footer>
 
 <script>
+// ── First-party API guard: tags every /api/db request with a shared key —
+// must match the DB_SERVICE_KEY env var, and the same value used in
+// auth.html/blog.html/smm-panel.html.
+var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+(function(){
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    if(typeof url==='string' && url.indexOf('/api/db')===0){
+      opts=opts||{};
+      opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+    }
+    return _fetch(url,opts);
+  };
+})();
+
+// ── Referral visit tracking: if this page was opened via someone's
+// referral link (?ref=CODE), record one deduped visit server-side so the
+// "invite 100 → 50 confirmed visits" Free Likes path can credit them.
+(function(){
+  try{
+    var ref=new URLSearchParams(location.search).get('ref');
+    if(!ref) return;
+    ref=ref.trim().toUpperCase();
+    if(!ref) return;
+    var VID_KEY='smm_visitor_id';
+    var vid=localStorage.getItem(VID_KEY);
+    if(!vid){
+      vid='v'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+      localStorage.setItem(VID_KEY,vid);
+    }
+    var DEDUPE_KEY='smm_ref_tracked_'+ref;
+    if(localStorage.getItem(DEDUPE_KEY)) return;
+    localStorage.setItem(DEDUPE_KEY,'1');
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'track_ref_visit',ref:ref,vid:vid})
+    }).catch(function(){});
+  }catch(e){}
+})();
+
 // Notify admin via Telegram on each new visitor — deduped to once per
 // browser per day (shared localStorage key across index/blog/auth.html)
 // so a page refresh or clicking between pages doesn't spam the bot.
@@ -227,6 +275,110 @@ footer a{color:var(--acc2);text-decoration:none;}
     }
   }catch(e){}
 })();
+</script>
+
+<!-- Telegram Support FAB -->
+<a id="tg-fab" href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" title="Telegram Support" style="position:fixed;bottom:20px;right:20px;width:52px;height:52px;background:#2AABEE;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.35);z-index:999;text-decoration:none">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+</a>
+
+<!-- AI Assistant FAB + mini chat widget (next to the Telegram FAB) -->
+<div id="ai-fab" title="AI Assistant" onclick="toggleAiWidget()" style="cursor:pointer;position:fixed;bottom:84px;right:20px;width:52px;height:52px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(124,92,252,.5);z-index:999">
+  <img src="/icons/nav-badge.png" alt="AI Assistant" style="width:100%;height:100%;object-fit:cover;display:block">
+</div>
+<div id="ai-widget" style="display:none;flex-direction:column;position:fixed;bottom:144px;right:20px;width:320px;max-width:calc(100vw - 32px);height:420px;max-height:60vh;background:#10131c;border:1px solid #232a3d;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:1000;overflow:hidden">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#7c5cfc,#5b21b6)">
+    <span style="width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="/icons/nav-badge.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+    </span>
+    <span style="font-size:13px;font-weight:700;color:#fff;flex:1">دستیار هوشمند</span>
+    <span onclick="toggleAiWidget()" style="cursor:pointer;color:#fff;font-size:16px;padding:2px 6px;line-height:1">✕</span>
+  </div>
+  <div id="ai-widget-log" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
+    <div style="background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;align-self:flex-start;max-width:85%">
+      👋 سلام! هر سوالی درباره‌ی خرید فالوور، لایک، ویو یا لایک رایگان داری بپرس!
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #232a3d">
+    <input type="text" id="ai-widget-input" placeholder="سوالتون رو بنویسید..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
+    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
+  </div>
+</div>
+
+<script>
+// Prefer the admin-configured bot username (cached from a prior admin/panel
+// visit) over the hardcoded fallback above, same lookup order as
+// openTelegramBot() in smm-panel.html.
+(function(){
+  try{
+    var tgBot=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');
+    var username=(tgBot.username||'').replace('@','').trim();
+    if(username){
+      var fab=document.getElementById('tg-fab');
+      if(fab) fab.href='https://t.me/'+username;
+    }
+  }catch(e){}
+})();
+
+// ── Floating AI Assistant widget ──
+var _aiWidgetHistory=[];
+function toggleAiWidget(){
+  var w=document.getElementById('ai-widget');
+  if(!w) return;
+  var open=w.style.display==='flex';
+  w.style.display=open?'none':'flex';
+  if(!open){
+    var input=document.getElementById('ai-widget-input');
+    if(input) input.focus();
+  }
+}
+function sendAiWidgetChat(){
+  var input=document.getElementById('ai-widget-input');
+  var log=document.getElementById('ai-widget-log');
+  if(!input||!log) return;
+  var msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  input.disabled=true;
+
+  var userBubble=document.createElement('div');
+  userBubble.style.cssText='background:#7c5cfc;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
+  userBubble.textContent=msg;
+  log.appendChild(userBubble);
+
+  var typingBubble=document.createElement('div');
+  typingBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#8a93a6;align-self:flex-start;max-width:85%';
+  typingBubble.textContent='در حال تایپ...';
+  log.appendChild(typingBubble);
+  log.scrollTop=log.scrollHeight;
+
+  fetch('/api/ai-chat',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,history:_aiWidgetHistory})
+  }).then(function(r){return r.json();}).then(function(d){
+    input.disabled=false;
+    input.focus();
+    typingBubble.remove();
+    var botBubble=document.createElement('div');
+    botBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;align-self:flex-start;max-width:85%;white-space:pre-wrap';
+    if(d.ok&&d.reply){
+      botBubble.textContent=d.reply;
+      _aiWidgetHistory.push({role:'user',content:msg});
+      _aiWidgetHistory.push({role:'assistant',content:d.reply});
+    }else{
+      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً از دکمه‌ی تلگرام پیام بدید.';
+    }
+    log.appendChild(botBubble);
+    log.scrollTop=log.scrollHeight;
+  }).catch(function(){
+    input.disabled=false;
+    typingBubble.remove();
+    var errBubble=document.createElement('div');
+    errBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#ff5c7d;align-self:flex-start;max-width:85%';
+    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید.';
+    log.appendChild(errBubble);
+  });
+}
 </script>
 
 </div>

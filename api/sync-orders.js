@@ -54,8 +54,10 @@ async function runOrderSyncJob() {
   const providers = db.smm_providers || [];
   const svcList = db.smm_svc || []; // compact array format: [id, svcId, fullDesc, category, provName, provId, cost, price, min, max, active]
 
-  // 1b. Retry orders that were never actually sent to the provider (no provOrderId yet)
-  const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded'];
+  // 1b. Retry orders that were never actually sent to the provider (no provOrderId yet).
+  // 'pending_approval' (free-likes referral claims awaiting admin review) is excluded
+  // here too — those must never reach the provider until an admin approves them.
+  const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
   const neverSent = orders.filter(o => !o.provOrderId && !finishedStatuses.includes(o.status));
   let retried = 0;
   const retryDebug = [];
