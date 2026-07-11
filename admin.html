@@ -3148,6 +3148,20 @@ function qiImportSelected(){
     rSvcs();
     toast('✅ Imported '+added+' services! (+'+markup+'% markup)','s');
     addNotif('Imported '+added+' services from '+p.name,'success');
+
+    // Best-effort Telegram ping — reuses the existing notify endpoint so
+    // this doesn't need its own serverless function.
+    try{
+      var catsSet={};
+      newSvcs.forEach(function(s){catsSet[s.category]=true;});
+      var catList=Object.keys(catsSet).join('، ');
+      var tgMsg='📥 <b>سرویس‌های جدید وارد شد</b>\n\n'
+        +'✅ '+added+' سرویس از '+p.name+'\n'
+        +'💰 مارک‌آپ: '+markup+'%'
+        +(catList?'\n📁 دسته‌ها: '+catList:'')
+        +(skipped?'\n⏭ رد شده (تکراری): '+skipped:'');
+      fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tgMsg})}).catch(function(){});
+    }catch(e){}
   }catch(err){
     toast('❌ Import error: '+err.message,'e');
     console.error('Import error:',err);
