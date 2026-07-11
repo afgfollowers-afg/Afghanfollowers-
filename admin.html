@@ -3826,6 +3826,8 @@ function approveFreeLikes(id){
   var o=orders.find(function(x){return String(x.id)===String(id);});
   if(!o){toast('Order not found','e');return;}
   if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
+  var claimUser=getRealUsers().find(function(x){return String(x.id)===String(o.userId);});
+  if(claimUser&&claimUser.status==='suspended'){toast('This user is suspended — reject this claim instead of approving it','e');return;}
   if(!confirm('Approve this free-likes claim for '+(o.user||o.email||'user')+' and start delivery to:\n'+o.link+'?')) return;
 
   o.status='processing';
@@ -3924,6 +3926,7 @@ function approveRefVisit(ref){
   if(!q){toast('Entry not found or already handled','e');return;}
   var u=findUserByRefCode(ref);
   if(!u){toast('No matching user account for code '+ref,'e');return;}
+  if(u.status==='suspended'){toast('This user is suspended — reject this entry instead of approving it','e');return;}
   if(!confirm('Approve '+q.count+' verified visits for '+(u.fname||u.name||u.email)+' and credit one Free Likes unlock?')) return;
 
   q.status='approved';

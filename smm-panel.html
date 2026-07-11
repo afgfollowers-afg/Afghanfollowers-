@@ -883,6 +883,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <div id="fl-progress-bar" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s"></div>
         </div>
         <div id="fl-friends-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div id="fl-visits-row" style="display:none;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <span>🔗 Link visits (up to 100 invites)</span>
+          <span id="fl-visits-count" style="color:var(--text);font-weight:700">0 / 50</span>
+        </div>
       </div>
     </div>
 
@@ -2503,10 +2507,26 @@ function renderFreeLikes(){
     }
   }
 
+  var visitsRow=document.getElementById('fl-visits-row');
+  var visitsCountEl=document.getElementById('fl-visits-count');
+  if(visitsRow&&visitsCountEl){
+    var visitCounts={};try{visitCounts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e7){}
+    var myVisits=parseInt(visitCounts[code])||0;
+    if(myVisits>0){
+      visitsRow.style.display='flex';
+      visitsCountEl.textContent=Math.min(myVisits,50)+' / 50'+(myVisits>=50?' ✓':'');
+    }else{
+      visitsRow.style.display='none';
+    }
+  }
+
   var statusEl=document.getElementById('fl-claim-status');
   var btn=document.getElementById('fl-claim-btn');
   var cooldown=isInClaimCooldown(u);
-  if(available>0&&!cooldown){
+  if(u.status==='suspended'){
+    if(statusEl) statusEl.textContent='Your account is suspended, so Free Likes claims are unavailable. Contact support.';
+    if(btn) btn.disabled=true;
+  }else if(available>0&&!cooldown){
     if(statusEl) statusEl.innerHTML='🎉 You have <strong style="color:var(--green)">'+available+'</strong> free reward'+(available>1?'s':'')+' available! Pick a platform and enter your link below.';
     if(btn) btn.disabled=false;
   }else if(available>0&&cooldown){
@@ -2537,6 +2557,7 @@ function renderFreeLikes(){
 function claimFreeLikes(){
   var u=getCurrentUser();
   if(!u){showToast('Login required','e');return;}
+  if(u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
 
   if(isInClaimCooldown(u)){
     var msLeft=FL_COOLDOWN_MS-(Date.now()-new Date(u.lastClaimAt).getTime());
@@ -4173,6 +4194,19 @@ function pullFromServerOnLoad(){
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
+      }
+      var refVisitsChanged=false;
+      if(d.smm_ref_visit_counts&&typeof d.smm_ref_visit_counts==='object'){
+        var localRvc=localStorage.getItem('smm_ref_visit_counts')||'{}';
+        var newRvc=JSON.stringify(d.smm_ref_visit_counts);
+        if(newRvc!==localRvc){
+          localStorage.setItem('smm_ref_visit_counts',newRvc);
+          refVisitsChanged=true;
+        }
+      }
+      if(refVisitsChanged){
+        var flp=document.getElementById('page-free-likes');
+        if(flp&&flp.classList.contains('active')) renderFreeLikes();
       }
       if(changed){
         // Refresh session user reference with fresh data
