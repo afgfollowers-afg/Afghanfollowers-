@@ -91,6 +91,78 @@ module.exports = async (req, res) => {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
 
+      // Referral visit tracking for the "invite 100 → 50 confirmed visits"
+      // Free Likes path. Kept as its own early-return branch (own bin
+      // read/write) since it's a high-frequency, narrow write that has
+      // nothing to do with the general smm_users/smm_orders merge below.
+      if (body.action === 'track_ref_visit' && body.ref) {
+        const ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '')
+          .split(',')[0].trim() || 'unknown';
+        const ref = String(body.ref).trim().toUpperCase().slice(0, 20);
+        const vid = String(body.vid || '').trim().slice(0, 64);
+        if (!ref || !vid) return res.status(200).json({ ok: false, error: 'missing ref/vid' });
+
+        const main = await readBin(BIN_ID);
+        if (!main.ok) return res.status(200).json({ diag: 'POST_READ_MAIN_FAILED', jsonbinStatus: main.status });
+        const current = main.record;
+        current.smm_ref_visits = current.smm_ref_visits || {};
+        const log = current.smm_ref_visits[ref] || [];
+
+        const VISIT_GOAL = 50;
+        // Already hit the goal — stop growing this ref's log forever once
+        // it has served its purpose (also caps storage growth per code).
+        if (log.length >= VISIT_GOAL) {
+          return res.status(200).json({ ok: true, counted: false, reason: 'goal_already_reached', total: log.length });
+        }
+
+        // Strict dedup: either the same IP or the same browser (vid) having
+        // already been recorded for this ref code disqualifies the visit —
+        // matches the "no two credited visits may share an IP or browser"
+        // requirement (accepting some false negatives from shared/carrier
+        // IPs as the safer tradeoff against inflated fake visit counts).
+        const isDup = log.some(v => v.ip === ip || v.vid === vid);
+        if (isDup) {
+          return res.status(200).json({ ok: true, counted: false, reason: 'duplicate', total: log.length });
+        }
+
+        log.push({ ip, vid, ts: Date.now() });
+        current.smm_ref_visits[ref] = log;
+
+        let qualified = false;
+        if (log.length >= VISIT_GOAL) {
+          current.smm_ref_visit_queue = current.smm_ref_visit_queue || [];
+          const already = current.smm_ref_visit_queue.some(q => q.ref === ref);
+          if (!already) {
+            current.smm_ref_visit_queue.push({ ref, count: log.length, ts: Date.now(), status: 'pending' });
+            qualified = true;
+          }
+        }
+        current.smm_ts = Date.now();
+
+        const w = await writeBin(BIN_ID, current);
+        if (!w.ok) return res.status(200).json({ diag: 'PUT_MAIN_FAILED', jsonbinStatus: w.status });
+
+        if (qualified) {
+          // Best-effort admin ping — must never fail the visit-tracking response.
+          try {
+            const cfg = current.smm_tg_bot || {};
+            if (cfg.token && cfg.chatId) {
+              await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chat_id: cfg.chatId,
+                  parse_mode: 'HTML',
+                  text: `🎁 <b>Free Likes — Visit Milestone Reached</b>\nReferral code <b>${ref}</b> just hit ${VISIT_GOAL} unique, verified visits.\nReview it in Admin → Orders and approve if legitimate.`
+                })
+              });
+            }
+          } catch (e) { /* best-effort, ignore */ }
+        }
+
+        return res.status(200).json({ ok: true, counted: true, total: log.length, qualified });
+      }
+
       if (body.smm_svc && Array.isArray(body.smm_svc)) {
         if (!SVC_BIN_ID) {
           return res.status(200).json({ diag: 'NO_SVC_BIN_CONFIGURED', error: 'Set JSONBIN_SVC_BIN_ID env var.' });
@@ -148,6 +220,12 @@ module.exports = async (req, res) => {
       }
       if (body.smm_resets && Array.isArray(body.smm_resets)) {
         current.smm_resets = body.smm_resets;
+      }
+      if (body.smm_ref_visit_queue && Array.isArray(body.smm_ref_visit_queue)) {
+        // Admin is the sole writer of status changes (approve/reject) on this
+        // queue, so a plain overwrite (like smm_providers/smm_pm below) is
+        // safe — no per-item id to merge by anyway.
+        current.smm_ref_visit_queue = body.smm_ref_visit_queue;
       }
       if (body.smm_tg_bot && typeof body.smm_tg_bot === 'object') {
         current.smm_tg_bot = body.smm_tg_bot;

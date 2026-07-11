@@ -33,6 +33,30 @@ async function notifyAdmin(token, text) {
   } catch (e) { /* best-effort — must not break the customer's reply */ }
 }
 
+// Links a panel account to this Telegram chat so admin-approved Free Likes
+// rewards (including the visit-based "invite 100 → 50 visits" path) can
+// message the user directly. `code` is the user's own referral code
+// (id.toString(36).toUpperCase()) — reused as the link token so no extra
+// per-user secret needs generating.
+async function linkTelegramAccount(code, chatId) {
+  try {
+    const r = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const db = await r.json();
+    const users = db.smm_users || [];
+    const user = users.find(u => u.id && Number(u.id).toString(36).toUpperCase() === code);
+    if (!user) return false;
+    user.tgChatId = chatId;
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_users: users, smm_ts: Date.now() })
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function createTicket(chatId, username, message) {
   try {
     const r = await fetch(SITE + '/api/db', { headers: dbHeaders() });
@@ -98,6 +122,24 @@ module.exports = async (req, res) => {
   // misfire as English for the site's mostly Persian/Dari-speaking audience.
   const textForLangCheck = text.replace(/^\/[a-zA-Z]+\s*/, '');
   const isEnglish = /[a-zA-Z]{2,}/.test(textForLangCheck) && !/[؀-ۿ]/.test(text);
+
+  // Account linking: "/start LINK_<refCode>" (deep link from the panel's
+  // Free Likes "Connect Telegram" button) — must run before the generic
+  // "/start" greeting below, since this is a more specific match on the
+  // same command.
+  const linkMatch = text.match(/^\/start\s+LINK_([A-Z0-9]+)$/i);
+  if (linkMatch) {
+    const linked = await linkTelegramAccount(linkMatch[1].toUpperCase(), chatId);
+    const reply2 = linked
+      ? (isEnglish
+          ? `✅ <b>Telegram connected!</b>\n\nYou'll get a message right here as soon as your Free Likes reward is approved.`
+          : `✅ <b>تلگرام شما وصل شد!</b>\n\nهر وقت جایزه‌ی لایک رایگانتان تایید شود، همین‌جا بهتان خبر می‌دهیم.`)
+      : (isEnglish
+          ? `❌ Couldn't find a matching account for this link. Please open "Connect Telegram" from your own Free Likes page in the panel and try again.`
+          : `❌ حسابی مطابق با این لینک پیدا نشد. لطفاً از داخل صفحه‌ی Free Likes خودتان در پنل، روی «اتصال تلگرام» بزنید و دوباره امتحان کنید.`);
+    await sendMsg(chatId, reply2);
+    return res.status(200).send('ok');
+  }
 
   // Ticket creation: "/ticket <message>"
   const ticketMatch = text.match(/^\/ticket\s+([\s\S]+)$/i);

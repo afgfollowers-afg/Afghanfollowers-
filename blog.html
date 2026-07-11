@@ -113,6 +113,30 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
   };
 })();
 
+// ── Referral visit tracking: if this page was opened via someone's
+// referral link (?ref=CODE), record one deduped visit server-side so the
+// "invite 100 → 50 confirmed visits" Free Likes path can credit them.
+(function(){
+  try{
+    var ref=new URLSearchParams(location.search).get('ref');
+    if(!ref) return;
+    ref=ref.trim().toUpperCase();
+    if(!ref) return;
+    var VID_KEY='smm_visitor_id';
+    var vid=localStorage.getItem(VID_KEY);
+    if(!vid){
+      vid='v'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+      localStorage.setItem(VID_KEY,vid);
+    }
+    var DEDUPE_KEY='smm_ref_tracked_'+ref;
+    if(localStorage.getItem(DEDUPE_KEY)) return;
+    localStorage.setItem(DEDUPE_KEY,'1');
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'track_ref_visit',ref:ref,vid:vid})
+    }).catch(function(){});
+  }catch(e){}
+})();
+
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 
 var PLATFORM_COLORS={

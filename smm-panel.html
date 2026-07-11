@@ -886,6 +886,18 @@ tr:hover td{background:rgba(30,35,54,.5);}
       </div>
     </div>
 
+    <div class="card" id="fl-tg-card" style="margin-bottom:14px;display:none">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/></svg>
+        <span class="card-title">Connect Telegram</span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Optional — get pinged the instant an admin approves your Free Likes reward, instead of having to check back here.</div>
+        <a id="fl-tg-connect-btn" class="btn btn-primary" href="#" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:none">🔗 Connect Telegram</a>
+        <div id="fl-tg-connected-note" style="display:none;font-size:12px;color:var(--green);text-align:center;font-weight:700">✅ Telegram connected</div>
+      </div>
+    </div>
+
     <div class="card" id="fl-claim-card" style="margin-bottom:14px">
       <div class="card-head">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -2313,7 +2325,7 @@ function updateFreeLikesHomeBanner(){
   if(!u||!subEl) return;
   var friends=getAcceptedFriends(u);
   var claims=parseInt(u.freeLikesClaims)||0;
-  var available=Math.floor(friends.length/FL_NEED)-claims;
+  var available=Math.floor(friends.length/FL_NEED)+(parseInt(u.flVisitUnlocks)||0)-claims;
   if(available>0&&!isInClaimCooldown(u)){
     subEl.textContent='🎉 Your 100 free likes are ready to claim!';
   }else if(available>0){
@@ -2333,14 +2345,38 @@ function renderFreeLikes(){
   var linkEl=document.getElementById('fl-ref-link'); if(linkEl) linkEl.value=link;
   var codeEl=document.getElementById('fl-ref-code'); if(codeEl) codeEl.textContent=code;
 
+  var tgCard=document.getElementById('fl-tg-card');
+  if(tgCard){
+    var tgCfg={};try{tgCfg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');}catch(e6){}
+    var botUsername=(tgCfg.username||'').replace('@','').trim();
+    var connectBtn=document.getElementById('fl-tg-connect-btn');
+    var connectedNote=document.getElementById('fl-tg-connected-note');
+    if(u.tgChatId){
+      tgCard.style.display='block';
+      if(connectBtn) connectBtn.style.display='none';
+      if(connectedNote) connectedNote.style.display='block';
+    }else if(botUsername){
+      tgCard.style.display='block';
+      if(connectBtn){connectBtn.style.display='block';connectBtn.href='https://t.me/'+botUsername+'?start=LINK_'+code;}
+      if(connectedNote) connectedNote.style.display='none';
+    }else{
+      tgCard.style.display='none';
+    }
+  }
+
   var allInvited=getReferredFriends(u);
   var friends=getAcceptedFriends(u);
   var claims=parseInt(u.freeLikesClaims)||0;
-  var available=Math.floor(friends.length/FL_NEED)-claims;
-  // Progress toward the *next unclaimed* reward: once a reward is sitting
-  // ready to claim, show the bar full instead of resetting to 0/5 — the
-  // friend count only wraps back to 0 once that reward is actually claimed.
-  var inCycle=available>0?FL_NEED:friends.length%FL_NEED;
+  var available=Math.floor(friends.length/FL_NEED)+(parseInt(u.flVisitUnlocks)||0)-claims;
+  // Progress bar is specifically about *friends invited* — it must stay
+  // friends-only even though `available` also counts visit-based unlocks,
+  // otherwise a user with 0 friends but a visit-based reward would see a
+  // false "5/5 friends joined". Best-effort assumes claims consume
+  // friend-earned rewards before visit-earned ones (claim order isn't
+  // tracked per-source), which keeps the already-earned-friend-reward case
+  // (exactly 5/10/15... friends) still showing a full bar correctly.
+  var friendRewardsAvailable=Math.max(0,Math.floor(friends.length/FL_NEED)-claims);
+  var inCycle=friendRewardsAvailable>0?FL_NEED:friends.length%FL_NEED;
   var pct=Math.round((inCycle/FL_NEED)*100);
   var lblEl=document.getElementById('fl-progress-label');
   if(lblEl) lblEl.textContent=inCycle+' / '+FL_NEED+' friends joined';
@@ -2409,7 +2445,7 @@ function claimFreeLikes(){
 
   var friends=getAcceptedFriends(u);
   var claims=parseInt(u.freeLikesClaims)||0;
-  var available=Math.floor(friends.length/FL_NEED)-claims;
+  var available=Math.floor(friends.length/FL_NEED)+(parseInt(u.flVisitUnlocks)||0)-claims;
   if(available<=0){showToast('Invite more friends to unlock a reward','e');return;}
 
   var linkEl=document.getElementById('fl-claim-link');
@@ -4032,6 +4068,9 @@ function pullFromServerOnLoad(){
         if(newProv!==localProv){
           localStorage.setItem('smm_providers',newProv);
         }
+      }
+      if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
+        localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
       }
       if(changed){
         // Refresh session user reference with fresh data
