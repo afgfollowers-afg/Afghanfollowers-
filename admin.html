@@ -2782,11 +2782,33 @@ function qiCatDdChange(){
   // category to see the rest.
   var CAP=2000;
   var opts=['<option value="">— All Services ('+list.length+') —</option>'];
-  list.slice(0,CAP).forEach(function(s){
-    var svcId=String(s.service||s.id||'');
-    var label=cat?s.name:(s.name+' ('+(s.category||'Other')+')');
-    opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(label)+'</option>');
-  });
+  var capped=list.slice(0,CAP);
+  if(cat){
+    // Already scoped to one category — flat list, no need to group.
+    capped.forEach(function(s){
+      var svcId=String(s.service||s.id||'');
+      opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(s.name)+'</option>');
+    });
+  } else {
+    // "All Categories" — group with <optgroup> so browsing the full list
+    // shows which services belong together instead of one flat wall of
+    // names with the category just tacked on in parentheses.
+    var groups={};
+    var order=[];
+    capped.forEach(function(s){
+      var c=s.category||'Other';
+      if(!groups[c]){groups[c]=[];order.push(c);}
+      groups[c].push(s);
+    });
+    order.sort().forEach(function(c){
+      opts.push('<optgroup label="'+qiEsc(c)+' ('+groups[c].length+')">');
+      groups[c].forEach(function(s){
+        var svcId=String(s.service||s.id||'');
+        opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(s.name)+'</option>');
+      });
+      opts.push('</optgroup>');
+    });
+  }
   if(list.length>CAP) opts.push('<option value="" disabled>… '+(list.length-CAP)+' more — pick a category to narrow down</option>');
   svcSel.innerHTML=opts.join('');
 }
