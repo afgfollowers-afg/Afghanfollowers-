@@ -94,6 +94,22 @@ module.exports = async (req, res) => {
     const record = Object.assign({}, main.record);
     delete record.smm_ref_visits;
 
+    // smm_pm carries admin-configured payment-method secrets (PayPal client
+    // secret, Binance/Stripe API secrets). This endpoint is reachable by any
+    // logged-in customer (and any public page holding the shared client
+    // key), so those secrets must never leave the server — strip them here
+    // rather than trusting every caller of this data to ignore them.
+    if (Array.isArray(record.smm_pm)) {
+      record.smm_pm = record.smm_pm.map(function (m) {
+        const c = Object.assign({}, m);
+        delete c.clientSecret;
+        delete c.secretKey;
+        delete c.apiKey;
+        delete c.secKey;
+        return c;
+      });
+    }
+
     const out = Object.assign({}, record, { smm_svc: svc, smm_ref_visit_counts: visitCounts });
     return res.status(200).json(out);
   }
@@ -222,6 +238,18 @@ module.exports = async (req, res) => {
       }
       if (body.smm_providers && Array.isArray(body.smm_providers)) {
         current.smm_providers = body.smm_providers;
+      }
+      if (body.smm_bonuses && Array.isArray(body.smm_bonuses)) {
+        current.smm_bonuses = body.smm_bonuses;
+      }
+      if (body.smm_coupons && Array.isArray(body.smm_coupons)) {
+        current.smm_coupons = body.smm_coupons;
+      }
+      if (body.smm_categories && Array.isArray(body.smm_categories)) {
+        current.smm_categories = body.smm_categories;
+      }
+      if (body.smm_modules && typeof body.smm_modules === 'object') {
+        current.smm_modules = body.smm_modules;
       }
       if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object') {
         current.smm_admin_creds = body.smm_admin_creds;
