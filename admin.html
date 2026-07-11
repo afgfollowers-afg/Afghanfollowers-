@@ -447,7 +447,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <button class="btn btn-p" style="padding:8px 16px;font-size:13px" onclick="qiSelectServiceDD()">Select</button>
         </div>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mt);margin-bottom:10px;cursor:pointer">
-          <input type="checkbox" id="qi-svc-group-toggle" checked onchange="qiCatDdChange()"> Group services by category (only applies when "All Categories" is selected)
+          <input type="checkbox" id="qi-svc-group-toggle" checked onchange="qiCatDdChange();qiFilter()"> Group services by category
         </label>
 
         <!-- Kept in the DOM (hidden) — qiFilter() still reads this; the
@@ -2908,20 +2908,13 @@ function qiRender(services,provId){
   var totalCount=services.length;
   var displayList=services.slice(0,PAGE_SIZE);
 
-  var html='<div style="overflow-x:auto"><table style="font-size:12px;width:100%">'
-    +'<thead><tr style="background:var(--s2);position:sticky;top:0">'
-    +'<th style="width:36px;text-align:center"><input type="checkbox" id="qi-all-cb" onchange="qiSelectAllVisible(this.checked)" title="Select all visible"></th>'
-    +'<th>ID</th><th style="min-width:180px">Service Name</th><th>Category</th>'
-    +'<th>Provider/K</th><th>Your Price/K</th><th>Min</th><th>Max</th><th></th>'
-    +'</tr></thead><tbody>';
-
-  displayList.forEach(function(s){
+  function svcRow(s){
     var rate=parseFloat(s.rate||s.price||s.rate_per_1000||0);
     var myRate=(rate*(1+markup/100)).toFixed(4);
     var svcId=String(s.service||s.id||'');
     var isImported=existingIds.has(svcId);
     var isSelected=_qiSelected.has(svcId);
-    html+='<tr style="background:'+(isImported?'rgba(0,210,160,.04)':'')+(isSelected&&!isImported?'rgba(124,92,252,.06)':'')+';">'
+    return '<tr style="background:'+(isImported?'rgba(0,210,160,.04)':'')+(isSelected&&!isImported?'rgba(124,92,252,.06)':'')+';">'
       +'<td style="text-align:center"><input type="checkbox" class="qi-cb" data-svcid="'+svcId+'" data-provid="'+provId+'" '
       +(isImported?'disabled title="Already imported"':(isSelected?'checked':''))
       +' onchange="qiToggleCb(this)"></td>'
@@ -2937,9 +2930,47 @@ function qiRender(services,provId){
         :'<button class="btn btn-p btn-sm" style="padding:2px 8px;font-size:11px" data-svcid="'+svcId+'" data-provid="'+provId+'" onclick="qiImportOne(this)">+</button>')
       +'</td>'
       +'</tr>';
-  });
+  }
 
-  html+='</tbody></table></div>';
+  var groupToggle=document.getElementById('qi-svc-group-toggle');
+  var shouldGroup=!groupToggle||groupToggle.checked;
+  var html;
+
+  if(!shouldGroup){
+    html='<div style="overflow-x:auto"><table style="font-size:12px;width:100%">'
+      +'<thead><tr style="background:var(--s2);position:sticky;top:0">'
+      +'<th style="width:36px;text-align:center"><input type="checkbox" id="qi-all-cb" onchange="qiSelectAllVisible(this.checked)" title="Select all visible"></th>'
+      +'<th>ID</th><th style="min-width:180px">Service Name</th><th>Category</th>'
+      +'<th>Provider/K</th><th>Your Price/K</th><th>Min</th><th>Max</th><th></th>'
+      +'</tr></thead><tbody>';
+    displayList.forEach(function(s){ html+=svcRow(s); });
+    html+='</tbody></table></div>';
+  } else {
+    // Grouped by category — a header bar per category (name + count + a
+    // "select all in this category" checkbox), then that category's own
+    // table underneath, matching the layout of the main Services page.
+    var groups={};
+    var order=[];
+    displayList.forEach(function(s){
+      var c=s.category||'Uncategorized';
+      if(!groups[c]){groups[c]=[];order.push(c);}
+      groups[c].push(s);
+    });
+    html='';
+    order.sort().forEach(function(catName){
+      var glist=groups[catName];
+      html+='<div style="margin-bottom:10px">'
+        +'<div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.15);border-radius:9px 9px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px">'
+        +'<input type="checkbox" title="Select all in '+qiEsc(catName)+'" onchange="qiSelectVisibleInCategory(this,\''+qiEsc(catName)+'\')">'
+        +'<span style="font-weight:700;color:var(--acc2);font-size:12px">'+qiEsc(catName)+'</span>'
+        +'<span style="color:var(--mt);font-size:11px">('+glist.length+' services)</span>'
+        +'</div>'
+        +'<div style="overflow-x:auto"><table style="font-size:12px;width:100%">'
+        +'<thead><tr style="background:var(--s2)"><th style="width:36px"></th><th>ID</th><th style="min-width:180px">Service Name</th><th>Category</th><th>Provider/K</th><th>Your Price/K</th><th>Min</th><th>Max</th><th></th></tr></thead><tbody>';
+      glist.forEach(function(s){ html+=svcRow(s); });
+      html+='</tbody></table></div></div>';
+    });
+  }
   document.getElementById('qi-list').innerHTML=html;
 
   var imported=displayList.filter(function(s){return existingIds.has(String(s.service||s.id||''));}).length;
@@ -2971,6 +3002,21 @@ function qiSelectAllVisible(checked){
   if(allCb) allCb.checked=checked;
   updateQiCount();
   toast(checked?'✅ '+_qiSelected.size+' services selected':'Selection cleared','s');
+}
+
+// "Select all in this category" checkbox in a grouped section's header —
+// only toggles the checkboxes within that one category's table below it.
+function qiSelectVisibleInCategory(headerCb,catName){
+  var wrap=headerCb.parentElement.parentElement;
+  var cbs=wrap.querySelectorAll('.qi-cb:not(:disabled)');
+  var checked=headerCb.checked;
+  cbs.forEach(function(cb){
+    cb.checked=checked;
+    var id=String(cb.dataset.svcid);
+    if(checked) _qiSelected.add(id);
+    else _qiSelected.delete(id);
+  });
+  updateQiCount();
 }
 
 function updateQiCount(){
