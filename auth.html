@@ -794,6 +794,13 @@ try{
   }
 }catch(e){}
 
+// Redirected here after smm-panel.html detected a suspended account
+if(new URLSearchParams(window.location.search).get('suspended')==='1'){
+  document.getElementById('alert').style.display='flex';
+  document.getElementById('alert').className='alert a-e';
+  document.getElementById('alert').innerHTML='🚫 Your account has been suspended. Please contact support.';
+}
+
 // Referral in URL
 var _ref=new URLSearchParams(window.location.search).get('ref');
 if(_ref) document.getElementById('r-inv').value=_ref.toUpperCase();

@@ -1307,6 +1307,15 @@ var _currentUser=null;
       window.location.replace('auth.html');
       return;
     }
+    // Suspended account → kick out immediately, even on an already-open
+    // session (localStorage is shared with admin.html on the same origin,
+    // so a suspension applied in another tab is visible here right away —
+    // nothing should silently let a suspended user keep using the panel).
+    if(_currentUser.status==='suspended'){
+      localStorage.removeItem('smm_session');
+      window.location.replace('auth.html?suspended=1');
+      return;
+    }
     // Track last visit
     var allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');
     var idx=allUsers.findIndex(function(u){return u.id===_currentUser.id;});
@@ -4214,7 +4223,16 @@ function pullFromServerOnLoad(){
           try{
             var allU=JSON.parse(localStorage.getItem('smm_users')||'[]');
             var freshU=allU.find(function(x){return String(x.id)===String(u.id);});
-            if(freshU)_currentUser=freshU;
+            if(freshU){
+              // Caught a suspension applied on another device/tab mid-session
+              // — don't let the user keep browsing/ordering once it lands.
+              if(freshU.status==='suspended'){
+                localStorage.removeItem('smm_session');
+                window.location.replace('auth.html?suspended=1');
+                return;
+              }
+              _currentUser=freshU;
+            }
           }catch(e){}
         }
         updateBalanceUI();
