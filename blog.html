@@ -322,5 +322,106 @@ document.getElementById('y').textContent=new Date().getFullYear();
   }catch(e){}
 })();
 </script>
+
+<!-- Telegram Support FAB -->
+<a id="tg-fab" href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" title="Telegram Support" style="position:fixed;bottom:20px;right:20px;width:52px;height:52px;background:#2AABEE;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.35);z-index:999;text-decoration:none">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+</a>
+
+<!-- AI Assistant FAB + mini chat widget (next to the Telegram FAB) -->
+<div id="ai-fab" title="AI Assistant" onclick="toggleAiWidget()" style="cursor:pointer;position:fixed;bottom:84px;right:20px;width:52px;height:52px;background:linear-gradient(135deg,#7c5cfc,#5b21b6);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(124,92,252,.5);z-index:999">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</div>
+<div id="ai-widget" style="display:none;flex-direction:column;position:fixed;bottom:144px;right:20px;width:320px;max-width:calc(100vw - 32px);height:420px;max-height:60vh;background:#10131c;border:1px solid #232a3d;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:1000;overflow:hidden">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#7c5cfc,#5b21b6)">
+    <span style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </span>
+    <span style="font-size:13px;font-weight:700;color:#fff;flex:1">دستیار هوشمند</span>
+    <span onclick="toggleAiWidget()" style="cursor:pointer;color:#fff;font-size:16px;padding:2px 6px;line-height:1">✕</span>
+  </div>
+  <div id="ai-widget-log" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
+    <div style="background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;align-self:flex-start;max-width:85%">
+      👋 سلام! هر سوالی درباره‌ی خرید فالوور، لایک، ویو یا لایک رایگان داری بپرس!
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #232a3d">
+    <input type="text" id="ai-widget-input" placeholder="سوالتون رو بنویسید..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
+    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  try{
+    var tgBot=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');
+    var username=(tgBot.username||'').replace('@','').trim();
+    if(username){
+      var fab=document.getElementById('tg-fab');
+      if(fab) fab.href='https://t.me/'+username;
+    }
+  }catch(e){}
+})();
+
+// ── Floating AI Assistant widget ──
+var _aiWidgetHistory=[];
+function toggleAiWidget(){
+  var w=document.getElementById('ai-widget');
+  if(!w) return;
+  var open=w.style.display==='flex';
+  w.style.display=open?'none':'flex';
+  if(!open){
+    var input=document.getElementById('ai-widget-input');
+    if(input) input.focus();
+  }
+}
+function sendAiWidgetChat(){
+  var input=document.getElementById('ai-widget-input');
+  var log=document.getElementById('ai-widget-log');
+  if(!input||!log) return;
+  var msg=input.value.trim();
+  if(!msg) return;
+  input.value='';
+  input.disabled=true;
+
+  var userBubble=document.createElement('div');
+  userBubble.style.cssText='background:#7c5cfc;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
+  userBubble.textContent=msg;
+  log.appendChild(userBubble);
+
+  var typingBubble=document.createElement('div');
+  typingBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#8a93a6;align-self:flex-start;max-width:85%';
+  typingBubble.textContent='در حال تایپ...';
+  log.appendChild(typingBubble);
+  log.scrollTop=log.scrollHeight;
+
+  fetch('/api/ai-chat',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,history:_aiWidgetHistory})
+  }).then(function(r){return r.json();}).then(function(d){
+    input.disabled=false;
+    input.focus();
+    typingBubble.remove();
+    var botBubble=document.createElement('div');
+    botBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;align-self:flex-start;max-width:85%;white-space:pre-wrap';
+    if(d.ok&&d.reply){
+      botBubble.textContent=d.reply;
+      _aiWidgetHistory.push({role:'user',content:msg});
+      _aiWidgetHistory.push({role:'assistant',content:d.reply});
+    }else{
+      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً از دکمه‌ی تلگرام پیام بدید.';
+    }
+    log.appendChild(botBubble);
+    log.scrollTop=log.scrollHeight;
+  }).catch(function(){
+    input.disabled=false;
+    typingBubble.remove();
+    var errBubble=document.createElement('div');
+    errBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#ff5c7d;align-self:flex-start;max-width:85%';
+    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید.';
+    log.appendChild(errBubble);
+  });
+}
+</script>
 </body>
 </html>
