@@ -11,6 +11,13 @@
 <meta property="og:title" id="og-title" content="وبلاگ افغان فالوورز">
 <meta property="og:description" id="og-desc" content="مقالات و راهنمای رشد شبکه‌های اجتماعی">
 <meta property="og:url" id="og-url" content="https://afghanfollowers.online/blog.html">
+<meta property="og:image" id="og-image" content="https://afghanfollowers.online/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" id="tw-title" content="وبلاگ افغان فالوورز">
+<meta name="twitter:description" id="tw-desc" content="مقالات و راهنمای رشد شبکه‌های اجتماعی">
+<meta name="twitter:image" id="tw-image" content="https://afghanfollowers.online/icons/icon-512.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#7c5cfc">
 <link rel="icon" href="/icons/favicon-32.png">
@@ -181,6 +188,8 @@ function renderPost(post, posts){
   document.getElementById('pg-desc').setAttribute('content', post.excerpt||post.title);
   document.getElementById('og-title').setAttribute('content', post.title);
   document.getElementById('og-desc').setAttribute('content', post.excerpt||post.title);
+  document.getElementById('tw-title').setAttribute('content', post.title);
+  document.getElementById('tw-desc').setAttribute('content', post.excerpt||post.title);
   var url='https://afghanfollowers.online/blog.html?post='+encodeURIComponent(post.slug);
   document.getElementById('pg-canonical').setAttribute('href', url);
   document.getElementById('og-url').setAttribute('content', url);
