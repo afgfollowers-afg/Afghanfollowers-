@@ -1241,6 +1241,17 @@ function saveCurrentUser(u){
     if(idx>-1){users[idx]=u;}else{users.push(u);}
     localStorage.setItem('smm_users',JSON.stringify(users));
     _currentUser=u;
+    // Push to server — every caller (PayPal checkout credit, manual deposit
+    // submission, profile edits, wallet deduction) used to only write to
+    // this browser's localStorage, so the admin panel and other devices
+    // never saw the change until something else happened to sync.
+    var _syncOrders=[];
+    try{_syncOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e2){}
+    fetch('/api/db',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:users,smm_orders:_syncOrders,smm_ts:Date.now()})
+    }).catch(function(){});
   }catch(e){}
 }
 function logout(){
@@ -3099,6 +3110,17 @@ function ppAutoCredit(amt, feeAmt, receive){
     sess.balance=me.balance;sess.id=me.id;
     localStorage.setItem('smm_session',JSON.stringify(sess));}catch(e){}
   localStorage.setItem('smm_admin_updated',Date.now().toString());
+  // Push to server — without this, the credit only lived in this browser's
+  // localStorage and never reached the admin panel or any other device.
+  try{
+    var _syncOrders=[];
+    try{_syncOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e2){}
+    fetch('/api/db',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:allUsers,smm_orders:_syncOrders,smm_ts:Date.now()})
+    }).catch(function(){});
+  }catch(e){}
   tgPanelSend('✅ <b>PayPal Credited</b>\nUser: '+(me.fname||me.name||'')+'\nAmount: $'+parseFloat(amt).toFixed(2)+'\nNew Balance: $'+me.balance.toFixed(2));
   // Force update session with new balance
   try{
