@@ -1266,6 +1266,19 @@ textarea.fi{resize:vertical;min-height:75px;}
   <div class="md-f"><button class="btn btn-g" onclick="cm('m-ticket')">Cancel</button><button class="btn btn-p" onclick="sendReply()">Send Reply</button></div>
 </div></div>
 
+<!-- User Spending Report Modal -->
+<div class="mo" id="m-user-report"><div class="md" style="max-width:760px;max-height:90vh">
+  <div class="md-h"><div class="md-t" id="ur-title">📊 Spending Report</div><div class="md-x" onclick="cm('m-user-report')">✕</div></div>
+  <div class="md-b" style="overflow-y:auto;max-height:76vh">
+    <div id="ur-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--acc2);margin-bottom:6px">📦 Orders</div>
+    <div id="ur-orders" style="overflow-x:auto;border:1px solid var(--bd);border-radius:9px;margin-bottom:16px"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--acc2);margin-bottom:6px">💳 Wallet Transactions</div>
+    <div id="ur-tx" style="overflow-x:auto;border:1px solid var(--bd);border-radius:9px"></div>
+  </div>
+  <div class="md-f"><button class="btn btn-g" onclick="cm('m-user-report')">Close</button></div>
+</div></div>
+
 <!-- Edit Payment Method Modal -->
 <div class="mo" id="m-edit-pm"><div class="md" style="max-width:520px">
   <div class="md-h"><div class="md-x" onclick="cm('m-edit-pm')" style="margin-left:auto">✕</div></div>
@@ -1877,6 +1890,7 @@ function rUsers(list){
     h+='<td><span class="b '+(u.status==='active'?'bg':'br')+'">'+(u.status||'active')+'</span></td>';
     h+='<td><div style="display:flex;gap:5px">';
     h+='<button class="btn btn-p btn-sm" onclick="editUser(\''+u.id+'\')" style="padding:3px 8px;font-size:11px">Edit</button>';
+    h+='<button class="btn btn-g btn-sm" onclick="showUserReport(\''+u.id+'\')" style="padding:3px 8px;font-size:11px">📊 Report</button>';
     h+='<button class="btn btn-s btn-sm" onclick="addBalUser(\''+u.id+'\')" style="padding:3px 8px;font-size:11px">+$</button>';
     h+='<button class="btn btn-d btn-sm" onclick="suspendUser(\''+u.id+'\')" style="padding:3px 8px;font-size:11px">'+(u.status==='suspended'?'Unsuspend':'Suspend')+'</button>';
     h+='<button class="btn btn-d btn-sm" onclick="deleteUser(\''+u.id+'\')" style="padding:3px 8px;font-size:11px;background:#7f1d1d">Delete</button>';
@@ -1886,6 +1900,54 @@ function rUsers(list){
   document.getElementById('users-tbl').innerHTML=h;
 }
 function filterUsers(q){q=q.toLowerCase();rUsers(q?users.filter(function(u){return u.name.toLowerCase().indexOf(q)>-1||u.email.toLowerCase().indexOf(q)>-1;}):users);}
+
+// Full spending/deposit/refund history for one user — for evaluating
+// refund requests, disputes, etc. without having to cross-reference the
+// Orders and Payments tabs by hand.
+function showUserReport(id){
+  var u=getRealUsers().find(function(x){return String(x.id)===String(id);});
+  if(!u){toast('User not found','e');return;}
+  var orders=getRealOrders().filter(function(o){return String(o.userId)===String(id);});
+  var totalSpent=orders.reduce(function(s,o){return s+(parseFloat(o.cost)||0);},0);
+  var tx=(u.transactions||[]).slice();
+  var txAmt=function(t){return parseFloat(t.credit!==undefined?t.credit:t.amount)||0;};
+  var totalDeposited=tx.filter(function(t){return (t.type==='deposit'||t.type==='admin_credit')&&t.status!=='pending';}).reduce(function(s,t){return s+txAmt(t);},0);
+  var totalRefunded=tx.filter(function(t){return t.type==='refund';}).reduce(function(s,t){return s+Math.abs(txAmt(t));},0);
+
+  var uname=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+  document.getElementById('ur-title').textContent='📊 Spending Report — '+uname;
+
+  document.getElementById('ur-summary').innerHTML=[
+    ['Current Balance','$'+(parseFloat(u.balance)||0).toFixed(2),'var(--gr)'],
+    ['Total Spent (Orders)','$'+totalSpent.toFixed(2),'var(--tx)'],
+    ['Total Deposited','$'+totalDeposited.toFixed(2),'var(--tx)'],
+    ['Total Refunded','$'+totalRefunded.toFixed(2),'var(--rd)']
+  ].map(function(s){
+    return '<div style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:10px 12px">'
+      +'<div style="font-size:10px;color:var(--mt);margin-bottom:4px">'+s[0]+'</div>'
+      +'<div style="font-size:16px;font-weight:800;color:'+s[2]+'">'+s[1]+'</div></div>';
+  }).join('');
+
+  var ordersSorted=orders.slice().sort(function(a,b){return (b.id||0)-(a.id||0);});
+  var ordHtml='<table style="font-size:12px;width:100%"><thead><tr style="background:var(--s2)"><th>ID</th><th>Service</th><th>Qty</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+  if(!ordersSorted.length) ordHtml+='<tr><td colspan="6" style="text-align:center;color:var(--mt);padding:14px">No orders</td></tr>';
+  ordersSorted.forEach(function(o){
+    ordHtml+='<tr><td style="color:var(--mt)">#'+String(o.id).slice(-6)+'</td><td>'+(o.service||o.svcName||'—')+'</td><td>'+(o.qty||0)+'</td><td>$'+(parseFloat(o.cost)||0).toFixed(2)+'</td><td>'+(o.status||'pending')+'</td><td style="color:var(--mt);font-size:11px">'+(o.date?new Date(o.date).toLocaleString():'—')+'</td></tr>';
+  });
+  ordHtml+='</tbody></table>';
+  document.getElementById('ur-orders').innerHTML=ordHtml;
+
+  var txSorted=tx.slice().sort(function(a,b){return (b.id||0)-(a.id||0);});
+  var txHtml='<table style="font-size:12px;width:100%"><thead><tr style="background:var(--s2)"><th>Type</th><th>Amount</th><th>Description</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+  if(!txSorted.length) txHtml+='<tr><td colspan="5" style="text-align:center;color:var(--mt);padding:14px">No transactions</td></tr>';
+  txSorted.forEach(function(t){
+    txHtml+='<tr><td>'+(t.type||'—')+'</td><td>$'+txAmt(t).toFixed(2)+'</td><td>'+(t.desc||'—')+'</td><td>'+(t.status||'—')+'</td><td style="color:var(--mt);font-size:11px">'+(t.date?new Date(t.date).toLocaleString():'—')+'</td></tr>';
+  });
+  txHtml+='</tbody></table>';
+  document.getElementById('ur-tx').innerHTML=txHtml;
+
+  om('m-user-report');
+}
 function addUser(){
   var name=document.getElementById('nu-name').value.trim(),email=document.getElementById('nu-email').value.trim();
   if(!name||!email){toast('Fill all fields','e');return;}
