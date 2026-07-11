@@ -462,6 +462,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
       Add Funds
     </div>
+    <div class="dnav-item" onclick="navTo('free-likes')">
+      <span class="dnav-icon">🎁</span>
+      Free Likes
+    </div>
     <div class="dnav-item" onclick="navTo('tickets')">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
       Tickets
@@ -535,6 +539,18 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div style="margin-bottom:16px">
       <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">New Order</div>
       <div style="font-size:13px;color:var(--muted)">Select platform and service</div>
+    </div>
+
+    <!-- Free Likes referral promo -->
+    <div class="card" style="margin-bottom:14px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));border:none;cursor:pointer" onclick="navTo('free-likes')">
+      <div class="card-body" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+        <div style="font-size:28px;line-height:1">🎁</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800;color:#fff">Free Likes — Invite &amp; Earn</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.85)">Invite 5 friends, get 100 free likes</div>
+        </div>
+        <div style="font-size:18px;color:#fff">→</div>
+      </div>
     </div>
 
     <!-- FasterSMM-style: icon grid + search + category + service list -->
@@ -814,6 +830,81 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <div style="font-size:32px;margin-bottom:8px">📋</div>
           <div>No payments yet</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FREE LIKES / REFERRAL PAGE ── -->
+  <div class="page" id="page-free-likes">
+    <div style="margin-bottom:16px">
+      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">🎁 Free Likes</div>
+      <div style="font-size:13px;color:var(--muted)">Invite friends, earn free likes</div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-body" style="padding:16px">
+        <div style="font-size:13px;color:var(--text);line-height:1.6">
+          Invite <strong>5 friends</strong> using your referral link below. Once they join, you can claim
+          <strong>100 free likes</strong> for Instagram, TikTok, or Facebook — completely free!
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="card-title">Your Referral Link</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="text" class="form-input" id="fl-ref-link" readonly style="flex:1;font-size:12px" onclick="this.select()">
+          <button class="btn btn-primary btn-sm" style="width:auto;padding:0 16px" onclick="copyReferralLink()">Copy</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted)">Your code: <strong id="fl-ref-code" style="color:var(--accent2)">—</strong></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="card-title">Your Progress</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px">
+          <span id="fl-progress-label">0 / 5 friends joined</span>
+          <span id="fl-progress-pct">0%</span>
+        </div>
+        <div style="height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;margin-bottom:12px">
+          <div id="fl-progress-bar" style="height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s"></div>
+        </div>
+        <div id="fl-friends-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+
+    <div class="card" id="fl-claim-card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span class="card-title">Claim Your Free Likes</span>
+      </div>
+      <div class="card-body">
+        <div id="fl-claim-status" style="font-size:12px;color:var(--muted);margin-bottom:12px;background:var(--surface2);padding:10px 12px;border-radius:8px">Invite 5 friends to unlock your first free reward.</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Choose Platform</div>
+        <div id="fl-plat-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+          <div class="ig-btn active-btn" data-p="instagram" onclick="pickFreeLikesPlat(this,'instagram')">
+            <div class="igb-inner si-ig"><svg width="20" height="20"><use href="#ico-ig"/></svg></div>
+          </div>
+          <div class="ig-btn" data-p="tiktok" onclick="pickFreeLikesPlat(this,'tiktok')">
+            <div class="igb-inner si-tt"><svg width="20" height="20"><use href="#ico-tt"/></svg></div>
+          </div>
+          <div class="ig-btn" data-p="facebook" onclick="pickFreeLikesPlat(this,'facebook')">
+            <div class="igb-inner si-fb"><svg width="20" height="20"><use href="#ico-fb"/></svg></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Post / Profile Link</label>
+          <input type="text" class="form-input" id="fl-claim-link" placeholder="https://instagram.com/p/...">
+        </div>
+        <button class="btn btn-primary" id="fl-claim-btn" onclick="claimFreeLikes()" disabled>🎁 Claim 100 Free Likes</button>
       </div>
     </div>
   </div>
@@ -1629,6 +1720,7 @@ function navTo(page){
   // Render payment methods from admin settings when opening add-funds
   if(page==='new-order'){rebuildServiceMaps();renderCategoryList();}
   if(page==='add-funds'){initAddFunds();}
+  if(page==='free-likes'){renderFreeLikes();}
   if(page==='profile') initProfile();
   if(page==='orders'){
     renderOrdersList();
@@ -2161,6 +2253,175 @@ function placeOrder(){
     renderOrdersList();
     localStorage.setItem('smm_admin_updated',Date.now().toString());
   },5000);
+}
+
+// ══ FREE LIKES / REFERRAL PROGRAM ══
+var FL_NEED=5; // friends required per reward
+var _flPlatform='instagram';
+
+function getMyRefCode(u){return (u&&u.id)?u.id.toString(36).toUpperCase():'';}
+
+function getReferredFriends(u){
+  var all=[];try{all=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
+  var code=getMyRefCode(u);
+  if(!code) return [];
+  return all.filter(function(x){return x.id!==u.id&&x.inviteCode&&x.inviteCode.toUpperCase()===code;});
+}
+
+function pickFreeLikesPlat(el,plat){
+  document.querySelectorAll('#fl-plat-grid .ig-btn').forEach(function(b){b.classList.remove('active-btn');});
+  el.classList.add('active-btn');
+  _flPlatform=plat;
+}
+
+function copyReferralLink(){
+  var el=document.getElementById('fl-ref-link');
+  if(el&&navigator.clipboard) navigator.clipboard.writeText(el.value);
+  showToast('Referral link copied!','s');
+}
+
+function renderFreeLikes(){
+  var u=getCurrentUser();
+  if(!u) return;
+  var code=getMyRefCode(u);
+  var link=window.location.origin+'/auth.html?ref='+code;
+  var linkEl=document.getElementById('fl-ref-link'); if(linkEl) linkEl.value=link;
+  var codeEl=document.getElementById('fl-ref-code'); if(codeEl) codeEl.textContent=code;
+
+  var friends=getReferredFriends(u);
+  var claims=parseInt(u.freeLikesClaims)||0;
+  var available=Math.floor(friends.length/FL_NEED)-claims;
+  // Progress toward the *next unclaimed* reward: once a reward is sitting
+  // ready to claim, show the bar full instead of resetting to 0/5 — the
+  // friend count only wraps back to 0 once that reward is actually claimed.
+  var inCycle=available>0?FL_NEED:friends.length%FL_NEED;
+  var pct=Math.round((inCycle/FL_NEED)*100);
+  var lblEl=document.getElementById('fl-progress-label');
+  if(lblEl) lblEl.textContent=inCycle+' / '+FL_NEED+' friends joined';
+  var pctEl=document.getElementById('fl-progress-pct'); if(pctEl) pctEl.textContent=pct+'%';
+  var barEl=document.getElementById('fl-progress-bar'); if(barEl) barEl.style.width=pct+'%';
+
+  var listEl=document.getElementById('fl-friends-list');
+  if(listEl){
+    if(!friends.length){
+      listEl.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px">No friends invited yet. Share your link!</div>';
+    }else{
+      listEl.innerHTML=friends.map(function(f){
+        var d=f.joined?new Date(f.joined).toLocaleDateString():'';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:12px">'
+          +'<span style="color:var(--text);font-weight:600">'+escHtml(f.fname||'Friend')+'</span>'
+          +'<span style="color:var(--muted)">'+escHtml(d)+'</span></div>';
+      }).join('');
+    }
+  }
+
+  var statusEl=document.getElementById('fl-claim-status');
+  var btn=document.getElementById('fl-claim-btn');
+  if(available>0){
+    if(statusEl) statusEl.innerHTML='🎉 You have <strong style="color:var(--green)">'+available+'</strong> free reward'+(available>1?'s':'')+' available! Pick a platform and enter your link below.';
+    if(btn) btn.disabled=false;
+  }else{
+    var remain=FL_NEED-inCycle;
+    if(statusEl) statusEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' to unlock your next free reward.';
+    if(btn) btn.disabled=true;
+  }
+}
+
+function claimFreeLikes(){
+  var u=getCurrentUser();
+  if(!u){showToast('Login required','e');return;}
+
+  var friends=getReferredFriends(u);
+  var claims=parseInt(u.freeLikesClaims)||0;
+  var available=Math.floor(friends.length/FL_NEED)-claims;
+  if(available<=0){showToast('Invite more friends to unlock a reward','e');return;}
+
+  var linkEl=document.getElementById('fl-claim-link');
+  var link=linkEl?linkEl.value.trim():'';
+  if(!link){showToast('Please enter the link to send likes to','e');return;}
+
+  var platform=_flPlatform||'instagram';
+
+  // Find a real "Likes" service in the catalog for the chosen platform
+  var svcs=getPanelServices();
+  var matchedSvc=svcs.find(function(s){
+    var plat=detectPlatform(s.name)||detectPlatform(s.category);
+    var isLike=((s.category||'')+' '+(s.name||'')).toLowerCase().indexOf('like')>-1;
+    return plat===platform&&isLike;
+  });
+  if(!matchedSvc){
+    showToast('Free likes for this platform are temporarily unavailable. Try another platform.','e');
+    return;
+  }
+
+  var order={
+    id:Date.now(),
+    userId:u.id,
+    user:(u.fname||u.name||'')+(u.lname?' '+u.lname:''),
+    email:u.email||'',
+    platform:platform,
+    plat:platform,
+    service:matchedSvc.name,
+    svc:matchedSvc.name,
+    svcName:matchedSvc.name,
+    link:link,
+    qty:100,
+    cost:0,
+    startCount:0,
+    remain:100,
+    cancel:false,
+    refill:false,
+    status:'processing',
+    free:true,
+    date:new Date().toISOString()
+  };
+
+  var allOrders=[];
+  try{allOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  allOrders.unshift(order);
+  localStorage.setItem('smm_orders',JSON.stringify(allOrders));
+  localStorage.setItem('smm_admin_updated',Date.now().toString());
+
+  var allUsers=[];
+  try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
+  var me=allUsers.find(function(x){return String(x.id)===String(u.id);});
+  if(me){
+    me.freeLikesClaims=(parseInt(me.freeLikesClaims)||0)+1;
+    me.orders=(parseInt(me.orders)||0)+1;
+    me.transactions=me.transactions||[];
+    me.transactions.unshift({id:Date.now(),type:'referral',amount:0,desc:'Free Likes reward: 100 '+platform+' likes',date:new Date().toISOString()});
+    localStorage.setItem('smm_users',JSON.stringify(allUsers));
+    _currentUser=me;
+  }
+
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_users:allUsers,smm_orders:allOrders,smm_ts:Date.now()})
+  }).catch(function(){});
+
+  // Dispatch to the real provider, same as a normal paid order
+  try{
+    if(matchedSvc.svcId&&matchedSvc.provId){
+      var provs=[];try{provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e2){}
+      var prov=provs.find(function(p){return String(p.id)===String(matchedSvc.provId);});
+      if(prov&&prov.url&&prov.key){
+        fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({providerUrl:prov.url,apiKey:prov.key,service:matchedSvc.svcId,link:link,quantity:100})
+        }).then(function(r){return r.json();}).then(function(d){
+          if(d&&d.order){
+            var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e3){}
+            var lo=ords.find(function(x){return x.id===order.id;});
+            if(lo){lo.provOrderId=d.order;localStorage.setItem('smm_orders',JSON.stringify(ords));}
+          }
+        }).catch(function(){});
+      }
+    }
+  }catch(e4){}
+
+  tgPanelSend('🎁 <b>Free Likes Claimed</b>\nUser: '+order.user+'\nPlatform: '+platform+'\nLink: '+link);
+
+  if(linkEl) linkEl.value='';
+  showToast('🎉 100 free likes claimed! Check My Orders.','s');
+  renderFreeLikes();
 }
 
 // ORDERS TABLE
