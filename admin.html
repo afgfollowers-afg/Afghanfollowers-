@@ -4129,10 +4129,12 @@ function sendReply(){
     fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({smm_tickets:list,smm_ts:Date.now()})}).catch(function(){});
     localStorage.setItem('smm_admin_updated',Date.now().toString());
-    // notify via Telegram bot page if open
-    if(window.opener&&window.opener.smmTgNotify){}
-    // try direct API call
-    tgReply(_selTk, reply);
+    // If this ticket was opened via the Telegram bot's /ticket command, send
+    // the reply straight to that customer's own chat (t.tgChatId) — not the
+    // admin's own notification chat, which is where this used to go by
+    // mistake, so the customer never actually received replies to tickets
+    // they opened through Telegram.
+    if(t.tgChatId) tgReply(_selTk, reply, t.tgChatId);
   }
   rTickets(list);
   cm('m-ticket');
@@ -4215,11 +4217,11 @@ function tgFwd(ticket){
   fetch('https://api.telegram.org/bot'+c.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:c.chatId,text:text,parse_mode:'HTML'})}).catch(function(){});
 }
 
-function tgReply(tkId, replyText){
+function tgReply(tkId, replyText, targetChatId){
   var c=getTgCfg();
-  if(!c.token||!c.chatId) return;
-  var text='💬 <b>Reply to Ticket #'+tkId+'</b>\n\n<i>'+replyText+'</i>';
-  fetch('https://api.telegram.org/bot'+c.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:c.chatId,text:text,parse_mode:'HTML'})}).catch(function(){});
+  if(!c.token||!targetChatId) return;
+  var text='💬 <b>پاسخ به تیکت #'+tkId+'</b>\n\n'+replyText;
+  fetch('https://api.telegram.org/bot'+c.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:targetChatId,text:text,parse_mode:'HTML'})}).catch(function(){});
 }
 
 // Override initDash to also sync tickets from localStorage
