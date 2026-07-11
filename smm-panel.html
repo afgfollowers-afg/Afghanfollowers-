@@ -863,7 +863,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <div class="card-body">
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <input type="text" class="form-input" id="fl-ref-link" readonly style="flex:1;font-size:12px" onclick="this.select()">
-          <button class="btn btn-primary btn-sm" style="width:auto;padding:0 16px" onclick="copyReferralLink()">Copy</button>
+          <button class="btn btn-primary btn-sm" style="width:auto;padding:0 16px" onclick="copyReferralLink()">Share</button>
         </div>
         <div style="font-size:11px;color:var(--muted)">Your code: <strong id="fl-ref-code" style="color:var(--accent2)">—</strong></div>
       </div>
@@ -2401,10 +2401,24 @@ function pickFreeLikesPlat(el,plat){
   _flPlatform=plat;
 }
 
+// Sends the link bundled with an invite message ("Come get 100 free
+// likes!") rather than a bare URL — a naked link means nothing to the
+// person receiving it, so this is what actually gets shared/copied.
+function buildReferralInviteMessage(){
+  var el=document.getElementById('fl-ref-link');
+  var link=el?el.value:'';
+  return 'بیا صد لایک رایگان بگیر! 🎁 با این لینک ثبت‌نام کن: '+link;
+}
 function copyReferralLink(){
   var el=document.getElementById('fl-ref-link');
-  if(el&&navigator.clipboard) navigator.clipboard.writeText(el.value);
-  showToast('Referral link copied!','s');
+  var link=el?el.value:'';
+  var message=buildReferralInviteMessage();
+  if(navigator.share){
+    navigator.share({title:'Afghan Followers',text:'بیا صد لایک رایگان بگیر! 🎁',url:link}).catch(function(){});
+    return;
+  }
+  if(navigator.clipboard) navigator.clipboard.writeText(message);
+  showToast('Invite message copied!','s');
 }
 
 function updateFreeLikesHomeBanner(){
