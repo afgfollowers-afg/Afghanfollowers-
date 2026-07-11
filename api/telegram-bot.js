@@ -123,6 +123,22 @@ module.exports = async (req, res) => {
     // already handled above
   } else if (text === '/start') {
     reply = `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی`;
+  } else if (/^(سلام|درود|hi|hello|hey)[\s!.]*$/i.test(text)) {
+    reply = `👋 سلام ${firstName} جان، خوش اومدی!\n\nهر سوالی درباره‌ی خرید فالوور، لایک، ویو یا ممبر داری بپرس — قیمت، پرداخت، امنیت حساب، هرچی ذهنتو مشغول کرده 😊\n\nیا مستقیم /services رو بزن ببین چی داریم.`;
+  } else if (lower.includes('کدام سرویس') || lower.includes('کدوم سرویس') || lower.includes('چی بگیرم') || lower.includes('پیشنهاد') || lower.includes('which service') || lower.includes('recommend')) {
+    reply = `🤔 <b>کدوم سرویس مناسبمه؟</b>\n\nبستگی داره هدفت چیه:\n📈 فقط افزایش عدد سریع و ارزون‌تر → سرویس‌های اقتصادی\n💎 کیفیت بالا و ریزش کم (برای صفحه بیزینسی/برند) → High Quality / Real Accounts\n\nبگو دقیقاً برای کدوم پلتفرم و چه هدفی می‌خوای، راهنماییت می‌کنم 🙂`;
+  } else if (lower.includes('ثبت نام') || lower.includes('ثبت‌نام') || lower.includes('register') || lower.includes('sign up') || lower.includes('signup')) {
+    reply = `📝 <b>ثبت‌نام</b>\n\nاز لینک پنل وارد شو و با ایمیل یا شماره‌ات ثبت‌نام کن، رایگانه و یک دقیقه طول می‌کشه:\n${SITE}/auth.html\n\nبعدش می‌تونی مستقیم شارژ کنی و سفارش بدی. سوال دیگه‌ای هم داشتی بپرس 🙌`;
+  } else if (lower.includes('شارژ') || lower.includes('افزایش موجودی') || lower.includes('add funds') || lower.includes('topup') || lower.includes('top up')) {
+    reply = `💰 <b>افزایش موجودی</b>\n\nاز پنل وارد بخش «Add Funds» شو، روش پرداخت (PayPal، Binance، USDT یا حواله) رو انتخاب کن و مبلغ دلخواهتو بریز.\n\nبا PayPal مبلغ فوری و خودکار به حسابت اضافه میشه، نیازی به تایید ادمین نیست.\n\n🌐 ${SITE}/smm-panel.html`;
+  } else if (lower.includes('تخفیف') || lower.includes('discount') || lower.includes('عمده') || lower.includes('wholesale') || lower.includes('bulk')) {
+    reply = `🎁 <b>تخفیف و خرید عمده</b>\n\nهرچی سفارشت بزرگ‌تر باشه صرفه اقتصادی‌ترش هم بیشتره چون قیمت‌ها پلکانی‌ان.\n\nاگه حجم بالا (چند اکانت/چند پروژه) لازم داری، دقیقاً بگو چی مدنظرته:\n<code>/ticket نیاز به خرید عمده دارم برای ...</code>`;
+  } else if (lower.includes('کی جواب') || lower.includes('کی میاید') || lower.includes('response time')) {
+    reply = `⏱ <b>زمان پاسخ‌گویی</b>\n\nمعمولاً ظرف چند دقیقه تا چند ساعت پاسخ می‌دم. برای پیگیری سریع‌تر، تیکت بزن:\n<code>/ticket پیام شما</code>\n\nهمینجا هم هر سوالی داشته باشی برات جواب میدم.`;
+  } else if (lower.includes('واتساپ') || lower.includes('whatsapp')) {
+    reply = `💚 <b>WhatsApp Services</b>\n\n✅ Channel Members\n✅ Status Views\n\n🌐 ${SITE}`;
+  } else if (lower.includes('لینکدین') || lower.includes('linkedin')) {
+    reply = `💼 <b>LinkedIn Services</b>\n\n✅ Followers\n✅ Post Likes\n✅ Connections\n\n🌐 ${SITE}`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
     reply = `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
@@ -166,7 +182,7 @@ module.exports = async (req, res) => {
   } else if (lower.includes('tiktok')) {
     reply = `🎵 <b>TikTok Services</b>\n\n✅ Followers\n✅ Likes\n✅ Views\n✅ Comments\n\n💰 از $0.001/unit\n🌐 ${SITE}`;
   } else {
-    reply = `👋 سلام ${firstName}!\n\nممنون از پیام شما.\n\nبرای کمک:\n/help - راهنما\n/order [شماره] - وضعیت سفارش\n/support - پشتیبانی\n\n🌐 ${SITE}`;
+    reply = `👋 سلام ${firstName}!\n\nممنون از پیامت 🙌 هر سوالی درباره‌ی سرویس‌ها، قیمت، پرداخت، امنیت حساب یا وضعیت سفارشت داری، همینجا بپرس — دوست دارم کمکت کنم.\n\nیا از دستورات زیر استفاده کن:\n/services - لیست سرویس‌ها\n/prices - قیمت‌ها\n/order [شماره] - وضعیت سفارش\n/support - پشتیبانی\n\n🌐 ${SITE}`;
   }
 
   if (reply) {
