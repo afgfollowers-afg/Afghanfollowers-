@@ -185,12 +185,16 @@ module.exports = async (req, res) => {
     // already handled above
   } else if (text === '/start') {
     reply = isEnglish
-      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support`
-      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی`;
+      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get 100 free likes just by inviting friends.`
+      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات ۱۰۰ لایک رایگان بگیری.`;
   } else if (/^(سلام|درود|hi|hello|hey)[\s!.]*$/i.test(text)) {
     reply = isEnglish
       ? `👋 Hey ${firstName}, welcome!\n\nAsk me anything about buying followers, likes, views or members — pricing, payment, account safety, whatever's on your mind 😊\n\nOr just send /services to see what we offer.`
       : `👋 سلام ${firstName} جان، خوش اومدی!\n\nهر سوالی درباره‌ی خرید فالوور، لایک، ویو یا ممبر داری بپرس — قیمت، پرداخت، امنیت حساب، هرچی ذهنتو مشغول کرده 😊\n\nیا مستقیم /services رو بزن ببین چی داریم.`;
+  } else if (lower.includes('لایک رایگان') || lower.includes('فری لایک') || lower.includes('رایگان') || lower.includes('دعوت') || lower.includes('معرفی دوست') || lower.includes('free like') || lower.includes('free follow') || lower.includes('invite') || lower.includes('referral') || lower.includes('refer a friend')) {
+    reply = isEnglish
+      ? `🎁 <b>Free Likes — Invite & Earn</b>\n\nInvite 5 friends who actually sign up (or get 50 verified visits out of up to 100 invites) and claim 100 free Instagram or TikTok likes!\n\nHow it works:\n1️⃣ Open "Free Likes" in the panel and copy your referral link\n2️⃣ Share it — friends must genuinely register (or just visit, for the 100-invite path)\n3️⃣ Once you qualify, pick Instagram or TikTok, enter your link, and submit your claim\n4️⃣ An admin verifies it, then your 100 free likes go out — max once a day\n\n💡 Tip: connect your Telegram from that same page to get pinged the moment it's approved.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`
+      : `🎁 <b>لایک رایگان — دعوت کن، جایزه بگیر</b>\n\nبا دعوت ۵ دوست که واقعاً ثبت‌نام کنن (یا ۵۰ بازدید تایید‌شده از ۱۰۰ دعوت) می‌تونی ۱۰۰ لایک رایگان اینستاگرام یا تیک‌تاک بگیری!\n\nمراحل:\n۱️⃣ از پنل، بخش «Free Likes» رو باز کن و لینک اختصاصی‌تو کپی کن\n۲️⃣ لینک رو با دوستات به اشتراک بذار — باید واقعاً ثبت‌نام کنن (یا فقط بازدید کنن، برای مسیر ۱۰۰ دعوت)\n۳️⃣ وقتی شرایط رو داشتی، اینستاگرام یا تیک‌تاک رو انتخاب کن، لینکتو وارد کن و درخواست بده\n۴️⃣ بعد از تایید ادمین، ۱۰۰ لایک رایگان برات ارسال میشه — حداکثر یک‌بار در روز\n\n💡 نکته: از همون صفحه می‌تونی تلگرامتو وصل کنی تا لحظه‌ی تایید، همینجا خبردار بشی.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`;
   } else if (lower.includes('کدام سرویس') || lower.includes('کدوم سرویس') || lower.includes('چی بگیرم') || lower.includes('پیشنهاد') || lower.includes('which service') || lower.includes('recommend')) {
     reply = isEnglish
       ? `🤔 <b>Which service is right for me?</b>\n\nDepends on your goal:\n📈 Fast, cheap number growth → economy services\n💎 High quality, low drop (for a business/brand page) → High Quality / Real Accounts\n\nTell me which platform and what you're going for, and I'll guide you 🙂`
@@ -215,10 +219,22 @@ module.exports = async (req, res) => {
     reply = `💚 <b>WhatsApp Services</b>\n\n✅ Channel Members\n✅ Status Views\n\n🌐 ${SITE}`;
   } else if (lower.includes('لینکدین') || lower.includes('linkedin')) {
     reply = `💼 <b>LinkedIn Services</b>\n\n✅ Followers\n✅ Post Likes\n✅ Connections\n\n🌐 ${SITE}`;
+  } else if (lower.includes('اسنپ') || lower.includes('snapchat')) {
+    reply = `👻 <b>Snapchat Services</b>\n\n✅ Followers\n✅ Story Views\n\n🌐 ${SITE}`;
+  } else if (lower.includes('پینترست') || lower.includes('pinterest')) {
+    reply = `📌 <b>Pinterest Services</b>\n\n✅ Followers\n✅ Repins/Saves\n\n🌐 ${SITE}`;
+  } else if (lower.includes('دیسکورد') || lower.includes('discord')) {
+    reply = `🎮 <b>Discord Services</b>\n\n✅ Server Members\n\n🌐 ${SITE}`;
+  } else if (lower.includes('ردیت') || lower.includes('reddit')) {
+    reply = `👽 <b>Reddit Services</b>\n\n✅ Upvotes\n✅ Followers\n\n🌐 ${SITE}`;
+  } else if (lower.includes('اسپاتیفای') || lower.includes('spotify')) {
+    reply = `🎧 <b>Spotify Services</b>\n\n✅ Plays\n✅ Followers\n\n🌐 ${SITE}`;
+  } else if (lower.includes('تویچ') || lower.includes('twitch')) {
+    reply = `🎥 <b>Twitch Services</b>\n\n✅ Followers\n✅ Channel Views\n\n🌐 ${SITE}`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
     reply = isEnglish
-      ? `📋 <b>Help</b>\n\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n💬 Contact admin for support.`
-      : `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+      ? `📋 <b>Help</b>\n\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
+      : `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
     reply = isEnglish
       ? `🔗 <b>Panel link</b>\n\n${SITE}\n\nSign up or log in to get started.`
