@@ -358,6 +358,10 @@ const GROWTH_TOPICS = [
   { platform: 'tiktok', topic: 'ادیت حرفه‌ای ویدیو برای افزایش ویو تیک‌تاک' }
 ];
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+}
+
 function dayOfYear() {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 0));
@@ -428,6 +432,17 @@ async function broadcastNewPost(post, tgCfg) {
 async function runDailyContentJob() {
   const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
+
+  // This endpoint has no auth and is hit by more than just the daily cron
+  // (Vercel retries, uptime pings, manual visits while testing) — without
+  // this guard every single hit generated 3 fresh AI blog posts and
+  // re-broadcast them to Facebook/Telegram, which is what looked like
+  // "a post after every order" since order-sync runs in the same request.
+  const today = todayKey();
+  if (db.smm_last_daily_content_date === today) {
+    return { ok: true, added: 0, reason: 'Already ran today (' + today + ')' };
+  }
+
   const existing = db.smm_blog || [];
   const tgCfg = db.smm_tg_bot || {};
 
@@ -453,7 +468,7 @@ async function runDailyContentJob() {
   await fetch(SITE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
-    body: JSON.stringify({ smm_blog: combined, smm_ts: Date.now() })
+    body: JSON.stringify({ smm_blog: combined, smm_last_daily_content_date: today, smm_ts: Date.now() })
   });
 
   for (const p of newPosts) {
@@ -470,14 +485,21 @@ async function runAutoPostJob() {
   // (same smm_tg_bot record used for blog broadcasts) instead of requiring the
   // token/channel to be duplicated as separate Vercel env vars.
   let tgCfg = {};
+  const today = todayKey();
   try {
     const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     tgCfg = db.smm_tg_bot || {};
+    // Same reasoning as runDailyContentJob's guard — this endpoint gets hit
+    // more than once a day (retries, manual visits, etc.), and without this
+    // check each hit fired off a brand new promo post to Facebook/Telegram.
+    if (db.smm_last_autopost_date === today) {
+      return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
+    }
   } catch (e) { /* fall through with empty tgCfg — job still runs, just skips Telegram */ }
 
   try {
-    return await runAutoPostJobInner(tgCfg);
+    return await runAutoPostJobInner(tgCfg, today);
   } catch (err) {
     if (tgCfg.token) {
       await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
@@ -499,7 +521,7 @@ const AUTOPOST_FOCUS = [
   'فالوور واقعی تیک‌تاک'
 ];
 
-async function runAutoPostJobInner(tgCfg) {
+async function runAutoPostJobInner(tgCfg, today) {
   const results = { facebook: null, telegram: null };
   const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
 
@@ -571,6 +593,14 @@ async function runAutoPostJobInner(tgCfg) {
           + `تلگرام: ${results.telegram}\n\n`
           + `متن پست:\n${postText}`
       })
+    }).catch(() => {});
+  }
+
+  if (today) {
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_last_autopost_date: today, smm_ts: Date.now() })
     }).catch(() => {});
   }
 

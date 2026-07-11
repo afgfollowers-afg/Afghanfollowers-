@@ -165,6 +165,16 @@ module.exports = async (req, res) => {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;
       }
+      if (typeof body.smm_last_daily_content_date === 'string') {
+        // Idempotency guard so repeat hits on /api/sync-orders (retries,
+        // manual visits, uptime pings — the endpoint has no auth) don't
+        // regenerate and re-broadcast blog content multiple times a day.
+        current.smm_last_daily_content_date = body.smm_last_daily_content_date;
+      }
+      if (typeof body.smm_last_autopost_date === 'string') {
+        // Same guard, for the daily Facebook/Telegram promo post.
+        current.smm_last_autopost_date = body.smm_last_autopost_date;
+      }
       if (body.smm_email_auto_cfg && typeof body.smm_email_auto_cfg === 'object') {
         // Re-engagement email settings (template, thresholds, daily limit) —
         // pushed from the admin panel's Email Automation tab so the weekly
