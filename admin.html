@@ -3037,6 +3037,40 @@ function updateQiCount(){
   if(btn) btn.textContent='📥 Import'+(_qiSelected.size?' ('+_qiSelected.size+')':'');
 }
 
+// Formats freshly imported services as a Telegram-ready announcement,
+// grouped by category, one line per service (id — full name → our price) —
+// matching the style of a provider's own "new services" broadcast rather
+// than just a bare summary count.
+var QI_PLATFORM_EMOJI={tiktok:'📹',instagram:'📸',facebook:'📘',youtube:'▶️',telegram:'✈️',twitter:'🐦',spotify:'🎧',threads:'🧵',linkedin:'💼'};
+function qiPlatformEmoji(catName){
+  var c=(catName||'').toLowerCase();
+  for(var k in QI_PLATFORM_EMOJI){ if(c.indexOf(k)>-1) return QI_PLATFORM_EMOJI[k]; }
+  return '⚡';
+}
+function qiBuildImportTgMsg(newSvcs){
+  var groups={};var order=[];
+  newSvcs.forEach(function(s){
+    if(!groups[s.category]){groups[s.category]=[];order.push(s.category);}
+    groups[s.category].push(s);
+  });
+  var CAP=15; // keep well under Telegram's 4096-char message limit
+  var blocks=[];
+  order.forEach(function(catName){
+    var list=groups[catName];
+    var lines=['🔝 '+qiPlatformEmoji(catName)+catName,''];
+    list.slice(0,CAP).forEach(function(s){
+      lines.push(s.svcId+' — '+s.name+' → '+s.myRate.toFixed(2)+'$');
+      lines.push('');
+    });
+    if(list.length>CAP) lines.push('… و '+(list.length-CAP)+' سرویس دیگر\n');
+    lines.push('🔝 https://afghanfollowers.online');
+    blocks.push(lines.join('\n'));
+  });
+  var msg=blocks.join('\n\n')+'\n\n💎 🔥🔥🔥🔥🔥🔥';
+  if(msg.length>3900) msg=msg.slice(0,3900)+'…';
+  return msg;
+}
+
 function qiImportOne(btn){
   var svcId=btn.dataset.svcid;
   var provId=parseInt(btn.dataset.provid);
@@ -3150,16 +3184,12 @@ function qiImportSelected(){
     addNotif('Imported '+added+' services from '+p.name,'success');
 
     // Best-effort Telegram ping — reuses the existing notify endpoint so
-    // this doesn't need its own serverless function.
+    // this doesn't need its own serverless function. Lists each imported
+    // service on its own line (id, full provider name, our price), grouped
+    // by category, matching the style of a provider's own "new services"
+    // broadcast — not just a bare count.
     try{
-      var catsSet={};
-      newSvcs.forEach(function(s){catsSet[s.category]=true;});
-      var catList=Object.keys(catsSet).join('، ');
-      var tgMsg='📥 <b>سرویس‌های جدید وارد شد</b>\n\n'
-        +'✅ '+added+' سرویس از '+p.name+'\n'
-        +'💰 مارک‌آپ: '+markup+'%'
-        +(catList?'\n📁 دسته‌ها: '+catList:'')
-        +(skipped?'\n⏭ رد شده (تکراری): '+skipped:'');
+      var tgMsg=qiBuildImportTgMsg(newSvcs);
       fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tgMsg})}).catch(function(){});
     }catch(e){}
   }catch(err){
