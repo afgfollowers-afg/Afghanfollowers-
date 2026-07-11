@@ -1394,8 +1394,11 @@ let _catOpen=false;
 function openTelegramBot(){
   var username='';
   try{
+    // tgBot.chatId is a numeric chat id (used for server-side notifications),
+    // never a bot @username — using it here built broken links like
+    // t.me/7993801735 whenever the admin hadn't filled in "Bot Username".
     var tgBot=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');
-    username=tgBot.username||tgBot.chatId||'';
+    username=tgBot.username||'';
   }catch(e){}
   if(!username){
     try{
@@ -1600,9 +1603,12 @@ function loadTgBotLink(){
     var auth=JSON.parse(localStorage.getItem('smm_auth_settings')||'{}');
     var username=auth.tgBotUsername||'';
     if(!username){
+      // tg.chatId is a numeric chat id, never a bot @username — see
+      // openTelegramBot() for the same bug this mirrors.
       var tg=JSON.parse(localStorage.getItem('smm_tg_bot')||'{}');
-      username=tg.username||tg.chatId||'';
+      username=tg.username||'';
     }
+    if(!username) username='Afgfollowers_bot';
     if(username){
       username=username.replace('@','');
       var el=document.getElementById('tg-support-link');
