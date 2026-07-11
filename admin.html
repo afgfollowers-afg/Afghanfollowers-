@@ -4086,8 +4086,8 @@ function rTickets(list){
     h+='<td><span class="b '+(bc[t.status]||'by')+'">'+t.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+t.date+'</td>';
     h+='<td><div style="display:flex;gap:5px">';
-    h+='<button class="btn btn-p btn-sm" onclick="openTk('+t.id+')">Reply</button>';
-    h+='<button class="btn btn-g btn-sm" title="Forward to Telegram" onclick="fwdTg('+t.id+')">📲</button>';
+    h+='<button class="btn btn-p btn-sm" onclick="openTk(\''+String(t.id).replace(/'/g,'')+'\')">Reply</button>';
+    h+='<button class="btn btn-g btn-sm" title="Forward to Telegram" onclick="fwdTg(\''+String(t.id).replace(/'/g,'')+'\')">📲</button>';
     h+='</div></td>';
     h+='</tr>';
   }
@@ -4098,7 +4098,7 @@ function rTickets(list){
 function filterTickets(s){var list=loadTks();rTickets(s==='all'?list:list.filter(function(t){return t.status===s;}));}
 function openTk(id){
   var list=loadTks();
-  var t=list.find(function(x){return x.id===id;});
+  var t=list.find(function(x){return String(x.id)===String(id);});
   if(!t)return;
   _selTk=id;
   document.getElementById('m-ticket-t').textContent='Ticket #'+t.id+' — '+t.subject;
@@ -4117,7 +4117,7 @@ function sendReply(){
   var status=document.getElementById('tk-status').value;
   if(!reply){toast('Enter a reply','e');return;}
   var list=loadTks();
-  var t=list.find(function(x){return x.id===_selTk;});
+  var t=list.find(function(x){return String(x.id)===String(_selTk);});
   if(t){
     if(!t.messages) t.messages=[{from:'user',text:t.msg,time:t.date}];
     var now=new Date();
@@ -4144,7 +4144,7 @@ function sendReply(){
 
 function fwdTg(id){
   var list=loadTks();
-  var t=list.find(function(x){return x.id===id;});
+  var t=list.find(function(x){return String(x.id)===String(id);});
   if(!t)return;
   tgFwd(t);
   toast('Forwarded to Telegram!','s');
