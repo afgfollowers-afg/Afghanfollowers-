@@ -83,7 +83,18 @@ module.exports = async (req, res) => {
         } catch (e) { svc = []; }
       }
     }
-    const out = Object.assign({}, main.record, { smm_svc: svc });
+    // smm_ref_visits holds every visitor's raw IP address per referral
+    // code — every logged-in customer (and any public page holding the
+    // shared client key) hits this GET, so the full per-visit log must
+    // never go out verbatim. Reduce it to a per-code count, which is all
+    // the "X / 50 visits" progress UI actually needs.
+    const visitCounts = {};
+    const rawVisits = main.record.smm_ref_visits || {};
+    Object.keys(rawVisits).forEach(function (k) { visitCounts[k] = (rawVisits[k] || []).length; });
+    const record = Object.assign({}, main.record);
+    delete record.smm_ref_visits;
+
+    const out = Object.assign({}, record, { smm_svc: svc, smm_ref_visit_counts: visitCounts });
     return res.status(200).json(out);
   }
 
