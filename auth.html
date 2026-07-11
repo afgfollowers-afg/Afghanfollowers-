@@ -24,8 +24,14 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
 .wrap{width:100%;max-width:440px;}
 
+/* TOP NAV */
+.top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;}
+.top-nav{display:flex;gap:8px;}
+.top-nav a{display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;color:var(--tx);text-decoration:none;transition:border-color .2s;}
+.top-nav a:hover{border-color:var(--acc);}
+
 /* LANG DROPDOWN */
-.lang-wrap{display:flex;justify-content:flex-end;margin-bottom:16px;position:relative;}
+.lang-wrap{display:flex;justify-content:flex-end;position:relative;}
 .lang-sel{display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--tx);transition:border-color .2s;}
 .lang-sel:hover{border-color:var(--acc);}
 .lang-sel svg{flex-shrink:0;}
@@ -130,20 +136,26 @@ body.rtl .btn{font-family:var(--fn-fa);}
 <body>
 <div class="wrap">
 
-<!-- LANGUAGE DROPDOWN -->
-<div class="lang-wrap">
-  <div class="lang-sel" onclick="toggleLangDrop()" id="lang-sel-btn">
-    <span id="lang-flag">🇺🇸</span>
-    <span id="lang-name">English</span>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-  </div>
-  <div class="lang-drop" id="lang-drop">
-    <div class="lang-opt on" onclick="setLang('en',this,'🇺🇸','English')">🇺🇸 English</div>
-    <div class="lang-opt" onclick="setLang('fa',this,'🇮🇷','فارسی')">🇮🇷 فارسی</div>
-    <div class="lang-opt" onclick="setLang('da',this,'🇦🇫','دری')">🇦🇫 دری</div>
-    <div class="lang-opt" onclick="setLang('ps',this,'🇦🇫','پښتو')">🇦🇫 پښتو</div>
-    <div class="lang-opt" onclick="setLang('ar',this,'🌍','العربية')">🌍 العربية</div>
-    <div class="lang-opt" onclick="setLang('tr',this,'🇹🇷','Türkçe')">🇹🇷 Türkçe</div>
+<!-- TOP NAV: Home / Blog + LANGUAGE DROPDOWN -->
+<div class="top-row">
+  <nav class="top-nav">
+    <a href="/"><span>🏠</span><span id="t-home">Home</span></a>
+    <a href="/blog.html"><span>📝</span><span id="t-blog">Blog</span></a>
+  </nav>
+  <div class="lang-wrap">
+    <div class="lang-sel" onclick="toggleLangDrop()" id="lang-sel-btn">
+      <span id="lang-flag">🇺🇸</span>
+      <span id="lang-name">English</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="lang-drop" id="lang-drop">
+      <div class="lang-opt on" onclick="setLang('en',this,'🇺🇸','English')">🇺🇸 English</div>
+      <div class="lang-opt" onclick="setLang('fa',this,'🇮🇷','فارسی')">🇮🇷 فارسی</div>
+      <div class="lang-opt" onclick="setLang('da',this,'🇦🇫','دری')">🇦🇫 دری</div>
+      <div class="lang-opt" onclick="setLang('ps',this,'🇦🇫','پښتو')">🇦🇫 پښتو</div>
+      <div class="lang-opt" onclick="setLang('ar',this,'🌍','العربية')">🌍 العربية</div>
+      <div class="lang-opt" onclick="setLang('tr',this,'🇹🇷','Türkçe')">🇹🇷 Türkçe</div>
+    </div>
   </div>
 </div>
 
@@ -473,6 +485,7 @@ var T={
     back:'Back',cacc:'Create Account',
     foot:'🔒 Your data is protected · Afghan Followers Panel',
     fast:'Instant delivery',safe:'100% secure',cheap:'Best prices',global:'Worldwide',
+    home:'Home',blog:'Blog',
   },
   fa:{rtl:true,
     badge:'🚀 بهترین پنل SMM در افغانستان',
@@ -494,6 +507,7 @@ var T={
     back:'برگشت',cacc:'ایجاد حساب',
     foot:'🔒 اطلاعات شما محافظت می‌شود · پنل افغان فالوورز',
     fast:'تحویل فوری',safe:'۱۰۰٪ امن',cheap:'بهترین قیمت',global:'جهانی',
+    home:'خانه',blog:'وبلاگ',
   },
   da:{rtl:true,
     badge:'🚀 بهترین پنل SMM در افغانستان',
@@ -515,6 +529,7 @@ var T={
     back:'برگشت',cacc:'ثبت حساب',
     foot:'🔒 معلومات شما محافظت می‌شود · پنل افغان فالورز',
     fast:'تحویل فوری',safe:'۱۰۰٪ امن',cheap:'بهترین قیمت',global:'جهانی',
+    home:'خانه',blog:'وبلاگ',
   },
   ps:{rtl:true,
     badge:'🚀 د افغانستان غوره SMM پینل',
@@ -536,6 +551,7 @@ var T={
     back:'شاته',cacc:'حساب جوړول',
     foot:'🔒 ستاسو معلومات خوندي دي · د افغان فالووران پینل',
     fast:'چټک سپارل',safe:'١٠٠٪ خوندي',cheap:'غوره بیه',global:'نړیوال',
+    home:'کور',blog:'ویبلاګ',
   },
   ar:{rtl:true,
     badge:'🚀 أفضل لوحة SMM في أفغانستان',
@@ -557,6 +573,7 @@ var T={
     back:'رجوع',cacc:'إنشاء حساب',
     foot:'🔒 بياناتك محمية · لوحة Afghan Followers',
     fast:'توصيل فوري',safe:'آمن ١٠٠٪',cheap:'أفضل الأسعار',global:'عالمي',
+    home:'الرئيسية',blog:'المدونة',
   },
   tr:{rtl:false,
     badge:'🚀 Afganistan\'ın 1 Numaralı SMM Paneli',
@@ -578,6 +595,7 @@ var T={
     back:'Geri',cacc:'Hesap Oluştur',
     foot:'🔒 Verileriniz korunmaktadır · Afghan Followers Paneli',
     fast:'Anında teslimat',safe:'%100 güvenli',cheap:'En iyi fiyatlar',global:'Dünya çapında',
+    home:'Ana Sayfa',blog:'Blog',
   }
 };
 
@@ -631,6 +649,7 @@ function applyT(t){
     't-back':t.back,'t-cacc':t.cacc,
     't-foot':t.foot,
     'fp-fast':t.fast,'fp-safe':t.safe,'fp-cheap':t.cheap,'fp-global':t.global,
+    't-home':t.home,'t-blog':t.blog,
   };
   Object.keys(m).forEach(function(id){
     var el=document.getElementById(id);
