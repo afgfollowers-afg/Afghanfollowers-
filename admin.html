@@ -437,7 +437,7 @@ textarea.fi{resize:vertical;min-height:75px;}
         </div>
 
         <!-- Row 3: Service dropdown (scoped to the chosen category) + Select button -->
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-end">
+        <div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-end">
           <div style="flex:1;min-width:160px">
             <label class="fl">Service</label>
             <select class="fi" id="qi-svc-dd" style="padding:8px 10px;font-size:13px">
@@ -446,6 +446,9 @@ textarea.fi{resize:vertical;min-height:75px;}
           </div>
           <button class="btn btn-p" style="padding:8px 16px;font-size:13px" onclick="qiSelectServiceDD()">Select</button>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mt);margin-bottom:10px;cursor:pointer">
+          <input type="checkbox" id="qi-svc-group-toggle" checked onchange="qiCatDdChange()"> Group services by category (only applies when "All Categories" is selected)
+        </label>
 
         <!-- Kept in the DOM (hidden) — qiFilter() still reads this; the
              Category dropdown above drives it programmatically. -->
@@ -2783,11 +2786,20 @@ function qiCatDdChange(){
   var CAP=2000;
   var opts=['<option value="">— All Services ('+list.length+') —</option>'];
   var capped=list.slice(0,CAP);
+  var groupToggle=document.getElementById('qi-svc-group-toggle');
+  var shouldGroup=!cat && (!groupToggle || groupToggle.checked);
   if(cat){
     // Already scoped to one category — flat list, no need to group.
     capped.forEach(function(s){
       var svcId=String(s.service||s.id||'');
       opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(s.name)+'</option>');
+    });
+  } else if(!shouldGroup){
+    // "All Categories" with grouping turned off — flat list, category
+    // shown in parentheses so it's still visible per-service.
+    capped.forEach(function(s){
+      var svcId=String(s.service||s.id||'');
+      opts.push('<option value="'+qiEsc(svcId)+'">'+qiEsc(s.name+' ('+(s.category||'Other')+')')+'</option>');
     });
   } else {
     // "All Categories" — group with <optgroup> so browsing the full list
