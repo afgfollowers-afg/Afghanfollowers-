@@ -277,6 +277,8 @@ svg.icon{display:inline-block;vertical-align:middle;}
    CARDS / SECTIONS
 ══════════════════════════════ */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;}
+@keyframes giftWiggle{0%,100%{transform:rotate(0deg) translateY(0);}20%{transform:rotate(-12deg) translateY(-5px);}40%{transform:rotate(9deg) translateY(0);}60%{transform:rotate(-7deg) translateY(-3px);}80%{transform:rotate(5deg) translateY(0);}}
+.gift-emoji{display:inline-block;animation:giftWiggle 1.6s ease-in-out infinite;}
 .card-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
 .card-title{font-size:15px;font-weight:700;color:var(--white);}
 .card-body{padding:16px;}
@@ -544,9 +546,9 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <!-- Free Likes referral promo -->
     <div class="card" id="home-fl-banner" style="margin-bottom:14px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));border:none;cursor:pointer" onclick="navTo('free-likes')">
       <div class="card-body" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
-        <div style="font-size:28px;line-height:1">🎁</div>
+        <div class="gift-emoji" style="font-size:28px;line-height:1">🎁</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:#fff">Free Likes — Invite &amp; Earn</div>
+          <div style="font-size:14px;font-weight:800;color:#fff">🔥 100 Free Likes Waiting For You!</div>
           <div style="font-size:12px;color:rgba(255,255,255,.85)" id="home-fl-sub">Invite 5 friends, get 100 free likes</div>
         </div>
         <div style="font-size:18px;color:#fff">→</div>
@@ -837,15 +839,15 @@ tr:hover td{background:rgba(30,35,54,.5);}
   <!-- ── FREE LIKES / REFERRAL PAGE ── -->
   <div class="page" id="page-free-likes">
     <div style="margin-bottom:16px">
-      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">🎁 Free Likes</div>
+      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px"><span class="gift-emoji" style="display:inline-block">🎁</span> Free Likes</div>
       <div style="font-size:13px;color:var(--muted)">Invite friends, earn free likes</div>
     </div>
 
     <div class="card" style="margin-bottom:14px">
       <div class="card-body" style="padding:16px">
         <div style="font-size:13px;color:var(--text);line-height:1.6">
-          Invite <strong>5 friends</strong> using your referral link below — they must sign up for a real account.
-          Once they join, you can claim <strong>100 free likes</strong> for Instagram or TikTok, once per day.
+          🔥 Invite <strong>5 friends</strong> using your referral link below — they must sign up for a real account.
+          Once they join, claim <strong>100 free likes</strong> ✨ for Instagram or TikTok — totally free, once per day! 😍
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;background:var(--surface2);border-radius:8px;padding:8px 10px">
           ⓘ To keep this fair, an invited friend only counts once their account has been active for 24 hours. Fake or suspended accounts don't count.

@@ -60,6 +60,8 @@ h1.pg{font-size:clamp(24px,4.5vw,34px);font-weight:900;color:var(--wh);margin-bo
 .post-body a{color:var(--acc2);}
 .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--acc2);text-decoration:none;font-size:13px;font-weight:700;margin-bottom:20px;}
 .cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:16px;padding:30px 20px;margin-top:30px;}
+@keyframes giftWiggle{0%,100%{transform:rotate(0deg) translateY(0);}20%{transform:rotate(-12deg) translateY(-6px);}40%{transform:rotate(9deg) translateY(0);}60%{transform:rotate(-7deg) translateY(-4px);}80%{transform:rotate(5deg) translateY(0);}}
+.gift-emoji{display:inline-block;animation:giftWiggle 1.6s ease-in-out infinite;}
 footer{border-top:1px solid var(--bd);margin-top:50px;padding-top:22px;text-align:center;color:var(--mt);font-size:12px;}
 footer a{color:var(--acc2);text-decoration:none;}
 @media(max-width:560px){.grid{grid-template-columns:1fr;}}
@@ -153,10 +155,10 @@ function platformIconHtml(post,sizeClass){
 
 function freeLikesBannerHtml(){
   return '<div class="cta-band" style="margin-bottom:30px;background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">'
-    +'<div style="font-size:32px;margin-bottom:8px">🎁</div>'
-    +'<div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:6px">لایک رایگان بگیرید!</div>'
-    +'<div style="font-size:13px;color:var(--mt);margin-bottom:16px">۵ دوستتان را با لینک اختصاصی‌تان دعوت کنید و ۱۰۰ لایک رایگان اینستاگرام یا تیک‌تاک بگیرید. برای دعوت دوستان و دریافت جایزه، ابتدا باید ثبت‌نام کنید.</div>'
-    +'<a class="btn btn-p" href="/auth.html">🎉 ثبت‌نام کن و دعوت را شروع کن</a>'
+    +'<div class="gift-emoji" style="font-size:38px;margin-bottom:8px">🎁</div>'
+    +'<div style="font-size:19px;font-weight:800;color:#fff;margin-bottom:6px">🔥 ۱۰۰ لایک رایگان منتظرتونه!</div>'
+    +'<div style="font-size:13px;color:var(--mt);margin-bottom:16px">فقط با دعوت <b style="color:#fff">۵ دوست</b> از طریق لینک اختصاصی‌تان، <b style="color:var(--gr)">۱۰۰ لایک رایگان</b> ✨ اینستاگرام یا تیک‌تاک 🎯 مستقیم به حسابتان می‌رسد — کاملاً مجانی! 😍 برای دعوت دوستان، ابتدا باید ثبت‌نام کنید.</div>'
+    +'<a class="btn btn-p" href="/auth.html">🚀 ثبت‌نام رایگان و دریافت لایک هدیه</a>'
     +'</div>';
 }
 
