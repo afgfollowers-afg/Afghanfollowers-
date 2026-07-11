@@ -905,6 +905,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <input type="text" class="form-input" id="fl-claim-link" placeholder="https://instagram.com/p/...">
         </div>
         <button class="btn btn-primary" id="fl-claim-btn" onclick="claimFreeLikes()" disabled>🎁 Claim 100 Free Likes</button>
+        <div id="fl-pending-note" style="display:none;font-size:11px;color:var(--muted);margin-top:10px;text-align:center"></div>
       </div>
     </div>
   </div>
@@ -2378,6 +2379,18 @@ function renderFreeLikes(){
     if(statusEl) statusEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' to unlock your next free reward.';
     if(btn) btn.disabled=true;
   }
+
+  var noteEl=document.getElementById('fl-pending-note');
+  if(noteEl){
+    var myOrders=[];try{myOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e5){}
+    var pendingClaims=myOrders.filter(function(o){return o.free&&String(o.userId)===String(u.id)&&o.status==='pending_approval';});
+    if(pendingClaims.length){
+      noteEl.style.display='block';
+      noteEl.textContent='⏳ '+pendingClaims.length+' claim'+(pendingClaims.length>1?'s':'')+' awaiting admin verification — delivery starts once approved.';
+    }else{
+      noteEl.style.display='none';
+    }
+  }
   updateFreeLikesHomeBanner();
 }
 
@@ -2416,6 +2429,9 @@ function claimFreeLikes(){
     return;
   }
 
+  // Claims are held for manual admin review before any likes are ordered —
+  // status 'pending_approval' keeps this out of sync-orders.js's provider
+  // auto-dispatch (api/sync-orders.js) until an admin explicitly approves it.
   var order={
     id:Date.now(),
     userId:u.id,
@@ -2426,6 +2442,8 @@ function claimFreeLikes(){
     service:matchedSvc.name,
     svc:matchedSvc.name,
     svcName:matchedSvc.name,
+    svcId:matchedSvc.svcId||'',
+    provId:matchedSvc.provId||'',
     link:link,
     qty:100,
     cost:0,
@@ -2433,7 +2451,7 @@ function claimFreeLikes(){
     remain:100,
     cancel:false,
     refill:false,
-    status:'processing',
+    status:'pending_approval',
     free:true,
     date:new Date().toISOString()
   };
@@ -2461,29 +2479,12 @@ function claimFreeLikes(){
     body:JSON.stringify({smm_users:allUsers,smm_orders:allOrders,smm_ts:Date.now()})
   }).catch(function(){});
 
-  // Dispatch to the real provider, same as a normal paid order
-  try{
-    if(matchedSvc.svcId&&matchedSvc.provId){
-      var provs=[];try{provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e2){}
-      var prov=provs.find(function(p){return String(p.id)===String(matchedSvc.provId);});
-      if(prov&&prov.url&&prov.key){
-        fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({providerUrl:prov.url,apiKey:prov.key,service:matchedSvc.svcId,link:link,quantity:100})
-        }).then(function(r){return r.json();}).then(function(d){
-          if(d&&d.order){
-            var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e3){}
-            var lo=ords.find(function(x){return x.id===order.id;});
-            if(lo){lo.provOrderId=d.order;localStorage.setItem('smm_orders',JSON.stringify(ords));}
-          }
-        }).catch(function(){});
-      }
-    }
-  }catch(e4){}
-
-  tgPanelSend('🎁 <b>Free Likes Claimed</b>\nUser: '+order.user+'\nPlatform: '+platform+'\nLink: '+link);
+  // No provider dispatch here — an admin must approve this claim first (see
+  // approveFreeLikes()/rejectFreeLikes() in admin.html).
+  tgPanelSend('🎁 <b>Free Likes Claim — Needs Approval</b>\nUser: '+order.user+'\nPlatform: '+platform+'\nLink: '+link);
 
   if(linkEl) linkEl.value='';
-  showToast('🎉 100 free likes claimed! Check My Orders.','s');
+  showToast('🎉 Claim submitted! Your 100 free likes will start once an admin verifies it.','s');
   renderFreeLikes();
 }
 

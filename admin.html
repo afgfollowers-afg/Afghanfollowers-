@@ -2018,30 +2018,34 @@ function rOrders(list){
     +'<input id="ord-search" class="fi" placeholder="Search..." style="flex:1;padding:7px 10px;font-size:12px" oninput="filterOrdersAdmin()">'
     +'<select id="ord-filter-status" class="fi" style="padding:7px 10px;font-size:12px" onchange="filterOrdersAdmin()">'
     +'<option value="">All Status</option>'
+    +'<option value="pending_approval">🎁 Needs Approval</option>'
     +'<option value="pending">Pending</option><option value="processing">Processing</option>'
     +'<option value="completed">Completed</option><option value="partial">Partial</option>'
     +'<option value="cancelled">Cancelled</option><option value="failed">Failed</option>'
     +'</select></div><div id="ord-cards">';
   sorted.forEach(function(o){
     var st=o.status||'pending';
-    var sc=st==='completed'?'bg':st==='processing'?'bp':st==='failed'?'br':'by';
+    var needsApproval=(st==='pending_approval');
+    var sc=st==='completed'?'bg':st==='processing'?'bp':st==='failed'?'br':needsApproval?'bp':'by';
+    var stLabel=needsApproval?'🎁 Needs Approval':st;
     var cost=parseFloat(o.cost||0);
     var dt=o.date?new Date(o.date).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
     var oid=String(o.id||'');
     h+='<div class="ord-card" data-status="'+st+'" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">'
      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">'
        +'<span style="font-size:12px;color:var(--mt);font-weight:700">#'+oid.slice(-8)+'</span>'
-       +'<span class="b '+sc+'">'+st+'</span>'
-       +'<select data-oid="'+oid+'" onchange="updateOrderStatus(this.dataset.oid,this.value)" style="margin-left:auto;background:var(--s1);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:11px">'
+       +'<span class="b '+sc+'">'+stLabel+'</span>'
+       +(needsApproval?'':
+       '<select data-oid="'+oid+'" onchange="updateOrderStatus(this.dataset.oid,this.value)" style="margin-left:auto;background:var(--s1);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:4px 8px;font-size:11px">'
          +'<option value="pending"'+(st==='pending'?' selected':'')+'>⏳ Pending</option>'
          +'<option value="processing"'+(st==='processing'?' selected':'')+'>⚙️ Processing</option>'
          +'<option value="completed"'+(st==='completed'?' selected':'')+'>✅ Completed</option>'
          +'<option value="partial"'+(st==='partial'?' selected':'')+'>⚡ Partial</option>'
          +'<option value="cancelled"'+(st==='cancelled'?' selected':'')+'>❌ Cancelled</option>'
          +'<option value="failed"'+(st==='failed'?' selected':'')+'>❗ Failed</option>'
-       +'</select>'
+       +'</select>')
      +'</div>'
-     +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:8px">'+(o.service||o.svcName||'—')+'</div>'
+     +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:8px">'+(o.service||o.svcName||'—')+(o.free?' <span class="b bp" style="font-size:9px;vertical-align:middle">🎁 FREE CLAIM</span>':'')+'</div>'
      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;margin-bottom:8px">'
        +'<div><span style="color:var(--mt)">User</span><br><b>'+(o.user||o.email||'—')+'</b></div>'
        +'<div><span style="color:var(--mt)">Charge</span><br><b style="color:var(--gr)">$'+cost.toFixed(4)+'</b></div>'
@@ -2052,6 +2056,10 @@ function rOrders(list){
      +'</div>'
      +(o.link?'<div style="font-size:11px;color:var(--acc2);word-break:break-all;margin-bottom:8px">🔗 <a href="'+o.link+'" target="_blank" style="color:var(--acc2)">'+o.link+'</a></div>':'')
      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+       +(needsApproval?
+         '<button data-oid="'+oid+'" onclick="approveFreeLikes(this.dataset.oid)" style="padding:5px 10px;background:rgba(0,210,160,.15);border:1px solid rgba(0,210,160,.4);color:var(--gr);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">✅ Approve</button>'
+        +'<button data-oid="'+oid+'" onclick="rejectFreeLikes(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.15);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>'
+        :'')
        +'<button data-oid="'+oid+'" onclick="adminSetOrderStart(this.dataset.oid)" style="padding:5px 10px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);border-radius:7px;font-size:11px;cursor:pointer">✏️ Start Count</button>'
        +'<button data-oid="'+oid+'" onclick="adminSetOrderRemain(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);border-radius:7px;font-size:11px;cursor:pointer">📊 Remains</button>'
        +'<button data-oid="'+oid+'" onclick="adminRefundOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);border-radius:7px;font-size:11px;cursor:pointer">💸 Refund</button>'
@@ -3802,6 +3810,67 @@ function adminRefundOrder(id){
   localStorage.setItem('smm_orders',JSON.stringify(orders));
   rOrders(getRealOrders());notifyPanel();pushToServer();
   toast('✅ Refunded $'+cost.toFixed(2)+(u?' to '+(u.fname||u.name||'user'):''),'s');
+}
+
+// Free Likes (referral reward) approval — claims never reach the real
+// provider until an admin explicitly approves them here, closing the loop
+// on the referral system being gamed with fake/self-invited accounts.
+function approveFreeLikes(id){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o){toast('Order not found','e');return;}
+  if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
+  if(!confirm('Approve this free-likes claim for '+(o.user||o.email||'user')+' and start delivery to:\n'+o.link+'?')) return;
+
+  o.status='processing';
+  o.approvedAt=new Date().toISOString();
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+
+  // Dispatch to the real provider now that it's approved
+  if(o.svcId&&o.provId){
+    var provs=[];try{provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e){}
+    var prov=provs.find(function(p){return String(p.id)===String(o.provId);});
+    if(prov&&prov.url&&prov.key){
+      fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({providerUrl:prov.url,apiKey:prov.key,service:o.svcId,link:o.link,quantity:o.qty})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d&&d.order){
+          var ords2=getRealOrders();
+          var lo=ords2.find(function(x){return String(x.id)===String(o.id);});
+          if(lo){lo.provOrderId=d.order;localStorage.setItem('smm_orders',JSON.stringify(ords2));}
+        }
+      }).catch(function(){});
+    }
+  }
+
+  rOrders(getRealOrders());notifyPanel();pushToServer();
+  toast('✅ Approved — delivery started','s');
+}
+
+function rejectFreeLikes(id){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o){toast('Order not found','e');return;}
+  if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
+  var reason=prompt('Reason for rejecting this claim (kept for your records):','Suspicious invite activity');
+  if(reason===null) return;
+
+  o.status='cancelled';
+  o.rejectReason=reason||'Rejected by admin';
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+
+  // Give the unlock back — a rejected claim (e.g. wrong link) shouldn't cost
+  // the user their earned reward, and clearing the cooldown lets them retry.
+  var users=getRealUsers();
+  var u=users.find(function(x){return String(x.id)===String(o.userId);});
+  if(u){
+    u.freeLikesClaims=Math.max(0,(parseInt(u.freeLikesClaims)||0)-1);
+    delete u.lastClaimAt;
+    localStorage.setItem('smm_users',JSON.stringify(users));
+  }
+
+  rOrders(getRealOrders());notifyPanel();pushToServer();
+  toast('❌ Claim rejected — reward returned to user','s');
 }
 
 // Ticket Management
