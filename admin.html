@@ -234,6 +234,10 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="ni" onclick="go('users',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users<span class="nbg" id="nb-u">8</span></div>
     <div class="ni" onclick="go('orders',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Orders</div>
     <div class="ni" onclick="go('services',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Services</div>
+    <div class="ni" onclick="go('announcements',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
+    <div class="ni" onclick="go('blog',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Blog</div>
+    <div class="ni" onclick="go('emailauto',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>Email Automation</div>
+    <div class="ni" onclick="go('invites',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>User Invites</div>
     <div class="sb-sec">Finance</div>
     <div class="ni" onclick="go('payments',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Payments</div>
     <div class="ni" onclick="go('wallets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>Wallets</div>
@@ -535,171 +539,33 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="md-f"><button class="btn btn-g" onclick="cm('m-create-cat')">Cancel</button><button class="btn btn-p" onclick="createCategory()">Create</button></div>
     </div></div>
 
-    <!-- PAYMENTS -->
-
-    <!-- PAYMENTS -->
-    <div class="page" id="pg-payments">
+    <!-- ANNOUNCEMENTS -->
+    <div class="page" id="pg-announcements">
       <div class="sec">
-        <div class="sec-h">
-          <div class="sec-t">💳 Payment Requests</div>
-          <select class="fi btn-sm" style="font-size:12px" onchange="filterPayReq(this.value)"><option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
-        </div>
-        <div class="tw" id="pay-req-tbl"></div>
-      </div>
-    </div>
-
-    <!-- WALLETS -->
-    <div class="page" id="pg-wallets">
-      <div class="sec">
-        <div class="sec-h"><div class="sec-t">💼 User Wallets</div><button class="btn btn-p btn-sm" onclick="om('m-add-bal')">+ Add Balance</button></div>
-        <div class="tw" id="wallets-tbl"></div>
-      </div>
-    </div>
-
-    <!-- TICKETS -->
-    <div class="page" id="pg-tickets">
-      <div class="sec">
-        <div class="sec-h">
-          <div class="sec-t">🎫 Support Tickets</div>
-          <select class="fi btn-sm" style="font-size:12px" onchange="filterTickets(this.value)"><option value="all">All</option><option value="open">Open</option><option value="pending">Pending</option><option value="closed">Closed</option></select>
-        </div>
-        <div class="tw" id="tickets-tbl"></div>
-      </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div class="page" id="pg-settings">
-      <div class="set-wrap">
-        <div class="set-menu" id="set-menu">
-          <div class="set-mi on" onclick="setSec('general',this)">General</div>
-          <div class="set-mi" onclick="setSec('providers',this)">Providers</div>
-          <div class="set-mi" onclick="setSec('payments',this)">Payments</div>
-          <div class="set-mi" onclick="setSec('modules',this)">Modules</div>
-          <div class="set-mi" onclick="setSec('integrations',this)">Integrations</div>
-          <div class="set-mi" onclick="setSec('bonuses',this)">Bonuses</div>
-          <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
-          <div class="set-mi" onclick="setSec('announcements',this)">📢 Announcements</div>
-          <div class="set-mi" onclick="setSec('blog',this)">📝 Blog</div>
-          <div class="set-mi" onclick="setSec('emailauto',this)">🤖 Email Automation</div>
-          <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
-          <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
-          <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
-        </div>
-        <div class="set-body">
-
-          <!-- GENERAL -->
-          <div class="set-pnl on" id="sp-general">
-            <div class="fgrid">
-              <div class="fg full"><label class="fl">Site Logo</label><input type="file" class="fi" style="padding:6px" accept="image/*"></div>
-              <div class="fg"><label class="fl">Website Name</label><input class="fi" value="Afghan Followers" id="g-name"></div>
-              <div class="fg"><label class="fl">Website URL</label><input class="fi" value="https://afghanfollowers.online" id="g-url"></div>
-              <div class="fg"><label class="fl">Maintenance Mode</label><select class="fi" id="g-maint"><option value="Inactive">Inactive</option><option value="Active">Active</option></select></div>
-              <div class="fg"><label class="fl">Registration</label><select class="fi" id="g-reg"><option value="Open">Open</option><option value="Invite Only">Invite Only</option><option value="Closed">Closed</option></select></div>
-              <div class="fg"><label class="fl">Default Currency</label>
-                <select class="fi" id="g-currency" onchange="saveCurrencyNow(this.value)">
-                  <option value="USD">🇺🇸 USD — US Dollar ($)</option>
-                  <option value="EUR">🇪🇺 EUR — Euro (€)</option>
-                  <option value="GBP">🇬🇧 GBP — British Pound (£)</option>
-                  <option value="AFN">🇦🇫 AFN — Afghan Afghani (؋)</option>
-                  <option value="IRR">🇮🇷 IRR — Iranian Rial (﷼)</option>
-                  <option value="AED">🇦🇪 AED — UAE Dirham (د.إ)</option>
-                  <option value="PKR">🇵🇰 PKR — Pakistani Rupee (₨)</option>
-                  <option value="TRY">🇹🇷 TRY — Turkish Lira (₺)</option>
-                  <option value="SAR">🇸🇦 SAR — Saudi Riyal (﷼)</option>
-                  <option value="USDT">₮ USDT — Tether (USDT)</option>
-                </select>
-              </div>
-              <div class="fg"><label class="fl">Default Language</label>
-                <select class="fi" id="g-lang">
-                  <option value="en">🇺🇸 English</option>
-                  <option value="fa">🇮🇷 فارسی</option>
-                  <option value="da">🇦🇫 دری</option>
-                  <option value="ps">🇦🇫 پښتو</option>
-                </select>
-              </div>
-              <div class="fg"><label class="fl">Support Email</label><input class="fi" value="support@afghanfollowers.online" id="g-email"></div>
-              <div class="fg"><label class="fl">WhatsApp Number</label><input class="fi" value="+93700000000" id="g-whatsapp"></div>
-              <div class="fg"><label class="fl">Minimum Order ($)</label><input type="number" class="fi" value="1" id="g-min-order"></div>
-              <div class="fg"><label class="fl">Rates Rounding</label>
-                <select class="fi" id="g-rounding">
-                  <option value="2">2 decimals</option>
-                  <option value="4">4 decimals</option>
-                  <option value="0">No rounding</option>
-                </select>
-              </div>
-              <div class="fg"><label class="fl">Total Users (shown on auth page)</label><input type="number" class="fi" value="12847" id="g-totalUsers"></div>
-              <div class="fg"><label class="fl">Total Orders (shown on auth page)</label><input type="number" class="fi" value="94312" id="g-totalOrders"></div>
-              <div class="fg full"><button class="btn btn-p" onclick="saveGeneral()">💾 Save Changes</button></div>
-            </div>
-          </div>
-
-          <!-- PROVIDERS -->
-          <div class="set-pnl" id="sp-providers">
-            <div style="display:flex;gap:10px;margin-bottom:14px">
-              <button class="btn btn-p" onclick="om('m-add-prov')">Add New Provider</button>
-              <input type="text" class="fi" placeholder="Search Providers..." style="flex:1" oninput="filterProviders(this.value)">
-            </div>
-            <div id="prov-warn" style="background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--rd);margin-bottom:13px;display:none"></div>
-            <div class="tw" id="prov-tbl"></div>
-          </div>
-
-          <!-- PAYMENTS -->
-          <div class="set-pnl" id="sp-payments">
-            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-              <button class="btn btn-p" onclick="om('m-add-pm')">+ Add Payment Method</button>
-              <button class="btn btn-s" onclick="applyToPanel()" title="Save current settings so user panel shows updated methods">✅ Save & Apply to Panel</button>
-              <span id="apply-status" style="font-size:12px;color:var(--mt)"></span>
-            </div>
-            <div style="background:rgba(0,210,160,.08);border:1px solid rgba(0,210,160,.2);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--gr);margin-bottom:14px">
-              💡 Toggle the switch next to each method to enable/disable it in the user panel. Then click <strong>Save & Apply to Panel</strong>.
-            </div>
-            <div class="tw" id="pm-tbl"></div>
-          </div>
-
-          <!-- MODULES -->
-          <div class="set-pnl" id="sp-modules">
-            <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Enable or disable panel modules</div>
-            <div id="mod-list"></div>
-          </div>
-
-          <!-- INTEGRATIONS -->
-          <div class="set-pnl" id="sp-integrations">
-            <div style="font-size:13px;font-weight:700;margin-bottom:10px">Active</div>
-            <div id="intg-a"></div>
-            <div style="font-size:13px;font-weight:700;margin:16px 0 10px">Telegram Bot</div>
-            <div id="intg-tg"></div>
-            <div style="font-size:13px;font-weight:700;margin:16px 0 10px">Other</div>
-            <div id="intg-o"></div>
-          </div>
-
-          <!-- BONUSES -->
-          <div class="set-pnl" id="sp-bonuses">
-            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-bonus')">Add Bonus Rule +</button>
-            <div class="tw" id="bon-tbl"></div>
-          </div>
-
-          <!-- COUPONS -->
-          <div class="set-pnl" id="sp-coupons">
-            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-coupon')">Add Coupon +</button>
-            <div class="tw" id="cup-tbl"></div>
-          </div>
-
-          <!-- ANNOUNCEMENTS -->
-          <div class="set-pnl" id="sp-announcements">
+        <div class="sec-h"><div class="sec-t">📢 Announcements</div></div>
+        <div style="padding:18px">
             <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Shown as a dismissible banner at the top of the customer panel. Each customer only sees a given announcement until they close it.</div>
             <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddAnn()">Add Announcement +</button>
             <div class="tw" id="ann-tbl"></div>
-          </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- BLOG -->
-          <div class="set-pnl" id="sp-blog">
+    <!-- BLOG -->
+    <div class="page" id="pg-blog">
+      <div class="sec">
+        <div class="sec-h"><div class="sec-t">📝 Blog</div></div>
+        <div style="padding:18px">
             <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Public blog posts at <a href="/blog.html" target="_blank" style="color:var(--acc2)">/blog.html</a> — helps SEO by giving Google fresh, keyword-rich pages to index. Publishing a post also broadcasts it to your Telegram channel (if configured under Integrations).</div>
             <button class="btn btn-p" style="margin-bottom:14px" onclick="openAddBlog()">Add Blog Post +</button>
             <div class="tw" id="blog-tbl"></div>
-          </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- EMAIL AUTOMATION -->
-          <div class="set-pnl" id="sp-emailauto">
+    <!-- EMAIL AUTOMATION -->
+    <div class="page" id="pg-emailauto">
+      <div id="sp-emailauto">
             <div style="font-size:12px;color:var(--mt);margin-bottom:16px">Automatically sends emails to inactive users every Monday via a server-side cron (Resend API) — works even with this tab closed.</div>
 
             <div class="stat-grid">
@@ -882,6 +748,165 @@ textarea.fi{resize:vertical;min-height:75px;}
               </div>
               <div class="cb"><div class="log" id="ea-log"><div style="color:var(--mt)">No activity yet.</div></div></div>
             </div>
+      </div>
+    </div>
+
+    <!-- USER INVITE STATUS -->
+    <div class="page" id="pg-invites">
+      <div class="sec">
+        <div class="sec-h">
+          <div class="sec-t">🎁 User Invite Status</div>
+          <div class="sec-a"><input id="inv-search" class="fi" placeholder="Search..." style="width:180px;padding:7px 10px;font-size:12px" oninput="rInviteStatus()"></div>
+        </div>
+        <div style="font-size:12px;color:var(--mt);padding:14px 18px 0">How many friends each user has invited into the Free Likes referral program, plus their visit-tracking and reward progress.</div>
+        <div class="tw" id="inv-tbl" style="padding:14px 18px"></div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS -->
+
+    <!-- PAYMENTS -->
+    <div class="page" id="pg-payments">
+      <div class="sec">
+        <div class="sec-h">
+          <div class="sec-t">💳 Payment Requests</div>
+          <select class="fi btn-sm" style="font-size:12px" onchange="filterPayReq(this.value)"><option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+        </div>
+        <div class="tw" id="pay-req-tbl"></div>
+      </div>
+    </div>
+
+    <!-- WALLETS -->
+    <div class="page" id="pg-wallets">
+      <div class="sec">
+        <div class="sec-h"><div class="sec-t">💼 User Wallets</div><button class="btn btn-p btn-sm" onclick="om('m-add-bal')">+ Add Balance</button></div>
+        <div class="tw" id="wallets-tbl"></div>
+      </div>
+    </div>
+
+    <!-- TICKETS -->
+    <div class="page" id="pg-tickets">
+      <div class="sec">
+        <div class="sec-h">
+          <div class="sec-t">🎫 Support Tickets</div>
+          <select class="fi btn-sm" style="font-size:12px" onchange="filterTickets(this.value)"><option value="all">All</option><option value="open">Open</option><option value="pending">Pending</option><option value="closed">Closed</option></select>
+        </div>
+        <div class="tw" id="tickets-tbl"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="pg-settings">
+      <div class="set-wrap">
+        <div class="set-menu" id="set-menu">
+          <div class="set-mi on" onclick="setSec('general',this)">General</div>
+          <div class="set-mi" onclick="setSec('providers',this)">Providers</div>
+          <div class="set-mi" onclick="setSec('payments',this)">Payments</div>
+          <div class="set-mi" onclick="setSec('modules',this)">Modules</div>
+          <div class="set-mi" onclick="setSec('integrations',this)">Integrations</div>
+          <div class="set-mi" onclick="setSec('bonuses',this)">Bonuses</div>
+          <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
+          <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
+          <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
+          <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
+        </div>
+        <div class="set-body">
+
+          <!-- GENERAL -->
+          <div class="set-pnl on" id="sp-general">
+            <div class="fgrid">
+              <div class="fg full"><label class="fl">Site Logo</label><input type="file" class="fi" style="padding:6px" accept="image/*"></div>
+              <div class="fg"><label class="fl">Website Name</label><input class="fi" value="Afghan Followers" id="g-name"></div>
+              <div class="fg"><label class="fl">Website URL</label><input class="fi" value="https://afghanfollowers.online" id="g-url"></div>
+              <div class="fg"><label class="fl">Maintenance Mode</label><select class="fi" id="g-maint"><option value="Inactive">Inactive</option><option value="Active">Active</option></select></div>
+              <div class="fg"><label class="fl">Registration</label><select class="fi" id="g-reg"><option value="Open">Open</option><option value="Invite Only">Invite Only</option><option value="Closed">Closed</option></select></div>
+              <div class="fg"><label class="fl">Default Currency</label>
+                <select class="fi" id="g-currency" onchange="saveCurrencyNow(this.value)">
+                  <option value="USD">🇺🇸 USD — US Dollar ($)</option>
+                  <option value="EUR">🇪🇺 EUR — Euro (€)</option>
+                  <option value="GBP">🇬🇧 GBP — British Pound (£)</option>
+                  <option value="AFN">🇦🇫 AFN — Afghan Afghani (؋)</option>
+                  <option value="IRR">🇮🇷 IRR — Iranian Rial (﷼)</option>
+                  <option value="AED">🇦🇪 AED — UAE Dirham (د.إ)</option>
+                  <option value="PKR">🇵🇰 PKR — Pakistani Rupee (₨)</option>
+                  <option value="TRY">🇹🇷 TRY — Turkish Lira (₺)</option>
+                  <option value="SAR">🇸🇦 SAR — Saudi Riyal (﷼)</option>
+                  <option value="USDT">₮ USDT — Tether (USDT)</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">Default Language</label>
+                <select class="fi" id="g-lang">
+                  <option value="en">🇺🇸 English</option>
+                  <option value="fa">🇮🇷 فارسی</option>
+                  <option value="da">🇦🇫 دری</option>
+                  <option value="ps">🇦🇫 پښتو</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">Support Email</label><input class="fi" value="support@afghanfollowers.online" id="g-email"></div>
+              <div class="fg"><label class="fl">WhatsApp Number</label><input class="fi" value="+93700000000" id="g-whatsapp"></div>
+              <div class="fg"><label class="fl">Minimum Order ($)</label><input type="number" class="fi" value="1" id="g-min-order"></div>
+              <div class="fg"><label class="fl">Rates Rounding</label>
+                <select class="fi" id="g-rounding">
+                  <option value="2">2 decimals</option>
+                  <option value="4">4 decimals</option>
+                  <option value="0">No rounding</option>
+                </select>
+              </div>
+              <div class="fg"><label class="fl">Total Users (shown on auth page)</label><input type="number" class="fi" value="12847" id="g-totalUsers"></div>
+              <div class="fg"><label class="fl">Total Orders (shown on auth page)</label><input type="number" class="fi" value="94312" id="g-totalOrders"></div>
+              <div class="fg full"><button class="btn btn-p" onclick="saveGeneral()">💾 Save Changes</button></div>
+            </div>
+          </div>
+
+          <!-- PROVIDERS -->
+          <div class="set-pnl" id="sp-providers">
+            <div style="display:flex;gap:10px;margin-bottom:14px">
+              <button class="btn btn-p" onclick="om('m-add-prov')">Add New Provider</button>
+              <input type="text" class="fi" placeholder="Search Providers..." style="flex:1" oninput="filterProviders(this.value)">
+            </div>
+            <div id="prov-warn" style="background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--rd);margin-bottom:13px;display:none"></div>
+            <div class="tw" id="prov-tbl"></div>
+          </div>
+
+          <!-- PAYMENTS -->
+          <div class="set-pnl" id="sp-payments">
+            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+              <button class="btn btn-p" onclick="om('m-add-pm')">+ Add Payment Method</button>
+              <button class="btn btn-s" onclick="applyToPanel()" title="Save current settings so user panel shows updated methods">✅ Save & Apply to Panel</button>
+              <span id="apply-status" style="font-size:12px;color:var(--mt)"></span>
+            </div>
+            <div style="background:rgba(0,210,160,.08);border:1px solid rgba(0,210,160,.2);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--gr);margin-bottom:14px">
+              💡 Toggle the switch next to each method to enable/disable it in the user panel. Then click <strong>Save & Apply to Panel</strong>.
+            </div>
+            <div class="tw" id="pm-tbl"></div>
+          </div>
+
+          <!-- MODULES -->
+          <div class="set-pnl" id="sp-modules">
+            <div style="font-size:12px;color:var(--mt);margin-bottom:13px">Enable or disable panel modules</div>
+            <div id="mod-list"></div>
+          </div>
+
+          <!-- INTEGRATIONS -->
+          <div class="set-pnl" id="sp-integrations">
+            <div style="font-size:13px;font-weight:700;margin-bottom:10px">Active</div>
+            <div id="intg-a"></div>
+            <div style="font-size:13px;font-weight:700;margin:16px 0 10px">Telegram Bot</div>
+            <div id="intg-tg"></div>
+            <div style="font-size:13px;font-weight:700;margin:16px 0 10px">Other</div>
+            <div id="intg-o"></div>
+          </div>
+
+          <!-- BONUSES -->
+          <div class="set-pnl" id="sp-bonuses">
+            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-bonus')">Add Bonus Rule +</button>
+            <div class="tw" id="bon-tbl"></div>
+          </div>
+
+          <!-- COUPONS -->
+          <div class="set-pnl" id="sp-coupons">
+            <button class="btn btn-p" style="margin-bottom:14px" onclick="om('m-add-coupon')">Add Coupon +</button>
+            <div class="tw" id="cup-tbl"></div>
           </div>
 
           <!-- EMAIL -->
@@ -896,7 +921,7 @@ textarea.fi{resize:vertical;min-height:75px;}
             </div>
             <div style="font-size:13px;font-weight:700;margin-bottom:10px">Notification Events</div>
             <div id="eml-list"></div>
-            <div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-p" onclick="saveEmailSettings()">Save SMTP Settings</button><button class="btn btn-g" onclick="setSec('emailauto', document.querySelector('.set-mi[onclick*=emailauto]'))" style="display:flex;align-items:center;gap:6px">🤖 Email Automation</button></div>
+            <div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-p" onclick="saveEmailSettings()">Save SMTP Settings</button><button class="btn btn-g" onclick="go('emailauto', document.querySelector(&quot;.ni[onclick*=emailauto]&quot;))" style="display:flex;align-items:center;gap:6px">🤖 Email Automation</button></div>
           </div>
 
           <!-- SIGNUP -->
@@ -1751,7 +1776,7 @@ var pc={instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',tiktok:'#010
 var _selTk=null;
 
 // ═══ NAV ═══
-var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',payments:'Payments',wallets:'Wallets',tickets:'Tickets',settings:'Settings'};
+var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',tickets:'Tickets',settings:'Settings'};
 function go(pg,el){
   // Hide all pages
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
@@ -1778,6 +1803,10 @@ function go(pg,el){
   else if(pg==='users') rUsers(getRealUsers());
   else if(pg==='orders'){rOrders(getRealOrders());rRefVisitQueue();}
   else if(pg==='services') rSvcs();
+  else if(pg==='announcements') rAnnouncements();
+  else if(pg==='blog') rBlog();
+  else if(pg==='emailauto') eaInit();
+  else if(pg==='invites') rInviteStatus();
   else if(pg==='payments') rPayReqs(getRealPayments());
   else if(pg==='wallets') rWallets(getRealUsers());
   else if(pg==='tickets') rTickets(getRealTickets());
@@ -4543,9 +4572,6 @@ function setSec(id, el){
   if(id==='integrations') rIntg();
   if(id==='bonuses') rBonuses();
   if(id==='coupons') rCoupons();
-  if(id==='announcements') rAnnouncements();
-  if(id==='blog') rBlog();
-  if(id==='emailauto') eaInit();
   if(id==='email') rEmail();
   if(id==='signup') rSignup();
   if(id==='security') rSecurity();
@@ -5364,6 +5390,60 @@ function rBlog(){
   document.getElementById('blog-tbl').innerHTML=h+'</tbody></table>';
 }
 function escHtmlAdmin(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
+
+// User Invite Status — per-user Free Likes referral progress: how many
+// friends each user has invited, how many of those actually count
+// (active 24h+, per the same rule smm-panel.html applies), link-visit
+// count for the "invite 100 → 50 visits" path, and rewards claimed so far.
+function rInviteStatus(){
+  var tbl=document.getElementById('inv-tbl');
+  if(!tbl) return;
+  var users=getRealUsers();
+  var q=((document.getElementById('inv-search')||{}).value||'').trim().toLowerCase();
+  var visitCounts={};try{visitCounts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e){}
+
+  var ACCEPT_MS=24*60*60*1000;
+  function refCode(u){return u.id?Number(u.id).toString(36).toUpperCase():'';}
+
+  var rows=users.map(function(u){
+    var code=refCode(u);
+    var invited=users.filter(function(x){return x.id!==u.id&&x.inviteCode&&x.inviteCode.toUpperCase()===code;});
+    var accepted=invited.filter(function(f){
+      if(!f||f.status!=='active') return false;
+      var joinedTs=f.joined?new Date(f.joined).getTime():0;
+      return joinedTs>0&&(Date.now()-joinedTs)>=ACCEPT_MS;
+    });
+    return {
+      u:u, code:code,
+      invitedCount:invited.length,
+      acceptedCount:accepted.length,
+      visits:parseInt(visitCounts[code])||0,
+      claims:(parseInt(u.freeLikesClaims)||0)+(parseInt(u.flVisitUnlocks)||0)
+    };
+  }).filter(function(r){
+    if(!q) return true;
+    var name=((r.u.fname||r.u.name||'')+' '+(r.u.lname||'')+' '+(r.u.email||'')+' '+r.code).toLowerCase();
+    return name.indexOf(q)>-1;
+  }).filter(function(r){
+    return r.invitedCount>0||r.visits>0||r.claims>0; // hide users with nothing to show
+  }).sort(function(a,b){return (b.invitedCount+b.visits)-(a.invitedCount+a.visits);});
+
+  if(!rows.length){tbl.innerHTML='<div class="emp"><div class="emp-i">🎁</div><div class="emp-t">No invite activity yet</div></div>';return;}
+
+  var h='<table><thead><tr><th>User</th><th>Code</th><th>Invited</th><th>Accepted (24h+)</th><th>Link Visits</th><th>Rewards Claimed</th></tr></thead><tbody>';
+  h+=rows.map(function(r){
+    var name=((r.u.fname||r.u.name||'')+' '+(r.u.lname||'')).trim()||r.u.email||('User#'+r.u.id);
+    return '<tr>'
+      +'<td><b>'+escHtmlAdmin(name)+'</b><br><span style="color:var(--mt);font-size:11px">'+escHtmlAdmin(r.u.email||r.u.phone||'')+'</span></td>'
+      +'<td><span class="b bp">'+r.code+'</span></td>'
+      +'<td>'+r.invitedCount+'</td>'
+      +'<td><b style="color:var(--gr)">'+r.acceptedCount+'</b> / 5</td>'
+      +'<td>'+r.visits+' / 50</td>'
+      +'<td>'+r.claims+'</td>'
+      +'</tr>';
+  }).join('');
+  tbl.innerHTML=h+'</tbody></table>';
+}
 function delBlog(i){var list=getBlogPosts();list.splice(i,1);saveBlogPosts(list);rBlog();toast('Blog post deleted','e');}
 var BLOG_PLATFORM_EMOJI={instagram:'📷',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'📘',other:'📝'};
 function blogPlatformEmoji(p){return BLOG_PLATFORM_EMOJI[p.platform]||p.emoji||'📝';}
@@ -6519,6 +6599,19 @@ function pullFromServer(){
       if(refQChanged){
         var activePgQ=document.querySelector('.page.on');
         if(activePgQ&&activePgQ.id==='pg-orders') rRefVisitQueue();
+      }
+      var refVisitsChanged=false;
+      if(d.smm_ref_visit_counts&&typeof d.smm_ref_visit_counts==='object'){
+        var localRvc=localStorage.getItem('smm_ref_visit_counts')||'{}';
+        var newRvc=JSON.stringify(d.smm_ref_visit_counts);
+        if(newRvc!==localRvc){
+          localStorage.setItem('smm_ref_visit_counts',newRvc);
+          refVisitsChanged=true;
+        }
+      }
+      if(refVisitsChanged){
+        var activePgV=document.querySelector('.page.on');
+        if(activePgV&&activePgV.id==='pg-invites') rInviteStatus();
       }
       if(changed){
         loadAllRealData();
