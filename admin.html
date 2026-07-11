@@ -1276,7 +1276,7 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div style="font-size:12px;font-weight:700;color:var(--acc2);margin-bottom:6px">💳 Wallet Transactions</div>
     <div id="ur-tx" style="overflow-x:auto;border:1px solid var(--bd);border-radius:9px"></div>
   </div>
-  <div class="md-f"><button class="btn btn-g" onclick="cm('m-user-report')">Close</button></div>
+  <div class="md-f"><button class="btn btn-g" onclick="cm('m-user-report')">Close</button><button class="btn btn-p" onclick="printUserReport()">🖨️ Print / Save as PDF</button></div>
 </div></div>
 
 <!-- Edit Payment Method Modal -->
@@ -1903,7 +1903,9 @@ function filterUsers(q){q=q.toLowerCase();rUsers(q?users.filter(function(u){retu
 
 // Full spending/deposit/refund history for one user — for evaluating
 // refund requests, disputes, etc. without having to cross-reference the
-// Orders and Payments tabs by hand.
+// Orders and Payments tabs by hand. Also printable/exportable as a PDF
+// (see printUserReport) to submit as evidence in a PayPal dispute.
+var _urLastReport=null;
 function showUserReport(id){
   var u=getRealUsers().find(function(x){return String(x.id)===String(id);});
   if(!u){toast('User not found','e');return;}
@@ -1915,6 +1917,7 @@ function showUserReport(id){
   var totalRefunded=tx.filter(function(t){return t.type==='refund';}).reduce(function(s,t){return s+Math.abs(txAmt(t));},0);
 
   var uname=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+  _urLastReport={u:u,uname:uname,orders:orders,tx:tx,txAmt:txAmt,totalSpent:totalSpent,totalDeposited:totalDeposited,totalRefunded:totalRefunded};
   document.getElementById('ur-title').textContent='📊 Spending Report — '+uname;
 
   document.getElementById('ur-summary').innerHTML=[
@@ -1947,6 +1950,51 @@ function showUserReport(id){
   document.getElementById('ur-tx').innerHTML=txHtml;
 
   om('m-user-report');
+}
+
+// Opens a clean, standalone printable version of the last-shown report and
+// triggers the browser's print dialog — from there "Save as PDF" produces a
+// file the admin can upload as evidence in a PayPal (or other) dispute.
+function printUserReport(){
+  if(!_urLastReport){toast('Open a report first','e');return;}
+  var r=_urLastReport;
+  var siteName='Afghan Followers';
+  var esc=function(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;};
+  var ordersRows=r.orders.slice().sort(function(a,b){return (b.id||0)-(a.id||0);}).map(function(o){
+    return '<tr><td>#'+esc(String(o.id).slice(-6))+'</td><td>'+esc(o.service||o.svcName||'—')+'</td><td>'+esc(o.qty||0)+'</td>'
+      +'<td>$'+(parseFloat(o.cost)||0).toFixed(2)+'</td><td>'+esc(o.status||'pending')+'</td><td>'+(o.date?esc(new Date(o.date).toLocaleString()):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:#888">No orders</td></tr>';
+  var txRows=r.tx.slice().sort(function(a,b){return (b.id||0)-(a.id||0);}).map(function(t){
+    return '<tr><td>'+esc(t.type||'—')+'</td><td>$'+r.txAmt(t).toFixed(2)+'</td><td>'+esc(t.desc||'—')+'</td><td>'+esc(t.status||'—')+'</td><td>'+(t.date?esc(new Date(t.date).toLocaleString()):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:#888">No transactions</td></tr>';
+
+  var html='<!doctype html><html><head><meta charset="utf-8"><title>Spending Report — '+esc(r.uname)+'</title><style>'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:32px;max-width:800px;margin:0 auto}'
+    +'h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:24px 0 8px;color:#444}'
+    +'.meta{color:#666;font-size:12px;margin-bottom:20px}'
+    +'.stats{display:flex;gap:14px;margin-bottom:10px;flex-wrap:wrap}'
+    +'.stat{border:1px solid #ddd;border-radius:8px;padding:10px 14px;min-width:140px}'
+    +'.stat .l{font-size:10px;color:#777}.stat .v{font-size:16px;font-weight:700}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}'
+    +'th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f3f3f3}'
+    +'@media print{body{padding:0}}'
+    +'</style></head><body>'
+    +'<h1>'+siteName+' — Customer Spending Report</h1>'
+    +'<div class="meta">Customer: <b>'+esc(r.uname)+'</b> ('+esc(r.u.email||r.u.phone||'—')+') &nbsp;•&nbsp; Generated: '+esc(new Date().toLocaleString())+'</div>'
+    +'<div class="stats">'
+      +'<div class="stat"><div class="l">CURRENT BALANCE</div><div class="v">$'+(parseFloat(r.u.balance)||0).toFixed(2)+'</div></div>'
+      +'<div class="stat"><div class="l">TOTAL SPENT (ORDERS)</div><div class="v">$'+r.totalSpent.toFixed(2)+'</div></div>'
+      +'<div class="stat"><div class="l">TOTAL DEPOSITED</div><div class="v">$'+r.totalDeposited.toFixed(2)+'</div></div>'
+      +'<div class="stat"><div class="l">TOTAL REFUNDED</div><div class="v">$'+r.totalRefunded.toFixed(2)+'</div></div>'
+    +'</div>'
+    +'<h2>Orders</h2><table><thead><tr><th>ID</th><th>Service</th><th>Qty</th><th>Cost</th><th>Status</th><th>Date</th></tr></thead><tbody>'+ordersRows+'</tbody></table>'
+    +'<h2>Wallet Transactions</h2><table><thead><tr><th>Type</th><th>Amount</th><th>Description</th><th>Status</th><th>Date</th></tr></thead><tbody>'+txRows+'</tbody></table>'
+    +'</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){toast('Popup blocked — allow popups to print/export','e');return;}
+  w.document.open();w.document.write(html);w.document.close();
+  w.onload=function(){ w.focus(); w.print(); };
 }
 function addUser(){
   var name=document.getElementById('nu-name').value.trim(),email=document.getElementById('nu-email').value.trim();
