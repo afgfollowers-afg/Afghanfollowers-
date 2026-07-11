@@ -1579,6 +1579,7 @@ function viewMyTicket(id){
   var ex=document.getElementById('m-view-ticket-user');if(ex)ex.remove();
   var div=document.createElement('div');div.className='modal-overlay';div.id='m-view-ticket-user';
   div.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end';
+  div.onclick=function(e){ if(e.target===div) div.remove(); }; // tap the backdrop to dismiss
   div.innerHTML='<div style="background:var(--card);border-radius:16px 16px 0 0;padding:20px;width:100%;max-height:80vh;overflow-y:auto">'+
     '<div style="font-size:16px;font-weight:700;margin-bottom:12px">'+t.subject+'</div>'+
     msgs.map(function(m){
@@ -1591,6 +1592,7 @@ function viewMyTicket(id){
     '<button id="tkt-close-btn" style="width:100%;padding:12px;background:var(--bg);border:none;border-radius:10px;color:var(--text);font-size:14px;margin-top:12px;cursor:pointer">Close</button>'+
     '</div>';
   document.body.appendChild(div);
+  document.getElementById('tkt-close-btn').onclick=function(){ div.remove(); };
 }
 
 function loadTgBotLink(){
