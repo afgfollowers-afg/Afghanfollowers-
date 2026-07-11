@@ -2182,36 +2182,19 @@ function updatePrice(){
 }
 
 // ORDER
+var FINISHED_ORDER_STATUSES=['completed','cancelled','canceled','refunded','failed','partial'];
 function placeOrder(){
   var link=document.getElementById('order-link');
   if(!link||!link.value.trim()){showToast('Please enter target link/username','e');return;}
-  
-  // Prevent duplicate order (same link + service within 30 seconds)
-  var recentOrders=[];
-  try{recentOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-  var duplicate=recentOrders.find(function(o){
-    return o.link===link.value.trim()&&(o.service===svcName||o.svcName===svcName)&&(Date.now()-o.id)<30000;
-  });
-  if(duplicate){showToast('Same order submitted recently. Please wait.','w');return;}
-  
-  // Prevent double order on same link
-  var allExisting=[];
-  try{allExisting=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-  var recentDup=allExisting.find(function(o){
-    return o.link===link.value.trim()&&
-           (o.status==='pending'||o.status==='processing')&&
-           (Date.now()-o.id)<300000; // within 5 minutes
-  });
-  if(recentDup){
-    if(!confirm('You already have an active order for this link. Place another?')) return;
-  }
-  
-  // Get service name from visible dropdown
+
+  // Get service name from visible dropdown — resolved before the duplicate
+  // check below so it can actually match against it (svcName used to be
+  // referenced there while still undefined, silently no-oping the check).
   var svcDrop=document.getElementById('order-svc-dropdown');
   var svcHidden=document.getElementById('order-service');
   var svcName='';
   var price=0;
-  
+
   if(svcDrop&&svcDrop.options.length>0&&svcDrop.selectedIndex>=0){
     var _selOpt=svcDrop.options[svcDrop.selectedIndex];
     svcName=(_selOpt.dataset&&_selOpt.dataset.svcname)||_selOpt.text;
@@ -2220,9 +2203,25 @@ function placeOrder(){
     svcName=svcHidden.options[svcHidden.selectedIndex].text;
     price=parseFloat(svcHidden.options[svcHidden.selectedIndex].dataset&&svcHidden.options[svcHidden.selectedIndex].dataset.price)||0;
   }
-  
+
   if(!svcName){showToast('Please select a service first','e');return;}
-  
+
+  // Block re-ordering the same link+service while an existing order for it
+  // hasn't reached a finished status yet — must wait for it to complete,
+  // not just skip past a short time window (previously this only soft-
+  // blocked for 5 minutes via a confirm() the user could just click through).
+  var allExisting=[];
+  try{allExisting=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var activeSameLink=allExisting.find(function(o){
+    return o.link===link.value.trim()
+      &&(o.service===svcName||o.svcName===svcName)
+      &&FINISHED_ORDER_STATUSES.indexOf(o.status)===-1;
+  });
+  if(activeSameLink){
+    showToast('This link already has an active "'+svcName+'" order ('+(activeSameLink.status||'processing')+'). Please wait until it finishes before ordering it again.','w');
+    return;
+  }
+
   var qtyEl=document.getElementById('order-qty');
   var qty=parseInt(qtyEl&&qtyEl.value)||1000;
   
@@ -2583,6 +2582,19 @@ function claimFreeLikes(){
   var linkEl=document.getElementById('fl-claim-link');
   var link=linkEl?linkEl.value.trim():'';
   if(!link){showToast('Please enter the link to send likes to','e');return;}
+
+  // Same "wait until it finishes" rule as regular orders — a link already
+  // has an active free-likes claim in flight (pending admin review or
+  // being delivered), don't let another one stack on top of it.
+  var existingOrders=[];
+  try{existingOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e5b){}
+  var activeClaim=existingOrders.find(function(o){
+    return o.link===link&&o.free&&FINISHED_ORDER_STATUSES.indexOf(o.status)===-1;
+  });
+  if(activeClaim){
+    showToast('This link already has an active free-likes claim ('+(activeClaim.status||'processing')+'). Please wait until it finishes.','w');
+    return;
+  }
 
   var platform=_flPlatform||'instagram';
   if(FL_PLATFORMS.indexOf(platform)===-1){showToast('Free likes are only available for Instagram or TikTok','e');return;}
