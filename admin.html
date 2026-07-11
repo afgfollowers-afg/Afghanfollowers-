@@ -3760,12 +3760,13 @@ function approvePayment(userId,txId){
   if(!u){toast('User not found','e');return;}
   var t=u.transactions&&u.transactions.find(function(x){return String(x.id)===String(txId);});
   if(!t){toast('Transaction not found','e');return;}
+  if(t.status==='approved'){toast('Already approved — refusing to credit twice','w');return;}
   t.status='approved';
   var credit=parseFloat(t.credit||t.amount||0);
   u.balance=parseFloat((parseFloat(u.balance)||0)+credit).toFixed(2);
   u.balance=parseFloat(u.balance);
   localStorage.setItem('smm_users',JSON.stringify(users));
-  loadAllRealData();rPayReqs(payReqs);
+  loadAllRealData();rPayReqs(getRealPayments());
   notifyPanel();
   pushToServer();toast('✅ Approved — $'+credit+' added to '+(u.fname||'user'),'s');
   tgSend('✅ <b>Payment Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+credit+' credited to wallet');
@@ -3776,7 +3777,13 @@ function rejectPayment(userId,txId){
   var u=users.find(function(x){return String(x.id)===String(userId);});
   if(!u) return;
   var t=u.transactions&&u.transactions.find(function(x){return String(x.id)===String(txId);});
-  if(t){t.status='rejected';localStorage.setItem('smm_users',JSON.stringify(users));loadAllRealData();rPayReqs(payReqs);toast('Payment rejected','e');}
+  if(!t) return;
+  if(t.status==='approved'){toast('This deposit was already approved — cannot reject it now','w');return;}
+  t.status='rejected';
+  localStorage.setItem('smm_users',JSON.stringify(users));
+  loadAllRealData();rPayReqs(getRealPayments());
+  pushToServer();
+  toast('Payment rejected','e');
 }
 
 // Order Management
@@ -4266,15 +4273,13 @@ function rPayReqs(list){
     h+='<td style="font-size:12px;color:var(--mt);max-width:160px">'+p.note+'</td>';
     h+='<td><span class="b '+(bc[p.status]||'by')+'">'+p.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+p.date+'</td><td><div style="display:flex;gap:5px">';
-    if(p.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approvePay('+p.id+')">Approve</button><button class="btn btn-d btn-sm" onclick="rejectPay('+p.id+')">Reject</button>';}
+    if(p.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approvePayment(\''+p.userId+'\','+p.id+')">Approve</button><button class="btn btn-d btn-sm" onclick="rejectPayment(\''+p.userId+'\','+p.id+')">Reject</button>';}
     h+='</div></td></tr>';
   }
   h+='</tbody></table>';
   document.getElementById('pay-req-tbl').innerHTML=h;
 }
-function filterPayReq(s){rPayReqs(s==='all'?payReqs:payReqs.filter(function(p){return p.status===s;}));}
-function approvePay(id){var p=payReqs.find(function(x){return x.id===id;});if(p){p.status='approved';var u=users.find(function(x){return x.name===p.user;});if(u)u.balance+=p.amount;rPayReqs(payReqs);toast('Approved! $'+p.amount+' added to '+p.user,'s');}}
-function rejectPay(id){var p=payReqs.find(function(x){return x.id===id;});if(p){p.status='rejected';rPayReqs(payReqs);toast('Payment rejected','e');}}
+function filterPayReq(s){rPayReqs(s==='all'?getRealPayments():getRealPayments().filter(function(p){return p.status===s;}));}
 
 // ═══ WALLETS ═══
 function rWallets(list){
