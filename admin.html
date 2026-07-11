@@ -5445,7 +5445,7 @@ function broadcastNewBlogPost(title,excerpt,emoji,slug){
     body:JSON.stringify({
       message:'📝 <b>New Blog Post</b>\n\n'+emoji+' <b>'+title+'</b>\n'+(excerpt||'')+'\n\n🔗 '+url,
       chatId:cfg.channelId,
-      fbMessage:'📝 مقاله جدید\n\n'+emoji+' '+title+'\n'+(excerpt||'')+'\n\n🔗 '+url
+      fbMessage:emoji+' '+title+'\n\n'+(excerpt||'')+'\n\n🔗 '+url
     })
   }).catch(function(){});
 }

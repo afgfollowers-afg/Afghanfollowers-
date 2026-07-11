@@ -417,7 +417,11 @@ async function broadcastNewPost(post, tgCfg) {
   }
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    const fbText = '📝 مقاله جدید\n\n' + post.emoji + ' ' + post.title + '\n' + (post.excerpt || '') + '\n\n🔗 ' + url;
+    // Title must be the very first thing in the text — Facebook can collapse
+    // long posts behind "See More", and a generic "📝 مقاله جدید" label ahead
+    // of the real title reads as if that filler text IS the headline. The
+    // excerpt is the least essential part, so it moves right before the link.
+    const fbText = post.emoji + ' ' + post.title + '\n\n' + (post.excerpt || '') + '\n\n🔗 ' + url;
     try {
       await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
         method: 'POST',
