@@ -928,7 +928,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
     <div class="card" style="margin-bottom:14px">
       <div class="card-body" style="padding:18px;text-align:center">
-        <div id="prof-avatar-big" onclick="toggleEmojiPicker()" style="width:72px;height:72px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;border:2px solid var(--border)">😊</div>
+        <div id="prof-avatar-big" onclick="toggleEmojiPicker()" style="width:72px;height:72px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;border:2px solid var(--border);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">😊</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Tap avatar to change</div>
         <div id="emoji-picker" style="display:none;text-align:left;margin-bottom:6px">
           <input type="text" class="form-input" id="emoji-search" placeholder="Search emoji..." oninput="searchEmoji(this.value)" style="margin-bottom:8px">
@@ -3457,8 +3457,15 @@ var _emojis=['😊','😎','🔥','⚡','🎯','💎','🚀','👑','🌟','💪
 function initProfile(){
   var u=getCurrentUser();
   if(!u) return;
-  // Load avatar
+  // Load avatar — some older accounts ended up with a long non-emoji
+  // string in this field (not a real emoji), which overflowed the fixed
+  // 72px avatar circle. Fall back to the default and self-heal the stored
+  // value so this only needs fixing once per affected account.
   var avatar=u.avatar||'😊';
+  if(!avatar||avatar.length>8||!/\p{Emoji}/u.test(avatar)){
+    avatar='😊';
+    if(u.avatar!==avatar){u.avatar=avatar;saveCurrentUser(u);}
+  }
   document.getElementById('prof-avatar-big').textContent=avatar;
   // Load fields
   document.getElementById('prof-fname').value=u.fname||'';
