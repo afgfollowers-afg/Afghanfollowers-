@@ -316,6 +316,13 @@ textarea.fi{resize:vertical;min-height:75px;}
 
     <!-- ORDERS -->
     <div class="page" id="pg-orders">
+      <div class="sec" id="stuck-orders-sec" style="display:none">
+        <div class="sec-h">
+          <div class="sec-t">⚠️ Orders the provider couldn't accept</div>
+          <div class="sec-a"><button class="btn btn-g btn-sm" onclick="retrySyncNow()">🔁 Retry Sync Now</button></div>
+        </div>
+        <div id="stuck-orders-list"></div>
+      </div>
       <div class="sec" id="ref-visit-queue-sec" style="display:none">
         <div class="sec-h">
           <div class="sec-t">🎁 Free Likes — Visit Rewards Pending</div>
@@ -1818,7 +1825,7 @@ function go(pg,el){
   loadAllRealData();
   if(pg==='dashboard') initDash();
   else if(pg==='users') rUsers(getRealUsers());
-  else if(pg==='orders'){rOrders(getRealOrders());rRefVisitQueue();}
+  else if(pg==='orders'){rOrders(getRealOrders());rRefVisitQueue();rStuckOrders();}
   else if(pg==='services') rSvcs();
   else if(pg==='announcements') rAnnouncements();
   else if(pg==='blog') rBlog();
@@ -3963,6 +3970,73 @@ function approveRefVisit(ref){
 
   rRefVisitQueue();notifyPanel();pushToServer();
   toast('✅ Approved — Free Likes unlocked for '+(u.fname||u.name||u.email),'s');
+}
+// Orders the sync-orders retry job couldn't dispatch to the provider —
+// previously only visible by manually hitting /api/sync-orders and reading
+// the raw JSON response, which is how these were first noticed at all.
+function getStuckOrders(){
+  try{return JSON.parse(localStorage.getItem('smm_stuck_orders')||'[]');}catch(e){return [];}
+}
+function rStuckOrders(){
+  var sec=document.getElementById('stuck-orders-sec');
+  var list=document.getElementById('stuck-orders-list');
+  if(!sec||!list) return;
+  var stuck=getStuckOrders();
+  if(!stuck.length){sec.style.display='none';list.innerHTML='';return;}
+  sec.style.display='block';
+  var orders=getRealOrders();
+  list.innerHTML=stuck.map(function(s){
+    var o=orders.find(function(x){return String(x.id)===String(s.orderId);});
+    var name=o?(o.user||o.email||'User'):'(order not found locally)';
+    var link=o?o.link:'';
+    var isCatalogErr=(s.error||'').indexOf('catalog')>-1;
+    return '<div class="ord-card" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
+        +'<span class="b by">⚠️ '+escHtmlAdmin(s.error||'Unknown error')+'</span>'
+        +'<span style="font-size:11px;color:var(--mt);margin-left:auto">Order #'+s.orderId+'</span>'
+      +'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:2px">'+escHtmlAdmin(name)+'</div>'
+      +(link?'<div style="font-size:11px;color:var(--mt);word-break:break-all;margin-bottom:10px">'+escHtmlAdmin(link)+'</div>':'')
+      +(isCatalogErr?'<button data-oid="'+s.orderId+'" onclick="fixStuckOrderService(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.15);border:1px solid rgba(124,92,252,.4);color:var(--acc2);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔧 Reassign Service</button>':'')
+      +'</div>';
+  }).join('');
+}
+function retrySyncNow(){
+  toast('🔁 Triggering sync...','s');
+  fetch('/api/sync-orders').then(function(r){return r.json();}).then(function(d){
+    toast(d&&d.ok?'✅ Sync triggered — refresh in a moment':'❌ Sync error','e');
+    setTimeout(function(){pullFromServer();},3000);
+  }).catch(function(){toast('❌ Could not reach sync endpoint','e');});
+}
+function fixStuckOrderService(orderId){
+  var svcList=getServices().filter(function(s){return s.active!==false;});
+  if(!svcList.length){toast('No active services in catalog to reassign to','e');return;}
+  var names=svcList.map(function(s,i){return (i+1)+'. '+s.name;}).join('\n');
+  var pick=prompt('Reassign order #'+orderId+' to which service? Enter the number:\n\n'+names);
+  if(pick===null) return;
+  var idx=parseInt(pick,10)-1;
+  if(isNaN(idx)||idx<0||idx>=svcList.length){toast('Invalid selection','e');return;}
+  var chosen=svcList[idx];
+
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(orderId);});
+  if(!o){toast('Order not found','e');return;}
+  o.svcId=chosen.svcId;
+  o.provId=chosen.provId;
+  o.svcName=chosen.name;o.svc=chosen.name;o.service=chosen.name;
+  delete o.dispatchAttemptedAt; // eligible for the next retry sync immediately
+  localStorage.setItem('smm_orders',JSON.stringify(orders));
+
+  // Drop it from the local stuck list right away — the next cron run
+  // rewrites the authoritative list anyway, this just clears the stale
+  // entry from view immediately instead of waiting for that.
+  var stuck=getStuckOrders().filter(function(s){return String(s.orderId)!==String(orderId);});
+  localStorage.setItem('smm_stuck_orders',JSON.stringify(stuck));
+
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_orders:orders,smm_stuck_orders:stuck,smm_ts:Date.now()})}).catch(function(){});
+  rStuckOrders();rOrders(getRealOrders());
+  toast('✅ Reassigned to "'+chosen.name+'" — will retry on next sync','s');
 }
 function rejectRefVisit(ref){
   var queue=getRefVisitQueue();
@@ -6684,6 +6758,19 @@ function pullFromServer(){
         var activePgQ=document.querySelector('.page.on');
         if(activePgQ&&activePgQ.id==='pg-orders') rRefVisitQueue();
       }
+      var stuckChanged=false;
+      if(d.smm_stuck_orders&&Array.isArray(d.smm_stuck_orders)){
+        var localStuck=localStorage.getItem('smm_stuck_orders')||'[]';
+        var newStuck=JSON.stringify(d.smm_stuck_orders);
+        if(newStuck!==localStuck){
+          localStorage.setItem('smm_stuck_orders',newStuck);
+          stuckChanged=true;
+        }
+      }
+      if(stuckChanged){
+        var activePgS=document.querySelector('.page.on');
+        if(activePgS&&activePgS.id==='pg-orders') rStuckOrders();
+      }
       var refVisitsChanged=false;
       if(d.smm_ref_visit_counts&&typeof d.smm_ref_visit_counts==='object'){
         var localRvc=localStorage.getItem('smm_ref_visit_counts')||'{}';
@@ -6704,7 +6791,7 @@ function pullFromServer(){
           var pgId=activePg.id;
           if(pgId==='pg-users') rUsers(getRealUsers());
           else if(pgId==='pg-payments') rPayReqs(getRealPayments());
-          else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();}
+          else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();rStuckOrders();}
           else if(pgId==='pg-wallets') rWallets(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
         }

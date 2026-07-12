@@ -312,6 +312,12 @@ module.exports = async (req, res) => {
         // Used by the sync-orders cron job to write back updated order statuses
         current.smm_orders = body.smm_orders_sync;
       }
+      if (body.smm_stuck_orders && Array.isArray(body.smm_stuck_orders)) {
+        // Orders the sync-orders retry job couldn't dispatch (bad catalog
+        // match, provider out of funds, etc.) — sole writer is that cron,
+        // replaced wholesale each run so resolved orders drop off.
+        current.smm_stuck_orders = body.smm_stuck_orders;
+      }
       if (typeof body.smm_last_daily_content_date === 'string') {
         // Idempotency guard so repeat hits on /api/sync-orders (retries,
         // manual visits, uptime pings — the endpoint has no auth) don't
