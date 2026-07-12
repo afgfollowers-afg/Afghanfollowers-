@@ -5421,10 +5421,28 @@ function editUserVisits(code,current){
   var counts={};try{counts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e2){}
   counts[code]=v;
   localStorage.setItem('smm_ref_visit_counts',JSON.stringify(counts));
+
+  // Manually correcting the count to (or past) the goal doesn't by itself
+  // make it claimable — that normally only happens when the real
+  // visit-tracking flow creates a pending entry here for the admin to
+  // approve. Without this, editing the number alone would still leave the
+  // user with no reaction on Claim (nothing to approve, nothing unlocked).
+  var genCfgV={};try{genCfgV=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e3){}
+  var goalV=parseInt(genCfgV['g-fl-visits'],10)||50;
+  var queueV=getRefVisitQueue();
+  var hasEntryV=queueV.some(function(q){return q.ref===code;});
+  var createdEntry=false;
+  if(v>=goalV&&!hasEntryV){
+    queueV.push({ref:code,count:v,ts:Date.now(),status:'pending'});
+    saveRefVisitQueue(queueV);
+    rRefVisitQueue();
+    createdEntry=true;
+  }
+
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_ref_visit_overrides:overrides,smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_ref_visit_overrides:overrides,smm_ref_visit_queue:queueV,smm_ts:Date.now()})}).catch(function(){});
   rInviteStatus();
-  toast('✅ Visit count updated','s');
+  toast(createdEntry?'✅ Visit count updated — now awaiting approval in Orders':'✅ Visit count updated','s');
 }
 function delBlog(i){var list=getBlogPosts();list.splice(i,1);saveBlogPosts(list);rBlog();toast('Blog post deleted','e');}
 var BLOG_PLATFORM_EMOJI={instagram:'📷',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'📘',other:'📝'};
