@@ -2323,6 +2323,15 @@ function placeOrder(){
 
   if(!svcName){showToast('Please select a service first','e');return;}
 
+  // Resolved once here (rather than only at dispatch time below) so
+  // svcId/provId can be persisted directly on the order — without a stable
+  // ID on the order itself, a failed first dispatch attempt could only ever
+  // be retried by re-matching this exact svcName string against the
+  // catalog later, which silently broke forever the moment a service got
+  // renamed or re-imported with different wording.
+  var svcs=getPanelServices();
+  var matchedSvc=svcs.find(function(s){return s.name===svcName||s.svcName===svcName;});
+
   // Block re-ordering the same link+service while an existing order for it
   // hasn't reached a finished status yet — must wait for it to complete,
   // not just skip past a short time window (previously this only soft-
@@ -2390,6 +2399,8 @@ function placeOrder(){
     service:svcName,
     svc:svcName,
     svcName:svcName,
+    svcId:(matchedSvc&&matchedSvc.svcId)||'',
+    provId:(matchedSvc&&matchedSvc.provId)||'',
     link:link.value.trim(),
     qty:qty,
     cost:cost,
@@ -2418,11 +2429,10 @@ function placeOrder(){
     body:JSON.stringify({smm_users:allUsers,smm_orders:allOrders,smm_ts:Date.now()})
   }).catch(function(){});
   
-  // Place with provider if service has provId and svcId
+  // Place with provider if service has provId and svcId (matchedSvc already
+  // resolved above, before the order object was built)
   var sentToProvider=false;
   try{
-    var svcs=getPanelServices();
-    var matchedSvc=svcs.find(function(s){return s.name===svcName||s.svcName===svcName;});
     if(matchedSvc&&matchedSvc.svcId&&matchedSvc.provId){
       var provs2=[];try{provs2=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e){}
       var prov=provs2.find(function(p){return String(p.id)===String(matchedSvc.provId);});

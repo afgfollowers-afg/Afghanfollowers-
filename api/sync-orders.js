@@ -79,11 +79,23 @@ async function runOrderSyncJob() {
   const retryDebug = [];
 
   for (const o of neverSent) {
-    // Find the matching service by name to get its provider numeric service id
-    const svcRow = svcList.find(s => s[2] === o.svcName || s[2] === o.svc || s[3] === o.svcName);
-    if (!svcRow) { retryDebug.push({ orderId: o.id, error: 'Service not found in catalog' }); continue; }
-    const provNumericId = svcRow[1]; // provider's numeric service id
-    const provId = svcRow[5];
+    // Prefer the stable IDs captured directly on the order at creation time
+    // (smm-panel.html's placeOrder()/claimFreeLikes()) — immune to the
+    // service catalog's free-text name drifting after a re-import or edit,
+    // which is exactly what silently and permanently stuck real orders here
+    // before: the name-only lookup below stopped matching anything the
+    // moment a service got renamed. Only orders placed before this field
+    // existed fall back to the name-based lookup.
+    let provNumericId, provId;
+    if (o.svcId && o.provId) {
+      provNumericId = o.svcId;
+      provId = o.provId;
+    } else {
+      const svcRow = svcList.find(s => s[2] === o.svcName || s[2] === o.svc || s[3] === o.svcName);
+      if (!svcRow) { retryDebug.push({ orderId: o.id, error: 'Service not found in catalog' }); continue; }
+      provNumericId = svcRow[1]; // provider's numeric service id
+      provId = svcRow[5];
+    }
     const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
     if (!prov || !prov.url || !prov.key) { retryDebug.push({ orderId: o.id, error: 'Provider config not found' }); continue; }
 
@@ -119,11 +131,19 @@ async function runOrderSyncJob() {
     }
   }
 
-  if (retried > 0) {
+  // Persist stuck-order diagnostics so the admin panel can surface them —
+  // previously retryDebug only existed in this HTTP response, invisible
+  // unless someone happened to hit this endpoint directly and read the raw
+  // JSON (which is how these got noticed at all). Replaced wholesale each
+  // run so a resolved/succeeded order automatically drops off the list.
+  const stuckOrders = retryDebug.filter(d => d.error);
+  if (retried > 0 || retryDebug.length > 0) {
+    const writeBody = { smm_stuck_orders: stuckOrders, smm_ts: Date.now() };
+    if (retried > 0) writeBody.smm_orders_sync = orders;
     await fetch(SITE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
-      body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
+      body: JSON.stringify(writeBody)
     });
   }
 
