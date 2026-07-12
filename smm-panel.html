@@ -3550,63 +3550,83 @@ function ppShowStatus(html){
   if(st){st.style.display='block';st.innerHTML=html;}
 }
 
+// Tracks which clientId+env the currently-loaded SDK was fetched for.
+// PayPal's SDK is a singleton meant to be loaded once per page — tearing
+// down and reloading its <script> tag on every checkout (the previous
+// approach) left window.paypal.Buttons undefined on the second attempt in
+// the same session, since the SDK doesn't cleanly reinitialize itself.
+var _ppSdkLoadedFor=null;
+
 function loadPayPalButtons(amt, clientId, fee, env){
+  var sdkKey=clientId+'|'+(env||'live');
+  if(window.paypal&&window.paypal.Buttons&&_ppSdkLoadedFor===sdkKey){
+    renderPayPalButtonsUI(amt,fee);
+    return;
+  }
+
   var old=document.getElementById('paypal-sdk');
   if(old) old.remove();
   window.paypal=undefined;
+  _ppSdkLoadedFor=null;
 
   var script=document.createElement('script');
   script.id='paypal-sdk';
   var sdkBase=(env==='sandbox')?'https://www.sandbox.paypal.com/sdk/js':'https://www.paypal.com/sdk/js';
   script.src=sdkBase+'?client-id='+encodeURIComponent(clientId)+'&currency=USD&intent=capture&components=buttons';
   script.onload=function(){
-    var loading=document.getElementById('pp-loading');
-    if(loading) loading.remove();
-    var container=document.getElementById('paypal-btn-container');
-    if(!container) return;
-    container.innerHTML='';
-    try{
-      window.paypal.Buttons({
-        style:{layout:'vertical',color:'gold',shape:'rect',label:'pay',height:48},
-        createOrder:function(data,actions){
-          return actions.order.create({
-            purchase_units:[{
-              amount:{value:amt.toFixed(2),currency_code:'USD'},
-              description:'Afghan Followers Wallet Top-Up'
-            }]
-          });
-        },
-        onApprove:function(data,actions){
-          // Do NOT touch #paypal-btn-container here — capture() is still
-          // talking to the popup PayPal rendered into it.
-          ppShowStatus('<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>');
-          return actions.order.capture().then(function(details){
-            verifyPayPalOrder(details.id||data.orderID);
-          }).catch(function(e){
-            // Without this catch, a rejected capture() left the "Completing
-            // payment..." spinner on screen forever with no way out.
-            ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not complete the payment.<br><small>'+(e&&e.message?e.message:'Please try again.')+'</small></div>');
-            showToast('Payment could not be completed','e');
-          });
-        },
-        onCancel:function(){
-          ppShowStatus('<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>');
-        },
-        onError:function(err){
-          ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small></div>');
-        }
-      }).render('#paypal-btn-container').catch(function(e){
-        ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'</div>');
-      });
-    }catch(e){
-      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>');
-    }
+    _ppSdkLoadedFor=sdkKey;
+    renderPayPalButtonsUI(amt,fee);
   };
   script.onerror=function(){
+    _ppSdkLoadedFor=null;
     var body=document.getElementById('pp-modal-body');
     if(body) body.innerHTML='<div style="background:#fee2e2;padding:14px;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">❌ Failed to load PayPal SDK.<br><small>Check your connection and try again</small></div>';
   };
   document.head.appendChild(script);
+}
+
+function renderPayPalButtonsUI(amt,fee){
+  var loading=document.getElementById('pp-loading');
+  if(loading) loading.remove();
+  var container=document.getElementById('paypal-btn-container');
+  if(!container) return;
+  container.innerHTML='';
+  try{
+    window.paypal.Buttons({
+      style:{layout:'vertical',color:'gold',shape:'rect',label:'pay',height:48},
+      createOrder:function(data,actions){
+        return actions.order.create({
+          purchase_units:[{
+            amount:{value:amt.toFixed(2),currency_code:'USD'},
+            description:'Afghan Followers Wallet Top-Up'
+          }]
+        });
+      },
+      onApprove:function(data,actions){
+        // Do NOT touch #paypal-btn-container here — capture() is still
+        // talking to the popup PayPal rendered into it.
+        ppShowStatus('<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>');
+        return actions.order.capture().then(function(details){
+          verifyPayPalOrder(details.id||data.orderID);
+        }).catch(function(e){
+          // Without this catch, a rejected capture() left the "Completing
+          // payment..." spinner on screen forever with no way out.
+          ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not complete the payment.<br><small>'+(e&&e.message?e.message:'Please try again.')+'</small></div>');
+          showToast('Payment could not be completed','e');
+        });
+      },
+      onCancel:function(){
+        ppShowStatus('<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>');
+      },
+      onError:function(err){
+        ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small></div>');
+      }
+    }).render('#paypal-btn-container').catch(function(e){
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'</div>');
+    });
+  }catch(e){
+    ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>');
+  }
 }
 
 // Independently re-verifies the captured order with PayPal's own API on the
