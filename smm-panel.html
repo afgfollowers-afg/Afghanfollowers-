@@ -1408,7 +1408,11 @@ function logout(){
 
 const S={
   get balance(){return (getCurrentUser()||{}).balance||0;},
-  spent:0,orders:[],selPlat:'instagram',selSvcIdx:0,selPay:'paypal',payments:[]
+  // 'all' matches the platform-icon-grid's "All" tile, which is marked
+  // active by default in the HTML — defaulting this to 'instagram' meant
+  // the category list underneath always showed Instagram-only content
+  // even though the "All" icon looked selected.
+  spent:0,orders:[],selPlat:'all',selSvcIdx:0,selPay:'paypal',payments:[]
 };
 
 // ── SERVICES FROM ADMIN (real data) ──
@@ -3477,7 +3481,17 @@ function saveProfile(){
   showProfAlert('✅ Profile saved successfully!','s');
   showToast('Profile updated!','s');
 }
+// Guards against a duplicate PayPal popup being opened for the same
+// checkout (double-tap, or any code re-triggering afPay() mid-flow) —
+// tearing down and recreating the SDK script/window reference while a
+// popup is already open is what causes PayPal's "Can not send
+// postrobot_method. Target window is closed" error.
+var _ppCheckoutInProgress=false;
+
 function openPayPalModal(amt, clientId, fee){
+  if(_ppCheckoutInProgress){
+    showToast('A PayPal checkout is already in progress','w');return;
+  }
   if(!clientId||clientId.trim()===''){
     showToast('PayPal not configured. Contact admin.','e');return;
   }
@@ -3487,6 +3501,7 @@ function openPayPalModal(amt, clientId, fee){
   if(minPay>0&&amt<minPay){
     showToast('Minimum payment is $'+minPay,'e');return;
   }
+  _ppCheckoutInProgress=true;
 
   var modal=document.getElementById('pp-modal');
   modal.style.display='flex';
@@ -3627,6 +3642,7 @@ function closePayPalModal(){
   document.getElementById('pp-modal').style.display='none';
   document.getElementById('paypal-btn-container').innerHTML='';
   document.getElementById('pp-modal-body').innerHTML='';
+  _ppCheckoutInProgress=false;
 }
 
 function goPayPalCheckout(){
@@ -3963,7 +3979,10 @@ function pullFromServerOnLoad(){
           pmChanged=true;
         }
       }
-      if(pmChanged){
+      if(pmChanged&&!_ppCheckoutInProgress){
+        // Never touch this page's DOM while a PayPal popup is mid-flight —
+        // re-rendering anything near it can drop the SDK's window reference
+        // and produce PayPal's "Target window is closed" error.
         var afp=document.getElementById('page-add-funds');
         if(afp&&afp.style.display!=='none') initAddFunds();
       }
