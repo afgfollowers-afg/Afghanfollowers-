@@ -548,8 +548,8 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <div class="card-body" style="display:flex;align-items:center;gap:12px;padding:14px 16px">
         <div class="gift-emoji" style="font-size:28px;line-height:1">🎁</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:#fff">🔥 100 Free Likes Waiting For You!</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.85)" id="home-fl-sub">Invite 5 friends, get 100 free likes</div>
+          <div style="font-size:14px;font-weight:800;color:#fff">🔥 Free Likes Waiting For You!</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.85)" id="home-fl-sub">Invite 5 friends, get free likes</div>
         </div>
         <div style="font-size:18px;color:#fff">→</div>
       </div>
@@ -847,7 +847,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <div class="card-body" style="padding:16px">
         <div style="font-size:13px;color:var(--text);line-height:1.6">
           🔥 Invite <strong>5 friends</strong> using your referral link below — they must sign up for a real account.
-          Once they join, claim <strong>100 free likes</strong> ✨ for Instagram or TikTok — totally free, once per day! 😍
+          Once they join, claim <strong>free likes</strong> ✨ for Instagram or TikTok — totally free, once per day! 😍
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;background:var(--surface2);border-radius:8px;padding:8px 10px">
           ⓘ To keep this fair, an invited friend only counts once their account has been active for 24 hours. Fake or suspended accounts don't count.
@@ -884,7 +884,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
         <div id="fl-friends-list" style="display:flex;flex-direction:column;gap:6px"></div>
         <div id="fl-visits-row" style="display:none;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          <span>🔗 Link visits (up to 100 invites)</span>
+          <span>🔗 Link visits (send to 50 people)</span>
           <span id="fl-visits-count" style="color:var(--text);font-weight:700">0 / 50</span>
         </div>
       </div>
@@ -922,7 +922,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <label class="form-label">Post / Profile Link</label>
           <input type="text" class="form-input" id="fl-claim-link" placeholder="https://instagram.com/p/...">
         </div>
-        <button class="btn btn-primary" id="fl-claim-btn" onclick="claimFreeLikes()" disabled>🎁 Claim 100 Free Likes</button>
+        <button class="btn btn-primary" id="fl-claim-btn" onclick="claimFreeLikes()" disabled>🎁 Claim Free Likes</button>
         <div id="fl-pending-note" style="display:none;font-size:11px;color:var(--muted);margin-top:10px;text-align:center"></div>
       </div>
     </div>
@@ -2424,20 +2424,20 @@ function pickFreeLikesPlat(el,plat){
   _flPlatform=plat;
 }
 
-// Sends the link bundled with an invite message ("Come get 100 free
+// Sends the link bundled with an invite message ("Come get free
 // likes!") rather than a bare URL — a naked link means nothing to the
 // person receiving it, so this is what actually gets shared/copied.
 function buildReferralInviteMessage(){
   var el=document.getElementById('fl-ref-link');
   var link=el?el.value:'';
-  return 'بیا صد لایک رایگان بگیر! 🎁 با این لینک ثبت‌نام کن: '+link;
+  return 'بیا لایک رایگان بگیر! 🎁 با این لینک ثبت‌نام کن: '+link;
 }
 function copyReferralLink(){
   var el=document.getElementById('fl-ref-link');
   var link=el?el.value:'';
   var message=buildReferralInviteMessage();
   if(navigator.share){
-    navigator.share({title:'Afghan Followers',text:'بیا صد لایک رایگان بگیر! 🎁',url:link}).catch(function(){});
+    navigator.share({title:'Afghan Followers',text:'بیا لایک رایگان بگیر! 🎁',url:link}).catch(function(){});
     return;
   }
   if(navigator.clipboard) navigator.clipboard.writeText(message);
@@ -2452,13 +2452,13 @@ function updateFreeLikesHomeBanner(){
   var claims=parseInt(u.freeLikesClaims)||0;
   var available=Math.floor(friends.length/FL_NEED)+(parseInt(u.flVisitUnlocks)||0)-claims;
   if(available>0&&!isInClaimCooldown(u)){
-    subEl.textContent='🎉 Your 100 free likes are ready to claim!';
+    subEl.textContent='🎉 Your free likes are ready to claim!';
   }else if(available>0){
     subEl.textContent='Reward ready — come back tomorrow to claim it';
   }else{
     var inCycle=friends.length%FL_NEED;
     var remain=FL_NEED-inCycle;
-    subEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' for 100 free likes';
+    subEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' for free likes';
   }
 }
 
@@ -2677,7 +2677,7 @@ function claimFreeLikes(){
   tgPanelSend('🎁 <b>Free Likes Claim — Needs Approval</b>\nUser: '+order.user+'\nPlatform: '+platform+'\nLink: '+link);
 
   if(linkEl) linkEl.value='';
-  showToast('🎉 Claim submitted! Your 100 free likes will start once an admin verifies it.','s');
+  showToast('🎉 Claim submitted! Your free likes will start once an admin verifies it.','s');
   renderFreeLikes();
 }
 
