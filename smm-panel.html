@@ -1472,6 +1472,11 @@ function applyFlSettings(cfg){
       localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
       applyFlSettings(d.smm_general);
     }
+    if(d&&Array.isArray(d.smm_ref_visit_queue)){
+      localStorage.setItem('smm_ref_visit_queue',JSON.stringify(d.smm_ref_visit_queue));
+      var flPageEarly=document.getElementById('page-free-likes');
+      if(flPageEarly&&flPageEarly.classList.contains('active')&&typeof renderFreeLikes==='function') renderFreeLikes();
+    }
   }).catch(function(){});
 })();
 renderAnnouncements(); // paint from cached localStorage immediately, before the server pull resolves
@@ -2664,8 +2669,19 @@ function renderFreeLikes(){
     if(statusEl) statusEl.textContent='Reward ready, but you can only claim once per day. Try again in ~'+hrsLeft+'h.';
     if(btn) btn.disabled=true;
   }else{
-    var remain=FL_NEED-inCycle;
-    if(statusEl) statusEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' to unlock your next free reward.';
+    // A visit-based reward that already hit its goal sits in an admin
+    // approval queue before it counts toward `available` — without this
+    // check, a user who took the visits path (not the friends path) saw
+    // the generic "invite more friends" message, which doesn't apply to
+    // them and made the disabled Claim button look like a dead click.
+    var pendingVisitQueue=[];try{pendingVisitQueue=JSON.parse(localStorage.getItem('smm_ref_visit_queue')||'[]');}catch(e6){}
+    var myPendingVisit=pendingVisitQueue.find(function(q){return q.ref===code&&q.status==='pending';});
+    if(myPendingVisit){
+      if(statusEl) statusEl.textContent='⏳ Your '+myPendingVisit.count+' verified link visits are being reviewed by an admin — you\'ll be notified once approved.';
+    }else{
+      var remain=FL_NEED-inCycle;
+      if(statusEl) statusEl.textContent='Invite '+remain+' more friend'+(remain>1?'s':'')+' to unlock your next free reward.';
+    }
     if(btn) btn.disabled=true;
   }
 
@@ -4145,6 +4161,14 @@ function pullFromServerOnLoad(){
         var newRvc=JSON.stringify(d.smm_ref_visit_counts);
         if(newRvc!==localRvc){
           localStorage.setItem('smm_ref_visit_counts',newRvc);
+          refVisitsChanged=true;
+        }
+      }
+      if(Array.isArray(d.smm_ref_visit_queue)){
+        var localRvq=localStorage.getItem('smm_ref_visit_queue')||'[]';
+        var newRvq=JSON.stringify(d.smm_ref_visit_queue);
+        if(newRvq!==localRvq){
+          localStorage.setItem('smm_ref_visit_queue',newRvq);
           refVisitsChanged=true;
         }
       }
