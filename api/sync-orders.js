@@ -57,8 +57,24 @@ async function runOrderSyncJob() {
   // 1b. Retry orders that were never actually sent to the provider (no provOrderId yet).
   // 'pending_approval' (free-likes referral claims awaiting admin review) is excluded
   // here too — those must never reach the provider until an admin approves them.
+  //
+  // dispatchAttemptedAt is set the moment a customer order or an admin's
+  // Free Likes approval fires its own /api/place-order call, *before*
+  // provOrderId comes back. This endpoint has no auth and gets hit more
+  // than once a day (Vercel retries, uptime pings, manual testing) — without
+  // this age check, any such hit landing in the few seconds/minutes before
+  // that original call's response set provOrderId treated the order as
+  // "never sent" and dispatched a second, genuinely duplicate order to the
+  // provider for the exact same link. Only orders stuck for a while (or
+  // with no attempt recorded at all — e.g. legacy orders, or the original
+  // call failing before it could even set this field) are retried.
+  const RETRY_AGE_MS = 30 * 60 * 1000; // 30 minutes
   const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
-  const neverSent = orders.filter(o => !o.provOrderId && !finishedStatuses.includes(o.status));
+  const neverSent = orders.filter(o => {
+    if (o.provOrderId || finishedStatuses.includes(o.status)) return false;
+    if (!o.dispatchAttemptedAt) return true;
+    return (Date.now() - o.dispatchAttemptedAt) > RETRY_AGE_MS;
+  });
   let retried = 0;
   const retryDebug = [];
 

@@ -3831,6 +3831,12 @@ function approveFreeLikes(id){
 
   o.status='processing';
   o.approvedAt=new Date().toISOString();
+  // Marks the moment dispatch was attempted, separately from provOrderId
+  // actually being confirmed — api/sync-orders.js's daily retry job only
+  // resends an order that's been stuck with no provOrderId for a while, so
+  // it doesn't race a dispatch that's merely still in flight (see that
+  // file's neverSent filter for the other half of this fix).
+  o.dispatchAttemptedAt=Date.now();
   localStorage.setItem('smm_orders',JSON.stringify(orders));
 
   // Dispatch to the real provider now that it's approved
