@@ -319,7 +319,6 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sec" id="stuck-orders-sec" style="display:none">
         <div class="sec-h">
           <div class="sec-t">⚠️ Orders the provider couldn't accept</div>
-          <div class="sec-a"><button class="btn btn-g btn-sm" onclick="retrySyncNow()">🔁 Retry Sync Now</button></div>
         </div>
         <div id="stuck-orders-list"></div>
       </div>
@@ -332,6 +331,7 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sec">
         <div class="sec-h">
           <div class="sec-t">📦 All Orders</div>
+          <div class="sec-a"><button class="btn btn-g btn-sm" onclick="retrySyncNow()" title="Immediately re-check orders that haven't reached the provider yet">🔁 Retry Sync Now</button></div>
         </div>
         <div class="tw" id="orders-tbl"></div>
       </div>
