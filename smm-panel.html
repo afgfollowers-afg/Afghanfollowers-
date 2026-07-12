@@ -707,17 +707,6 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" placeholder="Search services..." id="svc-search" oninput="renderBrowse()">
     </div>
-    <!-- Category dropdown -->
-    <div class="cat-dropdown">
-      <div class="cat-trigger" id="cat-trigger" onclick="toggleCat()">
-        <span class="cat-trigger-label" id="cat-label">
-          <svg width="14" height="14"><use href="#ico-ig"/></svg>
-          Instagram Likes | Cheapest Faster |
-        </span>
-        <span class="cat-arrow">▼</span>
-      </div>
-      <div class="cat-list" id="cat-list"></div>
-    </div>
     <!-- Service list -->
     <div class="card">
       <div id="svc-browse-list" style="padding:4px 0"></div>
@@ -926,6 +915,91 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <div id="fl-pending-note" style="display:none;font-size:11px;color:var(--muted);margin-top:10px;text-align:center"></div>
       </div>
     </div>
+  </div>
+
+  <!-- ── PROFILE / ACCOUNT PAGE ── -->
+  <div class="page" id="page-profile">
+    <div style="margin-bottom:16px">
+      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">Account</div>
+      <div style="font-size:13px;color:var(--muted)">Manage your profile and password</div>
+    </div>
+
+    <div id="prof-alert" style="display:none"></div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-body" style="padding:18px;text-align:center">
+        <div id="prof-avatar-big" onclick="toggleEmojiPicker()" style="width:72px;height:72px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;border:2px solid var(--border)">😊</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Tap avatar to change</div>
+        <div id="emoji-picker" style="display:none;text-align:left;margin-bottom:6px">
+          <input type="text" class="form-input" id="emoji-search" placeholder="Search emoji..." oninput="searchEmoji(this.value)" style="margin-bottom:8px">
+          <div id="emoji-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-height:160px;overflow-y:auto"></div>
+        </div>
+        <div style="display:flex;justify-content:space-around;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-balance">0.00</div>
+            <div style="font-size:10px;color:var(--muted)">Balance</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-orders">0</div>
+            <div style="font-size:10px;color:var(--muted)">Orders</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-joined">—</div>
+            <div style="font-size:10px;color:var(--muted)">Joined</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="card-title">Personal Info</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">First Name</label><input type="text" class="form-input" id="prof-fname"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input type="text" class="form-input" id="prof-lname"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="prof-email"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="prof-phone"></div>
+        <div class="form-group"><label class="form-label">Telegram Username <span style="color:var(--muted);font-weight:400">(optional)</span></label><input type="text" class="form-input" id="prof-telegram" placeholder="@username"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span class="card-title">Change Password</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-oldpass" style="flex:1">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-oldpass',this)">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-newpass" style="flex:1" oninput="profStrength(this.value)">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-newpass',this)">👁</button>
+          </div>
+          <div style="height:4px;background:var(--surface2);border-radius:3px;margin-top:8px;overflow:hidden">
+            <div id="prof-str-bar" style="height:100%;width:0%;transition:width .2s"></div>
+          </div>
+          <div id="prof-str-lbl" style="font-size:10px;margin-top:4px"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-confpass" style="flex:1">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-confpass',this)">👁</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;margin-bottom:24px" onclick="saveProfile()">💾 Save Changes</button>
   </div>
 
   <!-- ── TICKETS PAGE ── -->
@@ -1502,6 +1576,7 @@ function detectPlatform(str){
 var platSvcs={};
 var catSvcsMap={};
 var orderCats={};
+var allSvcs=[];
 
 function rebuildServiceMaps(){
   platSvcs={};
@@ -1551,9 +1626,14 @@ function rebuildServiceMaps(){
       catSvcsMap[cat].push(s);
     });
   });
-} // end rebuildServiceMaps
 
-const allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
+  // Flat list used by the Services (browse/search) page — was previously a
+  // top-level `const` computed once at script-parse time, before this
+  // function had ever run, so it permanently captured an empty platSvcs and
+  // the Services tab always showed "No services found" no matter what the
+  // admin configured. Recomputing it here keeps it in sync on every rebuild.
+  allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
+} // end rebuildServiceMaps
 
 
 // orderCats now loaded from admin services above
@@ -3873,31 +3953,6 @@ function goOrder(plat,svcId){
     }
   }
   // do NOT auto-open - user clicks to open
-}
-
-// BROWSE CATEGORY (services page)
-function renderCatList(){
-  var list=document.getElementById('cat-list');
-  var html='';
-  for(var i=0;i<categories.length;i++){
-    html+='<div class="cat-item'+(i===0?' active':'')+'" onclick="selectCat('+i+',this)"><svg width="14" height="14"><use href="#'+categories[i].icon+'"/></svg>'+categories[i].name+'</div>';
-  }
-  list.innerHTML=html;
-}
-function toggleCat(){
-  var trigger=document.getElementById('cat-trigger');
-  var list=document.getElementById('cat-list');
-  trigger.classList.toggle('open');
-  list.classList.toggle('open');
-}
-function selectCat(i,el){
-  document.querySelectorAll('.cat-item').forEach(function(c){c.classList.remove('active');});
-  el.classList.add('active');
-  document.getElementById('cat-label').innerHTML='<svg width="14" height="14"><use href="#'+categories[i].icon+'"/></svg>'+categories[i].name;
-  document.getElementById('cat-trigger').classList.remove('open');
-  document.getElementById('cat-list').classList.remove('open');
-  var pill=document.querySelector('#svc-plat-row .plat-pill[data-p="'+categories[i].plat+'"]');
-  filterSvc(categories[i].plat, pill||document.querySelector('#svc-plat-row .plat-pill'));
 }
 
 // TOAST
