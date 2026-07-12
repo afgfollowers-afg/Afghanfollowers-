@@ -3810,10 +3810,33 @@ function approveFreeLikes(id){
   if(o.status!=='pending_approval'){toast('This claim is not awaiting approval','w');return;}
   var claimUser=getRealUsers().find(function(x){return String(x.id)===String(o.userId);});
   if(claimUser&&claimUser.status==='suspended'){toast('This user is suspended — reject this claim instead of approving it','e');return;}
+
+  // Guard against dispatching the same link to the provider twice. The
+  // creation-time checks (claimFreeLikes()/placeOrder() in smm-panel.html)
+  // each only look within their own order type (free-likes claims vs paid
+  // orders), so a customer submitting one of each for the same link never
+  // gets blocked by either — this is the last point before anything
+  // actually reaches the provider, so it's checked broadly across all
+  // orders regardless of type.
+  var dupOrder=orders.find(function(x){
+    return String(x.id)!==String(o.id)&&x.link===o.link&&x.platform===o.platform
+      &&(x.provOrderId||['processing','completed','partial'].indexOf(x.status)>-1);
+  });
+  if(dupOrder){
+    var dupDesc=dupOrder.provOrderId?('provider order #'+dupOrder.provOrderId):('status: '+dupOrder.status);
+    if(!confirm('⚠️ This link already has another order dispatched to the provider ('+dupDesc+').\n\nApprove this claim anyway and send a SECOND order for the same link?')) return;
+  }
+
   if(!confirm('Approve this free-likes claim for '+(o.user||o.email||'user')+' and start delivery to:\n'+o.link+'?')) return;
 
   o.status='processing';
   o.approvedAt=new Date().toISOString();
+  // Marks the moment dispatch was attempted, separately from provOrderId
+  // actually being confirmed — api/sync-orders.js's daily retry job only
+  // resends an order that's been stuck with no provOrderId for a while, so
+  // it doesn't race a dispatch that's merely still in flight (see that
+  // file's neverSent filter for the other half of this fix).
+  o.dispatchAttemptedAt=Date.now();
   localStorage.setItem('smm_orders',JSON.stringify(orders));
 
   // Dispatch to the real provider now that it's approved

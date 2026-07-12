@@ -2398,6 +2398,11 @@ function placeOrder(){
     cancel:canCancelSvc,
     refill:canRefillSvc,
     status:'processing',
+    // Marks the moment dispatch was attempted, separately from provOrderId
+    // actually being confirmed — api/sync-orders.js's daily retry job only
+    // resends an order that's been stuck with no provOrderId for a while,
+    // so it doesn't race a dispatch that's merely still in flight.
+    dispatchAttemptedAt:Date.now(),
     date:new Date().toISOString()
   };
   
