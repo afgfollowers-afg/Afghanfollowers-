@@ -884,7 +884,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
         <div id="fl-friends-list" style="display:flex;flex-direction:column;gap:6px"></div>
         <div id="fl-visits-row" style="display:none;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          <span>🔗 Link visits (send to 50 people)</span>
+          <span id="fl-visits-label">🔗 Link visits</span>
           <span id="fl-visits-count" style="color:var(--text);font-weight:700">0 / 50</span>
         </div>
       </div>
@@ -1359,7 +1359,7 @@ function renderAnnouncements(){
       +(isSafeLink?'<a class="ann-post-link" href="'+escHtml(link)+'" target="_blank" rel="noopener noreferrer">🔗 '+escHtml(a.linkText||link)+'</a>':'')
       +'</div></div>';
   }).join('');
-  wrap.innerHTML='<div class="ann-feed" id="ann-feed">'
+  wrap.innerHTML='<div class="ann-feed open" id="ann-feed">'
     +'<div class="ann-feed-head" onclick="toggleAnnFeed()">📢 Announcements'
     +'<span class="ann-feed-count">'+active.length+'</span>'
     +'<span class="ann-feed-arrow">▼</span></div>'
@@ -1371,11 +1371,28 @@ function toggleAnnFeed(){
   if(el) el.classList.toggle('open');
 }
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
+// Overwrites FL_NEED/FL_VISIT_GOAL from admin-configured general settings
+// (fields g-fl-friends / g-fl-visits) — falls back to the defaults above
+// if either was never set. Re-renders the Free Likes page if it's already
+// open so a config change picked up mid-session shows up immediately.
+function applyFlSettings(cfg){
+  cfg=cfg||{};
+  var friends=parseInt(cfg['g-fl-friends'],10);
+  var visits=parseInt(cfg['g-fl-visits'],10);
+  if(friends>0) FL_NEED=friends;
+  if(visits>0) FL_VISIT_GOAL=visits;
+  var flPage=document.getElementById('page-free-likes');
+  if(flPage&&flPage.classList.contains('active')&&typeof renderFreeLikes==='function') renderFreeLikes();
+}
 (function pullAnnouncementsEarly(){
   fetch('/api/db').then(function(r){return r.json();}).then(function(d){
     if(d&&Array.isArray(d.smm_announcements)){
       localStorage.setItem('smm_announcements',JSON.stringify(d.smm_announcements));
       renderAnnouncements();
+    }
+    if(d&&d.smm_general&&typeof d.smm_general==='object'){
+      localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+      applyFlSettings(d.smm_general);
     }
   }).catch(function(){});
 })();
@@ -2382,7 +2399,14 @@ function placeOrder(){
 }
 
 // ══ FREE LIKES / REFERRAL PROGRAM ══
+// FL_NEED and FL_VISIT_GOAL are admin-configurable (Admin -> Settings ->
+// General -> "Free Likes Program") — these are just fallback defaults used
+// until applyFlSettings() overwrites them from smm_general_settings, which
+// is populated by the early server pull below and kept in sync by
+// pullFromServerOnLoad()'s periodic poll.
 var FL_NEED=5; // friends required per reward
+var FL_VISIT_GOAL=50; // unique-IP link visits required — must match VISIT_GOAL in api/db.js
+try{applyFlSettings(JSON.parse(localStorage.getItem('smm_general_settings')||'{}'));}catch(e0){}
 var FL_PLATFORMS=['instagram','tiktok']; // only these two are eligible for the reward
 var FL_ACCEPT_MS=24*60*60*1000; // an invited friend only counts once their account has stood active for 24h — blocks instant fake-account farming right before a claim
 var FL_COOLDOWN_MS=24*60*60*1000; // claims are rate-limited to once per day per user
@@ -2528,12 +2552,14 @@ function renderFreeLikes(){
 
   var visitsRow=document.getElementById('fl-visits-row');
   var visitsCountEl=document.getElementById('fl-visits-count');
+  var visitsLabelEl=document.getElementById('fl-visits-label');
+  if(visitsLabelEl) visitsLabelEl.textContent='🔗 Link visits (send to '+FL_VISIT_GOAL+' people)';
   if(visitsRow&&visitsCountEl){
     var visitCounts={};try{visitCounts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e7){}
     var myVisits=parseInt(visitCounts[code])||0;
     if(myVisits>0){
       visitsRow.style.display='flex';
-      visitsCountEl.textContent=Math.min(myVisits,50)+' / 50'+(myVisits>=50?' ✓':'');
+      visitsCountEl.textContent=Math.min(myVisits,FL_VISIT_GOAL)+' / '+FL_VISIT_GOAL+(myVisits>=FL_VISIT_GOAL?' ✓':'');
     }else{
       visitsRow.style.display='none';
     }
@@ -4038,6 +4064,14 @@ function pullFromServerOnLoad(){
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
+      }
+      if(d.smm_general&&typeof d.smm_general==='object'){
+        var localGen=localStorage.getItem('smm_general_settings')||'{}';
+        var newGen=JSON.stringify(d.smm_general);
+        if(newGen!==localGen){
+          localStorage.setItem('smm_general_settings',newGen);
+          applyFlSettings(d.smm_general);
+        }
       }
       var refVisitsChanged=false;
       if(d.smm_ref_visit_counts&&typeof d.smm_ref_visit_counts==='object'){

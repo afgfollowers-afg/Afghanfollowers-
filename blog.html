@@ -62,6 +62,28 @@ h1.pg{font-size:clamp(24px,4.5vw,34px);font-weight:900;color:var(--wh);margin-bo
 .cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:16px;padding:30px 20px;margin-top:30px;}
 @keyframes giftWiggle{0%,100%{transform:rotate(0deg) translateY(0);}20%{transform:rotate(-12deg) translateY(-6px);}40%{transform:rotate(9deg) translateY(0);}60%{transform:rotate(-7deg) translateY(-4px);}80%{transform:rotate(5deg) translateY(0);}}
 .gift-emoji{display:inline-block;animation:giftWiggle 1.6s ease-in-out infinite;}
+/* Announcements dropdown — same collapsible pattern as the panel */
+.ann-feed{background:var(--s1);border:1px solid var(--bd);border-radius:14px;margin-bottom:22px;overflow:hidden;text-align:right;}
+.ann-feed-head{display:flex;align-items:center;gap:8px;padding:13px 16px;font-size:14px;font-weight:700;color:var(--wh);cursor:pointer;user-select:none;}
+.ann-feed-count{background:var(--acc);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px;}
+.ann-feed-arrow{margin-right:auto;font-size:12px;color:var(--mt);transition:transform .25s;}
+.ann-feed.open .ann-feed-arrow{transform:rotate(180deg);}
+.ann-feed.open .ann-feed-head{border-bottom:1px solid var(--bd);}
+.ann-feed-list{max-height:0;overflow-y:auto;transition:max-height .3s ease;}
+.ann-feed.open .ann-feed-list{max-height:360px;}
+.ann-post{display:flex;gap:10px;padding:13px 16px;border-bottom:1px solid var(--bd);}
+.ann-post:last-child{border-bottom:none;}
+.ann-post-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0;}
+.ann-post-title{font-weight:700;font-size:14px;color:var(--wh);margin-bottom:2px;}
+.ann-post-date{font-size:12px;color:var(--mt);margin-bottom:4px;}
+.ann-post-msg{font-size:13px;line-height:1.6;color:var(--tx);}
+.ann-dot-info{background:var(--acc);}
+.ann-dot-success{background:var(--gr);}
+.ann-dot-warning{background:#eab308;}
+.ann-dot-danger{background:#ff5c7d;}
+.ann-post-link{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:6px 12px;border-radius:8px;background:var(--acc);color:#fff;font-size:12px;font-weight:700;text-decoration:none;}
+.ann-post-link:hover{opacity:.9;}
+
 footer{border-top:1px solid var(--bd);margin-top:50px;padding-top:22px;text-align:center;color:var(--mt);font-size:12px;}
 footer a{color:var(--acc2);text-decoration:none;}
 @media(max-width:560px){.grid{grid-template-columns:1fr;}}
@@ -85,6 +107,8 @@ footer a{color:var(--acc2);text-decoration:none;}
     <a class="btn btn-p" href="/auth.html">ورود / ثبت‌نام</a>
   </nav>
 </header>
+
+<div id="ann-banners"></div>
 
 <main id="main-content">
   <div class="empty"><div class="ic">⏳</div>در حال بارگذاری...</div>
@@ -138,6 +162,50 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 })();
 
 function escHtml(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
+
+// ── Announcements dropdown — same admin-authored feed shown in the
+// customer panel, mirrored here so blog visitors see it too.
+var ANN_FEED_LIMIT=10;
+function toggleAnnFeed(){
+  var el=document.getElementById('ann-feed');
+  if(el) el.classList.toggle('open');
+}
+function renderAnnouncements(){
+  var wrap=document.getElementById('ann-banners');
+  if(!wrap) return;
+  var list=[];try{list=JSON.parse(localStorage.getItem('smm_announcements')||'[]');}catch(e){}
+  var active=list.filter(function(a){return a.active;})
+    .sort(function(x,y){return new Date(y.createdAt||0)-new Date(x.createdAt||0);})
+    .slice(0,ANN_FEED_LIMIT);
+  if(!active.length){wrap.innerHTML='';return;}
+  var posts=active.map(function(a){
+    var type=['info','success','warning','danger'].indexOf(a.type)>-1?a.type:'info';
+    var dateStr=a.createdAt?new Date(a.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+    var link=(a.link||'').trim();
+    var isSafeLink=/^https?:\/\//i.test(link);
+    return '<div class="ann-post">'
+      +'<div class="ann-post-dot ann-dot-'+type+'"></div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="ann-post-title">'+escHtml(a.title)+'</div>'
+      +(dateStr?'<div class="ann-post-date">'+dateStr+'</div>':'')
+      +'<div class="ann-post-msg">'+escHtml(a.msg)+'</div>'
+      +(isSafeLink?'<a class="ann-post-link" href="'+escHtml(link)+'" target="_blank" rel="noopener noreferrer">🔗 '+escHtml(a.linkText||link)+'</a>':'')
+      +'</div></div>';
+  }).join('');
+  wrap.innerHTML='<div class="ann-feed open" id="ann-feed">'
+    +'<div class="ann-feed-head" onclick="toggleAnnFeed()">📢 اعلانات'
+    +'<span class="ann-feed-count">'+active.length+'</span>'
+    +'<span class="ann-feed-arrow">▼</span></div>'
+    +'<div class="ann-feed-list">'+posts+'</div>'
+    +'</div>';
+}
+renderAnnouncements();
+fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+  if(d&&Array.isArray(d.smm_announcements)){
+    localStorage.setItem('smm_announcements',JSON.stringify(d.smm_announcements));
+    renderAnnouncements();
+  }
+}).catch(function(){});
 
 var PLATFORM_COLORS={
   instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',
