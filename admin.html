@@ -3901,7 +3901,7 @@ function approveRefVisit(ref){
     if(cfg.token){
       fetch('https://api.telegram.org/bot'+cfg.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({chat_id:me.tgChatId,parse_mode:'HTML',
-          text:'🎉 <b>Your Free Likes reward is approved!</b>\n\nYour '+q.count+' verified referral visits unlocked 100 free likes. Go claim them here:\n'+ (location.origin.replace('admin','')||'https://afghanfollowers.online') +'/smm-panel.html'})
+          text:'🎉 <b>Your Free Likes reward is approved!</b>\n\nYour '+q.count+' verified referral visits unlocked your free likes. Go claim them here:\n'+ (location.origin.replace('admin','')||'https://afghanfollowers.online') +'/smm-panel.html'})
       }).catch(function(){});
     }
   }
