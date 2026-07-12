@@ -332,9 +332,6 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sec">
         <div class="sec-h">
           <div class="sec-t">📦 All Orders</div>
-          <div class="sec-a">
-            <select class="fi btn-sm" id="ord-filter" onchange="filterOrders()" style="font-size:12px"><option value="all">All</option><option value="pending">Pending</option><option value="processing">Processing</option><option value="completed">Completed</option><option value="failed">Failed</option></select>
-          </div>
         </div>
         <div class="tw" id="orders-tbl"></div>
       </div>
@@ -2128,12 +2125,6 @@ function filterOrdersAdmin(){
     c.style.display=show?'block':'none';
   });
 }
-function filterOrders(){
-  var s=document.getElementById('ord-filter').value;
-  var all=getRealOrders();
-  rOrders(s==='all'?all:all.filter(function(o){return o.status===s;}));
-}
-
 // ═══ SERVICES ═══
 // ══ SERVICES MANAGER ══
 var SVC_KEY='smm_services';
