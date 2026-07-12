@@ -273,10 +273,21 @@ module.exports = async (req, res) => {
         current.smm_resets = body.smm_resets;
       }
       if (body.smm_ref_visit_queue && Array.isArray(body.smm_ref_visit_queue)) {
-        // Admin is the sole writer of status changes (approve/reject) on this
-        // queue, so a plain overwrite (like smm_providers/smm_pm below) is
-        // safe — no per-item id to merge by anyway.
-        current.smm_ref_visit_queue = body.smm_ref_visit_queue;
+        // NOT a single-writer field — the track_ref_visit branch above also
+        // pushes new pending entries here independently of the admin panel.
+        // A plain overwrite let the admin's browser silently erase a
+        // just-arrived pending entry any time it called pushToServer() with
+        // a locally stale copy (e.g. right after approving/rejecting a
+        // ticket, which has nothing to do with this queue) — the admin
+        // panel would then never show "Needs Approval" for a reward that
+        // genuinely qualified. Merge by ref instead: the admin's copy wins
+        // for refs it knows about (status changes), but any ref that exists
+        // only on the server (a brand new pending entry) survives.
+        const existingQueue = current.smm_ref_visit_queue || [];
+        const mergedQueue = {};
+        existingQueue.forEach(function (q) { if (q && q.ref) mergedQueue[q.ref] = q; });
+        body.smm_ref_visit_queue.forEach(function (q) { if (q && q.ref) mergedQueue[q.ref] = q; });
+        current.smm_ref_visit_queue = Object.keys(mergedQueue).map(function (k) { return mergedQueue[k]; });
       }
       if (body.smm_ref_visit_overrides && typeof body.smm_ref_visit_overrides === 'object') {
         // Admin-set manual visit counts per referral code, applied on top of
