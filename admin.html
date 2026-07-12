@@ -626,7 +626,11 @@ textarea.fi{resize:vertical;min-height:75px;}
 
             <div class="card">
               <div class="ch">✉️ Email Template
-                <div style="display:flex;gap:8px">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <select id="ea-ai-lang" class="fi" style="padding:6px 8px;font-size:11px;width:auto">
+                    <option value="fa">🇦🇫 فارسی</option>
+                    <option value="en">🇬🇧 English</option>
+                  </select>
                   <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="generateEmailAI('ea-t-subj','ea-t-body')">🤖 Generate with AI</button>
                   <button class="btn btn-g" style="padding:6px 12px;font-size:11px" onclick="eaShowPreview()">👁 Preview</button>
                 </div>
@@ -5648,21 +5652,71 @@ function eaSetStatus(on){
   if(tog) tog.classList[on?'add':'remove']('on');
 }
 
+// Wraps AI-generated inner content (a greeting + a couple of paragraphs +
+// a services checklist — see EMAIL_SYSTEM_PROMPT in api/ai-chat.js) in the
+// same branded template as the default email: logo + site name header, a
+// dedicated Free Likes promo badge, a real working CTA button, and a
+// footer — all in the same language as the generated content, so nothing
+// ever mixes Persian and English in one email. The model used to be asked
+// to build the whole email itself (including its own link/button/logo)
+// and it reliably came back as plain unstyled text — wrapping guarantees a
+// polished, on-brand look every time regardless of what the model writes.
+var EMAIL_WRAP_STRINGS={
+  fa:{
+    dir:'rtl',align:'right',
+    cta:'🚀 ورود به پنل',
+    flHeading:'🎁 لایک رایگان می‌خواهید؟',
+    flBody:'با دعوت دوستان یا اشتراک‌گذاری لینک رفرال خودتان، برای اینستاگرام و تیک‌تاک لایک رایگان بگیرید!',
+    flCta:'دریافت لایک رایگان ⚡',
+    footer:'این ایمیل برای شما ارسال شد چون در {{site_name}} ثبت‌نام کرده‌اید.<br>© {{site_name}} · تمامی حقوق محفوظ است'
+  },
+  en:{
+    dir:'ltr',align:'left',
+    cta:'🚀 Go to Panel',
+    flHeading:'🎁 Want Free Likes?',
+    flBody:'Invite friends or share your referral link to get free likes for Instagram and TikTok!',
+    flCta:'Get Free Likes ⚡',
+    footer:'You received this email because you registered at {{site_name}}.<br>© {{site_name}} · All rights reserved'
+  }
+};
+var EMAIL_LOGO_URL='https://afghanfollowers.online/icons/apple-touch-icon.png';
+function wrapEmailTemplate(innerHtml,lang){
+  var s=EMAIL_WRAP_STRINGS[lang]||EMAIL_WRAP_STRINGS.fa;
+  return '<div dir="'+s.dir+'" style="font-family:Tahoma,\'Segoe UI\',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa;text-align:'+s.align+'">'
+    +'<style>@keyframes flPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}.fl-badge{animation:flPulse 1.8s ease-in-out infinite}</style>'
+    +'<div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:18px 20px;border-radius:12px 12px 0 0;text-align:center">'
+    +'<img src="'+EMAIL_LOGO_URL+'" width="36" height="36" alt="" style="vertical-align:middle;border-radius:9px;margin-'+(s.dir==='rtl'?'left':'right')+':10px">'
+    +'<span style="color:#fff;font-size:22px;font-weight:800;vertical-align:middle">{{site_name}}</span></div>'
+    +'<div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);line-height:1.9">'
+    +innerHtml
+    +'<div class="fl-badge" style="background:linear-gradient(135deg,rgba(124,92,252,.12),rgba(0,210,160,.12));border:1px solid rgba(124,92,252,.3);border-radius:12px;padding:16px 18px;margin:20px 0;text-align:center">'
+    +'<div style="font-size:16px;font-weight:800;color:#5b21b6;margin-bottom:6px">'+s.flHeading+'</div>'
+    +'<div style="font-size:13px;color:#555;margin-bottom:10px">'+s.flBody+'</div>'
+    +'<a href="{{panel_link}}" style="color:#7c5cfc;font-weight:700;font-size:13px;text-decoration:none">'+s.flCta+'</a>'
+    +'</div>'
+    +'<div style="text-align:center;margin:20px 0 0">'
+    +'<a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">'+s.cta+'</a>'
+    +'</div>'
+    +'<p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:20px 0 0">'
+    +s.footer+'</p>'
+    +'</div></div>';
+}
 async function generateEmailAI(subjId,bodyId){
   var topic=prompt('What should this email be about? (e.g. "announce the new website launch")','');
   if(!topic) return;
+  var lang=(document.getElementById('ea-ai-lang')||{}).value||'fa';
   var btns=document.querySelectorAll('button[onclick*="generateEmailAI(\''+subjId+'\'"]');
   btns.forEach(function(b){b.disabled=true;b.textContent='🤖 Generating...';});
   try{
     var res=await fetch('/api/ai-chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({mode:'generate_email',topic:topic})
+      body:JSON.stringify({mode:'generate_email',topic:topic,lang:lang})
     });
     var data=await res.json();
     if(data.ok&&data.subject&&data.html){
       document.getElementById(subjId).value=data.subject;
-      document.getElementById(bodyId).value=data.html;
+      document.getElementById(bodyId).value=wrapEmailTemplate(data.html,lang);
       toast('✅ AI draft generated — review before sending!','s');
     } else {
       toast('❌ AI generation failed: '+(data.error||'unknown error'),'e');

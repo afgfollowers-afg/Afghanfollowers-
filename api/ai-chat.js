@@ -76,19 +76,57 @@ const SYSTEM_PROMPT = `شما دستیار پشتیبانی سایت Afghan Foll
 // marketing/re-engagement email for the admin panel's Email Automation tab.
 // Kept in the same file as the chat assistant (rather than a new endpoint) to stay under
 // Vercel's Hobby-plan cap of 12 serverless functions per deployment.
+// Note: "html" here is deliberately just the INNER content (greeting +
+// persuasive copy + a checkmark services list), not a full email layout —
+// the admin panel wraps it in a fixed branded template (gradient header,
+// a guaranteed real <a href="{{panel_link}}"> button, footer) so every
+// generated email looks polished and has a working CTA link regardless of
+// what the model writes. Earlier versions asked the model to build the
+// whole email (including its own CTA link) and it consistently came back
+// as plain, unstyled paragraphs with no real link — see generateEmailAI()
+// in admin.html for the wrapping step.
 const EMAIL_SYSTEM_PROMPT = `شما کپی‌رایتر بازاریابی ایمیلی برای Afghan Followers (افغان فالوورز) هستید — یک پنل فروش فالوور، لایک، ویو و ممبر واقعی برای اینستاگرام، تیک‌تاک، تلگرام، یوتیوب و فیسبوک، مخصوص مخاطب افغان. این پنل یک برنامه‌ی «لایک رایگان» هم دارد: کاربر با دعوت دوستان یا اشتراک‌گذاری لینک رفرالش، لایک رایگان می‌گیرد.
 
-وظیفه‌ات نوشتن متن یک ایمیل بازاریابی/اطلاع‌رسانی متقاعدکننده به زبان فارسی است، بر اساس موضوعی که کاربر می‌دهد — نه یک پیام کوتاه و خشک، بلکه ایمیلی با لحن گرم و کمی تبلیغاتی که واقعاً کاربر را ترغیب کند دوباره وارد پنل شود و از سرویس‌ها استفاده کند.
+وظیفه‌ات نوشتن فقط بخش داخلی متن یک ایمیل بازاریابی/اطلاع‌رسانی متقاعدکننده به زبان فارسی است، بر اساس موضوعی که کاربر می‌دهد — نه یک پیام کوتاه و خشک، بلکه محتوایی با لحن گرم و کمی تبلیغاتی که واقعاً کاربر را ترغیب کند دوباره وارد پنل شود و از سرویس‌ها استفاده کند.
+
+توجه: هدر، دکمه‌ی لینک ورود به پنل، و فوتر ایمیل به‌صورت خودکار و ثابت توسط سیستم اضافه می‌شوند — تو فقط محتوای وسط ایمیل را می‌نویسی، نیازی نیست خودت لینک یا دکمه بسازی.
 
 قوانین:
 1. فقط یک شیء JSON خام برگردان، دقیقاً به این شکل و بدون هیچ متن اضافه یا markdown fence: {"subject":"...","html":"..."}
 2. "subject" باید کوتاه، جذاب، و با حداکثر یک ایموجی باشد.
-3. "html" باید HTML ساده و امن باشد (فقط تگ‌های div/p/strong/br/a/ul/li — بدون script/style/iframe)، بین ۱۵۰ تا ۲۵۰ کلمه، لحن گرم و دوستانه ولی متقاعدکننده — نه فقط یک پاراگراف خیلی کوتاه.
-4. حتماً به‌طور طبیعی اشاره کن که پنل چه سرویس‌هایی ارائه می‌دهد (فالوور، لایک، ویو، ممبر برای اینستاگرام/تیک‌تاک/تلگرام/یوتیوب/فیسبوک)، و به‌طور خاص برنامه‌ی «لایک رایگان» (گرفتن لایک رایگان با دعوت دوستان یا اشتراک‌گذاری لینک) را به‌عنوان یک مزیت جذاب معرفی کن — مگر موضوعی که کاربر داده صراحتاً چیز دیگری بخواهد.
-5. حتماً یک جمله‌ی فراخوان به اقدام (Call To Action) با لینک {{panel_link}} در انتها بگذار (مثلاً «همین حالا وارد پنل شو»).
-6. اگر می‌خواهی جای نام یا لینک بگذاری، دقیقاً از {{name}}، {{site_name}} یا {{panel_link}} استفاده کن (این‌ها بعداً جایگزین می‌شوند).
-7. هیچ قیمت، تخفیف یا وعده‌ی دروغ نساز مگر کاربر دقیقاً آن را در موضوع خواسته باشد.
-8. متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها قاطی نکن.`;
+3. "html" باید شامل این بخش‌ها باشد:
+   - یک جمله‌ی خوش‌آمدگویی/گرم خطاب به {{name}} در تگ &lt;p&gt;.
+   - یک یا دو پاراگراف &lt;p&gt; با لحن گرم و متقاعدکننده درباره‌ی موضوعی که کاربر داده.
+   - یک لیست &lt;ul&gt;&lt;li&gt; با ایموجی چک‌مارک (✅) از سرویس‌های پنل (فالوور، لایک، ویو، ممبر برای اینستاگرام/تیک‌تاک/تلگرام/یوتیوب/فیسبوک) — حتماً یکی از آیتم‌ها درباره‌ی برنامه‌ی «لایک رایگان» باشد (گرفتن لایک رایگان با دعوت دوستان یا اشتراک‌گذاری لینک)، مگر موضوع صراحتاً چیز دیگری بخواهد.
+   - یک جمله‌ی پایانی کوتاه و مشتاق‌کننده که کاربر را برای کلیک روی دکمه‌ی زیرش آماده کند (بدون خودِ لینک یا دکمه).
+   - مجموع بین ۱۵۰ تا ۲۵۰ کلمه.
+   - فقط تگ‌های p/strong/br/ul/li مجازند — بدون div/a/script/style/iframe (اضافه کردن لینک یا دکمه لازم نیست).
+4. اگر می‌خواهی جای نام بگذاری، دقیقاً از {{name}} یا {{site_name}} استفاده کن (این‌ها بعداً جایگزین می‌شوند) — لینک پنل را خودت ننویس.
+5. هیچ قیمت، تخفیف یا وعده‌ی دروغ نساز مگر کاربر دقیقاً آن را در موضوع خواسته باشد.
+6. متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها قاطی نکن.`;
+
+// English mirror of EMAIL_SYSTEM_PROMPT — the admin panel's language
+// dropdown picks one or the other so a single generated email is never a
+// mix of Persian and English (mixing mid-sentence read poorly in testing).
+const EMAIL_SYSTEM_PROMPT_EN = `You are an email marketing copywriter for Afghan Followers — a panel selling real followers, likes, views and members for Instagram, TikTok, Telegram, YouTube and Facebook, mainly for an Afghan/Persian-speaking audience. The panel also has a "Free Likes" program: users get free likes by inviting friends or sharing their referral link.
+
+Your job is to write ONLY the inner content of a persuasive marketing/announcement email in English, based on the topic the user gives — not a short, dry notice, but content with a warm, slightly promotional tone that actually makes the reader want to come back to the panel and use the services.
+
+Note: the header, the panel-link button, and the footer are added automatically by the system — you only write the middle content, you don't need to build any link or button yourself.
+
+Rules:
+1. Return ONLY a raw JSON object, exactly in this shape and nothing else (no markdown fence): {"subject":"...","html":"..."}
+2. "subject" must be short, catchy, with at most one emoji.
+3. "html" must include:
+   - A warm greeting line addressed to {{name}} in a <p> tag.
+   - One or two <p> paragraphs with a warm, persuasive tone about the given topic.
+   - A <ul><li> checklist (with a ✅ checkmark emoji) of the panel's services (followers, likes, views, members for Instagram/TikTok/Telegram/YouTube/Facebook) — one item MUST be about the "Free Likes" program (getting free likes by inviting friends or sharing a link), unless the topic explicitly asks for something else.
+   - A short, enthusiastic closing line that sets up the button below it (without writing the link/button itself).
+   - 150 to 250 words total.
+   - Only p/strong/br/ul/li tags allowed — no div/a/script/style/iframe (no need to add a link or button).
+4. If you need a placeholder for a name, use exactly {{name}} or {{site_name}} (these get substituted later) — don't write the panel link yourself.
+5. Don't invent any price, discount, or false promise unless the user's topic explicitly asked for it.
+6. The text must be entirely in English — don't mix in Persian, Dari, or any other language mid-sentence.`;
 
 // System prompt for the third mode: writing a short SEO blog post about
 // growing Instagram/TikTok followers, for the daily content cron
@@ -146,9 +184,10 @@ module.exports = async (req, res) => {
       }
       const topic = (body.topic || '').trim();
       if (!topic) return res.status(200).json({ ok: false, error: 'No topic provided' });
+      const emailPrompt = body.lang === 'en' ? EMAIL_SYSTEM_PROMPT_EN : EMAIL_SYSTEM_PROMPT;
 
       const raw = await callGroq([
-        { role: 'system', content: EMAIL_SYSTEM_PROMPT },
+        { role: 'system', content: emailPrompt },
         { role: 'user', content: topic }
       ], 800);
 
