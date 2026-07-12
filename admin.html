@@ -3350,14 +3350,22 @@ function qiImportSelected(){
     toast('✅ Imported '+added+' services! (+'+markup+'% markup)','s');
     addNotif('Imported '+added+' services from '+p.name,'success');
 
-    // Best-effort Telegram ping — reuses the existing notify endpoint so
-    // this doesn't need its own serverless function. Lists each imported
-    // service on its own line (id, full provider name, our price), grouped
-    // by category, matching the style of a provider's own "new services"
-    // broadcast — not just a bare count.
+    // Best-effort Telegram + Facebook broadcast — reuses the existing notify
+    // endpoint (same one blog posts broadcast through) so this doesn't need
+    // its own serverless function. Lists each imported service on its own
+    // line (id, full provider name, our price), grouped by category,
+    // matching the style of a provider's own "new services" broadcast — not
+    // just a bare count. Posted to the public channel (not the admin's
+    // private notify chat), same as broadcastNewBlogPost().
     try{
       var tgMsg=qiBuildImportTgMsg(newSvcs);
-      fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tgMsg,skipGeo:true})}).catch(function(){});
+      var tgCfg=getTgCfg();
+      fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        message:tgMsg,
+        chatId:tgCfg.channelId,
+        fbMessage:tgMsg,
+        skipGeo:true
+      })}).catch(function(){});
     }catch(e){}
   }catch(err){
     toast('❌ Import error: '+err.message,'e');
