@@ -5366,6 +5366,9 @@ function rInviteStatus(){
   var users=getRealUsers();
   var q=((document.getElementById('inv-search')||{}).value||'').trim().toLowerCase();
   var visitCounts={};try{visitCounts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e){}
+  var genCfg={};try{genCfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e2){}
+  var friendsGoal=parseInt(genCfg['g-fl-friends'],10)||5;
+  var visitsGoal=parseInt(genCfg['g-fl-visits'],10)||50;
 
   var ACCEPT_MS=24*60*60*1000;
   function refCode(u){return u.id?Number(u.id).toString(36).toUpperCase():'';}
@@ -5402,12 +5405,26 @@ function rInviteStatus(){
       +'<td><b>'+escHtmlAdmin(name)+'</b><br><span style="color:var(--mt);font-size:11px">'+escHtmlAdmin(r.u.email||r.u.phone||'')+'</span></td>'
       +'<td><span class="b bp">'+r.code+'</span></td>'
       +'<td>'+r.invitedCount+'</td>'
-      +'<td><b style="color:var(--gr)">'+r.acceptedCount+'</b> / 5</td>'
-      +'<td>'+r.visits+' / 50</td>'
+      +'<td><b style="color:var(--gr)">'+r.acceptedCount+'</b> / '+friendsGoal+'</td>'
+      +'<td>'+r.visits+' / '+visitsGoal+' <span onclick="editUserVisits(\''+r.code+'\','+r.visits+')" title="Edit visit count" style="cursor:pointer;opacity:.7;margin-left:4px">✏️</span></td>'
       +'<td>'+r.claims+'</td>'
       +'</tr>';
   }).join('');
   tbl.innerHTML=h+'</tbody></table>';
+}
+function editUserVisits(code,current){
+  var v=parseInt(prompt('Set link visit count for referral code '+code+':',current));
+  if(isNaN(v)||v<0){if(!isNaN(v))toast('❌ Enter a number 0 or greater','e');return;}
+  var overrides={};try{overrides=JSON.parse(localStorage.getItem('smm_ref_visit_overrides')||'{}');}catch(e){}
+  overrides[code]=v;
+  localStorage.setItem('smm_ref_visit_overrides',JSON.stringify(overrides));
+  var counts={};try{counts=JSON.parse(localStorage.getItem('smm_ref_visit_counts')||'{}');}catch(e2){}
+  counts[code]=v;
+  localStorage.setItem('smm_ref_visit_counts',JSON.stringify(counts));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_ref_visit_overrides:overrides,smm_ts:Date.now()})}).catch(function(){});
+  rInviteStatus();
+  toast('✅ Visit count updated','s');
 }
 function delBlog(i){var list=getBlogPosts();list.splice(i,1);saveBlogPosts(list);rBlog();toast('Blog post deleted','e');}
 var BLOG_PLATFORM_EMOJI={instagram:'📷',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'📘',other:'📝'};

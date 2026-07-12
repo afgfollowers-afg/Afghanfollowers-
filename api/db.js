@@ -91,6 +91,11 @@ module.exports = async (req, res) => {
     const visitCounts = {};
     const rawVisits = main.record.smm_ref_visits || {};
     Object.keys(rawVisits).forEach(function (k) { visitCounts[k] = (rawVisits[k] || []).length; });
+    // Admin-set manual overrides (Admin -> User Invites -> edit) win over the
+    // real deduped count, for correcting a user's progress without touching
+    // the underlying IP log.
+    const visitOverrides = main.record.smm_ref_visit_overrides || {};
+    Object.keys(visitOverrides).forEach(function (k) { visitCounts[k] = visitOverrides[k]; });
     const record = Object.assign({}, main.record);
     delete record.smm_ref_visits;
 
@@ -272,6 +277,13 @@ module.exports = async (req, res) => {
         // queue, so a plain overwrite (like smm_providers/smm_pm below) is
         // safe — no per-item id to merge by anyway.
         current.smm_ref_visit_queue = body.smm_ref_visit_queue;
+      }
+      if (body.smm_ref_visit_overrides && typeof body.smm_ref_visit_overrides === 'object') {
+        // Admin-set manual visit counts per referral code, applied on top of
+        // the real (deduped) visit log below — lets the admin correct a
+        // user's displayed/counted progress without touching the raw IP
+        // log. Admin is the sole writer, so a plain overwrite is safe.
+        current.smm_ref_visit_overrides = body.smm_ref_visit_overrides;
       }
       if (body.smm_tg_bot && typeof body.smm_tg_bot === 'object') {
         current.smm_tg_bot = body.smm_tg_bot;
