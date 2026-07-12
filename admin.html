@@ -179,8 +179,8 @@ textarea.fi{resize:vertical;min-height:75px;}
 .mov.open{display:block;}
 
 /* TOAST */
-.toast{position:fixed;bottom:70px;right:16px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:600;z-index:9999;transition:all .3s;transform:translateY(60px);opacity:0;box-shadow:0 8px 30px rgba(0,0,0,.5);}
-.toast.show{transform:translateY(0);opacity:1;}
+.toast{position:fixed;bottom:70px;right:16px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:600;z-index:9999;transition:all .3s;transform:translateY(60px);opacity:0;box-shadow:0 8px 30px rgba(0,0,0,.5);pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;pointer-events:auto;}
 .toast.s{border-color:var(--gr);color:var(--gr);}
 .toast.e{border-color:var(--rd);color:var(--rd);}
 .toast.w{border-color:var(--yw);color:var(--yw);}
@@ -4604,10 +4604,11 @@ function getPmEditFields(m){
   var f='';
   var method=m.method;
   if(method==='paypal'){
-    f+='<div class="fg"><label class="fl">PayPal Email (for receiving payments)</label><input class="fi" id="pme-email" value="'+(m.email||'')+'" placeholder="yourpaypal@email.com"></div>';
-    f+='<div class="fg"><label class="fl">PayPal.me Link (optional)</label><input class="fi" id="pme-paypalme" value="'+(m.paypalme||'')+'" placeholder="https://paypal.me/yourname"></div>';
-    f+='<div class="fg"><label class="fl">Client ID (optional, for SDK)</label><input class="fi" id="pme-cid" value="'+(m.clientId||'')+'" placeholder="AfAlgLs_w1QedVwJUnI1BS4QC3uF4FqL7LQNc4dmIXP"></div>';
-    f+='<div class="fg"><label class="fl">Client Secret (optional)</label><input type="password" class="fi" id="pme-csec" value="'+(m.clientSecret||'')+'" placeholder="EPYxhDrIEXNP8Kwl3CkmqexNWHJgsQQwF7ciRdbmLy"></div>';
+    f+='<div class="fg full" style="background:rgba(0,112,186,.08);border:1px solid rgba(0,112,186,.25);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--tx)">💡 Client ID and Secret are <strong>required</strong> — payments are captured instantly via the PayPal SDK, then independently re-verified against PayPal\'s own API using these credentials before any balance is credited. Get them from your PayPal Business account → Developer Dashboard → Apps &amp; Credentials.</div>';
+    f+='<div class="fg"><label class="fl">Client ID</label><input class="fi" id="pme-cid" value="'+(m.clientId||'')+'" placeholder="AfAlgLs_w1QedVwJUnI1BS4QC3uF4FqL7LQNc4dmIXP"></div>';
+    f+='<div class="fg"><label class="fl">Client Secret</label><input type="password" class="fi" id="pme-csec" value="'+(m.clientSecret||'')+'" placeholder="EPYxhDrIEXNP8Kwl3CkmqexNWHJgsQQwF7ciRdbmLy"></div>';
+    f+='<div class="fg"><label class="fl">Environment</label><select class="fi" id="pme-env"><option value="live"'+(m.env!=='sandbox'?' selected':'')+'>Live (real payments)</option><option value="sandbox"'+(m.env==='sandbox'?' selected':'')+'>Sandbox (testing)</option></select></div>';
+    f+='<div class="fg"><label class="fl">PayPal Email <span style="color:var(--mt);font-weight:400">(display only, not used for verification)</span></label><input class="fi" id="pme-email" value="'+(m.email||'')+'" placeholder="yourpaypal@email.com"></div>';
   } else if(method==='paypal_manual'){
     f+='<div class="fg"><label class="fl">PayPal Email</label><input class="fi" id="pme-email" value="'+(m.email||'')+'" placeholder="payments@yoursite.com"></div>';
   } else if(method==='binance'){
@@ -4706,9 +4707,9 @@ function savePmEdit(){
   var el;
   if(method==='paypal'){
     el=document.getElementById('pme-email');if(el&&el.value.trim())m.email=el.value.trim();
-    el=document.getElementById('pme-paypalme');if(el&&el.value.trim())m.paypalme=el.value.trim();
     el=document.getElementById('pme-cid');if(el&&el.value.trim())m.clientId=el.value.trim();
     el=document.getElementById('pme-csec');if(el&&el.value.trim())m.clientSecret=el.value.trim();
+    el=document.getElementById('pme-env');if(el)m.env=el.value;
   } else if(method==='paypal_manual'){
     el=document.getElementById('pme-email');if(el)m.email=el.value.trim();
   } else if(method==='binance'){

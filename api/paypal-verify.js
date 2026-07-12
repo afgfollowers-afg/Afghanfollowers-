@@ -1,0 +1,163 @@
+// Vercel Serverless Function — Server-side PayPal payment verification.
+//
+// The client-side PayPal SDK captures an order (talks directly to PayPal's
+// servers), but a captured order ID reported back by the browser is NOT on
+// its own proof that a real payment happened — it's attacker-controllable
+// data unless independently re-checked. This endpoint re-verifies the order
+// against PayPal's own REST API (OAuth client-credentials + Orders v2) using
+// the admin-configured Client ID/Secret, and only credits the wallet after
+// PayPal itself confirms the order is COMPLETED and the amount matches. The
+// crediting decision never depends on trusting anything the client sent.
+
+const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
+
+const SITE = 'https://afghanfollowers.online';
+const BIN_ID = process.env.JSONBIN_BIN_ID;
+const API_KEY = process.env.JSONBIN_API_KEY;
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
+
+async function readRecord() {
+  const r = await fetch(JSONBIN_BASE + BIN_ID + '/latest', { headers: { 'X-Master-Key': API_KEY } });
+  const j = await r.json();
+  if (!r.ok || !j.record) throw new Error('Failed to read database');
+  return j.record;
+}
+
+async function getPayPalToken(clientId, secret, apiBase) {
+  const r = await fetch(apiBase + '/v1/oauth2/token', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(clientId + ':' + secret).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  const j = await r.json();
+  if (!r.ok || !j.access_token) throw new Error('PayPal auth failed: ' + JSON.stringify(j));
+  return j.access_token;
+}
+
+module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', SITE);
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+
+  if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  if (!BIN_ID || !API_KEY) {
+    return res.status(200).json({ ok: false, error: 'Database not configured' });
+  }
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    const orderId = String(body.orderId || '').trim();
+    const userId = body.userId;
+    if (!orderId || userId === undefined) {
+      return res.status(200).json({ ok: false, error: 'Missing orderId or userId' });
+    }
+
+    const record = await readRecord();
+    const pms = record.smm_pm || [];
+    const pm = pms.find((m) => m.method === 'paypal');
+    if (!pm || !pm.clientId || !pm.clientSecret) {
+      return res.status(200).json({ ok: false, error: 'PayPal not fully configured (missing Client ID/Secret)' });
+    }
+
+    // Idempotency — a captured order ID must only ever be credited once,
+    // even if the client retries the confirmation call.
+    const processed = record.smm_paypal_processed || [];
+    if (processed.indexOf(orderId) !== -1) {
+      return res.status(200).json({ ok: false, error: 'This payment has already been processed' });
+    }
+
+    const apiBase = pm.env === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+    const token = await getPayPalToken(pm.clientId, pm.clientSecret, apiBase);
+
+    const orderResp = await fetch(apiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const order = await orderResp.json();
+    if (!orderResp.ok) {
+      return res.status(200).json({ ok: false, error: 'PayPal order lookup failed: ' + JSON.stringify(order) });
+    }
+    if (order.status !== 'COMPLETED') {
+      return res.status(200).json({ ok: false, error: 'Payment not completed yet (status: ' + order.status + ')' });
+    }
+
+    const unit = order.purchase_units && order.purchase_units[0];
+    const capture = unit && unit.payments && unit.payments.captures && unit.payments.captures[0];
+    if (!capture || capture.status !== 'COMPLETED') {
+      return res.status(200).json({ ok: false, error: 'Payment capture not completed' });
+    }
+    const paidAmount = parseFloat(capture.amount.value);
+    if (!paidAmount || paidAmount <= 0) {
+      return res.status(200).json({ ok: false, error: 'Invalid captured amount' });
+    }
+
+    const fee = parseFloat(pm.fee) || 0;
+    const feeAmt = parseFloat((paidAmount * (fee / 100)).toFixed(2));
+    const credit = parseFloat((paidAmount - feeAmt).toFixed(2));
+
+    const users = record.smm_users || [];
+    const user = users.find((u) => String(u.id) === String(userId));
+    if (!user) {
+      return res.status(200).json({ ok: false, error: 'User not found' });
+    }
+
+    const newBalance = parseFloat(((parseFloat(user.balance) || 0) + credit).toFixed(2));
+    const updatedUser = Object.assign({}, user, {
+      balance: newBalance,
+      transactions: [
+        {
+          id: Date.now(),
+          type: 'deposit',
+          method: 'PayPal',
+          amount: paidAmount,
+          fee: feeAmt,
+          credit: credit,
+          ppOrderId: orderId,
+          desc: 'PayPal — verified with PayPal and auto-credited',
+          date: new Date().toISOString(),
+          status: 'approved'
+        }
+      ].concat(user.transactions || [])
+    });
+
+    processed.push(orderId);
+    if (processed.length > 2000) processed.splice(0, processed.length - 2000);
+
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({
+        smm_users: [updatedUser],
+        smm_paypal_processed: processed,
+        smm_ts: Date.now()
+      })
+    });
+
+    // Best-effort admin notification — must never fail the verified response.
+    try {
+      const cfg = record.smm_tg_bot || {};
+      if (cfg.token && cfg.chatId) {
+        await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chatId,
+            parse_mode: 'HTML',
+            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nOrder: ${orderId}`
+          })
+        });
+      }
+    } catch (e) { /* best-effort */ }
+
+    return res.status(200).json({ ok: true, credited: credit, newBalance: newBalance });
+  } catch (e) {
+    return res.status(200).json({ ok: false, error: e.message });
+  }
+};

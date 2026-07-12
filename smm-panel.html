@@ -381,8 +381,8 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .divider{height:1px;background:var(--border);margin:14px 0;}
 
 /* TOAST */
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;}
-.toast.show{transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);pointer-events:auto;}
 .toast.s{border-color:var(--green);color:var(--green);}
 .toast.e{border-color:var(--red);color:var(--red);}
 
@@ -3494,187 +3494,120 @@ function openPayPalModal(amt, clientId, fee){
 
   var feeAmt=parseFloat((amt*((fee||0)/100)).toFixed(2));
   var receive=parseFloat((amt-feeAmt).toFixed(2));
+  var feeInfo=feeAmt>0?'<div style="font-size:12px;color:#666;margin-top:8px;text-align:center">'+fee+'% fee applied — you receive $'+receive.toFixed(2)+'</div>':'';
 
-  var feeInfo=feeAmt>0?'<div style="font-size:12px;color:#666;margin-top:6px">'+fee+'% fee applied — you receive $'+receive.toFixed(2)+'</div>':'';
   document.getElementById('pp-modal-body').innerHTML=
-    '<div style="padding:4px 0">'
-    +'<button id="pp-open-btn" style="width:100%;padding:16px;background:linear-gradient(135deg,#003087,#009cde);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">'
-    +'<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.082-8.558 6.082H9.822l-1.298 8.23h3.378c.459 0 .85-.334.922-.787l.038-.196.733-4.649.047-.256a.933.933 0 0 1 .921-.787h.581c3.757 0 6.697-1.527 7.557-5.945.36-1.847.173-3.39-.48-4.405z"/></svg>'
-    +'Pay $'+amt.toFixed(2)+' with PayPal</button>'
-    +feeInfo
-    +'<div style="font-size:11px;color:#999;text-align:center;margin-top:12px">You will be redirected to PayPal to complete payment securely</div>'
-    +'</div>';
-
-  var _cid=clientId,_a=amt,_fa=feeAmt,_r=receive;
-  setTimeout(function(){
-    var ob=document.getElementById('pp-open-btn');
-    if(ob) ob.onclick=function(){ppOpenPayPal(_cid,_a,_fa,_r);};
-  },50);
-
+    '<div id="pp-loading" style="text-align:center;padding:20px;color:#555">'
+    +'<div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 12px"></div>'
+    +'<div style="font-size:13px">Loading PayPal...</div></div>'
+    +'<div id="paypal-btn-container" style="min-height:50px;margin-top:8px"></div>'
+    +feeInfo;
   document.getElementById('paypal-btn-container').innerHTML='';
   modal.onclick=function(e){if(e.target===modal)closePayPalModal();};
+
+  loadPayPalButtons(amt, clientId, fee, cfg.env);
 }
 
-function ppOpenPayPal(clientId, amt, feeAmt, receive){
-  var u=getCurrentUser();
-  if(!u){showToast('Not logged in','e');return;}
+// Loads PayPal's own JS SDK and renders the real Smart Buttons — the SDK
+// talks directly to PayPal, and actions.order.capture() only resolves once
+// PayPal itself reports the order COMPLETED. That capture result still
+// isn't trusted on its own (a browser can be tampered with); the order id
+// it returns is re-checked server-side in verifyPayPalOrder() against
+// PayPal's own API before anything is credited.
+function loadPayPalButtons(amt, clientId, fee, env){
+  var old=document.getElementById('paypal-sdk');
+  if(old) old.remove();
+  window.paypal=undefined;
 
-  // Store pending payment in sessionStorage for auto-credit on return
-  sessionStorage.setItem('pp_pending',JSON.stringify({
-    amt:amt, feeAmt:feeAmt||0, receive:receive||amt,
-    userId:u.id, ts:Date.now()
-  }));
-
-  // Get PayPal config
-  var cfg=getPmCfg('paypal');
-  var paypalme=cfg.paypalme||'';
-  var email=cfg.email||'';
-
-  // Return URL — go straight to the panel, skip extra redirect hop
-  var baseUrl=window.location.origin;
-  var returnUrl=baseUrl+'/api/paypal-return';
-  var cancelUrl=baseUrl+'/api/paypal-cancel';
-
-  // Build PayPal URL
-  var ppUrl='';
-  if(paypalme){
-    ppUrl=paypalme.replace(/\/+$/,'')+'/'+amt.toFixed(2);
-  } else if(email){
-    ppUrl='https://www.paypal.com/cgi-bin/webscr'
-      +'?cmd=_xclick'
-      +'&business='+encodeURIComponent(email)
-      +'&amount='+amt.toFixed(2)
-      +'&currency_code=USD'
-      +'&item_name=Afghan+Followers+Wallet'
-      +'&no_shipping=1'
-      +'&rm=2'
-      +'&return='+encodeURIComponent(returnUrl)
-      +'&cancel_return='+encodeURIComponent(cancelUrl);
-  } else {
-    ppUrl='https://www.paypal.com/send?amount='+amt.toFixed(2)+'&currencyCode=USD';
-  }
-
-  // Also save to localStorage (survives page reload)
-  localStorage.setItem('pp_pending',JSON.stringify({
-    amt:amt, feeAmt:feeAmt||0, receive:receive||amt,
-    userId:u.id, ts:Date.now()
-  }));
-
-  window.location.href=ppUrl;
-}
-
-// Check if returning from PayPal
-function checkPayPalReturn(){
-  var params=new URLSearchParams(window.location.search);
-  var ppStatus=params.get('pp');
-  var ppTx=params.get('tx')||params.get('txn_id');
-  var ppSt=params.get('st')||params.get('payment_status');
-  var isReturn=ppStatus==='done'||(ppTx&&ppSt!=='Cancelled')||ppSt==='Completed';
-  var isCancel=ppStatus==='cancel'||ppSt==='Cancelled';
-
-  if(isReturn||isCancel){
-    window.history.replaceState({},'',window.location.pathname);
-  }
-
-  if(isCancel){
-    localStorage.removeItem('pp_pending');
-    showToast('Payment cancelled.','w');
-    navTo('add-funds');
-    return;
-  }
-
-  // Check for pending payment (from localStorage - survives redirect)
-  var pending=null;
-  try{
-    pending=JSON.parse(localStorage.getItem('pp_pending')||'null');
-    if(!pending) pending=JSON.parse(sessionStorage.getItem('pp_pending')||'null');
-  }catch(e){}
-
-  if(isReturn&&pending&&pending.amt&&(Date.now()-pending.ts)<3600000){
-    localStorage.removeItem('pp_pending');
-    sessionStorage.removeItem('pp_pending');
-    showPpConfirmStep(pending.amt,pending.feeAmt||0,pending.receive||pending.amt);
-  } else if(isReturn){
-    // Return without pending data (session expired or opened on another
-    // device) — nothing to safely confirm, so send them back to re-submit.
-    localStorage.removeItem('pp_pending');
-    navTo('add-funds');
-    showToast('Please enter your payment details to confirm.','w');
-  }
-}
-
-// PayPal never posts a server-verifiable callback to a static Vercel site,
-// so a completed payment can NOT be auto-credited from client-supplied data
-// alone (that data is fully attacker-controlled — anyone could set
-// localStorage.pp_pending and hit this URL without ever paying). Instead,
-// same as every other manual method, the customer confirms their PayPal
-// transaction ID/reference and an admin verifies + approves it in
-// Admin → Payments before any balance is credited.
-function showPpConfirmStep(amt, feeAmt, receive){
-  var modal=document.getElementById('pp-modal');
-  if(modal) modal.style.display='flex';
-  var amtEl=document.getElementById('pp-modal-amt');
-  if(amtEl) amtEl.textContent='$'+parseFloat(amt).toFixed(2)+' USD';
-  var body=document.getElementById('pp-modal-body');
-  if(!body) return;
-  var btnContainer=document.getElementById('paypal-btn-container');
-  if(btnContainer) btnContainer.innerHTML='';
-  body.innerHTML=
-    '<div style="padding:4px 0">'
-    +'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:#166534">If you completed the PayPal payment, enter the Transaction ID / reference from your PayPal receipt below. An admin will verify it and credit your balance shortly.</div>'
-    +'<label style="font-size:12px;font-weight:700;color:#555;display:block;margin-bottom:6px">PayPal Transaction ID</label>'
-    +'<input id="pp-txid-input" placeholder="e.g. 9AB123456C789012D" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:14px;box-sizing:border-box">'
-    +'<button id="pp-txid-submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#003087,#009cde);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Submit for Verification</button>'
-    +'</div>';
-  var submitBtn=document.getElementById('pp-txid-submit');
-  if(submitBtn) submitBtn.onclick=function(){ppSubmitTxId(parseFloat(amt),parseFloat(feeAmt),parseFloat(receive));};
-  if(modal) modal.onclick=function(e){if(e.target===modal)closePayPalModal();};
-}
-
-function ppSubmitTxId(amt, feeAmt, receive){
-  var txid=document.getElementById('pp-txid-input');
-  if(!txid||!txid.value.trim()){
-    showToast('Enter your PayPal Transaction ID','e');
-    return;
-  }
-  var u=getCurrentUser();
-  if(!u){showToast('Not logged in','e');return;}
-  var allUsers=[];
-  try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
-  var me=allUsers.find(function(x){return x.id===u.id;});
-  if(!me) return;
-  if(!me.transactions) me.transactions=[];
-  var tx={
-    id:Date.now(),
-    type:'deposit',
-    method:'PayPal',
-    amount:amt,
-    fee:feeAmt,
-    credit:receive,
-    txid:txid.value.trim(),
-    desc:'PayPal payment — awaiting admin approval',
-    date:new Date().toISOString(),
-    status:'pending'
+  var script=document.createElement('script');
+  script.id='paypal-sdk';
+  var sdkBase=(env==='sandbox')?'https://www.sandbox.paypal.com/sdk/js':'https://www.paypal.com/sdk/js';
+  script.src=sdkBase+'?client-id='+encodeURIComponent(clientId)+'&currency=USD&intent=capture&components=buttons';
+  script.onload=function(){
+    var loading=document.getElementById('pp-loading');
+    if(loading) loading.remove();
+    var container=document.getElementById('paypal-btn-container');
+    if(!container) return;
+    container.innerHTML='';
+    try{
+      window.paypal.Buttons({
+        style:{layout:'vertical',color:'gold',shape:'rect',label:'pay',height:48},
+        createOrder:function(data,actions){
+          return actions.order.create({
+            purchase_units:[{
+              amount:{value:amt.toFixed(2),currency_code:'USD'},
+              description:'Afghan Followers Wallet Top-Up'
+            }]
+          });
+        },
+        onApprove:function(data,actions){
+          container.innerHTML='<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>';
+          return actions.order.capture().then(function(details){
+            verifyPayPalOrder(details.id||data.orderID);
+          });
+        },
+        onCancel:function(){
+          container.innerHTML='<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>';
+        },
+        onError:function(err){
+          container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small></div>';
+        }
+      }).render('#paypal-btn-container').catch(function(e){
+        container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'</div>';
+      });
+    }catch(e){
+      container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>';
+    }
   };
-  me.transactions.unshift(tx);
-  localStorage.setItem('smm_users',JSON.stringify(allUsers));
-  localStorage.setItem('smm_admin_updated',Date.now().toString());
-  // Sync to server for cross-device
-  // Push to server for cross-device sync
-  try{
-    var _syncOrders=[];
-    try{_syncOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e2){}
-    fetch('/api/db',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_users:allUsers,smm_orders:_syncOrders,smm_ts:Date.now()})
-    }).catch(function(){});
-  }catch(e){}
-  // Notify admin via Telegram
-  tgPanelSend('💳 <b>PayPal Payment Submitted</b>\nUser: '+u.fname+' '+u.lname+'\nAmount: $'+amt.toFixed(2)+'\nTxID: '+txid.value.trim()+'\n⚠️ Verify and approve in admin panel → Payments');
-  closePayPalModal();
-  afRenderHistory();
-  showToast('✅ Payment submitted! Admin will verify and credit your account.','s');
+  script.onerror=function(){
+    var body=document.getElementById('pp-modal-body');
+    if(body) body.innerHTML='<div style="background:#fee2e2;padding:14px;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">❌ Failed to load PayPal SDK.<br><small>Check your connection and try again</small></div>';
+  };
+  document.head.appendChild(script);
+}
+
+// Independently re-verifies the captured order with PayPal's own API on the
+// server (api/paypal-verify.js) before crediting anything — the server is
+// the only thing that decides whether this payment is real.
+function verifyPayPalOrder(orderId){
+  var u=getCurrentUser();
+  if(!u){showToast('Not logged in','e');return;}
+  var container=document.getElementById('paypal-btn-container');
+  fetch('/api/paypal-verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({orderId:orderId,userId:u.id})
+  }).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok){
+      if(container) container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt.</small></div>';
+      showToast('Payment verification failed','e');
+      return;
+    }
+    // Server confirmed with PayPal and already credited the wallet — refresh
+    // our local copy of the user from what the server now has.
+    var allUsers=[];
+    try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
+    var me=allUsers.find(function(x){return String(x.id)===String(u.id);});
+    if(me){
+      me.balance=res.newBalance;
+      localStorage.setItem('smm_users',JSON.stringify(allUsers));
+      _currentUser=me;
+      try{var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');sess.balance=me.balance;localStorage.setItem('smm_session',JSON.stringify(sess));}catch(e2){}
+    }
+    if(container){
+      container.innerHTML='<div style="text-align:center;padding:16px">'
+        +'<div style="font-size:44px;margin-bottom:8px">✅</div>'
+        +'<div style="font-size:16px;font-weight:800;color:#166534">$'+parseFloat(res.credited).toFixed(2)+' added to your balance!</div>'
+        +'</div>';
+    }
+    updateBalanceUI();
+    afRenderHistory();
+    showToast('✅ $'+parseFloat(res.credited).toFixed(2)+' added to your balance!','s');
+    setTimeout(closePayPalModal,2200);
+  }).catch(function(){
+    if(container) container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Network error verifying payment. If you were charged, contact support with your PayPal receipt.</div>';
+    showToast('Network error verifying payment','e');
+  });
 }
 
 function closePayPalModal(){
@@ -4245,7 +4178,6 @@ function showApiInfo(){
 // INIT
 rebuildServiceMaps();
 loadSupportFABs();
-checkPayPalReturn();
 renderBrowse();
 renderCategoryList();
 renderPaymentMethods(); // load from admin settings
