@@ -135,7 +135,7 @@ module.exports = async (req, res) => {
         current.smm_ref_visits = current.smm_ref_visits || {};
         const log = current.smm_ref_visits[ref] || [];
 
-        const VISIT_GOAL = 50;
+        const VISIT_GOAL = 10; // TEMP: lowered from 50 for testing
         // Already hit the goal — stop growing this ref's log forever once
         // it has served its purpose (also caps storage growth per code).
         if (log.length >= VISIT_GOAL) {
