@@ -3227,6 +3227,13 @@ function qiBuildImportTgMsg(newSvcs){
     blocks.push(lines.join('\n'));
   });
   var msg=blocks.join('\n\n')+'\n\n💎 🔥🔥🔥🔥🔥🔥';
+  // Promo footer instead of the admin's own location — notify-telegram.js
+  // appends the *requester's* geolocation by default, which for an
+  // admin-triggered broadcast like this is the admin's own city, not
+  // something that belongs in a public announcement.
+  var tgUsername='';
+  try{tgUsername=(JSON.parse(localStorage.getItem('smm_tg_bot')||'{}').username||'').replace(/^@/,'');}catch(e){}
+  msg+='\n\n'+(tgUsername?'🤖 t.me/'+tgUsername:'⚡ سفارش سریع، تحویل تضمینی');
   if(msg.length>3900) msg=msg.slice(0,3900)+'…';
   return msg;
 }
@@ -3350,7 +3357,7 @@ function qiImportSelected(){
     // broadcast — not just a bare count.
     try{
       var tgMsg=qiBuildImportTgMsg(newSvcs);
-      fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tgMsg})}).catch(function(){});
+      fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:tgMsg,skipGeo:true})}).catch(function(){});
     }catch(e){}
   }catch(err){
     toast('❌ Import error: '+err.message,'e');

@@ -29,9 +29,13 @@ module.exports = async (req, res) => {
     // Vercel's edge network geolocates every request by IP and passes it
     // along as headers — free, no external API call, and reflects whoever's
     // browser actually triggered this request (visitor, customer, etc.).
+    // Useful for security-style alerts (new signup/login), but wrong for
+    // broadcasts the admin triggers themselves (e.g. service-update posts),
+    // where it would just leak the admin's own city — those callers pass
+    // skipGeo to opt out.
     const country = req.headers['x-vercel-ip-country'];
     const city = req.headers['x-vercel-ip-city'];
-    if (country) {
+    if (country && !body.skipGeo) {
       const countryName = COUNTRY_NAMES[country] || country;
       const cityDecoded = city ? decodeURIComponent(city) : null;
       message += '\n🌍 ' + (cityDecoded ? cityDecoded + ', ' : '') + countryName;
