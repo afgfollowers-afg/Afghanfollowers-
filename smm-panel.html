@@ -707,17 +707,6 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" placeholder="Search services..." id="svc-search" oninput="renderBrowse()">
     </div>
-    <!-- Category dropdown -->
-    <div class="cat-dropdown">
-      <div class="cat-trigger" id="cat-trigger" onclick="toggleCat()">
-        <span class="cat-trigger-label" id="cat-label">
-          <svg width="14" height="14"><use href="#ico-ig"/></svg>
-          Instagram Likes | Cheapest Faster |
-        </span>
-        <span class="cat-arrow">▼</span>
-      </div>
-      <div class="cat-list" id="cat-list"></div>
-    </div>
     <!-- Service list -->
     <div class="card">
       <div id="svc-browse-list" style="padding:4px 0"></div>
@@ -1587,6 +1576,7 @@ function detectPlatform(str){
 var platSvcs={};
 var catSvcsMap={};
 var orderCats={};
+var allSvcs=[];
 
 function rebuildServiceMaps(){
   platSvcs={};
@@ -1636,9 +1626,14 @@ function rebuildServiceMaps(){
       catSvcsMap[cat].push(s);
     });
   });
-} // end rebuildServiceMaps
 
-const allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
+  // Flat list used by the Services (browse/search) page — was previously a
+  // top-level `const` computed once at script-parse time, before this
+  // function had ever run, so it permanently captured an empty platSvcs and
+  // the Services tab always showed "No services found" no matter what the
+  // admin configured. Recomputing it here keeps it in sync on every rebuild.
+  allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
+} // end rebuildServiceMaps
 
 
 // orderCats now loaded from admin services above
@@ -3958,31 +3953,6 @@ function goOrder(plat,svcId){
     }
   }
   // do NOT auto-open - user clicks to open
-}
-
-// BROWSE CATEGORY (services page)
-function renderCatList(){
-  var list=document.getElementById('cat-list');
-  var html='';
-  for(var i=0;i<categories.length;i++){
-    html+='<div class="cat-item'+(i===0?' active':'')+'" onclick="selectCat('+i+',this)"><svg width="14" height="14"><use href="#'+categories[i].icon+'"/></svg>'+categories[i].name+'</div>';
-  }
-  list.innerHTML=html;
-}
-function toggleCat(){
-  var trigger=document.getElementById('cat-trigger');
-  var list=document.getElementById('cat-list');
-  trigger.classList.toggle('open');
-  list.classList.toggle('open');
-}
-function selectCat(i,el){
-  document.querySelectorAll('.cat-item').forEach(function(c){c.classList.remove('active');});
-  el.classList.add('active');
-  document.getElementById('cat-label').innerHTML='<svg width="14" height="14"><use href="#'+categories[i].icon+'"/></svg>'+categories[i].name;
-  document.getElementById('cat-trigger').classList.remove('open');
-  document.getElementById('cat-list').classList.remove('open');
-  var pill=document.querySelector('#svc-plat-row .plat-pill[data-p="'+categories[i].plat+'"]');
-  filterSvc(categories[i].plat, pill||document.querySelector('#svc-plat-row .plat-pill'));
 }
 
 // TOAST
