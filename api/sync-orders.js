@@ -347,17 +347,20 @@ async function runEmailCampaignJob(req, res) {
 // per-record limit is never at risk, while still keeping weeks of content
 // live long enough for Google to actually index it.
 const BLOG_POST_CAP = 60;
+// Evenly split across all 5 platforms the panel actually sells — this used
+// to be all-Instagram/TikTok (10/10 posts), which is why every blog post
+// and Facebook/Telegram broadcast ended up on the same two platforms.
 const GROWTH_TOPICS = [
   { platform: 'instagram', topic: 'افزایش فالوور واقعی اینستاگرام با استفاده از ریلز' },
   { platform: 'tiktok', topic: 'چگونه یک ویدیوی تیک‌تاک وایرال شود' },
+  { platform: 'telegram', topic: 'راه‌های افزایش ممبر واقعی کانال تلگرام' },
+  { platform: 'youtube', topic: 'ترفندهای افزایش ساب‌اسکرایبر واقعی یوتیوب' },
+  { platform: 'facebook', topic: 'چگونه لایک و فالوور صفحه فیسبوک را افزایش دهیم' },
   { platform: 'instagram', topic: 'بهترین زمان پست گذاشتن در اینستاگرام برای مخاطب افغان و ایرانی' },
   { platform: 'tiktok', topic: 'انتخاب هشتگ درست برای افزایش فالوور تیک‌تاک' },
-  { platform: 'instagram', topic: 'چگونه پست اینستاگرام به اکسپلور برسد' },
-  { platform: 'tiktok', topic: 'بهترین زمان پست تیک‌تاک برای بیشترین ویو' },
-  { platform: 'instagram', topic: 'افزایش لایک و کامنت واقعی روی پست اینستاگرام' },
-  { platform: 'tiktok', topic: 'نکات الگوریتم تیک‌تاک برای صفحات کوچک' },
-  { platform: 'instagram', topic: 'نکات افزایش فالوور برای صفحه بیزینسی اینستاگرام' },
-  { platform: 'tiktok', topic: 'ادیت حرفه‌ای ویدیو برای افزایش ویو تیک‌تاک' }
+  { platform: 'telegram', topic: 'چگونه بازدید پست‌های کانال تلگرام را بالا ببریم' },
+  { platform: 'youtube', topic: 'نکات افزایش ویو ویدیوهای یوتیوب' },
+  { platform: 'facebook', topic: 'افزایش تعامل و کامنت واقعی روی پست‌های فیسبوک' }
 ];
 
 function todayKey() {
@@ -518,20 +521,22 @@ async function runAutoPostJob() {
   }
 }
 
+// One entry per platform so the daily promo post rotates evenly across all
+// 5 — this used to skew heavily toward Instagram/TikTok (4 of 6 entries)
+// with Facebook never mentioned at all despite being a broadcast target.
 const AUTOPOST_FOCUS = [
-  'افزایش فالوور اینستاگرام',
-  'لایک و ویو تیک‌تاک',
-  'ممبر و بازدید کانال تلگرام',
-  'ساب‌اسکرایب و ویو یوتیوب',
-  'لایک و کامنت واقعی اینستاگرام',
-  'فالوور واقعی تیک‌تاک'
+  'فالوور و لایک واقعی اینستاگرام',
+  'لایک و ویو واقعی تیک‌تاک',
+  'ممبر و بازدید واقعی کانال تلگرام',
+  'ساب‌اسکرایب و ویو واقعی یوتیوب',
+  'لایک و فالوور واقعی صفحه فیسبوک'
 ];
 
 async function runAutoPostJobInner(tgCfg, today) {
   const results = { facebook: null, telegram: null };
   const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
 
-  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب و تلگرام، مخصوصاً برای مخاطب افغان و ایرانی.
+  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
 
 امروز تمرکز پست را روی این موضوع بگذار: ${focus}
 
