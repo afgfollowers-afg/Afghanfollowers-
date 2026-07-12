@@ -381,8 +381,8 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .divider{height:1px;background:var(--border);margin:14px 0;}
 
 /* TOAST */
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;}
-.toast.show{transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);pointer-events:auto;}
 .toast.s{border-color:var(--green);color:var(--green);}
 .toast.e{border-color:var(--red);color:var(--red);}
 
