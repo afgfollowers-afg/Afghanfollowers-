@@ -928,6 +928,91 @@ tr:hover td{background:rgba(30,35,54,.5);}
     </div>
   </div>
 
+  <!-- ── PROFILE / ACCOUNT PAGE ── -->
+  <div class="page" id="page-profile">
+    <div style="margin-bottom:16px">
+      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">Account</div>
+      <div style="font-size:13px;color:var(--muted)">Manage your profile and password</div>
+    </div>
+
+    <div id="prof-alert" style="display:none"></div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-body" style="padding:18px;text-align:center">
+        <div id="prof-avatar-big" onclick="toggleEmojiPicker()" style="width:72px;height:72px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 10px;cursor:pointer;border:2px solid var(--border)">😊</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:14px">Tap avatar to change</div>
+        <div id="emoji-picker" style="display:none;text-align:left;margin-bottom:6px">
+          <input type="text" class="form-input" id="emoji-search" placeholder="Search emoji..." oninput="searchEmoji(this.value)" style="margin-bottom:8px">
+          <div id="emoji-grid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-height:160px;overflow-y:auto"></div>
+        </div>
+        <div style="display:flex;justify-content:space-around;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-balance">0.00</div>
+            <div style="font-size:10px;color:var(--muted)">Balance</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-orders">0</div>
+            <div style="font-size:10px;color:var(--muted)">Orders</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:var(--text)" id="prof-joined">—</div>
+            <div style="font-size:10px;color:var(--muted)">Joined</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="card-title">Personal Info</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">First Name</label><input type="text" class="form-input" id="prof-fname"></div>
+        <div class="form-group"><label class="form-label">Last Name</label><input type="text" class="form-input" id="prof-lname"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="prof-email"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-input" id="prof-phone"></div>
+        <div class="form-group"><label class="form-label">Telegram Username <span style="color:var(--muted);font-weight:400">(optional)</span></label><input type="text" class="form-input" id="prof-telegram" placeholder="@username"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span class="card-title">Change Password</span>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Current Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-oldpass" style="flex:1">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-oldpass',this)">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-newpass" style="flex:1" oninput="profStrength(this.value)">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-newpass',this)">👁</button>
+          </div>
+          <div style="height:4px;background:var(--surface2);border-radius:3px;margin-top:8px;overflow:hidden">
+            <div id="prof-str-bar" style="height:100%;width:0%;transition:width .2s"></div>
+          </div>
+          <div id="prof-str-lbl" style="font-size:10px;margin-top:4px"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="form-input" id="prof-confpass" style="flex:1">
+            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-confpass',this)">👁</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;margin-bottom:24px" onclick="saveProfile()">💾 Save Changes</button>
+  </div>
+
   <!-- ── TICKETS PAGE ── -->
   <div class="page" id="page-tickets">
     <div style="margin-bottom:16px">
