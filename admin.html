@@ -3994,7 +3994,11 @@ function rStuckOrders(){
 }
 function retrySyncNow(){
   toast('🔁 Triggering sync...','s');
-  fetch('/api/sync-orders').then(function(r){return r.json();}).then(function(d){
+  // ?force=1 skips the normal 30-minute cooldown before retrying a
+  // never-sent order — safe here specifically because this is a deliberate
+  // admin click (with the x-db-key header the fetch wrapper attaches),
+  // not an automatic/anonymous hit.
+  fetch('/api/sync-orders?force=1').then(function(r){return r.json();}).then(function(d){
     toast(d&&d.ok?'✅ Sync triggered — refresh in a moment':'❌ Sync error','e');
     setTimeout(function(){pullFromServer();},3000);
   }).catch(function(){toast('❌ Could not reach sync endpoint','e');});

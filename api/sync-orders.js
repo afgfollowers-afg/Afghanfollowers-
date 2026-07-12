@@ -13,7 +13,7 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -30,9 +30,22 @@ module.exports = async (req, res) => {
   // below skipped content/auto-post entirely while still returning HTTP 200,
   // which is exactly the kind of failure that's invisible unless someone
   // reads the response body instead of just the status code.
+  // ?force=1 — a deliberate manual click on "Retry Sync Now" in the admin
+  // panel, as opposed to the automatic daily cron (or Vercel's own retries/
+  // uptime pings hitting this unauthenticated endpoint, which is what the
+  // RETRY_AGE_MS cooldown below guards against). A conscious one-off admin
+  // click doesn't carry that same double-dispatch risk, so it can skip the
+  // cooldown and check every never-sent order immediately — but only when
+  // authenticated as the admin panel (same x-db-key every other admin-only
+  // action here requires), otherwise anyone hitting this public, unauthed
+  // URL with ?force=1 could reintroduce the exact double-dispatch race the
+  // cooldown exists to prevent.
+  const force = !!(req.query && (req.query.force === '1' || req.query.force === 'true')
+    && DB_SERVICE_KEY && req.headers['x-db-key'] === DB_SERVICE_KEY);
+
   let syncResult;
   try {
-    syncResult = await runOrderSyncJob();
+    syncResult = await runOrderSyncJob(force);
   } catch (e) {
     syncResult = { ok: false, error: e.message };
   }
@@ -46,7 +59,7 @@ module.exports = async (req, res) => {
   return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult }));
 };
 
-async function runOrderSyncJob() {
+async function runOrderSyncJob(force) {
   // 1. Get current data
   const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
@@ -72,7 +85,7 @@ async function runOrderSyncJob() {
   const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
   const neverSent = orders.filter(o => {
     if (o.provOrderId || finishedStatuses.includes(o.status)) return false;
-    if (!o.dispatchAttemptedAt) return true;
+    if (force || !o.dispatchAttemptedAt) return true;
     return (Date.now() - o.dispatchAttemptedAt) > RETRY_AGE_MS;
   });
   let retried = 0;
