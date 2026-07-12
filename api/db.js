@@ -251,6 +251,11 @@ module.exports = async (req, res) => {
       if (body.smm_modules && typeof body.smm_modules === 'object') {
         current.smm_modules = body.smm_modules;
       }
+      if (body.smm_paypal_processed && Array.isArray(body.smm_paypal_processed)) {
+        // Verified-order ledger written by api/paypal-verify.js so a
+        // captured PayPal order can never be credited twice.
+        current.smm_paypal_processed = body.smm_paypal_processed;
+      }
       if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object') {
         current.smm_admin_creds = body.smm_admin_creds;
       }
