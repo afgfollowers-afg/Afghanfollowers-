@@ -1188,10 +1188,16 @@ tr:hover td{background:rgba(30,35,54,.5);}
 // NOT stop someone who reads this file and copies the key. This value must
 // match the DB_SERVICE_KEY environment variable set in Vercel.
 var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+// Every first-party endpoint that checks DB_SERVICE_KEY server-side must be
+// listed here — /api/paypal-verify was added later and missed this list,
+// which meant every real PayPal payment got rejected with "Unauthorized"
+// before it ever reached PayPal's verification, taking customers' money
+// without crediting their wallet.
+var _DB_KEY_PATHS=['/api/db','/api/paypal-verify'];
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
-    if(typeof url==='string' && url.indexOf('/api/db')===0){
+    if(typeof url==='string' && _DB_KEY_PATHS.some(function(p){return url.indexOf(p)===0;})){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
     }
@@ -3621,8 +3627,11 @@ function verifyPayPalOrder(orderId){
     signal:ctrl?ctrl.signal:undefined
   }).then(function(r){if(timeoutId)clearTimeout(timeoutId);return r.json();}).then(function(res){
     if(!res.ok){
-      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt.</small></div>');
-      showToast('Payment verification failed','e');
+      // Always surface the order id here — it's the only thing that lets
+      // support/admin manually reconcile a payment that succeeded at PayPal
+      // but failed to verify/credit on our side for any reason.
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
+      showToast('Payment verification failed — save this Order ID: '+orderId,'e');
       return;
     }
     // Server confirmed with PayPal and already credited the wallet — refresh
