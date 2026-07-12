@@ -166,6 +166,23 @@ async function callGroq(messages, maxTokens) {
   return content.trim();
 }
 
+// Llama occasionally drops a stray CJK or Cyrillic character into otherwise
+// Persian (or English) output — a known multilingual-model artifact, not
+// something a prompt instruction alone reliably prevents (this exact bug
+// was reported live: "می‌خواهیم بت能یم" instead of "بتوانیم"). Retrying the
+// generation catches it in practice, since it's a low-probability sampling
+// fluke rather than something the model consistently gets wrong for a given
+// topic/language.
+const FOREIGN_SCRIPT_RE = /[぀-ヿ㐀-䶿一-鿿가-힣Ѐ-ӿ]/;
+async function callGroqClean(messages, maxTokens, maxAttempts) {
+  let lastRaw = '';
+  for (let i = 0; i < (maxAttempts || 3); i++) {
+    lastRaw = await callGroq(messages, maxTokens);
+    if (!FOREIGN_SCRIPT_RE.test(lastRaw)) return lastRaw;
+  }
+  throw new Error('AI kept returning text with unexpected characters — please try again');
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -186,10 +203,10 @@ module.exports = async (req, res) => {
       if (!topic) return res.status(200).json({ ok: false, error: 'No topic provided' });
       const emailPrompt = body.lang === 'en' ? EMAIL_SYSTEM_PROMPT_EN : EMAIL_SYSTEM_PROMPT;
 
-      const raw = await callGroq([
+      const raw = await callGroqClean([
         { role: 'system', content: emailPrompt },
         { role: 'user', content: topic }
-      ], 800);
+      ], 800, 3);
 
       let parsed;
       try {
@@ -212,10 +229,10 @@ module.exports = async (req, res) => {
       const topic = (body.topic || '').trim();
       if (!topic) return res.status(200).json({ ok: false, error: 'No topic provided' });
 
-      const raw = await callGroq([
+      const raw = await callGroqClean([
         { role: 'system', content: BLOG_SYSTEM_PROMPT },
         { role: 'user', content: topic }
-      ], 900);
+      ], 900, 3);
 
       let parsed;
       try {
