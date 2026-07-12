@@ -1408,7 +1408,11 @@ function logout(){
 
 const S={
   get balance(){return (getCurrentUser()||{}).balance||0;},
-  spent:0,orders:[],selPlat:'instagram',selSvcIdx:0,selPay:'paypal',payments:[]
+  // 'all' matches the platform-icon-grid's "All" tile, which is marked
+  // active by default in the HTML — defaulting this to 'instagram' meant
+  // the category list underneath always showed Instagram-only content
+  // even though the "All" icon looked selected.
+  spent:0,orders:[],selPlat:'all',selSvcIdx:0,selPay:'paypal',payments:[]
 };
 
 // ── SERVICES FROM ADMIN (real data) ──
