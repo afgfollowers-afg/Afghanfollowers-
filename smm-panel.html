@@ -3516,6 +3516,7 @@ function openPayPalModal(amt, clientId, fee){
     +'<div style="width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 12px"></div>'
     +'<div style="font-size:13px">Loading PayPal...</div></div>'
     +'<div id="paypal-btn-container" style="min-height:50px;margin-top:8px"></div>'
+    +'<div id="pp-status" style="display:none"></div>'
     +feeInfo;
   document.getElementById('paypal-btn-container').innerHTML='';
   modal.onclick=function(e){if(e.target===modal)closePayPalModal();};
@@ -3529,6 +3530,20 @@ function openPayPalModal(amt, clientId, fee){
 // isn't trusted on its own (a browser can be tampered with); the order id
 // it returns is re-checked server-side in verifyPayPalOrder() against
 // PayPal's own API before anything is credited.
+// Shows a status message (loading/success/error) WITHOUT touching
+// #paypal-btn-container's contents. PayPal's Buttons SDK renders its own
+// nodes into that container to manage the popup/cross-window handshake —
+// overwriting its innerHTML while a capture is in flight (which used to
+// happen here) destroys that channel and produces PayPal's own
+// "Can not send postrobot_method. Target window is closed" error. Hiding
+// the container via CSS instead of clearing it keeps those nodes intact.
+function ppShowStatus(html){
+  var btnC=document.getElementById('paypal-btn-container');
+  if(btnC) btnC.style.display='none';
+  var st=document.getElementById('pp-status');
+  if(st){st.style.display='block';st.innerHTML=html;}
+}
+
 function loadPayPalButtons(amt, clientId, fee, env){
   var old=document.getElementById('paypal-sdk');
   if(old) old.remove();
@@ -3556,27 +3571,29 @@ function loadPayPalButtons(amt, clientId, fee, env){
           });
         },
         onApprove:function(data,actions){
-          container.innerHTML='<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>';
+          // Do NOT touch #paypal-btn-container here — capture() is still
+          // talking to the popup PayPal rendered into it.
+          ppShowStatus('<div style="text-align:center;padding:16px;color:#555;font-size:13px"><div style="width:28px;height:28px;border:3px solid #e2e8f0;border-top-color:#009cde;border-radius:50%;animation:ppSpin .8s linear infinite;margin:0 auto 8px"></div>Completing payment...</div>');
           return actions.order.capture().then(function(details){
             verifyPayPalOrder(details.id||data.orderID);
           }).catch(function(e){
             // Without this catch, a rejected capture() left the "Completing
             // payment..." spinner on screen forever with no way out.
-            container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not complete the payment.<br><small>'+(e&&e.message?e.message:'Please try again.')+'</small></div>';
+            ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not complete the payment.<br><small>'+(e&&e.message?e.message:'Please try again.')+'</small></div>');
             showToast('Payment could not be completed','e');
           });
         },
         onCancel:function(){
-          container.innerHTML='<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>';
+          ppShowStatus('<div style="background:#fef9c3;padding:12px;border-radius:9px;color:#854d0e;font-size:13px;text-align:center">Payment cancelled.</div>');
         },
         onError:function(err){
-          container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small></div>';
+          ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ PayPal error.<br><small>'+err+'</small></div>');
         }
       }).render('#paypal-btn-container').catch(function(e){
-        container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'</div>';
+        ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Render failed: '+e.message+'</div>');
       });
     }catch(e){
-      container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>';
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+e.message+'</div>');
     }
   };
   script.onerror=function(){
@@ -3592,7 +3609,6 @@ function loadPayPalButtons(amt, clientId, fee, env){
 function verifyPayPalOrder(orderId){
   var u=getCurrentUser();
   if(!u){showToast('Not logged in','e');return;}
-  var container=document.getElementById('paypal-btn-container');
   // Hard client-side cap so a hung request can never leave the user staring
   // at a spinner forever — after this, we show an error and let them retry
   // or contact support instead of waiting indefinitely.
@@ -3605,7 +3621,7 @@ function verifyPayPalOrder(orderId){
     signal:ctrl?ctrl.signal:undefined
   }).then(function(r){if(timeoutId)clearTimeout(timeoutId);return r.json();}).then(function(res){
     if(!res.ok){
-      if(container) container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt.</small></div>';
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt.</small></div>');
       showToast('Payment verification failed','e');
       return;
     }
@@ -3620,12 +3636,10 @@ function verifyPayPalOrder(orderId){
       _currentUser=me;
       try{var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');sess.balance=me.balance;localStorage.setItem('smm_session',JSON.stringify(sess));}catch(e2){}
     }
-    if(container){
-      container.innerHTML='<div style="text-align:center;padding:16px">'
-        +'<div style="font-size:44px;margin-bottom:8px">✅</div>'
-        +'<div style="font-size:16px;font-weight:800;color:#166534">$'+parseFloat(res.credited).toFixed(2)+' added to your balance!</div>'
-        +'</div>';
-    }
+    ppShowStatus('<div style="text-align:center;padding:16px">'
+      +'<div style="font-size:44px;margin-bottom:8px">✅</div>'
+      +'<div style="font-size:16px;font-weight:800;color:#166534">$'+parseFloat(res.credited).toFixed(2)+' added to your balance!</div>'
+      +'</div>');
     updateBalanceUI();
     afRenderHistory();
     showToast('✅ $'+parseFloat(res.credited).toFixed(2)+' added to your balance!','s');
@@ -3633,7 +3647,7 @@ function verifyPayPalOrder(orderId){
   }).catch(function(e){
     if(timeoutId) clearTimeout(timeoutId);
     var timedOut=e&&e.name==='AbortError';
-    if(container) container.innerHTML='<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+(timedOut?'Verification timed out.':'Network error verifying payment.')+' If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</div>';
+    ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ '+(timedOut?'Verification timed out.':'Network error verifying payment.')+' If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</div>');
     showToast(timedOut?'Verification timed out':'Network error verifying payment','e');
   });
 }
