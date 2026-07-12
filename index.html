@@ -166,6 +166,13 @@ footer a{color:var(--acc2);text-decoration:none;}
   </div>
 </div>
 
+<section class="cta-band" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
+  <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
+  <h2>🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
+  <p class="sub" style="margin-bottom:20px">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
+  <a class="btn btn-p" href="/auth.html">ثبت‌نام رایگان</a>
+</section>
+
 <section>
   <h2>پلتفرم‌های پشتیبانی‌شده</h2>
   <div class="section-sub">Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
@@ -194,13 +201,6 @@ footer a{color:var(--acc2);text-decoration:none;}
     <li>📘 خرید فالوور فیسبوک (Facebook Followers)</li>
     <li>✖️ خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
   </ul>
-</section>
-
-<section class="cta-band" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
-  <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
-  <h2>🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
-  <p class="sub" style="margin-bottom:20px">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
-  <a class="btn btn-p" href="/auth.html">ثبت‌نام رایگان</a>
 </section>
 
 <section>
@@ -273,7 +273,7 @@ function renderAnnouncements(){
       +(isSafeLink?'<a class="ann-post-link" href="'+escHtml(link)+'" target="_blank" rel="noopener noreferrer">🔗 '+escHtml(a.linkText||link)+'</a>':'')
       +'</div></div>';
   }).join('');
-  wrap.innerHTML='<div class="ann-feed" id="ann-feed">'
+  wrap.innerHTML='<div class="ann-feed open" id="ann-feed">'
     +'<div class="ann-feed-head" onclick="toggleAnnFeed()">📢 اعلانات'
     +'<span class="ann-feed-count">'+active.length+'</span>'
     +'<span class="ann-feed-arrow">▼</span></div>'

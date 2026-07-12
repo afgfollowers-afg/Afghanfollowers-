@@ -192,7 +192,7 @@ function renderAnnouncements(){
       +(isSafeLink?'<a class="ann-post-link" href="'+escHtml(link)+'" target="_blank" rel="noopener noreferrer">🔗 '+escHtml(a.linkText||link)+'</a>':'')
       +'</div></div>';
   }).join('');
-  wrap.innerHTML='<div class="ann-feed" id="ann-feed">'
+  wrap.innerHTML='<div class="ann-feed open" id="ann-feed">'
     +'<div class="ann-feed-head" onclick="toggleAnnFeed()">📢 اعلانات'
     +'<span class="ann-feed-count">'+active.length+'</span>'
     +'<span class="ann-feed-arrow">▼</span></div>'
