@@ -690,6 +690,12 @@ textarea.fi{resize:vertical;min-height:75px;}
                 </div>
                 <div id="ea-bc-status-filter" style="display:none;margin-bottom:14px"><label class="fl">Include Statuses</label><div id="ea-bc-status-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div></div>
                 <div id="ea-bc-summary" style="display:none;margin-bottom:14px"><div class="alert a-w" id="ea-bc-summary-txt"></div></div>
+                <div id="ea-bc-list-box" style="display:none;margin-bottom:14px">
+                  <div style="font-size:12px;font-weight:700;color:var(--mt);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">📋 Imported List</div>
+                  <div style="overflow-x:auto;max-height:280px;overflow-y:auto;border:2px solid var(--bd);border-radius:12px">
+                    <table style="font-size:12px;width:100%;margin-bottom:0"><thead><tr style="background:var(--s2)"><th>Email</th><th>Name</th><th>Status</th><th>Sent?</th></tr></thead><tbody id="ea-bc-list-body"></tbody></table>
+                  </div>
+                </div>
                 <div class="fg"><label class="fl">Email Subject</label><input class="fi" id="ea-bc-subj" value="🚀 وب‌سایت جدید افغان‌فالوورز راه‌اندازی شد"></div>
                 <div class="fg"><label class="fl">Email Body (HTML)</label><textarea class="fi" id="ea-bc-body" rows="14">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
   &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
@@ -6034,10 +6040,14 @@ function eaGetBulkFilteredRecipients(){
   });
 }
 
+function eaEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
 function eaUpdateBulkSummary(){
   var box=document.getElementById('ea-bc-summary');
   var txt=document.getElementById('ea-bc-summary-txt');
-  if(!_eaBulkAll.length){ box.style.display='none'; return; }
+  var listBox=document.getElementById('ea-bc-list-box');
+  var listBody=document.getElementById('ea-bc-list-body');
+  if(!_eaBulkAll.length){ box.style.display='none'; listBox.style.display='none'; return; }
   var filtered=eaGetBulkFilteredRecipients();
   var sentSet=eaGetBulkSentSet();
   var alreadySent=_eaBulkAll.filter(function(r){return sentSet[r.email];}).length;
@@ -6045,6 +6055,11 @@ function eaUpdateBulkSummary(){
   txt.innerHTML='<strong>'+filtered.length+'</strong> emails will be sent with the current status filter'
     +(alreadySent?' · <strong>'+alreadySent+'</strong> already marked as sent in a previous run (skipped)':'')
     +'.';
+  listBox.style.display='block';
+  listBody.innerHTML=_eaBulkAll.map(function(r){
+    var sent=!!sentSet[r.email];
+    return '<tr><td>'+eaEsc(r.email)+'</td><td>'+eaEsc(r.name)+'</td><td>'+eaEsc(r.status)+'</td><td>'+(sent?'✅ '+eaEsc(new Date(sentSet[r.email]).toLocaleDateString()):'—')+'</td></tr>';
+  }).join('');
 }
 
 function eaFillBulkVars(text,r){
