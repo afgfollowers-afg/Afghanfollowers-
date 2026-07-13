@@ -672,7 +672,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <div class="sum-row"><span>Delivery</span><span class="sum-val" id="sum-time">—</span></div>
           <div class="sum-row total"><span>Total</span><span class="sum-val" id="sum-total" style="color:var(--green)">—</span></div>
         </div>
-        <div class="gw-warn">⚠️ برای یک لینک، همزمان چند سفارش ثبت نکنید — تا تکمیل شدن سفارش قبلی صبر کنید.<br>Do not submit multiple orders for the same link at the same time — wait for the previous order to finish first.</div>
+        <div class="gw-warn" id="dup-order-note" style="display:none;cursor:pointer" onclick="this.style.display='none';_dupNoteDismissed=true;" title="Click to dismiss">⚠️ برای یک لینک، همزمان چند سفارش ثبت نکنید — تا تکمیل شدن سفارش قبلی صبر کنید.<br>Do not submit multiple orders for the same link at the same time — wait for the previous order to finish first.</div>
         <button class="btn btn-primary" onclick="placeOrder()">⚡ Submit Order</button>
       </div>
     </div>
@@ -2189,6 +2189,21 @@ function selectSvcListItem(idx,svcs){
   setSvcOpen(false);
 }
 
+// Shown only for customers who already have at least one order on record —
+// they're the ones who could plausibly submit a second order for a link
+// that's still processing. Dismissed (by clicking it) for the rest of this
+// page load rather than reappearing every time a different service is picked.
+var _dupNoteDismissed=false;
+function showDupOrderNoteIfReturning(){
+  var note=document.getElementById('dup-order-note');
+  if(!note||_dupNoteDismissed) return;
+  var u=getCurrentUser();
+  if(!u) return;
+  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var hasPrevOrder=orders.some(function(o){return String(o.userId)===String(u.id);});
+  note.style.display=hasPrevOrder?'block':'none';
+}
+
 function syncServiceFromDropdown2(svcs){
   if(!svcs) return;
   var dd=document.getElementById('order-svc-dropdown');
@@ -2197,6 +2212,7 @@ function syncServiceFromDropdown2(svcs){
   if(!s) return;
   var form=document.getElementById('order-form-card');
   if(form) form.style.display='block';
+  showDupOrderNoteIfReturning();
   var nameEl=document.getElementById('form-svc-name');
   if(nameEl) nameEl.textContent=s.name;
   
