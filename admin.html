@@ -5853,6 +5853,14 @@ function eaFillVars(text,user,daysInactive){
 }
 
 var EA_BULK_SENT_KEY='smm_bulk_campaign_sent';
+// The recipient list itself (_eaBulkAll) used to live only in a JS
+// variable, wiped out on every page reload — so even though "already sent"
+// and the daily limit were both tracked and meant to let a large campaign
+// resume automatically the next day, the admin still had to re-upload the
+// exact same CSV every single day just to get back to where they left off.
+// Persisting the parsed list fixes that: upload once, come back any day and
+// click Send again.
+var EA_BULK_LIST_KEY='smm_bulk_campaign_list';
 var _eaBulkAll=[];
 var _eaBulkStatuses={};
 var _eaBulkStop=false;
@@ -5910,6 +5918,7 @@ function eaParseBulkCsv(text){
   _eaBulkAll=all;
   _eaBulkStatuses={};
   Object.keys(byStatus).forEach(function(s){ _eaBulkStatuses[s]=(s==='Active'); });
+  eaSaveBulkList();
   eaRenderBulkStatusChips(byStatus);
   eaUpdateBulkSummary();
   eaAddBulkLog('📥 Loaded '+all.length+' unique emails from CSV ('+Object.keys(byStatus).map(function(s){return s+': '+byStatus[s];}).join(', ')+')','i');
@@ -5930,7 +5939,29 @@ function eaRenderBulkStatusChips(byStatus){
 
 function eaToggleBulkStatus(status,checked){
   _eaBulkStatuses[status]=checked;
+  eaSaveBulkList();
   eaUpdateBulkSummary();
+}
+
+function eaSaveBulkList(){
+  try{ localStorage.setItem(EA_BULK_LIST_KEY,JSON.stringify({all:_eaBulkAll,statuses:_eaBulkStatuses})); }catch(e){}
+}
+// Restores whatever CSV was uploaded in a previous session — without this,
+// _eaBulkAll only ever existed in memory and reset to empty on every page
+// reload, forcing the exact same file to be re-uploaded before "Send To All
+// Filtered" could do anything, even mid-campaign with a daily send limit
+// meant to carry the rest over to the next day automatically.
+function eaRestoreBulkList(){
+  var saved=null;
+  try{ saved=JSON.parse(localStorage.getItem(EA_BULK_LIST_KEY)||'null'); }catch(e){}
+  if(!saved||!Array.isArray(saved.all)||!saved.all.length) return;
+  _eaBulkAll=saved.all;
+  _eaBulkStatuses=saved.statuses||{};
+  var byStatus={};
+  _eaBulkAll.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
+  eaRenderBulkStatusChips(byStatus);
+  eaUpdateBulkSummary();
+  eaAddBulkLog('📋 Restored '+_eaBulkAll.length+' recipients from a previous upload — no need to re-upload the CSV','i');
 }
 
 function eaGetBulkSentSet(){
@@ -6255,6 +6286,7 @@ function eaInit(){
     try{_eaLogs=JSON.parse(localStorage.getItem(EA_LOG_KEY)||'[]');}catch(e){_eaLogs=[];}
     eaLoadCfgUI();
     eaPullCfgFromServer();
+    eaRestoreBulkList();
     eaAddLog('📧 Email Automation panel opened','i');
     _eaInited=true;
   }
