@@ -56,7 +56,10 @@ module.exports = async (req, res) => {
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
 
-  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult }));
+  let bulkEmailResult = null;
+  try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
+
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult }));
 };
 
 async function runOrderSyncJob(force) {
@@ -665,4 +668,121 @@ async function runAutoPostJobInner(tgCfg, today) {
   }
 
   return { ok: true, focus, results };
+}
+
+// ── Daily bulk email campaign ──
+// The admin panel's Bulk Campaign tab used to be entirely client-side: the
+// admin had to keep their browser tab open and manually click "Send" every
+// single day, re-uploading the same CSV each time since the list only ever
+// lived in that page's memory. Requested explicitly: make it run on its own
+// every day, sending up to the configured daily limit, with a fresh
+// AI-generated message instead of the same static text every time.
+//
+// Reuses the branded-template wrapping admin.html's generateEmailAI() does
+// client-side (see wrapEmailTemplate() there) — duplicated here in minimal
+// form since this runs server-side with no access to that JS.
+function wrapBulkEmailHtml(innerHtml, siteName) {
+  return '<div dir="rtl" style="font-family:Tahoma,\'Segoe UI\',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa;text-align:right">'
+    + '<div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:18px 20px;border-radius:12px 12px 0 0;text-align:center">'
+    + '<span style="color:#fff;font-size:22px;font-weight:800">🌟 ' + siteName + '</span></div>'
+    + '<div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);line-height:1.9">'
+    + innerHtml
+    + '<div style="text-align:center;margin:20px 0 0">'
+    + '<a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">🚀 ورود به پنل</a>'
+    + '</div>'
+    + '<p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:20px 0 0">© ' + siteName + ' · تمامی حقوق محفوظ است</p>'
+    + '</div></div>';
+}
+
+const BULK_EMAIL_TOPICS = [
+  'دعوت به استفاده از سرویس‌های افزایش فالوور و لایک اینستاگرام',
+  'معرفی سرویس‌های تیک‌تاک (فالوور، لایک، ویو)',
+  'یادآوری برنامه لایک رایگان و نحوه دریافت آن',
+  'معرفی سرویس‌های افزایش ممبر و بازدید تلگرام',
+  'معرفی سرویس‌های یوتیوب (ساب‌اسکرایب و ویو)',
+  'یادآوری تحویل سریع و پشتیبانی ۲۴ ساعته'
+];
+
+async function runBulkEmailCampaignJob() {
+  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const listData = db.smm_bulk_campaign_list;
+  const cfg = db.smm_email_auto_cfg || {};
+  const today = todayKey();
+
+  if (!listData || !Array.isArray(listData.all) || !listData.all.length) {
+    return { ok: true, skipped: true, reason: 'No bulk campaign recipient list uploaded yet' };
+  }
+  // Same guard pattern as the other daily jobs in this file — this endpoint
+  // gets hit more than once a day (retries, manual /api/sync-orders visits),
+  // so without this a second hit the same day would send a whole extra
+  // batch to the next 200 people instead of waiting for tomorrow.
+  if (db.smm_last_bulk_campaign_date === today) {
+    return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
+  }
+  if (!RESEND_API_KEY) {
+    return { ok: false, error: 'RESEND_API_KEY missing in Vercel env vars' };
+  }
+  if (!cfg.from) {
+    return { ok: false, error: 'From Email not configured in Admin -> Email Automation' };
+  }
+
+  const sentLog = db.smm_bulk_campaign_sent || {};
+  const statuses = listData.statuses || {};
+  const recipients = listData.all.filter(r => statuses[r.status] && !sentLog[r.email]);
+  if (!recipients.length) {
+    return { ok: true, sent: 0, reason: 'Every recipient in the list has already been emailed' };
+  }
+
+  const limit = cfg.dailyLimit > 0 ? cfg.dailyLimit : 200;
+  const batch = recipients.slice(0, limit);
+  const siteName = cfg.fromName || 'Afghan Followers';
+
+  // One fresh AI-written message per day, personalized per recipient below
+  // — regenerating per-recipient would be slow and mostly redundant.
+  const topic = BULK_EMAIL_TOPICS[dayOfYear() % BULK_EMAIL_TOPICS.length];
+  let subject = null, innerHtml = null;
+  try {
+    const aiResp = await fetch(SITE + '/api/ai-chat', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ mode: 'generate_email', topic, lang: 'fa' })
+    });
+    const aiData = await aiResp.json();
+    if (aiData.ok) { subject = aiData.subject; innerHtml = aiData.html; }
+  } catch (e) { /* falls through to the saved static template below */ }
+  if (!subject || !innerHtml) {
+    subject = cfg.subject || ('🌟 به‌روزرسانی امروز از ' + siteName);
+    innerHtml = '<p>سرویس‌های ما را همین امروز بررسی کنید!</p>';
+  }
+  const fullHtml = wrapBulkEmailHtml(innerHtml, siteName);
+  const panelLink = SITE + '/smm-panel.html';
+
+  let sent = 0, failed = 0;
+  for (const r of batch) {
+    const personalSubject = subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز');
+    const personalHtml = fullHtml
+      .replace(/\{\{name\}\}/g, r.name || 'دوست عزیز')
+      .replace(/\{\{email\}\}/g, r.email)
+      .replace(/\{\{site_name\}\}/g, siteName)
+      .replace(/\{\{panel_link\}\}/g, panelLink);
+    const payload = {
+      from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+      to: [r.email],
+      subject: personalSubject,
+      html: personalHtml
+    };
+    if (cfg.replyTo) payload.reply_to = cfg.replyTo;
+    const result = await sendViaResend(payload);
+    if (result.ok) { sentLog[r.email] = new Date().toISOString(); sent++; }
+    else failed++;
+  }
+
+  await fetch(SITE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })
+  });
+
+  return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
 }

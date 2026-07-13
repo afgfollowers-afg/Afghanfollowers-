@@ -328,6 +328,27 @@ module.exports = async (req, res) => {
         // Same guard, for the daily Facebook/Telegram promo post.
         current.smm_last_autopost_date = body.smm_last_autopost_date;
       }
+      if (typeof body.smm_last_bulk_campaign_date === 'string') {
+        // Same guard, for the daily bulk-email cron (sole writer).
+        current.smm_last_bulk_campaign_date = body.smm_last_bulk_campaign_date;
+      }
+      if (body.smm_bulk_campaign_list && typeof body.smm_bulk_campaign_list === 'object') {
+        // The CSV the admin uploaded (recipients + status filter) — sole
+        // writer is the admin panel, plain overwrite is fine.
+        current.smm_bulk_campaign_list = body.smm_bulk_campaign_list;
+      }
+      if (body.smm_bulk_campaign_sent_clear === true) {
+        // Explicit admin "reset the sent log" action — the one case that
+        // must actually clear rather than merge, checked before the merge
+        // branch below so a reset always wins even if both were somehow
+        // sent together.
+        current.smm_bulk_campaign_sent = {};
+      } else if (body.smm_bulk_campaign_sent && typeof body.smm_bulk_campaign_sent === 'object') {
+        // Two writers: the admin's manual "Send Now" and the daily cron —
+        // merge instead of overwrite so neither can erase the other's
+        // progress if they happen to run close together.
+        current.smm_bulk_campaign_sent = Object.assign({}, current.smm_bulk_campaign_sent || {}, body.smm_bulk_campaign_sent);
+      }
       if (body.smm_email_auto_cfg && typeof body.smm_email_auto_cfg === 'object') {
         // Re-engagement email settings (template, thresholds, daily limit) —
         // pushed from the admin panel's Email Automation tab so the weekly
