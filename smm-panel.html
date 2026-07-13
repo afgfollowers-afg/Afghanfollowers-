@@ -2882,14 +2882,16 @@ var gwMethods={
         return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px;text-align:center;color:var(--muted);font-size:13px">👆 Select or enter an amount above, then click Pay with PayPal</div>';
       }
       var fee=parseFloat(cfg.fee)||0;
-      var credit=parseFloat((amt-(amt*(fee/100))).toFixed(2));
+      var feeFixed=parseFloat(cfg.feeFixed)||0;
+      var feeAmt=parseFloat((amt*(fee/100)+feeFixed).toFixed(2));
+      var credit=parseFloat((amt-feeAmt).toFixed(2));
       return '<div style="background:#f8f9fa;border-radius:14px;padding:18px;color:#111">'
         +'<div style="text-align:center;margin-bottom:16px">'
         +'<svg width="32" height="32" viewBox="0 0 24 24" fill="#003087"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.082-8.558 6.082h-2.19c-1.562 0-2.888 1.13-3.13 2.669l-1.2 7.602h4.097l1.12-7.107c.082-.518.526-.9 1.05-.9h2.19c4.298 0 7.664-1.748 8.647-6.797.31-1.591.103-2.894-.378-3.962z"/></svg>'
         +'<div style="font-size:16px;font-weight:800;color:#003087;margin-top:6px">PayPal Secure Checkout</div></div>'
         +'<div style="background:#f0f5ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px">'
         +'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#555">Amount</span><span style="font-weight:700">$'+amt.toFixed(2)+'</span></div>'
-        +(fee>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#555">Fee ('+fee+'%)</span><span style="color:#e53e3e">-$'+(amt*(fee/100)).toFixed(2)+'</span></div>':'')
+        +(feeAmt>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#555">Fee'+(fee>0?' ('+fee+'%'+(feeFixed>0?' + $'+feeFixed.toFixed(2):'')+')':'')+'</span><span style="color:#e53e3e">-$'+feeAmt.toFixed(2)+'</span></div>':'')
         +'<div style="display:flex;justify-content:space-between;border-top:1px solid #dde;padding-top:6px;margin-top:4px"><span style="font-weight:700;color:#003087">You receive</span><span style="font-weight:900;color:#16a34a;font-size:15px">$'+credit.toFixed(2)+'</span></div>'
         +'</div>'
         +'<button onclick="goPayPalCheckout()" style="width:100%;padding:14px;background:linear-gradient(135deg,#003087,#009cde);color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 16px rgba(0,48,135,.3)">'
@@ -3333,13 +3335,14 @@ function afUpdateSummary(){
   }
   var cfg=getPmCfg(_afMethod);
   var fee=parseFloat(cfg.fee)||0;
-  var feeAmt=parseFloat((amt*fee/100).toFixed(2));
+  var feeFixed=parseFloat(cfg.feeFixed)||0;
+  var feeAmt=parseFloat((amt*fee/100+feeFixed).toFixed(2));
   var recv=parseFloat((amt-feeAmt).toFixed(2));
   document.getElementById('af-sum-amt').textContent=fmt(amt);
   var feeRow=document.getElementById('af-sum-fee-row');
-  if(fee>0){
+  if(feeAmt>0){
     feeRow.style.display='flex';
-    document.getElementById('af-sum-fee').textContent='-'+fmt(feeAmt)+' ('+fee+'%)';
+    document.getElementById('af-sum-fee').textContent='-'+fmt(feeAmt)+(fee>0?' ('+fee+'%'+(feeFixed>0?' + $'+feeFixed.toFixed(2):'')+')':'');
   } else {
     feeRow.style.display='none';
   }
@@ -3661,9 +3664,10 @@ function openPayPalModal(amt, clientId, fee){
   modal.style.display='flex';
   document.getElementById('pp-modal-amt').textContent='$'+amt.toFixed(2)+' USD';
 
-  var feeAmt=parseFloat((amt*((fee||0)/100)).toFixed(2));
+  var feeFixed=parseFloat(cfg.feeFixed)||0;
+  var feeAmt=parseFloat((amt*((fee||0)/100)+feeFixed).toFixed(2));
   var receive=parseFloat((amt-feeAmt).toFixed(2));
-  var feeInfo=feeAmt>0?'<div style="font-size:12px;color:#666;margin-top:8px;text-align:center">'+fee+'% fee applied — you receive $'+receive.toFixed(2)+'</div>':'';
+  var feeInfo=feeAmt>0?'<div style="font-size:12px;color:#666;margin-top:8px;text-align:center">'+(fee>0?fee+'% ':'')+(feeFixed>0?'+ $'+feeFixed.toFixed(2)+' ':'')+'fee applied — you receive $'+receive.toFixed(2)+'</div>':'';
 
   document.getElementById('pp-modal-body').innerHTML=
     '<div id="pp-loading" style="text-align:center;padding:20px;color:#555">'
