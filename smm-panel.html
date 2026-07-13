@@ -2454,6 +2454,16 @@ function placeOrder(){
             var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
             var lo=ords.find(function(x){return x.id===order.id;});
             if(lo){lo.provOrderId=d.order;lo.status='processing';localStorage.setItem('smm_orders',JSON.stringify(ords));}
+            // Push provOrderId to the server immediately — without this, the
+            // server never learns dispatch actually succeeded, so the next
+            // /api/sync-orders run (daily cron, or any other trigger — it has
+            // no auth and gets hit routinely) sees this order as "never sent"
+            // once the retry cooldown passes and dispatches a genuine SECOND
+            // order to the provider for the same link.
+            if(lo){
+              fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({smm_orders:[lo],smm_ts:Date.now()})}).catch(function(){});
+            }
             showToast('✅ Order sent!','s');
             // After 2 minutes, check the real status with the provider and sync it in
             setTimeout(function(){

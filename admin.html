@@ -3873,7 +3873,18 @@ function approveFreeLikes(id){
         if(d&&d.order){
           var ords2=getRealOrders();
           var lo=ords2.find(function(x){return String(x.id)===String(o.id);});
-          if(lo){lo.provOrderId=d.order;localStorage.setItem('smm_orders',JSON.stringify(ords2));}
+          if(lo){
+            lo.provOrderId=d.order;
+            localStorage.setItem('smm_orders',JSON.stringify(ords2));
+            // Push provOrderId to the server immediately — the pushToServer()
+            // call right after this dispatch starts fires before this async
+            // response arrives, so without this, the server never learns
+            // dispatch succeeded and /api/sync-orders would treat this order
+            // as "never sent" once the retry cooldown passes, dispatching a
+            // genuine second order for the same link.
+            fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({smm_orders:[lo],smm_ts:Date.now()})}).catch(function(){});
+          }
         }
       }).catch(function(){});
     }
