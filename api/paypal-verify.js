@@ -99,7 +99,8 @@ module.exports = async (req, res) => {
     }
 
     const fee = parseFloat(pm.fee) || 0;
-    const feeAmt = parseFloat((paidAmount * (fee / 100)).toFixed(2));
+    const feeFixed = parseFloat(pm.feeFixed) || 0;
+    const feeAmt = parseFloat((paidAmount * (fee / 100) + feeFixed).toFixed(2));
     const credit = parseFloat((paidAmount - feeAmt).toFixed(2));
 
     const users = record.smm_users || [];
