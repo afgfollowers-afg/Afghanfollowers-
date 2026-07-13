@@ -1156,7 +1156,8 @@ textarea.fi{resize:vertical;min-height:75px;}
         <div class="fg"><label class="fl">Minimum ($)</label><input type="number" class="fi" id="pm-min" value="1"></div>
         <div class="fg"><label class="fl">Maximum ($)</label><input type="number" class="fi" id="pm-max" value="10000"></div>
         <div class="fg"><label class="fl">Fee (%)</label><input type="number" class="fi" id="pm-fee" value="0" step="0.1"></div>
-        <div class="fg"><label class="fl">Currency</label><select class="fi" id="pm-cur"><option>USD</option><option>EUR</option><option>AFN</option><option>IRR</option></select></div>
+        <div class="fg"><label class="fl">Fee Fixed ($) <span style="color:var(--mt);font-weight:400">(flat, e.g. PayPal's $0.49)</span></label><input type="number" class="fi" id="pm-feefixed" value="0" step="0.01"></div>
+        <div class="fg" style="grid-column:1 / -1"><label class="fl">Currency</label><select class="fi" id="pm-cur"><option>USD</option><option>EUR</option><option>AFN</option><option>IRR</option></select></div>
       </div>
       <!-- API callback -->
       <div style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:11px 13px;margin-top:4px">
@@ -4906,18 +4907,43 @@ function copyCb(){var t=document.getElementById('pm-cb').textContent;if(navigato
 function addPm(){
   var vname=document.getElementById('pm-vname').value.trim();
   if(!vname){toast('Enter visible name in Step 2','e');pmStep(2);return;}
-  pms.push({
+  var m={
     id:Date.now(),method:_pmType,vname:vname,
     cur:document.getElementById('pm-cur').value,
     min:parseFloat(document.getElementById('pm-min').value)||1,
     max:parseFloat(document.getElementById('pm-max').value)||10000,
     on:document.getElementById('pm-vis').value==='1',
-    fee:parseFloat(document.getElementById('pm-fee').value)||0
-  });
+    fee:parseFloat(document.getElementById('pm-fee').value)||0,
+    feeFixed:parseFloat(document.getElementById('pm-feefixed').value)||0,
+    instructions:(document.getElementById('pm-content')&&document.getElementById('pm-content').value.trim())||'',
+    callbackUrl:document.getElementById('pm-cb').textContent
+  };
+  // Step 3's method-specific fields (Client ID/Secret, wallet address, etc.)
+  // were being silently dropped here — the modal collected them but nothing
+  // ever read them back out before pushing the new method.
+  var el;
+  if(_pmType==='paypal'||_pmType==='perfectmoney'){
+    el=document.getElementById('pm-cid');if(el)m.clientId=el.value.trim();
+    el=document.getElementById('pm-csec');if(el)m.clientSecret=el.value.trim();
+  } else if(_pmType==='usdt_trc20'||_pmType==='usdt_erc20'){
+    el=document.getElementById('pm-wallet');if(el)m.wallet=el.value.trim();
+    el=document.getElementById('pm-net');if(el)m.network=el.value;
+  } else if(_pmType==='binance'){
+    el=document.getElementById('pm-bid');if(el)m.payId=el.value.trim();
+    el=document.getElementById('pm-bkey');if(el)m.apiKey=el.value.trim();
+    el=document.getElementById('pm-bsec');if(el)m.secretKey=el.value.trim();
+  } else if(_pmType==='stripe'){
+    el=document.getElementById('pm-spub');if(el)m.pubKey=el.value.trim();
+    el=document.getElementById('pm-ssec');if(el)m.secKey=el.value.trim();
+  } else {
+    el=document.getElementById('pm-acc');if(el)m.account=el.value.trim();
+    if(!m.instructions){el=document.getElementById('pm-instr');if(el)m.instructions=el.value.trim();}
+  }
+  pms.push(m);
   savePmVisibility();
   rPms();cm('m-add-pm');toast('Payment method added!','s');
   // reset modal
-  pmStep(1);document.getElementById('pm-vname').value='';document.getElementById('pm-fee').value='0';
+  pmStep(1);document.getElementById('pm-vname').value='';document.getElementById('pm-fee').value='0';document.getElementById('pm-feefixed').value='0';
 }
 
 // modules
