@@ -1188,6 +1188,16 @@ textarea.fi{resize:vertical;min-height:75px;}
         <div class="fg"><label class="fl">Binance Pay ID</label><input class="fi" id="pm-bid" placeholder="123456789"></div>
         <div class="fg"><label class="fl">API Key</label><input type="password" class="fi" id="pm-bkey" placeholder="Binance API Key"></div>
         <div class="fg"><label class="fl">Secret Key</label><input type="password" class="fi" id="pm-bsec" placeholder="Secret Key"></div>
+        <div class="fg"><label class="fl">QR Code <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — shown to customers at checkout)</span></label>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div id="pm-qr-preview" style="width:72px;height:72px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0"><span style="font-size:22px;opacity:.4">▦</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+              <input type="file" accept="image/*" class="fi" id="pm-qr-file" onchange="handleQrUpload(this,'pm')" style="padding:6px;font-size:11px">
+              <button type="button" class="btn btn-g btn-sm" onclick="removeQrPreview('pm')">Remove QR Code</button>
+            </div>
+          </div>
+          <input type="hidden" id="pm-qr-data" value="">
+        </div>
       </div>
       <!-- Stripe -->
       <div id="pmf-stripe" style="display:none">
@@ -4751,6 +4761,7 @@ function getPmEditFields(m){
     f+='<div class="fg"><label class="fl">Binance Pay ID</label><input class="fi" id="pme-binid" value="'+(m.payId||'')+'" placeholder="1116486314"></div>';
     f+='<div class="fg"><label class="fl">API Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binkey" value="'+(m.apiKey||'')+'" placeholder="Binance API Key"></div>';
     f+='<div class="fg"><label class="fl">Secret Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binsec" value="'+(m.secretKey||'')+'" placeholder="Secret Key"></div>';
+    f+=qrFieldHtml('pme',m.qrCode);
   } else if(method==='usdt_trc20'||method==='usdt_erc20'){
     f+='<div class="fg"><label class="fl">Wallet Address</label><input class="fi" id="pme-wallet" value="'+(m.wallet||'')+'" placeholder="'+(method==='usdt_trc20'?'TRX7NfMpGJzJp...':'0x4e9cE36E442e...')+'"></div>';
     f+='<div class="fg"><label class="fl">Network</label><input class="fi" value="'+(method==='usdt_trc20'?'TRC20 (Tron)':'ERC20 (Ethereum)')+'" readonly style="color:var(--mt)"></div>';
@@ -4759,26 +4770,35 @@ function getPmEditFields(m){
     f+='<div class="fg"><label class="fl">Secret Key</label><input type="password" class="fi" id="pme-ssec" value="'+(m.secKey||'')+'" placeholder="sk_live_..."></div>';
   } else {
     f+='<div class="fg"><label class="fl">Account / Address</label><input class="fi" id="pme-acc" value="'+(m.account||'')+'" placeholder="Account number, phone, wallet..."></div>';
-    f+='<div class="fg"><label class="fl">QR Code <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — shown to customers at checkout)</span></label>'
-      +'<div style="display:flex;gap:12px;align-items:center">'
-      +'<div id="pme-qr-preview" style="width:72px;height:72px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">'
-      +(m.qrCode?'<img src="'+m.qrCode+'" style="width:100%;height:100%;object-fit:contain">':'<span style="font-size:22px;opacity:.4">▦</span>')
-      +'</div>'
-      +'<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
-      +'<input type="file" accept="image/*" class="fi" id="pme-qr-file" onchange="handleQrUpload(this)" style="padding:6px;font-size:11px">'
-      +'<button type="button" class="btn btn-g btn-sm" onclick="removeQrPreview()">Remove QR Code</button>'
-      +'</div></div>'
-      +'<input type="hidden" id="pme-qr-data" value="'+(m.qrCode||'')+'">'
-      +'</div>';
+    f+=qrFieldHtml('pme',m.qrCode);
   }
   return f;
+}
+
+// Shared QR-upload widget markup — used by any edit-modal method branch
+// that wants a "scan to pay" image (Binance, Cash/Hawala, etc). `prefix`
+// namespaces the element ids so this can also be reused inside the
+// separate Add Payment Method wizard without id collisions.
+function qrFieldHtml(prefix,qrCode){
+  return '<div class="fg"><label class="fl">QR Code <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — shown to customers at checkout)</span></label>'
+    +'<div style="display:flex;gap:12px;align-items:center">'
+    +'<div id="'+prefix+'-qr-preview" style="width:72px;height:72px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">'
+    +(qrCode?'<img src="'+qrCode+'" style="width:100%;height:100%;object-fit:contain">':'<span style="font-size:22px;opacity:.4">▦</span>')
+    +'</div>'
+    +'<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
+    +'<input type="file" accept="image/*" class="fi" id="'+prefix+'-qr-file" onchange="handleQrUpload(this,\''+prefix+'\')" style="padding:6px;font-size:11px">'
+    +'<button type="button" class="btn btn-g btn-sm" onclick="removeQrPreview(\''+prefix+'\')">Remove QR Code</button>'
+    +'</div></div>'
+    +'<input type="hidden" id="'+prefix+'-qr-data" value="'+(qrCode||'')+'">'
+    +'</div>';
 }
 
 // Reads the uploaded image, downsizes it to a small square canvas and
 // re-encodes as compressed JPEG so the resulting Data URL stays well
 // within JSONBin's ~100KB per-record cap even though it's stored inline
 // in the payment-method JSON (no separate file storage in this app).
-function handleQrUpload(input){
+function handleQrUpload(input,prefix){
+  prefix=prefix||'pme';
   var file=input.files&&input.files[0];
   if(!file) return;
   if(!file.type.match(/^image\//)){toast('Please choose an image file','e');return;}
@@ -4795,8 +4815,8 @@ function handleQrUpload(input){
       ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h); // flatten transparency onto white for JPEG
       ctx.drawImage(img,0,0,w,h);
       var dataUrl=canvas.toDataURL('image/jpeg',0.8);
-      document.getElementById('pme-qr-data').value=dataUrl;
-      document.getElementById('pme-qr-preview').innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+      document.getElementById(prefix+'-qr-data').value=dataUrl;
+      document.getElementById(prefix+'-qr-preview').innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
       toast('QR code ready — click Save Settings to apply','s');
     };
     img.onerror=function(){toast('Could not read that image','e');};
@@ -4804,10 +4824,11 @@ function handleQrUpload(input){
   };
   reader.readAsDataURL(file);
 }
-function removeQrPreview(){
-  document.getElementById('pme-qr-data').value='';
-  document.getElementById('pme-qr-preview').innerHTML='<span style="font-size:22px;opacity:.4">▦</span>';
-  var f=document.getElementById('pme-qr-file');if(f)f.value='';
+function removeQrPreview(prefix){
+  prefix=prefix||'pme';
+  document.getElementById(prefix+'-qr-data').value='';
+  document.getElementById(prefix+'-qr-preview').innerHTML='<span style="font-size:22px;opacity:.4">▦</span>';
+  var f=document.getElementById(prefix+'-qr-file');if(f)f.value='';
 }
 
 function savePmEdit(){
@@ -4854,6 +4875,7 @@ function savePmEdit(){
     el=document.getElementById('pme-binid');if(el)m.payId=el.value.trim();
     el=document.getElementById('pme-binkey');if(el&&el.value.trim())m.apiKey=el.value.trim();
     el=document.getElementById('pme-binsec');if(el&&el.value.trim())m.secretKey=el.value.trim();
+    el=document.getElementById('pme-qr-data');if(el)m.qrCode=el.value||'';
   } else if(method==='usdt_trc20'||method==='usdt_erc20'){
     el=document.getElementById('pme-wallet');if(el)m.wallet=el.value.trim();
   } else if(method==='stripe'){
@@ -4932,6 +4954,7 @@ function addPm(){
     el=document.getElementById('pm-bid');if(el)m.payId=el.value.trim();
     el=document.getElementById('pm-bkey');if(el)m.apiKey=el.value.trim();
     el=document.getElementById('pm-bsec');if(el)m.secretKey=el.value.trim();
+    el=document.getElementById('pm-qr-data');if(el)m.qrCode=el.value||'';
   } else if(_pmType==='stripe'){
     el=document.getElementById('pm-spub');if(el)m.pubKey=el.value.trim();
     el=document.getElementById('pm-ssec');if(el)m.secKey=el.value.trim();
@@ -4943,7 +4966,7 @@ function addPm(){
   savePmVisibility();
   rPms();cm('m-add-pm');toast('Payment method added!','s');
   // reset modal
-  pmStep(1);document.getElementById('pm-vname').value='';document.getElementById('pm-fee').value='0';document.getElementById('pm-feefixed').value='0';
+  pmStep(1);document.getElementById('pm-vname').value='';document.getElementById('pm-fee').value='0';document.getElementById('pm-feefixed').value='0';removeQrPreview('pm');
 }
 
 // modules
