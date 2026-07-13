@@ -835,7 +835,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
     <div class="card" style="margin-bottom:14px">
       <div class="card-body" style="padding:16px">
-        <div style="font-size:13px;color:var(--text);line-height:1.6">
+        <div style="font-size:13px;color:var(--text);line-height:1.6" id="fl-intro-text">
           🔥 Invite <strong>5 friends</strong> using your referral link below — they must sign up for a real account.
           Once they join, claim <strong>free likes</strong> ✨ for Instagram or TikTok — totally free, once per day! 😍
         </div>
@@ -2643,6 +2643,10 @@ function renderFreeLikes(){
       tgCard.style.display='none';
     }
   }
+
+  var introEl=document.getElementById('fl-intro-text');
+  if(introEl) introEl.innerHTML='🔥 Unlock a free reward either way: invite <strong>'+FL_NEED+' friends</strong> using your referral link below (they must sign up for a real account), OR just get <strong>'+FL_VISIT_GOAL+' people</strong> to visit your link (no signup needed). '
+    +'Once you qualify, claim <strong>free likes</strong> ✨ for Instagram or TikTok — totally free, once per day! 😍';
 
   var allInvited=getReferredFriends(u);
   var friends=getAcceptedFriends(u);
