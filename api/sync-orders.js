@@ -115,13 +115,47 @@ async function runOrderSyncJob(force) {
     const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
     if (!prov || !prov.url || !prov.key) { retryDebug.push({ orderId: o.id, error: 'Provider config not found' }); continue; }
 
+    // Claim this order before dispatching — re-check against the LATEST
+    // server state first (not the batch snapshot read at the top of this
+    // function) and immediately write a fresh dispatchAttemptedAt. This
+    // endpoint is unauthenticated and gets hit more than once (Vercel
+    // retries, uptime pings, overlapping cron/manual runs); without
+    // re-verifying right before the provider call, two overlapping
+    // invocations could both read the same stale "never sent" snapshot and
+    // both dispatch the same order to the provider before either one wrote
+    // back — a genuine duplicate order to the same link. Claiming here
+    // shrinks that window from the whole batch's duration down to a single
+    // round trip.
+    let claimed;
+    try {
+      const freshResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+      const freshDb = await freshResp.json();
+      const freshOrder = (freshDb.smm_orders || []).find(x => String(x.id) === String(o.id));
+      if (!freshOrder) continue;
+      if (freshOrder.provOrderId || finishedStatuses.includes(freshOrder.status)) continue;
+      if (!force && freshOrder.dispatchAttemptedAt && (Date.now() - freshOrder.dispatchAttemptedAt) <= RETRY_AGE_MS) {
+        // Another run claimed (or already dispatched) this since our batch
+        // snapshot was taken — back off rather than race it.
+        continue;
+      }
+      claimed = Object.assign({}, freshOrder, { dispatchAttemptedAt: Date.now() });
+      await fetch(SITE + '/api/db', {
+        method: 'POST',
+        headers: dbHeaders(),
+        body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
+      });
+    } catch (e) {
+      retryDebug.push({ orderId: o.id, error: 'Claim check failed: ' + e.message });
+      continue;
+    }
+
     try {
       const formData = new URLSearchParams();
       formData.append('key', prov.key);
       formData.append('action', 'add');
       formData.append('service', provNumericId);
-      formData.append('link', o.link);
-      formData.append('quantity', o.qty);
+      formData.append('link', claimed.link);
+      formData.append('quantity', claimed.qty);
 
       const r = await fetch(prov.url, {
         method: 'POST',
@@ -135,10 +169,18 @@ async function runOrderSyncJob(force) {
         continue;
       }
       if (result.order) {
-        o.provOrderId = result.order;
-        o.status = 'processing';
+        claimed.provOrderId = result.order;
+        claimed.status = 'processing';
         retried++;
         retryDebug.push({ orderId: o.id, ok: true, newProvOrderId: result.order });
+        // Write back immediately via a merge-safe single-order update (not a
+        // full-array overwrite) so this can never clobber an order placed or
+        // edited elsewhere while this loop was running.
+        await fetch(SITE + '/api/db', {
+          method: 'POST',
+          headers: dbHeaders(),
+          body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
+        });
       } else {
         retryDebug.push({ orderId: o.id, error: result.error || 'No order id returned', rawResponse: result });
       }
@@ -152,14 +194,14 @@ async function runOrderSyncJob(force) {
   // unless someone happened to hit this endpoint directly and read the raw
   // JSON (which is how these got noticed at all). Replaced wholesale each
   // run so a resolved/succeeded order automatically drops off the list.
+  // (Successful dispatches are already written back per-order above, not
+  // batched here, so this write only ever touches the diagnostics field.)
   const stuckOrders = retryDebug.filter(d => d.error);
-  if (retried > 0 || retryDebug.length > 0) {
-    const writeBody = { smm_stuck_orders: stuckOrders, smm_ts: Date.now() };
-    if (retried > 0) writeBody.smm_orders_sync = orders;
+  if (retryDebug.length > 0) {
     await fetch(SITE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
-      body: JSON.stringify(writeBody)
+      body: JSON.stringify({ smm_stuck_orders: stuckOrders, smm_ts: Date.now() })
     });
   }
 
