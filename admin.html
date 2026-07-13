@@ -682,9 +682,9 @@ textarea.fi{resize:vertical;min-height:75px;}
             </div>
 
             <div class="card">
-              <div class="ch">📢 One-Time Announcement — Import Custom List</div>
+              <div class="ch">📢 Bulk Campaign — Import Custom List</div>
               <div class="cb">
-                <div class="alert a-i"><span>ℹ️</span><div>Use this to send a one-off announcement (e.g. "new website launched") to a list of emails from a CSV export — not limited to users currently registered on this site. Sends use the Resend config saved above.</div></div>
+                <div class="alert a-i"><span>ℹ️</span><div>Send to a list of emails from a CSV export — not limited to users currently registered on this site. Upload once: the server automatically continues sending on its own every day (up to the Daily Send Limit configured above), with a fresh AI-written message each day, skipping anyone already emailed — no need to keep this tab open or re-upload. "Send To All Filtered" below is only for sending an immediate batch right now, on top of that.</div></div>
                 <div class="fg"><label class="fl">Upload CSV</label><input type="file" accept=".csv,text/csv" class="fi" id="ea-bc-file" onchange="eaHandleBulkCsv(this)" style="padding:9px">
                   <div style="font-size:11px;color:var(--mt);margin-top:4px">Expects a header row with at least an <code>email</code> column (a <code>username</code>/<code>status</code> column will be used if present).</div>
                 </div>
@@ -5944,7 +5944,13 @@ function eaToggleBulkStatus(status,checked){
 }
 
 function eaSaveBulkList(){
-  try{ localStorage.setItem(EA_BULK_LIST_KEY,JSON.stringify({all:_eaBulkAll,statuses:_eaBulkStatuses})); }catch(e){}
+  var payload={all:_eaBulkAll,statuses:_eaBulkStatuses};
+  try{ localStorage.setItem(EA_BULK_LIST_KEY,JSON.stringify(payload)); }catch(e){}
+  // Also pushed to the server so the daily cron (api/sync-orders.js ->
+  // runBulkEmailCampaignJob) — which has no access to this browser's
+  // localStorage — can pick up the same list and keep sending on its own.
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_bulk_campaign_list:payload,smm_ts:Date.now()})}).catch(function(){});
 }
 // Restores whatever CSV was uploaded in a previous session — without this,
 // _eaBulkAll only ever existed in memory and reset to empty on every page
@@ -5954,7 +5960,12 @@ function eaSaveBulkList(){
 function eaRestoreBulkList(){
   var saved=null;
   try{ saved=JSON.parse(localStorage.getItem(EA_BULK_LIST_KEY)||'null'); }catch(e){}
-  if(!saved||!Array.isArray(saved.all)||!saved.all.length) return;
+  if(!saved||!Array.isArray(saved.all)||!saved.all.length){
+    // Nothing local yet — this browser may just be new; try the server in
+    // case the list was uploaded from a different device.
+    eaPullBulkStateFromServer();
+    return;
+  }
   _eaBulkAll=saved.all;
   _eaBulkStatuses=saved.statuses||{};
   var byStatus={};
@@ -5962,6 +5973,30 @@ function eaRestoreBulkList(){
   eaRenderBulkStatusChips(byStatus);
   eaUpdateBulkSummary();
   eaAddBulkLog('📋 Restored '+_eaBulkAll.length+' recipients from a previous upload — no need to re-upload the CSV','i');
+  // The daily cron may have sent more since this browser last checked —
+  // refresh the "already sent" log from the server so the summary (and
+  // what "Send Now" would skip) stays accurate.
+  eaPullBulkStateFromServer();
+}
+// Pulls the server's copy of the sent-log (and the recipient list itself,
+// if this browser has none locally) — the daily cron writes here directly
+// and has no way to also update this browser's localStorage.
+function eaPullBulkStateFromServer(){
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    if(d&&d.smm_bulk_campaign_sent&&typeof d.smm_bulk_campaign_sent==='object'){
+      localStorage.setItem(EA_BULK_SENT_KEY,JSON.stringify(d.smm_bulk_campaign_sent));
+    }
+    if(!_eaBulkAll.length&&d&&d.smm_bulk_campaign_list&&Array.isArray(d.smm_bulk_campaign_list.all)&&d.smm_bulk_campaign_list.all.length){
+      _eaBulkAll=d.smm_bulk_campaign_list.all;
+      _eaBulkStatuses=d.smm_bulk_campaign_list.statuses||{};
+      try{ localStorage.setItem(EA_BULK_LIST_KEY,JSON.stringify({all:_eaBulkAll,statuses:_eaBulkStatuses})); }catch(e){}
+      var byStatus={};
+      _eaBulkAll.forEach(function(r){ byStatus[r.status]=(byStatus[r.status]||0)+1; });
+      eaRenderBulkStatusChips(byStatus);
+      eaAddBulkLog('📋 Loaded '+_eaBulkAll.length+' recipients uploaded from another device','i');
+    }
+    eaUpdateBulkSummary();
+  }).catch(function(){});
 }
 
 function eaGetBulkSentSet(){
@@ -5971,10 +6006,23 @@ function eaMarkBulkSent(email){
   var s=eaGetBulkSentSet();
   s[email]=new Date().toISOString();
   localStorage.setItem(EA_BULK_SENT_KEY,JSON.stringify(s));
+  // Merged server-side (see api/db.js), not overwritten, so this can never
+  // erase progress the daily cron already made.
+  var delta={};delta[email]=s[email];
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_bulk_campaign_sent:delta,smm_ts:Date.now()})}).catch(function(){});
 }
 function eaResetBulkSentLog(){
   if(!confirm('Clear the "already sent" record for this one-time campaign? This lets you re-send to everyone.')) return;
   localStorage.removeItem(EA_BULK_SENT_KEY);
+  // The server merges smm_bulk_campaign_sent (never overwrites, so the
+  // daily cron's progress can't be erased by a stale browser) — a plain
+  // push here would be a no-op against an already-populated log, silently
+  // undoing this reset the next time the server is pulled. This explicit
+  // clear flag is the one exception, only reached via this confirm()'d
+  // admin action.
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_bulk_campaign_sent_clear:true,smm_ts:Date.now()})}).catch(function(){});
   eaAddBulkLog('♻️ "Already sent" log cleared','w');
   eaUpdateBulkSummary();
 }
