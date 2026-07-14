@@ -655,7 +655,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
         <div class="form-group">
           <label class="form-label">Link / Username</label>
-          <input type="text" class="form-input" id="order-link" placeholder="https://instagram.com/username">
+          <input type="text" class="form-input" id="order-link" placeholder="https://instagram.com/username" onfocus="checkServiceDropDisclaimer()">
         </div>
         <div class="form-row" style="margin-bottom:14px">
           <div class="form-group" style="margin-bottom:0">
@@ -1211,6 +1211,23 @@ tr:hover td{background:rgba(30,35,54,.5);}
   </div>
 </div>
 
+<!-- Service-Drop Disclaimer Modal -->
+<div id="disclaimer-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom))">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 14px"></div>
+      <div style="font-size:32px;margin-bottom:6px">⚠️</div>
+      <div style="font-size:16px;font-weight:800;color:var(--white)">توجه مهم / Important Notice</div>
+    </div>
+    <div style="font-size:13px;color:var(--text);line-height:1.9;background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:14px">
+      ریزش (کاهش) فالوور، لایک یا ویو پس از تحویل، ناشی از سیاست‌ها و الگوریتم‌های خود شبکه‌های اجتماعی (اینستاگرام، تیک‌تاک، تلگرام و...) است و کاملاً خارج از کنترل ماست. سایت افغان‌فالوورز هیچ‌گونه تضمینی در برابر این نوع ریزش نمی‌دهد.
+      <br><br>
+      Follower/like/view drop after delivery is caused by the social media platforms' own policies and algorithms, and is entirely outside our control. Afghan Followers gives no guarantee against this kind of drop.
+    </div>
+    <button onclick="agreeServiceDropDisclaimer()" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:800;font-family:var(--fn);cursor:pointer">✅ موافقم — ادامه / I Agree — Continue</button>
+  </div>
+</div>
+
 <!-- PayPal Checkout Modal -->
 <div id="pp-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:20px;width:100%;max-width:420px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.4)">
@@ -1511,6 +1528,34 @@ function saveCurrentUser(u){
 function logout(){
   localStorage.removeItem('smm_session');
   window.location.reload();
+}
+
+// Follower/like/view drop after delivery is caused by the platforms'
+// own algorithms, not by us — this records the customer's acknowledgment
+// (once per account, synced to the server via saveCurrentUser so there's
+// an actual record of it, not just a client-side flag) before they can
+// place their first order.
+function hasAgreedDisclaimer(){
+  var u=getCurrentUser();
+  return !!(u&&u.dropDisclaimerAgreedAt);
+}
+function checkServiceDropDisclaimer(){
+  if(hasAgreedDisclaimer()) return;
+  var modal=document.getElementById('disclaimer-modal');
+  if(modal) modal.style.display='flex';
+  var linkEl=document.getElementById('order-link');
+  if(linkEl) linkEl.blur();
+}
+function agreeServiceDropDisclaimer(){
+  var u=getCurrentUser();
+  if(u){
+    u.dropDisclaimerAgreedAt=new Date().toISOString();
+    saveCurrentUser(u);
+  }
+  var modal=document.getElementById('disclaimer-modal');
+  if(modal) modal.style.display='none';
+  var linkEl=document.getElementById('order-link');
+  if(linkEl) linkEl.focus();
 }
 
 const S={
@@ -2320,6 +2365,16 @@ var FINISHED_ORDER_STATUSES=['completed','cancelled','canceled','refunded','fail
 function placeOrder(){
   var link=document.getElementById('order-link');
   if(!link||!link.value.trim()){showToast('Please enter target link/username','e');return;}
+
+  // Hard gate — the modal is also triggered on focusing the link field, but
+  // that's just a nudge; this is what actually stops an order from being
+  // submitted before the customer has acknowledged the no-guarantee notice
+  // (e.g. if the link was pasted/autofilled without ever focusing normally).
+  if(!hasAgreedDisclaimer()){
+    checkServiceDropDisclaimer();
+    showToast('Please review and agree to the notice first','w');
+    return;
+  }
 
   // Get service name from visible dropdown — resolved before the duplicate
   // check below so it can actually match against it (svcName used to be
