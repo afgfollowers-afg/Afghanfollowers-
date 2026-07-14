@@ -1545,9 +1545,11 @@ function logout(){
 
 // Follower/like/view drop after delivery is caused by the platforms'
 // own algorithms, not by us — this records the customer's acknowledgment
-// (once per account, synced to the server via saveCurrentUser so there's
-// an actual record of it, not just a client-side flag) before they can
-// place their first order.
+// (synced to the server via saveCurrentUser/the order push so there's an
+// actual record of it, not just a client-side flag) before each order.
+// placeOrder() clears dropDisclaimerAgreedAt right after a successful
+// submission, so this has to be re-acknowledged before every order, not
+// just once per account.
 function hasAgreedDisclaimer(){
   var u=getCurrentUser();
   return !!(u&&u.dropDisclaimerAgreedAt);
@@ -2467,6 +2469,9 @@ function placeOrder(){
   if(me){
     me.balance=Math.max(0,Math.round((parseFloat(me.balance||0)-cost)*10000)/10000);
     me.orders=(parseInt(me.orders)||0)+1;
+    // Cleared so the disclaimer is required again before the *next* order —
+    // it should be re-acknowledged every time, not just once per account.
+    me.dropDisclaimerAgreedAt=null;
     localStorage.setItem('smm_users',JSON.stringify(allUsers));
     _currentUser=me;
   }
