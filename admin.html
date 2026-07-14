@@ -241,6 +241,7 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="sb-sec">Finance</div>
     <div class="ni" onclick="go('payments',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Payments</div>
     <div class="ni" onclick="go('wallets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>Wallets</div>
+    <div class="ni" onclick="go('withdrawals',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>Withdrawals<span class="nbg" id="nb-wd" style="display:none">0</span></div>
     <div class="sb-sec">Support</div>
     <div class="ni" onclick="go('tickets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Tickets<span class="nbg" id="nb-t">5</span></div>
     <div class="sb-sec">Config</div>
@@ -808,6 +809,17 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sec">
         <div class="sec-h"><div class="sec-t">💼 User Wallets</div><button class="btn btn-p btn-sm" onclick="om('m-add-bal')">+ Add Balance</button></div>
         <div class="tw" id="wallets-tbl"></div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div class="page" id="pg-withdrawals">
+      <div class="sec">
+        <div class="sec-h">
+          <div class="sec-t">💸 Withdrawal Requests</div>
+          <select class="fi btn-sm" style="font-size:12px" onchange="filterWithdrawals(this.value)"><option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+        </div>
+        <div class="tw" id="withdrawals-tbl"></div>
       </div>
     </div>
 
@@ -1612,6 +1624,32 @@ function getRealPayments(){
   return payments;
 }
 
+function getRealWithdrawals(){
+  var list=[];
+  try{
+    var users=getRealUsers();
+    users.forEach(function(u){
+      if(!u.transactions) return;
+      u.transactions.forEach(function(t){
+        if(t.type==='withdrawal'){
+          list.push({
+            id:t.id,
+            userId:u.id,
+            user:(u.fname||u.name||'User')+' '+(u.lname||''),
+            email:u.email||u.phone||'',
+            amount:t.amount||0,
+            destination:t.destination||'',
+            status:t.status||'pending',
+            date:t.date?new Date(t.date).toLocaleDateString():'—'
+          });
+        }
+      });
+    });
+    list.sort(function(a,b){return b.id-a.id;});
+  }catch(e){}
+  return list;
+}
+
 // Legacy compat vars (used in some render functions)
 var users=[];
 var orders=[];
@@ -1818,7 +1856,7 @@ var pc={instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',tiktok:'#010
 var _selTk=null;
 
 // ═══ NAV ═══
-var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',tickets:'Tickets',settings:'Settings'};
+var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals',tickets:'Tickets',settings:'Settings'};
 function go(pg,el){
   // Hide all pages
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
@@ -1851,6 +1889,7 @@ function go(pg,el){
   else if(pg==='invites') rInviteStatus();
   else if(pg==='payments') rPayReqs(getRealPayments());
   else if(pg==='wallets') rWallets(getRealUsers());
+  else if(pg==='withdrawals') rWithdrawals(getRealWithdrawals());
   else if(pg==='tickets') rTickets(getRealTickets());
   else if(pg==='settings') initSettings();
   closeSb();
@@ -3754,6 +3793,63 @@ function rejectPayment(userId,txId){
   pushToServer();
   toast('Payment rejected','e');
 }
+
+// Withdrawal Management — unlike deposits, the requested amount is already
+// held (deducted from the user's balance) at request time by
+// submitWithdrawRequest() in smm-panel.html. Approving just marks it fulfilled
+// (the admin sends the funds externally — nothing to credit here). Rejecting
+// must refund the held amount back, since the withdrawal never happened.
+function approveWithdrawal(userId,txId){
+  var users=getRealUsers();
+  var u=users.find(function(x){return String(x.id)===String(userId);});
+  if(!u){toast('User not found','e');return;}
+  var t=u.transactions&&u.transactions.find(function(x){return String(x.id)===String(txId);});
+  if(!t){toast('Withdrawal request not found','e');return;}
+  if(t.status!=='pending'){toast('This request was already '+t.status,'w');return;}
+  if(!confirm('Confirm you have sent $'+parseFloat(t.amount||0).toFixed(2)+' to:\n'+(t.destination||'—')+'\n\nThis marks the request as fulfilled.')) return;
+  t.status='approved';
+  localStorage.setItem('smm_users',JSON.stringify(users));
+  loadAllRealData();rWithdrawals(getRealWithdrawals());
+  notifyPanel();pushToServer();
+  toast('✅ Withdrawal marked as sent','s');
+  tgSend('💸 <b>Withdrawal Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+parseFloat(t.amount||0).toFixed(2));
+}
+function rejectWithdrawal(userId,txId){
+  var users=getRealUsers();
+  var u=users.find(function(x){return String(x.id)===String(userId);});
+  if(!u){toast('User not found','e');return;}
+  var t=u.transactions&&u.transactions.find(function(x){return String(x.id)===String(txId);});
+  if(!t){toast('Withdrawal request not found','e');return;}
+  if(t.status!=='pending'){toast('This request was already '+t.status,'w');return;}
+  if(!confirm('Reject this withdrawal request and refund $'+parseFloat(t.amount||0).toFixed(2)+' back to '+(u.fname||'the user')+'\'s balance?')) return;
+  t.status='rejected';
+  u.balance=parseFloat(((parseFloat(u.balance)||0)+parseFloat(t.amount||0)).toFixed(2));
+  localStorage.setItem('smm_users',JSON.stringify(users));
+  loadAllRealData();rWithdrawals(getRealWithdrawals());
+  notifyPanel();pushToServer();
+  toast('Withdrawal rejected — $'+parseFloat(t.amount||0).toFixed(2)+' refunded to user','e');
+}
+function rWithdrawals(list){
+  var bc={pending:'by',approved:'bg',rejected:'br'};
+  var pendingCount=list.filter(function(w){return w.status==='pending';}).length;
+  var badge=document.getElementById('nb-wd');
+  if(badge){badge.textContent=pendingCount;badge.style.display=pendingCount>0?'inline-block':'none';}
+  if(!list.length){document.getElementById('withdrawals-tbl').innerHTML='<div class="emp"><div class="emp-i">💸</div><div class="emp-t">No withdrawal requests</div></div>';return;}
+  var h='<table><thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Send To</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+  for(var i=0;i<list.length;i++){
+    var w=list[i];
+    h+='<tr><td style="color:var(--mt);font-size:11px">#'+w.id+'</td><td style="font-weight:600">'+w.user+'</td>';
+    h+='<td style="color:var(--rd);font-weight:700">$'+parseFloat(w.amount).toFixed(2)+'</td>';
+    h+='<td style="font-size:12px;color:var(--mt);max-width:200px;word-break:break-word">'+(w.destination||'—')+'</td>';
+    h+='<td><span class="b '+(bc[w.status]||'by')+'">'+w.status+'</span></td>';
+    h+='<td style="color:var(--mt);font-size:11px">'+w.date+'</td><td><div style="display:flex;gap:5px">';
+    if(w.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approveWithdrawal(\''+w.userId+'\','+w.id+')">Mark Sent</button><button class="btn btn-d btn-sm" onclick="rejectWithdrawal(\''+w.userId+'\','+w.id+')">Reject</button>';}
+    h+='</div></td></tr>';
+  }
+  h+='</tbody></table>';
+  document.getElementById('withdrawals-tbl').innerHTML=h;
+}
+function filterWithdrawals(s){rWithdrawals(s==='all'?getRealWithdrawals():getRealWithdrawals().filter(function(w){return w.status===s;}));}
 
 // Order Management
 function updateOrderStatus(id,status){
