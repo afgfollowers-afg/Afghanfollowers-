@@ -1541,6 +1541,12 @@ function hasAgreedDisclaimer(){
 }
 function checkServiceDropDisclaimer(){
   if(hasAgreedDisclaimer()) return;
+  // Only relevant to someone who can actually place an order right now —
+  // a user with an empty wallet can't submit one anyway (placeOrder()
+  // blocks on insufficient balance), so there's nothing to warn them about
+  // yet.
+  var u=getCurrentUser();
+  if(!u||parseFloat(u.balance||0)<=0) return;
   var modal=document.getElementById('disclaimer-modal');
   if(modal) modal.style.display='flex';
   var linkEl=document.getElementById('order-link');
@@ -2366,16 +2372,6 @@ function placeOrder(){
   var link=document.getElementById('order-link');
   if(!link||!link.value.trim()){showToast('Please enter target link/username','e');return;}
 
-  // Hard gate — the modal is also triggered on focusing the link field, but
-  // that's just a nudge; this is what actually stops an order from being
-  // submitted before the customer has acknowledged the no-guarantee notice
-  // (e.g. if the link was pasted/autofilled without ever focusing normally).
-  if(!hasAgreedDisclaimer()){
-    checkServiceDropDisclaimer();
-    showToast('Please review and agree to the notice first','w');
-    return;
-  }
-
   // Get service name from visible dropdown — resolved before the duplicate
   // check below so it can actually match against it (svcName used to be
   // referenced there while still undefined, silently no-oping the check).
@@ -2437,7 +2433,20 @@ function placeOrder(){
   
   var bal=parseFloat(u.balance||0);
   if(cost>bal){showToast('Insufficient balance ($'+bal.toFixed(2)+' available). Add funds first.','e');return;}
-  
+
+  // Hard gate — the modal is also triggered on focusing the link field (only
+  // for a user who already has funds, per checkServiceDropDisclaimer()), but
+  // that's just a nudge; this is what actually stops an order from being
+  // submitted before the customer has acknowledged the no-guarantee notice
+  // (e.g. if the link was pasted/autofilled without ever focusing normally).
+  // Checked only after the balance check above so a user with no funds yet
+  // sees the relevant "add funds" message instead of this one.
+  if(!hasAgreedDisclaimer()){
+    checkServiceDropDisclaimer();
+    showToast('Please review and agree to the notice first','w');
+    return;
+  }
+
   // Deduct balance from users array
   var allUsers=[];
   try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
