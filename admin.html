@@ -4123,9 +4123,44 @@ function rStuckOrders(){
       +'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:2px">'+escHtmlAdmin(name)+'</div>'
       +(link?'<div style="font-size:11px;color:var(--mt);word-break:break-all;margin-bottom:10px">'+escHtmlAdmin(link)+'</div>':'')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +(isCatalogErr?'<button data-oid="'+s.orderId+'" onclick="fixStuckOrderService(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.15);border:1px solid rgba(124,92,252,.4);color:var(--acc2);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔧 Reassign Service</button>':'')
+      +'<button data-oid="'+s.orderId+'" onclick="deleteStuckOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.12);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete &amp; Refund</button>'
+      +'</div>'
       +'</div>';
   }).join('');
+}
+function deleteStuckOrder(orderId){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(orderId);});
+  if(!o){toast('Order not found','e');return;}
+  var refund=parseFloat(o.cost||o.totalCost||0);
+  if(!confirm('Delete order #'+orderId+' (the provider could not accept it)'+(refund>0?' and refund $'+refund.toFixed(2)+' to '+(o.user||o.email||'the customer'):'')+'?\n\nThis cannot be undone.')) return;
+
+  var remaining=orders.filter(function(x){return String(x.id)!==String(orderId);});
+  localStorage.setItem('smm_orders',JSON.stringify(remaining));
+
+  var users=getRealUsers();
+  if(refund>0){
+    var u=users.find(function(x){return String(x.id)===String(o.userId);});
+    if(u){
+      u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
+      if(!u.transactions) u.transactions=[];
+      u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,desc:'Order #'+orderId+' deleted by admin (provider could not accept it) — refunded',date:new Date().toISOString(),status:'approved'});
+      localStorage.setItem('smm_users',JSON.stringify(users));
+    }
+  }
+
+  // Sole writer of smm_stuck_orders is the sync cron, but this entry needs
+  // to disappear immediately rather than waiting for the next run.
+  var stuck=getStuckOrders().filter(function(s){return String(s.orderId)!==String(orderId);});
+  localStorage.setItem('smm_stuck_orders',JSON.stringify(stuck));
+
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})}).catch(function(){});
+
+  rStuckOrders();rOrders(getRealOrders());notifyPanel();
+  toast(refund>0?('🗑 Order deleted — $'+refund.toFixed(2)+' refunded'):'🗑 Order deleted','s');
 }
 function retrySyncNow(){
   toast('🔁 Triggering sync...','s');
