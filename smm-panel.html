@@ -3556,27 +3556,41 @@ function afSubmitManual(){
   showToast('✅ Payment submitted! Admin will verify and add credit.','s');
 }
 
+// Credit types add to the wallet, debit types take from it. admin_credit/
+// admin_debit (the Wallets page's quick +Add/-Deduct buttons and the "Add
+// Balance" modal) and refund (a cancelled order's refund) were previously
+// invisible here — the customer had no way to see why their balance changed
+// unless they asked support, even though the admin side already recorded it.
+var AF_CREDIT_TYPES=['deposit','deposit_pending','bonus','refund','admin_credit'];
+var AF_DEBIT_TYPES=['withdrawal','admin_debit'];
 function afRenderHistory(){
   var u=getCurrentUser();
   var el=document.getElementById('pay-history');
   if(!el) return;
-  var txs=u&&u.transactions?u.transactions.filter(function(t){return t.type==='deposit'||t.type==='deposit_pending'||t.type==='bonus'||t.type==='withdrawal';}):[];
+  var txs=u&&u.transactions?u.transactions.filter(function(t){return AF_CREDIT_TYPES.indexOf(t.type)>-1||AF_DEBIT_TYPES.indexOf(t.type)>-1;}):[];
   if(!txs.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)"><div style="font-size:32px;margin-bottom:8px">📋</div><div>No payments yet</div></div>';return;}
   el.innerHTML=txs.slice(0,10).map(function(t){
     var isWithdrawal=t.type==='withdrawal';
+    var isDebit=AF_DEBIT_TYPES.indexOf(t.type)>-1;
     var statusColor=t.status==='approved'?'var(--green)':t.status==='pending'?'var(--yellow)':'var(--red)';
     var statusLabel=isWithdrawal
       ?(t.status==='approved'?'✅ Sent':t.status==='pending'?'⏳ Pending review':'❌ Rejected — refunded')
       :(t.status==='approved'?'✅ Approved':t.status==='pending'?'⏳ Pending':'❌ Failed');
-    var isCredit=t.type==='bonus';
+    var label=t.type==='bonus'?'Welcome Bonus'
+      :t.type==='withdrawal'?'Withdrawal'
+      :t.type==='refund'?'Refund'
+      :t.type==='admin_credit'?(t.desc||'Balance Added by Admin')
+      :t.type==='admin_debit'?(t.desc||'Balance Deducted by Admin')
+      :(t.method||'Payment');
+    var icon=t.type==='bonus'?'🎁':t.type==='refund'?'↩️':t.type==='admin_credit'?'✚':t.type==='admin_debit'?'➖':isWithdrawal?'💸':t.type==='deposit_pending'?'⏳':'💳';
     return '<div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">'
-      +'<div style="width:38px;height:38px;border-radius:10px;background:rgba(0,210,160,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+(isCredit?'🎁':isWithdrawal?'💸':t.type==='deposit_pending'?'⏳':'💳')+'</div>'
+      +'<div style="width:38px;height:38px;border-radius:10px;background:rgba(0,210,160,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>'
       +'<div style="flex:1">'
-        +'<div style="font-size:13px;font-weight:700;color:var(--white)">'+(isCredit?'Welcome Bonus':isWithdrawal?'Withdrawal':t.method||'Payment')+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:var(--white)">'+escHtml(label)+'</div>'
         +'<div style="font-size:11px;color:var(--muted)">'+(t.date?new Date(t.date).toLocaleDateString():'—')+(t.txid?' · '+t.txid.slice(0,12)+'...':'')+'</div>'
       +'</div>'
       +'<div style="text-align:right">'
-        +'<div style="font-size:15px;font-weight:800;color:'+(isWithdrawal?'var(--red)':'var(--green)')+'">'+(isWithdrawal?'-':'+')+fmt(t.credit||t.amount||0)+'</div>'
+        +'<div style="font-size:15px;font-weight:800;color:'+(isDebit?'var(--red)':'var(--green)')+'">'+(isDebit?'-':'+')+fmt(t.credit||t.amount||0)+'</div>'
         +(t.fee>0?'<div style="font-size:10px;color:var(--muted)">fee: -'+fmt(t.fee)+'</div>':'')
         +'<div style="font-size:11px;color:'+statusColor+'">'+statusLabel+'</div>'
       +'</div>'

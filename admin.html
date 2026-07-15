@@ -4524,10 +4524,15 @@ function showWalletHistory(userId){
   // this one customer without cross-referencing two different tables.
   var entries=[];
   (u.transactions||[]).forEach(function(t){
-    var isDebit=t.type==='withdrawal';
+    var isDebit=t.type==='withdrawal'||t.type==='admin_debit';
     entries.push({
       date:t.date,
-      label:t.type==='bonus'?'Welcome Bonus':t.type==='withdrawal'?'Withdrawal request':t.type==='refund'?'Refund':(t.method||'Deposit'),
+      label:t.type==='bonus'?'Welcome Bonus'
+        :t.type==='withdrawal'?'Withdrawal request'
+        :t.type==='refund'?'Refund'
+        :t.type==='admin_credit'?(t.desc||'Added by admin')
+        :t.type==='admin_debit'?(t.desc||'Deducted by admin')
+        :(t.method||'Deposit'),
       amount:parseFloat(t.credit||t.amount||0),
       isDebit:isDebit,
       status:t.status||'—'
@@ -4568,6 +4573,11 @@ function qAdd(id){
   var u=realU.find(function(x){return String(x.id)===String(id);});
   if(u){
     u.balance=parseFloat(((parseFloat(u.balance)||0)+a).toFixed(2));
+    // Without a transaction record, this balance bump was invisible in both
+    // the customer's own Payment History and the admin's wallet-history view
+    // — same pattern already used by addBalUser()/addBal() elsewhere.
+    if(!u.transactions) u.transactions=[];
+    u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:'Added by admin',date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(realU));
     fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
@@ -4583,6 +4593,8 @@ function qDed(id){
   var u=realU.find(function(x){return String(x.id)===String(id);});
   if(u&&(parseFloat(u.balance)||0)>=a){
     u.balance=parseFloat(((parseFloat(u.balance)||0)-a).toFixed(2));
+    if(!u.transactions) u.transactions=[];
+    u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:a,desc:'Deducted by admin',date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(realU));
     fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
