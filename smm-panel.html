@@ -3579,7 +3579,7 @@ function afRenderHistory(){
     var label=t.type==='bonus'?'Welcome Bonus'
       :t.type==='withdrawal'?'Withdrawal'
       :t.type==='refund'?'Refund'
-      :t.type==='admin_credit'?(t.desc||'Balance Added by Admin')
+      :t.type==='admin_credit'?(t.method?t.method+' (Added by Admin)':(t.desc||'Balance Added by Admin'))
       :t.type==='admin_debit'?(t.desc||'Balance Deducted by Admin')
       :(t.method||'Payment');
     var icon=t.type==='bonus'?'🎁':t.type==='refund'?'↩️':t.type==='admin_credit'?'✚':t.type==='admin_debit'?'➖':isWithdrawal?'💸':t.type==='deposit_pending'?'⏳':'💳';

@@ -976,7 +976,6 @@ textarea.fi{resize:vertical;min-height:75px;}
             <div id="sig-list"></div>
             <div class="fgrid" style="margin-top:14px">
               <div class="fg"><label class="fl">Terms & Conditions URL</label><input class="fi" id="sig-terms" placeholder="https://afghanfollowers.online/terms"></div>
-              <div class="fg"><label class="fl">Welcome Bonus ($)</label><input type="number" class="fi" id="sig-bonus" placeholder="0" min="0" step="0.01"></div>
             </div>
             <button class="btn btn-p" style="margin-top:10px" onclick="saveSignup()">💾 Save Signup Settings</button>
           </div>
@@ -1273,6 +1272,7 @@ textarea.fi{resize:vertical;min-height:75px;}
   <div class="md-b">
     <div class="fg"><label class="fl">Select User</label><select class="fi" id="bal-usr"></select></div>
     <div class="fg"><label class="fl">Amount ($)</label><input type="number" class="fi" id="bal-amt" placeholder="10.00"></div>
+    <div class="fg"><label class="fl">Record As</label><select class="fi" id="bal-method"></select></div>
     <div class="fg"><label class="fl">Reason</label><input class="fi" id="bal-rsn" placeholder="Payment approved"></div>
   </div>
   <div class="md-f"><button class="btn btn-g" onclick="cm('m-add-bal')">Cancel</button><button class="btn btn-d" onclick="deductBal()" style="background:#7f1d1d">Deduct Balance</button><button class="btn btn-s" onclick="addBal()">Add Balance</button></div>
@@ -1915,7 +1915,17 @@ function toggleSb(){var s=document.getElementById('sb');s.classList.toggle('open
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('mov').classList.remove('open');}
 
 // ═══ MODALS ═══
-function om(id){if(id==='m-add-bal'){var s=document.getElementById('bal-usr');var realU=getRealUsers();s.innerHTML=realU.map(function(u){var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);return'<option value="'+u.id+'">'+dispName.trim()+' ($'+(parseFloat(u.balance)||0).toFixed(2)+')</option>';}).join('');}document.getElementById(id).classList.add('open');}
+function om(id){
+  if(id==='m-add-bal'){
+    var s=document.getElementById('bal-usr');var realU=getRealUsers();
+    s.innerHTML=realU.map(function(u){var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);return'<option value="'+u.id+'">'+dispName.trim()+' ($'+(parseFloat(u.balance)||0).toFixed(2)+')</option>';}).join('');
+    var ms=document.getElementById('bal-method');
+    var opts='<option value="bonus">🎁 Bonus</option>';
+    opts+=pms.filter(function(p){return p.on;}).map(function(p){return'<option value="'+p.vname+'">'+p.vname+'</option>';}).join('');
+    ms.innerHTML=opts;
+  }
+  document.getElementById(id).classList.add('open');
+}
 function cm(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(function(m){m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 
@@ -3793,7 +3803,7 @@ function approvePayment(userId,txId){
   loadAllRealData();rPayReqs(getRealPayments());
   notifyPanel();
   pushToServer();toast('✅ Approved — $'+credit+' added to '+(u.fname||'user'),'s');
-  tgSend('✅ <b>Payment Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+credit+' credited to wallet');
+  tgSend('✅ <b>Payment Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+credit+' credited to wallet\nNew Balance: $'+u.balance);
 }
 
 function rejectPayment(userId,txId){
@@ -4530,7 +4540,7 @@ function showWalletHistory(userId){
       label:t.type==='bonus'?'Welcome Bonus'
         :t.type==='withdrawal'?'Withdrawal request'
         :t.type==='refund'?'Refund'
-        :t.type==='admin_credit'?(t.desc||'Added by admin')
+        :t.type==='admin_credit'?(t.method?t.method+' (by admin)':(t.desc||'Added by admin'))
         :t.type==='admin_debit'?(t.desc||'Deducted by admin')
         :(t.method||'Deposit'),
       amount:parseFloat(t.credit||t.amount||0),
@@ -4606,6 +4616,8 @@ function addBal(){
   var uid=document.getElementById('bal-usr').value;
   var a=parseFloat(document.getElementById('bal-amt').value);
   var reason=document.getElementById('bal-rsn').value||'Balance added by admin';
+  var methodEl=document.getElementById('bal-method');
+  var method=methodEl?methodEl.value:'bonus';
   if(!a||a<=0){toast('Enter valid amount','e');return;}
   var realU=getRealUsers();
   var u=realU.find(function(x){return String(x.id)===String(uid);});
@@ -4614,7 +4626,11 @@ function addBal(){
     if(!confirm('Add $'+a+' to '+dispNameConfirm.trim()+'\'s balance?')) return;
     u.balance=parseFloat(((parseFloat(u.balance)||0)+a).toFixed(2));
     if(!u.transactions) u.transactions=[];
-    u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
+    if(method==='bonus'){
+      u.transactions.unshift({id:Date.now(),type:'bonus',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
+    }else{
+      u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,method:method,desc:reason,date:new Date().toISOString(),status:'approved'});
+    }
     localStorage.setItem('smm_users',JSON.stringify(realU));
     localStorage.setItem('smm_admin_updated',Date.now().toString());
     fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -4641,7 +4657,7 @@ function deductBal(){
   if(!confirm('Deduct $'+a+' from '+dispNameConfirm2.trim()+'\'s balance?')) return;
   u.balance=parseFloat((curBal-a).toFixed(2));
   if(!u.transactions) u.transactions=[];
-  u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:-a,desc:reason,date:new Date().toISOString(),status:'approved'});
+  u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
   localStorage.setItem('smm_users',JSON.stringify(realU));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -5565,9 +5581,7 @@ function saveSignup(){
   });
   cfg.extraFields=extraFields;
   var termsEl=document.getElementById('sig-terms');
-  var bonusEl=document.getElementById('sig-bonus');
   if(termsEl) cfg.termsUrl=termsEl.value.trim();
-  if(bonusEl) cfg.welcomeBonus=parseFloat(bonusEl.value)||0;
   localStorage.setItem('smm_auth_settings',JSON.stringify(cfg));
   pushAuthSettings(cfg);
   notifyPanel();

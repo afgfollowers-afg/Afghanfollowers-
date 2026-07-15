@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({
             chat_id: cfg.chatId,
             parse_mode: 'HTML',
-            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nOrder: ${orderId}`
+            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\nOrder: ${orderId}`
           })
         });
       }

@@ -875,9 +875,8 @@ function doReg(){
       var phone=_rm==='phone'?(document.getElementById('r-code').value+document.getElementById('r-phone').value.trim()):'';
       var extra={};
       _efDefs.forEach(function(d){var el=document.getElementById('ef-'+d.key);if(el&&el.value.trim())extra[d.key]=el.value.trim();});
-      var bonus=parseFloat(cfg.welcomeBonus)||0;
       var _regSalt=genSalt();
-      var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:hashPass(pass,_regSalt),salt:_regSalt,inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:bonus,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:bonus>0?[{id:Date.now(),type:'bonus',amount:bonus,desc:'Welcome bonus',date:new Date().toISOString()}]:[],extra:extra};
+      var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:hashPass(pass,_regSalt),salt:_regSalt,inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],extra:extra};
       users.push(u);saveUsers(users);createSess(u);
       setBtnL('r-btn',false);
       tgAuthNotify('🆕 <b>New Registration</b>\nName: '+u.fname+' '+u.lname+'\n'+(u.email?'Email: '+u.email:'Phone: '+u.phone));

@@ -225,8 +225,43 @@ module.exports = async (req, res) => {
         return Object.keys(map).map(function (k) { return map[k]; });
       }
 
+      // smm_users needs one thing mergeById's plain "incoming replaces
+      // current" can't give it: transactions is itself a growing ledger
+      // written from many independent places (a customer's own deposit/
+      // withdrawal, a signup bonus, an admin's balance adjustment, an order
+      // refund...), and admin.html has ~10 call sites that push the WHOLE
+      // smm_users array as a side effect of one unrelated action, using
+      // whatever is in that browser's local cache at that moment. Any of
+      // those pushes racing a few seconds ahead of the admin's own 30s poll
+      // picking up a customer's brand new transaction would — under a plain
+      // per-user replace — silently erase that transaction (e.g. a just-
+      // granted signup bonus, or a deposit the customer submitted seconds
+      // earlier) the moment the stale copy overwrote the user object. Union
+      // transactions by their own id instead, so neither side can ever drop
+      // an entry the other doesn't know about yet; every other field still
+      // takes the incoming value, same as before.
+      function mergeUsersById(currentArr, incomingArr) {
+        var map = {};
+        (currentArr || []).forEach(function (item) { if (item && item.id !== undefined) map[item.id] = item; });
+        (incomingArr || []).forEach(function (item) {
+          if (!item || item.id === undefined) return;
+          var existing = map[item.id];
+          if (existing && Array.isArray(existing.transactions) && Array.isArray(item.transactions)) {
+            var txMap = {};
+            existing.transactions.forEach(function (t) { if (t && t.id !== undefined) txMap[t.id] = t; });
+            item.transactions.forEach(function (t) { if (t && t.id !== undefined) txMap[t.id] = t; });
+            item = Object.assign({}, item, {
+              transactions: Object.keys(txMap).map(function (k) { return txMap[k]; })
+                .sort(function (a, b) { return (b.id || 0) - (a.id || 0); })
+            });
+          }
+          map[item.id] = item;
+        });
+        return Object.keys(map).map(function (k) { return map[k]; });
+      }
+
       if (body.smm_users && Array.isArray(body.smm_users)) {
-        current.smm_users = mergeById(current.smm_users, body.smm_users);
+        current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
       }
       if (body.smm_users_delete_id !== undefined) {
         current.smm_users = (current.smm_users || []).filter(function (u) {
