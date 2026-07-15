@@ -102,6 +102,18 @@ module.exports = async (req, res) => {
     const feeFixed = parseFloat(pm.feeFixed) || 0;
     const feeAmt = parseFloat((paidAmount * (fee / 100) + feeFixed).toFixed(2));
     const credit = parseFloat((paidAmount - feeAmt).toFixed(2));
+    // A payment below the fixed fee (or under the admin's configured minimum)
+    // would otherwise produce a negative credit here, which — added straight
+    // onto the user's balance below — would silently REDUCE it after a
+    // "successful" payment. Refuse instead and leave it for manual review;
+    // the client already shows the order id for support to reconcile.
+    if (credit <= 0) {
+      return res.status(200).json({ ok: false, error: 'Payment amount is too small to cover fees. Contact support with your PayPal receipt (Order: ' + orderId + ').' });
+    }
+    const minAmt = parseFloat(pm.min);
+    if (minAmt > 0 && paidAmount < minAmt) {
+      return res.status(200).json({ ok: false, error: 'Payment amount is below the minimum ($' + minAmt.toFixed(2) + '). Contact support with your PayPal receipt (Order: ' + orderId + ').' });
+    }
 
     const users = record.smm_users || [];
     const user = users.find((u) => String(u.id) === String(userId));

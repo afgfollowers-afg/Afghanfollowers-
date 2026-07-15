@@ -1978,7 +1978,7 @@ function initDash(){
   } else {
     showOrders.forEach(function(o){
       ro+='<tr><td style="font-size:11px;color:var(--mt)">#'+o.id+'</td>';
-      ro+='<td style="font-size:12px">'+( o.user||o.email||'—')+'</td>';
+      ro+='<td style="font-size:12px">'+escHtmlAdmin(o.user||o.email||'—')+'</td>';
       ro+='<td><span style="background:'+(pc[o.platform]||'#333')+';color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px">'+( o.platform||'—')+'</span></td>';
       ro+='<td style="color:var(--gr);font-weight:700">$'+(o.cost||0).toFixed(2)+'</td>';
       ro+='<td><span class="b '+(bc[o.status]||'by')+'">'+(o.status||'pending')+'</span></td></tr>';
@@ -1996,9 +1996,9 @@ function initDash(){
   } else {
     sorted.slice(0,6).forEach(function(u){
       uh+='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd)">'
-        +'<div class="uav">'+(u.fname||'U')[0]+'</div>'
-        +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+(u.fname||'')+' '+(u.lname||'')+'</div>'
-        +'<div style="font-size:11px;color:var(--mt)">'+(u.email||u.phone||'')+'</div></div>'
+        +'<div class="uav">'+escHtmlAdmin((u.fname||'U')[0])+'</div>'
+        +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+escHtmlAdmin((u.fname||'')+' '+(u.lname||''))+'</div>'
+        +'<div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(u.email||u.phone||'')+'</div></div>'
         +'<div class="bc">$'+(u.balance||0).toFixed(2)+'</div>'
         +'</div>';
     });
@@ -2025,7 +2025,7 @@ function rUsers(list){
     var uname=(u.fname||u.name||'User')+' '+(u.lname||'');
     uname=uname.trim();
     var uav=uname[0]?uname[0].toUpperCase():'U';
-    h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+uav+'</div><div><div style="font-size:13px;font-weight:600">'+uname+'</div><div style="font-size:11px;color:var(--mt)">'+(u.email||u.phone||'')+'</div></div></div></td>';
+    h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+escHtmlAdmin(uav)+'</div><div><div style="font-size:13px;font-weight:600">'+escHtmlAdmin(uname)+'</div><div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(u.email||u.phone||'')+'</div></div></div></td>';
     h+='<td><span class="b '+(rb[u.role]||'bp')+'">'+(u.role||'user')+'</span></td>';
     h+='<td><div class="bc">$'+parseFloat(u.balance||0).toFixed(2)+'</div></td>';
     h+='<td style="text-align:center">'+(u.orders||0)+'</td>';
@@ -3864,9 +3864,9 @@ function rWithdrawals(list){
   var h='<table><thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Send To</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var w=list[i];
-    h+='<tr><td style="color:var(--mt);font-size:11px">#'+w.id+'</td><td style="font-weight:600">'+w.user+'</td>';
+    h+='<tr><td style="color:var(--mt);font-size:11px">#'+w.id+'</td><td style="font-weight:600">'+escHtmlAdmin(w.user)+'</td>';
     h+='<td style="color:var(--rd);font-weight:700">$'+parseFloat(w.amount).toFixed(2)+'</td>';
-    h+='<td style="font-size:12px;color:var(--mt);max-width:200px;word-break:break-word">'+(w.destination||'—')+'</td>';
+    h+='<td style="font-size:12px;color:var(--mt);max-width:200px;word-break:break-word">'+escHtmlAdmin(w.destination||'—')+'</td>';
     h+='<td><span class="b '+(bc[w.status]||'by')+'">'+w.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+w.date+'</td><td><div style="display:flex;gap:5px">';
     if(w.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approveWithdrawal(\''+w.userId+'\','+w.id+')">Mark Sent</button><button class="btn btn-d btn-sm" onclick="rejectWithdrawal(\''+w.userId+'\','+w.id+')">Reject</button>';}
@@ -4491,9 +4491,9 @@ function rPayReqs(list){
   var h='<table><thead><tr><th>ID</th><th>User</th><th>Method</th><th>Amount</th><th>Note</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var p=list[i];
-    h+='<tr><td style="color:var(--mt);font-size:11px">#'+p.id+'</td><td style="font-weight:600">'+p.user+'</td><td>'+p.method+'</td>';
+    h+='<tr><td style="color:var(--mt);font-size:11px">#'+p.id+'</td><td style="font-weight:600">'+escHtmlAdmin(p.user)+'</td><td>'+escHtmlAdmin(p.method)+'</td>';
     h+='<td style="color:var(--gr);font-weight:700">$'+p.amount.toFixed(2)+'</td>';
-    h+='<td style="font-size:12px;color:var(--mt);max-width:160px">'+p.note+'</td>';
+    h+='<td style="font-size:12px;color:var(--mt);max-width:160px">'+escHtmlAdmin(p.note)+'</td>';
     h+='<td><span class="b '+(bc[p.status]||'by')+'">'+p.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+p.date+'</td><td><div style="display:flex;gap:5px">';
     if(p.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approvePayment(\''+p.userId+'\','+p.id+')">Approve</button><button class="btn btn-d btn-sm" onclick="rejectPayment(\''+p.userId+'\','+p.id+')">Reject</button>';}
@@ -4512,8 +4512,8 @@ function rWallets(list){
   for(var i=0;i<list.length;i++){
     var u=list[i];
     var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
-    h+='<tr><td style="cursor:pointer" onclick="showWalletHistory('+u.id+')" title="Click to view deposit/spend history"><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+(u.fname||wName||'U')[0]+'</div><div style="font-size:13px;font-weight:600">'+wName+'</div></div></td>';
-    h+='<td style="font-size:12px;color:var(--mt)">'+u.email+'</td>';
+    h+='<tr><td style="cursor:pointer" onclick="showWalletHistory('+u.id+')" title="Click to view deposit/spend history"><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+escHtmlAdmin((u.fname||wName||'U')[0])+'</div><div style="font-size:13px;font-weight:600">'+escHtmlAdmin(wName)+'</div></div></td>';
+    h+='<td style="font-size:12px;color:var(--mt)">'+escHtmlAdmin(u.email)+'</td>';
     h+='<td><div class="bc">$'+(u.balance||0).toFixed(2)+'</div></td>';
     h+='<td style="text-align:center">'+(u.orders||0)+'</td>';
     h+='<td><div style="display:flex;gap:5px"><button class="btn btn-s btn-sm" onclick="qAdd('+u.id+')">+ Add</button><button class="btn btn-d btn-sm" onclick="qDed('+u.id+')">- Deduct</button></div></td></tr>';
