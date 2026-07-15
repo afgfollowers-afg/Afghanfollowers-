@@ -1241,6 +1241,15 @@ textarea.fi{resize:vertical;min-height:75px;}
   </div>
 </div></div>
 
+<!-- Wallet History -->
+<div class="mo" id="m-wallet-history"><div class="md" style="max-width:640px">
+  <div class="md-h"><div class="md-t" id="wh-title">Wallet History</div><div class="md-x" onclick="cm('m-wallet-history')">✕</div></div>
+  <div class="md-b">
+    <div class="tw" id="wh-tbl"></div>
+  </div>
+  <div class="md-f"><button class="btn btn-g" onclick="cm('m-wallet-history')">Close</button></div>
+</div></div>
+
 <!-- Add Service -->
 <div class="mo" id="m-add-svc"><div class="md">
   <div class="md-h"><div class="md-t">Add Service</div><div class="md-x" onclick="cm('m-add-svc')">✕</div></div>
@@ -4123,9 +4132,44 @@ function rStuckOrders(){
       +'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:2px">'+escHtmlAdmin(name)+'</div>'
       +(link?'<div style="font-size:11px;color:var(--mt);word-break:break-all;margin-bottom:10px">'+escHtmlAdmin(link)+'</div>':'')
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +(isCatalogErr?'<button data-oid="'+s.orderId+'" onclick="fixStuckOrderService(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.15);border:1px solid rgba(124,92,252,.4);color:var(--acc2);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔧 Reassign Service</button>':'')
+      +'<button data-oid="'+s.orderId+'" onclick="deleteStuckOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.12);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete &amp; Refund</button>'
+      +'</div>'
       +'</div>';
   }).join('');
+}
+function deleteStuckOrder(orderId){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(orderId);});
+  if(!o){toast('Order not found','e');return;}
+  var refund=parseFloat(o.cost||o.totalCost||0);
+  if(!confirm('Delete order #'+orderId+' (the provider could not accept it)'+(refund>0?' and refund $'+refund.toFixed(2)+' to '+(o.user||o.email||'the customer'):'')+'?\n\nThis cannot be undone.')) return;
+
+  var remaining=orders.filter(function(x){return String(x.id)!==String(orderId);});
+  localStorage.setItem('smm_orders',JSON.stringify(remaining));
+
+  var users=getRealUsers();
+  if(refund>0){
+    var u=users.find(function(x){return String(x.id)===String(o.userId);});
+    if(u){
+      u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
+      if(!u.transactions) u.transactions=[];
+      u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,desc:'Order #'+orderId+' deleted by admin (provider could not accept it) — refunded',date:new Date().toISOString(),status:'approved'});
+      localStorage.setItem('smm_users',JSON.stringify(users));
+    }
+  }
+
+  // Sole writer of smm_stuck_orders is the sync cron, but this entry needs
+  // to disappear immediately rather than waiting for the next run.
+  var stuck=getStuckOrders().filter(function(s){return String(s.orderId)!==String(orderId);});
+  localStorage.setItem('smm_stuck_orders',JSON.stringify(stuck));
+
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})}).catch(function(){});
+
+  rStuckOrders();rOrders(getRealOrders());notifyPanel();
+  toast(refund>0?('🗑 Order deleted — $'+refund.toFixed(2)+' refunded'):'🗑 Order deleted','s');
 }
 function retrySyncNow(){
   toast('🔁 Triggering sync...','s');
@@ -4458,7 +4502,7 @@ function rWallets(list){
   for(var i=0;i<list.length;i++){
     var u=list[i];
     var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
-    h+='<tr><td><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+(u.fname||wName||'U')[0]+'</div><div style="font-size:13px;font-weight:600">'+wName+'</div></div></td>';
+    h+='<tr><td style="cursor:pointer" onclick="showWalletHistory('+u.id+')" title="Click to view deposit/spend history"><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+(u.fname||wName||'U')[0]+'</div><div style="font-size:13px;font-weight:600">'+wName+'</div></div></td>';
     h+='<td style="font-size:12px;color:var(--mt)">'+u.email+'</td>';
     h+='<td><div class="bc">$'+(u.balance||0).toFixed(2)+'</div></td>';
     h+='<td style="text-align:center">'+(u.orders||0)+'</td>';
@@ -4466,6 +4510,56 @@ function rWallets(list){
   }
   h+='</tbody></table>';
   document.getElementById('wallets-tbl').innerHTML=h;
+}
+function showWalletHistory(userId){
+  var users=getRealUsers();
+  var u=users.find(function(x){return String(x.id)===String(userId);});
+  if(!u){toast('User not found','e');return;}
+  var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+  document.getElementById('wh-title').textContent='💼 '+wName+' — Wallet History';
+
+  // Deposits/withdrawals/refunds/bonuses live on the user's own transactions
+  // array; spending lives as separate order records — combined here into one
+  // chronological ledger so the admin can see the full add/spend picture for
+  // this one customer without cross-referencing two different tables.
+  var entries=[];
+  (u.transactions||[]).forEach(function(t){
+    var isDebit=t.type==='withdrawal';
+    entries.push({
+      date:t.date,
+      label:t.type==='bonus'?'Welcome Bonus':t.type==='withdrawal'?'Withdrawal request':t.type==='refund'?'Refund':(t.method||'Deposit'),
+      amount:parseFloat(t.credit||t.amount||0),
+      isDebit:isDebit,
+      status:t.status||'—'
+    });
+  });
+  getRealOrders().filter(function(o){return String(o.userId)===String(u.id);}).forEach(function(o){
+    entries.push({
+      date:o.date,
+      label:'Order #'+o.id+' — '+(o.svcName||o.service||o.svc||'Service'),
+      amount:parseFloat(o.cost||0),
+      isDebit:true,
+      status:o.status||'—'
+    });
+  });
+  entries.sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0);});
+
+  var tblEl=document.getElementById('wh-tbl');
+  if(!entries.length){
+    tblEl.innerHTML='<div class="emp"><div class="emp-i">💼</div><div class="emp-t">No wallet activity yet</div></div>';
+  } else {
+    var h='<table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+    entries.forEach(function(e){
+      var d=e.date?new Date(e.date).toLocaleString():'—';
+      h+='<tr><td style="font-size:11px;color:var(--mt);white-space:nowrap">'+d+'</td>';
+      h+='<td style="font-size:12px">'+escHtmlAdmin(e.label)+'</td>';
+      h+='<td style="font-weight:700;color:'+(e.isDebit?'var(--rd)':'var(--gr)')+';white-space:nowrap">'+(e.isDebit?'-':'+')+'$'+e.amount.toFixed(2)+'</td>';
+      h+='<td style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(e.status)+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    tblEl.innerHTML=h;
+  }
+  document.getElementById('m-wallet-history').classList.add('open');
 }
 function qAdd(id){
   var a=parseFloat(prompt('Add amount ($):','10'));

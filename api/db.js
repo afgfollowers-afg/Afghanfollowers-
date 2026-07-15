@@ -236,6 +236,11 @@ module.exports = async (req, res) => {
       if (body.smm_orders && Array.isArray(body.smm_orders)) {
         current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
       }
+      if (body.smm_orders_delete_id !== undefined) {
+        current.smm_orders = (current.smm_orders || []).filter(function (o) {
+          return String(o.id) !== String(body.smm_orders_delete_id);
+        });
+      }
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
         current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
       }
