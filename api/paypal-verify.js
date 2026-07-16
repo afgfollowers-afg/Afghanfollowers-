@@ -191,12 +191,26 @@ module.exports = async (req, res) => {
       const j = await r.json().catch(() => null);
       return !!(j && j.ok === true);
     }
+    // Two prior fixes (retry-until-verified, then cache-busting the read)
+    // both still exhausted every attempt on real tests — meaning either
+    // the read is genuinely still seeing stale data every single time, or
+    // something about the READ ITSELF is silently failing (a rejected
+    // request due to the new headers, a parse error, etc.) and being
+    // swallowed by a bare catch, which would look identical to "verified
+    // false" from the outside. Capture which one it actually is per
+    // attempt instead of collapsing both into a single boolean.
+    const attemptLog = [];
     async function verifyLanded() {
       try {
         const verifyRecord = await readRecord();
         const verifyUser = (verifyRecord.smm_users || []).find((u) => String(u.id) === String(userId));
-        return !!(verifyUser && (verifyUser.transactions || []).some((t) => t && t.id === newTx.id));
-      } catch (e) { return false; }
+        const found = !!(verifyUser && (verifyUser.transactions || []).some((t) => t && t.id === newTx.id));
+        attemptLog.push('read-ok,user-' + (verifyUser ? 'found' : 'MISSING') + ',tx-' + (found ? 'found' : 'missing') + ',balance=' + (verifyUser ? verifyUser.balance : 'n/a'));
+        return found;
+      } catch (e) {
+        attemptLog.push('READ-THREW: ' + e.message);
+        return false;
+      }
     }
     let saved = false;
     let attempts = 0;
@@ -204,9 +218,29 @@ module.exports = async (req, res) => {
     while (!saved && attempts < MAX_ATTEMPTS) {
       attempts++;
       const wroteOk = await writeCredit();
+      attemptLog.push('attempt ' + attempts + ': write-' + (wroteOk ? 'ok' : 'FAILED'));
       if (wroteOk) saved = await verifyLanded();
     }
     if (!saved) {
+      // Surface the full diagnostic trail to the admin — this is the
+      // difference between "the write keeps failing", "the read keeps
+      // seeing stale data", and "the read itself is erroring out", which
+      // all look identical from the customer's side but need different
+      // fixes.
+      try {
+        const cfg = record.smm_tg_bot || {};
+        if (cfg.token && cfg.chatId) {
+          await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: cfg.chatId,
+              parse_mode: 'HTML',
+              text: `❌ <b>PayPal credit could NOT be verified after ${MAX_ATTEMPTS} attempts</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nOrder: ${orderId}\nExpected transaction id: ${newTx.id}\n\n${attemptLog.map((l) => '• ' + l).join('\n')}`
+            })
+          });
+        }
+      } catch (e) { /* best-effort */ }
       return res.status(200).json({
         ok: false,
         error: 'Payment was verified with PayPal but could not be reliably saved — please contact support with your PayPal receipt (Order: ' + orderId + ').'
