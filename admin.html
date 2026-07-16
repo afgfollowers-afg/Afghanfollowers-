@@ -4578,10 +4578,33 @@ function rWallets(list){
     h+='<td style="font-size:12px;color:var(--mt)">'+escHtmlAdmin(u.email)+'</td>';
     h+='<td><div class="bc">$'+(u.balance||0).toFixed(2)+'</div></td>';
     h+='<td style="text-align:center">'+(u.orders||0)+'</td>';
-    h+='<td><div style="display:flex;gap:5px"><button class="btn btn-s btn-sm" onclick="qAdd('+u.id+')">+ Add</button><button class="btn btn-d btn-sm" onclick="qDed('+u.id+')">- Deduct</button></div></td></tr>';
+    h+='<td><div style="display:flex;gap:5px"><button class="btn btn-s btn-sm" onclick="qAdd('+u.id+')">+ Add</button><button class="btn btn-d btn-sm" onclick="qDed('+u.id+')">- Deduct</button><button class="btn btn-g btn-sm" onclick="debugUserServerRaw('+u.id+')" title="Fetch this user\'s record fresh from the server (bypasses this browser\'s cache) — for diagnosing a balance/transaction mismatch report">🔍 Raw</button></div></td></tr>';
   }
   h+='</tbody></table>';
   document.getElementById('wallets-tbl').innerHTML=h;
+}
+// Bypasses this browser's local smm_users cache entirely — a fresh GET
+// straight from the server, so what's shown here can't be lying due to
+// this admin's own stale local copy (the exact class of bug this session
+// keeps finding). Shows the raw JSON in a copyable textarea so it can be
+// pasted/screenshotted for diagnosis rather than trusting the rendered
+// Wallet History view, which reads from local cache.
+function debugUserServerRaw(userId){
+  toast('Fetching fresh from server...','s');
+  fetch('/api/db',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var u=(d.smm_users||[]).find(function(x){return String(x.id)===String(userId);});
+      if(!u){alert('No user with id '+userId+' found in the server\'s current smm_users array.');return;}
+      var ex=document.getElementById('m-debug-raw');if(ex)ex.remove();
+      var div=document.createElement('div');div.className='mo open';div.id='m-debug-raw';
+      div.innerHTML='<div class="md" style="max-width:640px">'
+        +'<div class="md-h"><div class="md-t">🔍 Raw server record — id '+userId+'</div><div class="md-x" onclick="document.getElementById(\'m-debug-raw\').remove()">✕</div></div>'
+        +'<div class="md-b"><div style="font-size:11px;color:var(--mt);margin-bottom:8px">Fetched fresh just now (fetched_at: '+new Date().toISOString()+') — this is exactly what the server has, bypassing any local cache on this or any other device.</div>'
+        +'<textarea readonly style="width:100%;min-height:340px;font-family:monospace;font-size:11px;background:var(--s2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px" onclick="this.select()">'+escHtmlAdmin(JSON.stringify(u,null,2))+'</textarea></div>'
+        +'<div class="md-f"><button class="btn btn-g" onclick="document.getElementById(\'m-debug-raw\').remove()">Close</button></div></div>';
+      document.body.appendChild(div);
+    }).catch(function(e){alert('Fetch failed: '+e.message);});
 }
 function showWalletHistory(userId){
   var users=getRealUsers();
