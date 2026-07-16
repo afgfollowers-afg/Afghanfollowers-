@@ -1519,6 +1519,16 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
     if(typeof url==='string' && url.indexOf('/api/')===0){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+      // Attach the server-issued admin session token (see api/_auth.js) so
+      // api/db.js's smm_users write gate grants full access the way it did
+      // before that gate existed — without it, admin actions fall back to
+      // the least-privileged customer path and get silently restricted.
+      if(url.indexOf('/api/db')===0){
+        try{
+          var asess=JSON.parse(localStorage.getItem('smm_admin_session')||'{}');
+          if(asess.token) opts.headers=Object.assign({},opts.headers,{'Authorization':'Bearer '+asess.token});
+        }catch(e){}
+      }
     }
     return _fetch(url,opts);
   };
@@ -6781,21 +6791,16 @@ function doAdminLogin(){
   btn.innerHTML='<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite"></div>';
   btn.disabled=true;
 
-  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
-    if(d&&d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
-      localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
-    }
-  }).catch(function(){}).then(function(){
-    var creds=getAdminCreds();
-    var ok=(username===creds.username && verifyPass(password,creds));
-    if(ok){
-      // Persist any legacy-scheme upgrade (verifyPass may have rewritten creds.password/.salt in place)
-      localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(creds));
-      fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({smm_admin_creds:creds,smm_ts:Date.now()})}).catch(function(){});
-    }
-
-    if(!ok){
+  // Verified server-side now (api/auth.js?action=admin-login) — previously
+  // this pulled smm_admin_creds into the browser and compared the password
+  // hash here, meaning the only thing separating "admin" from "any
+  // customer" was a check anyone could skip. A session token (see
+  // api/_auth.js) is only ever issued once the server itself confirms it.
+  fetch('/api/auth?action=admin-login',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:username,password:password})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.ok){
       btn.innerHTML='🔐 Sign In';
       btn.disabled=false;
       showAdminLoginAlert('❌ Incorrect username or password');
@@ -6806,6 +6811,7 @@ function doAdminLogin(){
     // Save session
     localStorage.setItem(ADMIN_SESSION_KEY,JSON.stringify({
       username:username,
+      token:d.token,
       ts:Date.now()
     }));
 
