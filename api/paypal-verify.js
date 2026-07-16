@@ -10,7 +10,7 @@
 // crediting decision never depends on trusting anything the client sent.
 
 const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
-const { getAuth, AUTH_CONFIGURED } = require('./_auth');
+const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 
 const SITE = 'https://afghanfollowers.online';
 const BIN_ID = process.env.JSONBIN_BIN_ID;
@@ -216,7 +216,18 @@ module.exports = async (req, res) => {
       });
       const j = await r.json().catch(() => null);
       if (j && j.smm_users_restricted) {
-        attemptLog.push('write-RESTRICTED (dbHeaders() token not recognized as admin — deposit silently stripped server-side)');
+        // Compare the secret THIS process signed the token with against
+        // the one api/db.js verified it against, in the same round trip —
+        // a mismatch here means AUTH_JWT_SECRET was changed at some point
+        // and this specific serverless function is still running on a
+        // warm instance that captured the OLD value at its own cold
+        // start, while api/db.js's instance captured the current one (or
+        // vice versa). A match means the secret is fine and the real
+        // cause is something else (the token malformed some other way,
+        // the header not reaching api/db.js intact, etc).
+        const mine = SECRET_FINGERPRINT;
+        const theirs = j.authSecretFingerprint;
+        attemptLog.push('write-RESTRICTED — secret fingerprint mine=' + mine + ' vs db.js=' + (theirs || 'n/a') + (mine === theirs ? ' (MATCH — not a secret mismatch)' : ' (MISMATCH — this is a stale-secret issue)'));
         return false;
       }
       return !!(j && j.ok === true);

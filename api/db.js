@@ -7,7 +7,7 @@
 
 const zlib = require('zlib');
 const { DB_SERVICE_KEY } = require('./_dbkey');
-const { getAuth, AUTH_CONFIGURED } = require('./_auth');
+const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 
 // Transaction types that credit or debit a wallet by admin/server decision
 // rather than the customer's own in-the-moment action — never allowed to
@@ -674,7 +674,13 @@ module.exports = async (req, res) => {
         users: (current.smm_users || []).length,
         orders: (current.smm_orders || []).length,
         ts: current.smm_ts,
-        smm_users_restricted: smmUsersRestricted
+        smm_users_restricted: smmUsersRestricted,
+        // Included whenever a write was restricted so a server-to-server
+        // caller (paypal-verify.js) can directly compare "the secret I
+        // signed this token with" against "the secret db.js verified it
+        // against" in the very same round trip, instead of guessing —
+        // see _auth.js's SECRET_FINGERPRINT for why this is safe to expose.
+        authSecretFingerprint: smmUsersRestricted ? SECRET_FINGERPRINT : undefined
       });
     } catch (e) {
       return res.status(200).json({ diag: 'POST_EXCEPTION', error: e.message });

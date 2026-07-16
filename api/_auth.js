@@ -72,4 +72,15 @@ function getAuth(req) {
   return verifyToken(header.slice(7));
 }
 
-module.exports = { signToken, verifyToken, getAuth, AUTH_CONFIGURED: !!SECRET };
+// A short, non-reversible fingerprint of AUTH_JWT_SECRET — safe to expose
+// in diagnostics (unlike the secret itself) since it can't be used to
+// forge a token, only to compare "are two processes seeing the same
+// secret value" — which every serverless function in this project reads
+// from process.env independently at its own module-load time, so two
+// functions could in principle disagree if one is running on a stale warm
+// instance from before the value was last changed. Wired up to actually
+// resolve api/paypal-verify.js's "write reports ok:true but the write
+// gate silently routes it through the customer-restricted path" report.
+const SECRET_FINGERPRINT = SECRET ? crypto.createHash('sha256').update(SECRET).digest('hex').slice(0, 8) : 'unset';
+
+module.exports = { signToken, verifyToken, getAuth, AUTH_CONFIGURED: !!SECRET, SECRET_FINGERPRINT };
