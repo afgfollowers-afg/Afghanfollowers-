@@ -465,7 +465,18 @@ module.exports = async (req, res) => {
         // instead of the mystery repeating with no way to narrow further.
         smmUsersAuthDiagnostic = smmUsersAuthDiagnostic || diagnoseAuth(req);
         const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub);
-        return { merged: allowed.length ? mergeUsersById(baselineUsers, allowed) : baselineUsers, restricted: true };
+        // "restricted" is the signal the client uses to force a re-login
+        // (see forceCustomerReauth()/forceAdminReauth()) — it must mean
+        // "there was no valid identity to write as at all" (no token,
+        // expired, bad signature — see diagnoseAuth() above), NOT merely
+        // "this wasn't an admin token". A customer with a perfectly valid,
+        // unexpired role:'user' token writing their own record through the
+        // narrower self-service rules in sanitizeCustomerUserWrites is
+        // completely normal, expected traffic — every such write used to
+        // set this true unconditionally, which meant saveCurrentUser()'s
+        // own restricted-check forced every logged-in customer back to the
+        // login page on essentially their next profile/wallet update.
+        return { merged: allowed.length ? mergeUsersById(baselineUsers, allowed) : baselineUsers, restricted: !smmUsersAuth };
       }
       if (body.smm_users && Array.isArray(body.smm_users)) {
         const usersResult = computeMergedUsers(current.smm_users);

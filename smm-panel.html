@@ -2602,12 +2602,21 @@ function placeOrder(){
   localStorage.setItem('smm_orders',JSON.stringify(allOrders));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
   
-  // Push to server (sync)
-  fetch('/api/db',{method:'POST',
+  // Push to server (sync). /api/place-order (below) immediately does its
+  // own GET /api/db to look this exact order up server-side before
+  // dispatching it — firing both requests in parallel raced this write
+  // against that read, and losing the race meant place-order.js's read
+  // landed before this order existed server-side at all, failing with
+  // "Order not found" even though the order itself was created fine
+  // (and even though its "New Order" Telegram notification, which fires
+  // independently below, already went out). Chaining place-order's call
+  // inside this write's .then() guarantees the order is already
+  // server-side and readable by the time place-order.js looks for it.
+  var dbPush=fetch('/api/db',{method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_users:allUsers,smm_orders:allOrders,smm_ts:Date.now()})
   }).catch(function(){});
-  
+
   // Place with provider if service has provId and svcId (matchedSvc already
   // resolved above, before the order object was built). The provider's
   // URL/API key never travel through this browser at all any more — the
@@ -2618,10 +2627,12 @@ function placeOrder(){
   try{
     if(matchedSvc&&matchedSvc.svcId&&matchedSvc.provId){
       sentToProvider=true;
-      fetch('/api/place-order',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({orderId:order.id})
+      dbPush.then(function(){
+        return fetch('/api/place-order',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({orderId:order.id})
+        });
       }).then(function(r){return r.json();}).then(function(d){
         if(d.ok&&d.order){
           // Reflect the now-server-persisted provOrderId in the local cache
