@@ -115,6 +115,23 @@ module.exports = async (req, res) => {
       });
     }
 
+    // smm_providers[].key is the real API key for the panel's SMM supplier
+    // account — used server-side (dispatchOneOrder in sync-orders.js) to
+    // actually place orders with the provider. It was previously shipped to
+    // every browser via this same GET, and smm-panel.html's own order-
+    // placement code read it straight out of that cached response to call
+    // /api/place-order directly — meaning any visitor could extract a live
+    // supplier credential and abuse it outside this site entirely. Strip it
+    // here, same as smm_pm's secrets above; order dispatch no longer needs
+    // the client to see it (see dispatchOneOrder()/place-order.js).
+    if (Array.isArray(record.smm_providers)) {
+      record.smm_providers = record.smm_providers.map(function (p) {
+        const c = Object.assign({}, p);
+        delete c.key;
+        return c;
+      });
+    }
+
     const out = Object.assign({}, record, { smm_svc: svc, smm_ref_visit_counts: visitCounts });
     return res.status(200).json(out);
   }

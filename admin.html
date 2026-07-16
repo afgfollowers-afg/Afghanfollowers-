@@ -3984,32 +3984,24 @@ function approveFreeLikes(id){
   o.dispatchAttemptedAt=Date.now();
   localStorage.setItem('smm_orders',JSON.stringify(orders));
 
-  // Dispatch to the real provider now that it's approved
+  // Dispatch to the real provider now that it's approved. The provider's
+  // URL/API key never travel through this browser — the server resolves
+  // them itself from smm_providers and dispatches (dispatchOneOrder() in
+  // sync-orders.js), which already persists provOrderId directly, so no
+  // separate write-back is needed here either.
   if(o.svcId&&o.provId){
-    var provs=[];try{provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');}catch(e){}
-    var prov=provs.find(function(p){return String(p.id)===String(o.provId);});
-    if(prov&&prov.url&&prov.key){
-      fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({providerUrl:prov.url,apiKey:prov.key,service:o.svcId,link:o.link,quantity:o.qty})
-      }).then(function(r){return r.json();}).then(function(d){
-        if(d&&d.order){
-          var ords2=getRealOrders();
-          var lo=ords2.find(function(x){return String(x.id)===String(o.id);});
-          if(lo){
-            lo.provOrderId=d.order;
-            localStorage.setItem('smm_orders',JSON.stringify(ords2));
-            // Push provOrderId to the server immediately — the pushToServer()
-            // call right after this dispatch starts fires before this async
-            // response arrives, so without this, the server never learns
-            // dispatch succeeded and /api/sync-orders would treat this order
-            // as "never sent" once the retry cooldown passes, dispatching a
-            // genuine second order for the same link.
-            fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({smm_orders:[lo],smm_ts:Date.now()})}).catch(function(){});
-          }
+    fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({orderId:o.id})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d&&d.ok&&d.order){
+        var ords2=getRealOrders();
+        var lo=ords2.find(function(x){return String(x.id)===String(o.id);});
+        if(lo){
+          lo.provOrderId=d.order;
+          localStorage.setItem('smm_orders',JSON.stringify(ords2));
         }
-      }).catch(function(){});
-    }
+      }
+    }).catch(function(){});
   }
 
   rOrders(getRealOrders());notifyPanel();pushToServer();

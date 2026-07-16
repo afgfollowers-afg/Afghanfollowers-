@@ -1,14 +1,22 @@
 // Vercel Serverless Function — SMM Provider API Proxy
-// Bypasses CORS restrictions for provider API calls
+// Bypasses CORS restrictions for provider API calls. Only ever called from
+// admin.html (testing/managing provider accounts) — gated with the same
+// shared key every other first-party/admin-only endpoint requires, since it
+// was previously a fully open relay to any URL with any key.
+const { DB_SERVICE_KEY } = require('./_dbkey');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', 'https://afghanfollowers.online');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   try {
