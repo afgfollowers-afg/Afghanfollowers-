@@ -27,19 +27,24 @@ function dbHeaders(extra) {
 }
 
 // Base URL for server-to-server calls back into this same deployment's own
-// API routes (e.g. paypal-verify.js -> /api/db). Deliberately NOT the
-// public custom domain: if the custom domain has an apex<->www redirect
-// configured (common Vercel setup — one is primary, the other 301/308s to
-// it), a request across that redirect changes origin, and per the Fetch
-// spec, sensitive headers — Authorization, Cookie — are stripped from a
-// cross-origin redirected request while ordinary headers like x-db-key are
-// not. That silently turned every admin-role service token into "no
-// Authorization header received" by the time it reached db.js, even though
-// dbHeaders() built it correctly and the two processes agreed on the same
-// AUTH_JWT_SECRET (see diagnoseAuth() in _auth.js). VERCEL_URL is the
-// deployment's own host, which the platform serves directly with no
-// custom-domain redirect in front of it, so calls through it never cross
-// an origin boundary and keep every header intact.
-const API_BASE = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://afghanfollowers.online';
+// API routes (e.g. paypal-verify.js -> /api/db).
+//
+// A prior version of this pointed at process.env.VERCEL_URL (the
+// deployment's own *.vercel.app host) to sidestep a suspected apex<->www
+// redirect on the custom domain stripping the Authorization header on
+// cross-origin redirects. That broke login entirely — including plain GET
+// reads that don't even carry Authorization — which means VERCEL_URL is not
+// reachable from inside this project's own functions the way that fix
+// assumed (most likely Vercel's Deployment Protection / Vercel
+// Authentication wall sits in front of the raw deployment URL and rejects
+// server-to-server requests that don't carry its own bypass token/cookie,
+// unrelated to anything this codebase controls). Reverted to the known-good
+// custom domain. The Authorization-stripped-on-redirect bug this was meant
+// to fix (see diagnoseAuth() in _auth.js — smm_users_restricted with reason
+// no-authorization-header-received) is still open; the next fix needs to
+// confirm which of afghanfollowers.online / www.afghanfollowers.online is
+// the actual non-redirecting target and point directly at that one, rather
+// than guessing at an internal host this environment apparently blocks.
+const API_BASE = 'https://afghanfollowers.online';
 
 module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE };
