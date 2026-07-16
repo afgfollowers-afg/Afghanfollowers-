@@ -197,12 +197,29 @@ module.exports = async (req, res) => {
     const record = Object.assign({}, main.record);
     delete record.smm_ref_visits;
 
+    // dbHeaders() (_dbkey.js) mints a short-lived {sub:'service',role:'admin'}
+    // token for every genuinely internal, server-to-server call this project
+    // makes into its own /api/db (dispatchOneOrder in sync-orders.js reading
+    // smm_providers to actually place an order with the supplier, auth.js
+    // reading smm_users, etc.) — distinct from a real admin's own browser
+    // session, which also carries role:'admin' but with sub set to the
+    // admin's username, not the literal string 'service'. Secrets below must
+    // stay stripped from every browser response, admin's included (that was
+    // the whole point of Track A — see the comments on smm_providers[].key),
+    // but a same-process dispatch call needs the real key to call the
+    // provider at all. Without this distinction, EVERY order dispatch —
+    // both the daily retry sweep and every on-demand placeOrder() call —
+    // silently received a keyless provider config and failed with
+    // "Provider config not found" ever since Track A shipped.
+    const _getAuthForGet = AUTH_CONFIGURED ? getAuth(req) : null;
+    const isInternalServiceCall = !!(_getAuthForGet && _getAuthForGet.role === 'admin' && _getAuthForGet.sub === 'service');
+
     // smm_pm carries admin-configured payment-method secrets (PayPal client
     // secret, Binance/Stripe API secrets). This endpoint is reachable by any
     // logged-in customer (and any public page holding the shared client
     // key), so those secrets must never leave the server — strip them here
     // rather than trusting every caller of this data to ignore them.
-    if (Array.isArray(record.smm_pm)) {
+    if (!isInternalServiceCall && Array.isArray(record.smm_pm)) {
       record.smm_pm = record.smm_pm.map(function (m) {
         const c = Object.assign({}, m);
         // Replace each secret with a boolean "is it set" flag rather than
@@ -229,7 +246,7 @@ module.exports = async (req, res) => {
     // supplier credential and abuse it outside this site entirely. Strip it
     // here, same as smm_pm's secrets above; order dispatch no longer needs
     // the client to see it (see dispatchOneOrder()/place-order.js).
-    if (Array.isArray(record.smm_providers)) {
+    if (!isInternalServiceCall && Array.isArray(record.smm_providers)) {
       record.smm_providers = record.smm_providers.map(function (p) {
         const c = Object.assign({}, p);
         delete c.key;
