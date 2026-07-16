@@ -10,6 +10,7 @@
 // crediting decision never depends on trusting anything the client sent.
 
 const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
+const { getAuth, AUTH_CONFIGURED } = require('./_auth');
 
 const SITE = 'https://afghanfollowers.online';
 const BIN_ID = process.env.JSONBIN_BIN_ID;
@@ -55,7 +56,20 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const orderId = String(body.orderId || '').trim();
-    const userId = body.userId;
+    // Which wallet gets credited must come from who the caller actually
+    // proved they are, not a plain body.userId anyone holding the shared
+    // client key could set to any account — previously that meant paying
+    // with your own PayPal and crediting someone else's balance. Falls back
+    // to trusting body.userId only until AUTH_JWT_SECRET is configured (see
+    // _auth.js), same rollout-safety rule api/db.js's write gate follows.
+    let userId = body.userId;
+    if (AUTH_CONFIGURED) {
+      const auth = getAuth(req);
+      if (!auth || auth.sub === undefined || auth.sub === null) {
+        return res.status(200).json({ ok: false, error: 'Unauthorized' });
+      }
+      userId = auth.sub;
+    }
     if (!orderId || userId === undefined) {
       return res.status(200).json({ ok: false, error: 'Missing orderId or userId' });
     }

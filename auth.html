@@ -357,6 +357,17 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
     if(typeof url==='string' && (url.indexOf('/api/db')===0 || url.indexOf('/api/notify-telegram')===0)){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+      // Attach the server-issued session token (see api/_auth.js) so
+      // api/db.js's smm_users write gate can tell this request apart from
+      // an anonymous one — without it, a logged-in customer's own writes
+      // (deposit_pending, withdrawal) fall back to the least-privileged
+      // path and get silently stripped down to a no-op.
+      if(url.indexOf('/api/db')===0){
+        try{
+          var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');
+          if(sess.token) opts.headers=Object.assign({},opts.headers,{'Authorization':'Bearer '+sess.token});
+        }catch(e){}
+      }
     }
     return _fetch(url,opts);
   };
@@ -800,7 +811,7 @@ function saveUsers(u){
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_users:u,smm_ts:Date.now()})}).catch(function(){});
 }
-function createSess(u){localStorage.setItem(SK,JSON.stringify({userId:u.id,email:u.email,name:u.fname+' '+u.lname,role:u.role,ts:Date.now()}));}
+function createSess(u,token){localStorage.setItem(SK,JSON.stringify({userId:u.id,email:u.email,name:u.fname+' '+u.lname,role:u.role,token:token,ts:Date.now()}));}
 
 // Check existing session
 try{
@@ -828,26 +839,33 @@ if(_ref) document.getElementById('r-inv').value=_ref.toUpperCase();
 function doLogin(){
   var pass=document.getElementById('l-pass').value;
   var id='';
-  if(_lm==='email'){id=document.getElementById('l-email').value.trim().toLowerCase();if(!id||!id.includes('@')){showA('Enter valid email','e');return;}}
+  var isEmail=_lm==='email';
+  if(isEmail){id=document.getElementById('l-email').value.trim().toLowerCase();if(!id||!id.includes('@')){showA('Enter valid email','e');return;}}
   else{id=document.getElementById('l-code').value+document.getElementById('l-phone').value.trim();if(id.length<8){showA('Enter valid phone','e');return;}}
   if(!pass){showA('Enter password','e');return;}
   setBtnL('l-btn',true);
-  // Always pull the freshest user list from the server before checking the
-  // password, so a just-completed password reset works immediately.
-  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
-    if(d&&Array.isArray(d.smm_users)&&d.smm_users.length){
-      localStorage.setItem(AK,JSON.stringify(d.smm_users));
-    }
-  }).catch(function(){}).then(function(){
-    var users=getUsers();
-    var u=users.find(function(x){return _lm==='email'?x.email&&x.email.toLowerCase()===id&&verifyPass(pass,x):x.phone===id&&verifyPass(pass,x);});
+  // Verified server-side now (api/auth.js?action=login) — the password hash
+  // comparison used to happen entirely in this browser's JavaScript against
+  // whatever /api/db returned, which meant a session could be forged by
+  // anyone able to write to localStorage. A real session token is only ever
+  // issued once the server itself confirms the password.
+  fetch('/api/auth?action=login',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(isEmail?{email:id,password:pass}:{phone:id,password:pass})
+  }).then(function(r){return r.json();}).then(function(d){
     setBtnL('l-btn',false);
-    if(!u){showA('Incorrect credentials','e');return;}
-    if(u.status==='suspended'){showA('Account suspended. Contact support.','e');return;}
-    saveUsers(users); // persist any legacy-scheme password upgrade verifyPass() just performed
-    createSess(u);
-    showA('✅ Welcome, '+u.fname+'! Redirecting...','s');
+    if(!d||!d.ok){showA(d&&d.error?d.error:'Incorrect credentials','e');return;}
+    var users=getUsers();
+    var idx=users.findIndex(function(x){return String(x.id)===String(d.user.id);});
+    if(idx>-1) users[idx]=Object.assign({},users[idx],d.user);
+    else users.push(d.user);
+    localStorage.setItem(AK,JSON.stringify(users));
+    createSess(d.user,d.token);
+    showA('✅ Welcome, '+d.user.fname+'! Redirecting...','s');
     setTimeout(function(){window.location.href='smm-panel.html';},700);
+  }).catch(function(){
+    setBtnL('l-btn',false);
+    showA('Network error — please try again.','e');
   });
 }
 
@@ -868,21 +886,36 @@ function doReg(){
 
   setBtnL('r-btn',true);
 
+  // Account creation now happens server-side (api/auth.js?action=register)
+  // — previously this built the whole user object (including balance:0 and
+  // the password hash) in the browser and just POSTed it into the shared
+  // smm_users array, with nothing server-side ever validating any of it.
   function verifyThenCreate(){
-    setTimeout(function(){
-      var users=getUsers();
-      var email=_rm==='email'?document.getElementById('r-email').value.trim().toLowerCase():'';
-      var phone=_rm==='phone'?(document.getElementById('r-code').value+document.getElementById('r-phone').value.trim()):'';
-      var extra={};
-      _efDefs.forEach(function(d){var el=document.getElementById('ef-'+d.key);if(el&&el.value.trim())extra[d.key]=el.value.trim();});
-      var _regSalt=genSalt();
-      var u={id:Date.now(),fname:document.getElementById('r-fn').value.trim(),lname:document.getElementById('r-ln').value.trim(),email:email,phone:phone,password:hashPass(pass,_regSalt),salt:_regSalt,inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],extra:extra};
-      users.push(u);saveUsers(users);createSess(u);
+    var email=_rm==='email'?document.getElementById('r-email').value.trim().toLowerCase():'';
+    var phone=_rm==='phone'?(document.getElementById('r-code').value+document.getElementById('r-phone').value.trim()):'';
+    var extra={};
+    _efDefs.forEach(function(d){var el=document.getElementById('ef-'+d.key);if(el&&el.value.trim())extra[d.key]=el.value.trim();});
+    fetch('/api/auth?action=register',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        fname:document.getElementById('r-fn').value.trim(),
+        lname:document.getElementById('r-ln').value.trim(),
+        email:email,phone:phone,password:pass,
+        inviteCode:document.getElementById('r-inv').value.trim().toUpperCase(),
+        extra:extra
+      })
+    }).then(function(r){return r.json();}).then(function(d){
       setBtnL('r-btn',false);
-      tgAuthNotify('🆕 <b>New Registration</b>\nName: '+u.fname+' '+u.lname+'\n'+(u.email?'Email: '+u.email:'Phone: '+u.phone));
+      if(!d||!d.ok){showA(d&&d.error?d.error:'Registration failed','e');return;}
+      var users=getUsers();users.push(d.user);localStorage.setItem(AK,JSON.stringify(users));
+      createSess(d.user,d.token);
+      tgAuthNotify('🆕 <b>New Registration</b>\nName: '+d.user.fname+' '+d.user.lname+'\n'+(d.user.email?'Email: '+d.user.email:'Phone: '+d.user.phone));
       showA('🎉 Account created! Redirecting...','s');
       setTimeout(function(){window.location.href='smm-panel.html';},900);
-    },700);
+    }).catch(function(){
+      setBtnL('r-btn',false);
+      showA('Network error — please try again.','e');
+    });
   }
 
   if(!recaptchaToken){verifyThenCreate();return;}

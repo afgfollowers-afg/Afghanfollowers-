@@ -1327,12 +1327,24 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 // before it ever reached PayPal's verification, taking customers' money
 // without crediting their wallet.
 var _DB_KEY_PATHS=['/api/db','/api/paypal-verify','/api/place-order','/api/notify-telegram'];
+// Endpoints whose server-side write gate (see api/_auth.js) needs to know
+// which logged-in customer is actually making the request — without this,
+// a customer's own writes (deposit_pending, withdrawal, PayPal credit) fall
+// back to the least-privileged "no identity" path.
+var _AUTH_TOKEN_PATHS=['/api/db','/api/paypal-verify'];
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
     if(typeof url==='string' && _DB_KEY_PATHS.some(function(p){return url.indexOf(p)===0;})){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
+    }
+    if(typeof url==='string' && _AUTH_TOKEN_PATHS.some(function(p){return url.indexOf(p)===0;})){
+      opts=opts||{};
+      try{
+        var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');
+        if(sess.token) opts.headers=Object.assign({},opts.headers||{},{'Authorization':'Bearer '+sess.token});
+      }catch(e){}
     }
     return _fetch(url,opts);
   };

@@ -7,6 +7,79 @@
 
 const zlib = require('zlib');
 const { DB_SERVICE_KEY } = require('./_dbkey');
+const { getAuth, AUTH_CONFIGURED } = require('./_auth');
+
+// Transaction types that credit or debit a wallet by admin/server decision
+// rather than the customer's own in-the-moment action — never allowed to
+// appear as a *new* entry in a customer-role smm_users push (see
+// sanitizeCustomerUserWrites below). A customer submitting their own manual
+// deposit gets 'deposit_pending' (no balance change until an admin
+// approves); PayPal's own auto-credit goes through paypal-verify.js with an
+// admin-equivalent server token, not a customer token.
+const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus', 'refund'];
+
+// Restricts an smm_users push from a plain customer token (or no/invalid
+// token at all) to only what that customer could legitimately have caused
+// themselves: their own record, and only balance changes justified by a
+// transaction type they're allowed to self-create, computed against the
+// CURRENT server-side balance — never whatever the client claims. Every
+// other user in the incoming array is dropped outright; balance, role,
+// status, and the transaction ledger are always server-authoritative here,
+// no matter what the client sent for them. This is what actually closes
+// the gap the rest of this file's history documents repeatedly: a customer
+// forging their own balance, another user's balance, or a self-granted
+// bonus/admin_credit by POSTing a crafted smm_users array directly.
+function sanitizeCustomerUserWrites(incoming, currentUsers, subId) {
+  if (subId === undefined || subId === null) return [];
+  const currentMap = {};
+  (currentUsers || []).forEach(function (u) { if (u && u.id !== undefined) currentMap[u.id] = u; });
+
+  const out = [];
+  (incoming || []).forEach(function (item) {
+    if (!item || String(item.id) !== String(subId)) return;
+    const existing = currentMap[item.id];
+    const serverBalance = existing ? (parseFloat(existing.balance) || 0) : 0;
+    const existingTxIds = {};
+    (existing && existing.transactions || []).forEach(function (t) { if (t && t.id !== undefined) existingTxIds[t.id] = true; });
+
+    // Only genuinely NEW transaction ids matter — anything matching an id
+    // that already exists server-side is ignored here entirely (the
+    // server's own copy always wins via mergeUsersById's union below), so a
+    // customer token can never edit an existing transaction's status,
+    // amount, or type in place, only add brand new ones.
+    const incomingTx = Array.isArray(item.transactions) ? item.transactions : [];
+    const candidateNewTx = incomingTx.filter(function (t) { return t && t.id !== undefined && !existingTxIds[t.id]; });
+
+    let runningBalance = serverBalance;
+    const acceptedTx = [];
+    candidateNewTx.forEach(function (t) {
+      if (PRIVILEGED_TX_TYPES.indexOf(t.type) !== -1 || (t.type === 'deposit' && t.status === 'approved')) {
+        return; // only an admin token or a trusted server-to-server caller may create these
+      }
+      if (t.type === 'deposit_pending') {
+        acceptedTx.push(t); // must not itself change balance — credited only on admin approval
+        return;
+      }
+      if (t.type === 'withdrawal' || t.type === 'spend') {
+        const amt = parseFloat(t.amount) || 0;
+        if (amt > 0 && amt <= runningBalance) {
+          runningBalance = parseFloat((runningBalance - amt).toFixed(2));
+          acceptedTx.push(t);
+        }
+        return;
+      }
+      // Unrecognized type from a customer token — dropped, fail safe.
+    });
+
+    out.push(Object.assign({}, item, {
+      transactions: acceptedTx,
+      balance: runningBalance,
+      role: existing ? existing.role : 'user',
+      status: existing ? existing.status : 'active'
+    }));
+  });
+  return out;
+}
 
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const SVC_BIN_ID = process.env.JSONBIN_SVC_BIN_ID;
@@ -278,7 +351,21 @@ module.exports = async (req, res) => {
       }
 
       if (body.smm_users && Array.isArray(body.smm_users)) {
-        current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
+        // Until AUTH_JWT_SECRET is configured (see _auth.js), no caller can
+        // hold a real token yet — keep today's behavior unchanged rather
+        // than lock everyone out mid-rollout. Once it's set, this activates
+        // automatically on the next request.
+        if (!AUTH_CONFIGURED) {
+          current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
+        } else {
+          const auth = getAuth(req);
+          if (auth && auth.role === 'admin') {
+            current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
+          } else {
+            const allowed = sanitizeCustomerUserWrites(body.smm_users, current.smm_users, auth && auth.sub);
+            if (allowed.length) current.smm_users = mergeUsersById(current.smm_users, allowed);
+          }
+        }
       }
       if (body.smm_users_delete_id !== undefined) {
         current.smm_users = (current.smm_users || []).filter(function (u) {
