@@ -4236,7 +4236,7 @@ function finishDeleteStuckOrder(orderId, refund){
     body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})})
     .then(function(r){return r.json();}).then(function(resp){
       if(refund>0&&resp&&resp.smm_users_restricted){
-        toast('⚠️ Refund NOT saved to server — please log out and log back in, then retry','e');
+        forceAdminReauth();
       }
     }).catch(function(){});
 
@@ -4638,6 +4638,26 @@ function showWalletHistory(userId){
   }
   document.getElementById('m-wallet-history').classList.add('open');
 }
+// A dismissable 2.8s toast turned out to be easy to miss — this admin's
+// own report of a balance vanishing again after AUTH_JWT_SECRET was
+// touched in Vercel showed exactly that: smm_users_restricted was almost
+// certainly firing on every write (the secret changed, so this browser's
+// existing token — which only ever gets LOCALLY checked for presence and
+// age, never re-verified against the server, see checkAdminSession() —
+// was silently rejected server-side from that point on), and the toast
+// alone wasn't enough to make it obvious a real re-login was required
+// before anything typed here would actually stick. Force it instead:
+// clear the now-untrustworthy session and hard-reload straight to the
+// login screen, so there's no way to keep working on a session the
+// server has already stopped honoring.
+var _forcedReauthShown=false;
+function forceAdminReauth(){
+  if(_forcedReauthShown) return;
+  _forcedReauthShown=true;
+  try{localStorage.removeItem(ADMIN_SESSION_KEY);}catch(e){}
+  alert('⚠️ Your admin session was rejected by the server (it may have expired, or the site\'s login secret was changed) — recent changes were NOT saved. You will be returned to the login screen; please log in again.');
+  location.reload();
+}
 // Wallet-balance writes previously fired via a bare fetch(...).catch(...)
 // that never looked at the response — a toast always said "success" even
 // when the server actually rejected the write (e.g. this admin's own
@@ -4651,7 +4671,7 @@ function pushSmmUsersChecked(users){
     .then(function(r){return r.json();})
     .then(function(resp){
       if(resp&&resp.smm_users_restricted){
-        toast('⚠️ NOT saved to server — please log out and log back in, then try again','e');
+        forceAdminReauth();
       }
     }).catch(function(){});
 }
@@ -7352,7 +7372,7 @@ function pushToServer(){
     // reach the server (see pushSmmUsersChecked() for the Wallets-page
     // version of this same check).
     if(resp&&resp.smm_users_restricted){
-      toast('⚠️ A change was NOT saved to the server — please log out and log back in','e');
+      forceAdminReauth();
     }
   }).catch(function(){});
 }

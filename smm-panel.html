@@ -1566,6 +1566,21 @@ function getCurrentUser(){
     return users.find(function(u){return String(u.id)===String(_session&&_session.userId);})||_currentUser;
   }catch(e){return _currentUser;}
 }
+// Same reasoning as admin.html's forceAdminReauth(): the page-load check
+// only catches a session with NO token at all — it can't tell a present
+// token is actually still valid (that requires asking the server, which is
+// exactly what this response is). If the server ever stops honoring an
+// already-open tab's token (expired, or the site's login secret changed),
+// a small toast is easy to miss and the customer keeps "using" a session
+// that's silently no longer saving anything. Force a real re-login instead.
+var _forcedCustomerReauthShown=false;
+function forceCustomerReauth(){
+  if(_forcedCustomerReauthShown) return;
+  _forcedCustomerReauthShown=true;
+  try{localStorage.removeItem('smm_session');}catch(e){}
+  showToast('⚠️ Your session was rejected by the server — please log in again','e');
+  setTimeout(function(){window.location.href='auth.html?reauth=1';},1200);
+}
 function saveCurrentUser(u){
   try{
     var users=JSON.parse(localStorage.getItem('smm_users')||'[]');
@@ -1589,7 +1604,7 @@ function saveCurrentUser(u){
       // case of a token expiring later in an already-open tab (e.g. a
       // refund from cancelOrder()), so that doesn't silently vanish too.
       if(resp&&resp.smm_users_restricted){
-        showToast('⚠️ Not saved — please log out and log back in, then try again','e');
+        forceCustomerReauth();
       }
     }).catch(function(){});
   }catch(e){}
