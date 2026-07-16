@@ -189,6 +189,23 @@ module.exports = async (req, res) => {
       });
     }
 
+    // DIAGNOSTIC ONLY (temporary): writeCredit() above already confirmed
+    // api/db.js reported ok:true for this write — but every fix attempted
+    // for "balance disappears after a refresh" so far hasn't stopped the
+    // report from recurring, including one that specifically shrunk the
+    // known race window. Re-read the record ONE more time, immediately,
+    // completely independent of that write's own confirmation, to see
+    // whether the transaction is durably there a few hundred milliseconds
+    // later — narrowing down whether the loss happens within this same
+    // request (a write/read issue at the database layer itself) or only
+    // shows up later (confirming it's still a race from elsewhere).
+    let selfCheckOk = null;
+    try {
+      const verifyRecord = await readRecord();
+      const verifyUser = (verifyRecord.smm_users || []).find((u) => String(u.id) === String(userId));
+      selfCheckOk = !!(verifyUser && (verifyUser.transactions || []).some((t) => t && t.id === newTx.id));
+    } catch (e) { selfCheckOk = null; }
+
     // Best-effort admin notification — must never fail the verified response.
     try {
       const cfg = record.smm_tg_bot || {};
@@ -199,7 +216,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({
             chat_id: cfg.chatId,
             parse_mode: 'HTML',
-            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\nOrder: ${orderId}`
+            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\nOrder: ${orderId}\nImmediate self-check (transaction still present a moment later): ${selfCheckOk === null ? 'error checking' : selfCheckOk ? '✅ yes' : '❌ NO — lost within this same request'}`
           })
         });
       }
