@@ -4158,6 +4158,31 @@ function deleteStuckOrder(orderId){
   var refund=parseFloat(o.cost||o.totalCost||0);
   if(!confirm('Delete order #'+orderId+' (the provider could not accept it)'+(refund>0?' and refund $'+refund.toFixed(2)+' to '+(o.user||o.email||'the customer'):'')+'?\n\nThis cannot be undone.')) return;
 
+  // The "stuck orders" list is a snapshot from the last sync run (or the
+  // last 30s poll) — it can go stale if this exact order got successfully
+  // dispatched to the provider in between (a retry landing right after
+  // that snapshot, or a manual "Reassign Service"). Refunding an order
+  // that was actually sent would mean losing money twice: once to the
+  // provider (who's now fulfilling it), once back to the customer. Always
+  // re-check the live server state immediately before acting, never trust
+  // the cached snapshot for this decision.
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    var freshOrder=(d&&Array.isArray(d.smm_orders)?d.smm_orders:orders).find(function(x){return String(x.id)===String(orderId);});
+    if(freshOrder&&freshOrder.provOrderId){
+      toast('⚠️ This order was already sent to the provider (Order #'+freshOrder.provOrderId+') — NOT deleted or refunded. Check its real status on the Orders page instead.','e');
+      pullFromServer();
+      return;
+    }
+    finishDeleteStuckOrder(orderId, refund);
+  }).catch(function(){
+    toast('Could not verify this order\'s current status — please try again','e');
+  });
+}
+function finishDeleteStuckOrder(orderId, refund){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(orderId);});
+  if(!o) return;
+
   var remaining=orders.filter(function(x){return String(x.id)!==String(orderId);});
   localStorage.setItem('smm_orders',JSON.stringify(remaining));
 
