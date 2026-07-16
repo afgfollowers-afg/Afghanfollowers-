@@ -136,22 +136,21 @@ module.exports = async (req, res) => {
     }
 
     const newBalance = parseFloat(((parseFloat(user.balance) || 0) + credit).toFixed(2));
+    const newTx = {
+      id: Date.now(),
+      type: 'deposit',
+      method: 'PayPal',
+      amount: paidAmount,
+      fee: feeAmt,
+      credit: credit,
+      ppOrderId: orderId,
+      desc: 'PayPal — verified with PayPal and auto-credited',
+      date: new Date().toISOString(),
+      status: 'approved'
+    };
     const updatedUser = Object.assign({}, user, {
       balance: newBalance,
-      transactions: [
-        {
-          id: Date.now(),
-          type: 'deposit',
-          method: 'PayPal',
-          amount: paidAmount,
-          fee: feeAmt,
-          credit: credit,
-          ppOrderId: orderId,
-          desc: 'PayPal — verified with PayPal and auto-credited',
-          date: new Date().toISOString(),
-          status: 'approved'
-        }
-      ].concat(user.transactions || [])
+      transactions: [newTx].concat(user.transactions || [])
     });
 
     processed.push(orderId);
@@ -206,7 +205,11 @@ module.exports = async (req, res) => {
       }
     } catch (e) { /* best-effort */ }
 
-    return res.status(200).json({ ok: true, credited: credit, newBalance: newBalance });
+    // transaction is returned so the client can add it straight into its
+    // local copy of the user's history immediately — the balance patch
+    // alone (see smm-panel.html's verifyPayPalOrder()) left Payment History
+    // showing nothing for this deposit until the next full server sync.
+    return res.status(200).json({ ok: true, credited: credit, newBalance: newBalance, transaction: newTx });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
