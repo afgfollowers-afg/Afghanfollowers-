@@ -7262,6 +7262,22 @@ function pullFromServer(){
         var activePgPm=document.querySelector('.page.on');
         if(activePgPm&&activePgPm.id==='pg-settings'&&document.getElementById('pm-tbl')) rPms();
       }
+      // Services (smm_svc) were pushed to the server by every Quick Import /
+      // add / edit, but this admin panel never read them back down — a
+      // second browser/device (or the same one after a storage clear) had
+      // an empty local smm_svc and the Services page showed nothing, even
+      // though the real catalog was sitting on the server the whole time
+      // (smm-panel.html, the customer-facing side, already reads this same
+      // field correctly — only the admin panel was missing it).
+      if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
+        var localSvc=localStorage.getItem('smm_svc')||'[]';
+        var newSvc=JSON.stringify(d.smm_svc);
+        if(newSvc!==localSvc){
+          localStorage.setItem('smm_svc',newSvc);
+          var activePgSvc=document.querySelector('.page.on');
+          if(activePgSvc&&activePgSvc.id==='pg-services') rSvcs();
+        }
+      }
       var refQChanged=false;
       if(d.smm_ref_visit_queue&&Array.isArray(d.smm_ref_visit_queue)){
         var localRefQ=localStorage.getItem('smm_ref_visit_queue')||'[]';
