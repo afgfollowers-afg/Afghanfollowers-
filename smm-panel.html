@@ -1467,6 +1467,18 @@ var _currentUser=null;
       window.location.replace('auth.html?suspended=1');
       return;
     }
+    // A session created before server-side auth existed has no token —
+    // api/db.js's write gate now treats that the same as no identity at
+    // all, so this customer's own writes (deposit_pending, withdrawal,
+    // profile edits) would silently no-op, and PayPal payments would be
+    // rejected AFTER the money is already captured. Force a fresh login
+    // immediately, the same way a suspension does, instead of letting them
+    // use a panel whose writes quietly don't reach the server.
+    if(!_session.token){
+      localStorage.removeItem('smm_session');
+      window.location.replace('auth.html?reauth=1');
+      return;
+    }
     // Track last visit
     var allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');
     var idx=allUsers.findIndex(function(u){return u.id===_currentUser.id;});
@@ -3860,6 +3872,15 @@ function openPayPalModal(amt, clientId, fee){
   }
   if(!clientId||clientId.trim()===''){
     showToast('PayPal not configured. Contact admin.','e');return;
+  }
+  // A session created before server-side auth was turned on has no token —
+  // api/paypal-verify.js now requires one to credit a wallet, and checking
+  // only there meant a customer could go all the way through PayPal (money
+  // actually captured) before finding out verification would fail. Catch it
+  // here instead, before anything is charged.
+  if(!_session||!_session.token){
+    showToast('Please log out and log back in before making a payment.','e');
+    return;
   }
   // Read minimum from admin settings
   var cfg=getPmCfg('paypal');

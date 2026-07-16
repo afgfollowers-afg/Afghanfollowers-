@@ -831,6 +831,15 @@ if(new URLSearchParams(window.location.search).get('suspended')==='1'){
   document.getElementById('alert').innerHTML='🚫 Your account has been suspended. Please contact support.';
 }
 
+// Redirected here after smm-panel.html detected an old session with no
+// server-issued token (see auth check there) — not an error on the
+// customer's part, just needs one fresh login to keep working normally.
+if(new URLSearchParams(window.location.search).get('reauth')==='1'){
+  document.getElementById('alert').style.display='flex';
+  document.getElementById('alert').className='alert a-s';
+  document.getElementById('alert').innerHTML='🔐 Please log in again to continue — this only needs to happen once.';
+}
+
 // Referral in URL
 var _ref=new URLSearchParams(window.location.search).get('ref');
 if(_ref) document.getElementById('r-inv').value=_ref.toUpperCase();
