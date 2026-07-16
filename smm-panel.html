@@ -4075,6 +4075,15 @@ function verifyPayPalOrder(orderId){
     var me=allUsers.find(function(x){return String(x.id)===String(u.id);});
     if(me){
       me.balance=res.newBalance;
+      // The balance patch above used to be the ONLY local update — the new
+      // deposit transaction itself only existed on the server, so Payment
+      // History showed nothing for this payment until the next full sync
+      // pulled it down. Add it locally right away too.
+      if(res.transaction){
+        if(!me.transactions) me.transactions=[];
+        var alreadyHave=me.transactions.some(function(t){return t&&t.id===res.transaction.id;});
+        if(!alreadyHave) me.transactions.unshift(res.transaction);
+      }
       localStorage.setItem('smm_users',JSON.stringify(allUsers));
       _currentUser=me;
       try{var sess=JSON.parse(localStorage.getItem('smm_session')||'{}');sess.balance=me.balance;localStorage.setItem('smm_session',JSON.stringify(sess));}catch(e2){}
