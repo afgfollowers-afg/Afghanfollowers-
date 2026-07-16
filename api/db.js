@@ -228,7 +228,11 @@ module.exports = async (req, res) => {
       });
     }
 
-    const out = Object.assign({}, record, { smm_svc: svc, smm_ref_visit_counts: visitCounts });
+    // Surfaced so the admin panel can show a clear "auth not active" warning
+    // instead of the alternative — a customer/admin silently getting the
+    // pre-auth, unprotected write path with no visible sign why a balance
+    // update might not be sticking (see admin.html's authStatus banner).
+    const out = Object.assign({}, record, { smm_svc: svc, smm_ref_visit_counts: visitCounts, authConfigured: AUTH_CONFIGURED });
     return res.status(200).json(out);
   }
 

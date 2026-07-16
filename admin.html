@@ -6853,11 +6853,30 @@ var ADMIN_CREDS_KEY='smm_admin_creds';
 
 // Pull admin credentials + general settings from server immediately on page load,
 // so a fresh browser has the latest username/password before the user tries to log in.
+// Shows an unmissable banner when the server reports server-side auth is
+// NOT active (AUTH_JWT_SECRET unset in Vercel, or a deploy hasn't picked it
+// up yet). While inactive, api/db.js's whole write-authorization gate is
+// bypassed for everyone — every smm_users push is fully trusted exactly
+// like before this session's auth work, including a stale browser tab's
+// old cached balance silently overwriting a newer one written moments
+// earlier (e.g. a PayPal credit). That failure mode looks identical to a
+// rejected-token issue from the outside ("balance vanishes after
+// logout/login") but forceAdminReauth() can never catch it, since nothing
+// is ever flagged smm_users_restricted while the gate itself is off.
+function showAuthNotConfiguredBanner(){
+  if(document.getElementById('auth-not-configured-banner')) return;
+  var b=document.createElement('div');
+  b.id='auth-not-configured-banner';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#7f1d1d;color:#fff;padding:10px 16px;font-size:13px;text-align:center;font-weight:600';
+  b.textContent='⚠️ Server-side auth is NOT active (AUTH_JWT_SECRET missing on the server) — balance/order writes are unprotected against stale-tab overwrites. Set AUTH_JWT_SECRET in Vercel and redeploy.';
+  document.body.insertBefore(b,document.body.firstChild);
+}
 (function pullAdminCredsEarly(){
   fetch('/api/db',{method:'GET'})
     .then(function(r){return r.json();})
     .then(function(d){
       if(!d) return;
+      if(d.authConfigured===false) showAuthNotConfiguredBanner();
       if(d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
         localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
       }
