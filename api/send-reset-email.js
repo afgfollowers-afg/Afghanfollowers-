@@ -14,7 +14,7 @@ const crypto = require('crypto');
 const SITE = 'https://afghanfollowers.online';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-const { dbHeaders, DB_SERVICE_KEY, API_BASE } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
 
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
     }
 
     // Look up the user
-    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const users = db.smm_users || [];
     const user = users.find(u => (u.email || '').toLowerCase() === email);
@@ -85,7 +85,7 @@ module.exports = async (req, res) => {
       const resets = (db.smm_resets || []).filter(r => r.expires > Date.now()); // drop expired
       resets.push({ token, email, expires: Date.now() + 60 * 60 * 1000 }); // 1 hour
 
-      await fetch(API_BASE + '/api/db', {
+      await fetchInternal(API_BASE + '/api/db', {
         method: 'POST',
         headers: dbHeaders(),
         body: JSON.stringify({ smm_resets: resets, smm_ts: Date.now() })

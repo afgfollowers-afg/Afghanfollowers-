@@ -1,10 +1,10 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders, API_BASE } = require('./_dbkey');
+const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
 async function lookupOrder(orderId) {
   try {
-    const r = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
+    const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const orders = db.smm_orders || [];
     return orders.find(o => String(o.id) === String(orderId)) || null;
@@ -22,7 +22,7 @@ function statusEmoji(status) {
 // — configured once in Settings → Integrations, stored as smm_tg_bot.chatId).
 async function notifyAdmin(token, text) {
   try {
-    const cfg = await fetch(API_BASE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
+    const cfg = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
     const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
     if (!adminChat) return;
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -40,13 +40,13 @@ async function notifyAdmin(token, text) {
 // per-user secret needs generating.
 async function linkTelegramAccount(code, chatId) {
   try {
-    const r = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
+    const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const users = db.smm_users || [];
     const user = users.find(u => u.id && Number(u.id).toString(36).toUpperCase() === code);
     if (!user) return false;
     user.tgChatId = chatId;
-    await fetch(API_BASE + '/api/db', {
+    await fetchInternal(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_users: users, smm_ts: Date.now() })
@@ -59,7 +59,7 @@ async function linkTelegramAccount(code, chatId) {
 
 async function createTicket(chatId, username, message) {
   try {
-    const r = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
+    const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const tickets = db.smm_tickets || [];
     const ticket = {
@@ -77,7 +77,7 @@ async function createTicket(chatId, username, message) {
       messages: [{ from: 'user', text: message, date: new Date().toLocaleString() }]
     };
     tickets.unshift(ticket);
-    await fetch(API_BASE + '/api/db', {
+    await fetchInternal(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_tickets: tickets, smm_ts: Date.now() })

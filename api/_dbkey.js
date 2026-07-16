@@ -27,24 +27,53 @@ function dbHeaders(extra) {
 }
 
 // Base URL for server-to-server calls back into this same deployment's own
-// API routes (e.g. paypal-verify.js -> /api/db).
-//
-// A prior version of this pointed at process.env.VERCEL_URL (the
-// deployment's own *.vercel.app host) to sidestep a suspected apex<->www
-// redirect on the custom domain stripping the Authorization header on
-// cross-origin redirects. That broke login entirely — including plain GET
-// reads that don't even carry Authorization — which means VERCEL_URL is not
-// reachable from inside this project's own functions the way that fix
-// assumed (most likely Vercel's Deployment Protection / Vercel
-// Authentication wall sits in front of the raw deployment URL and rejects
-// server-to-server requests that don't carry its own bypass token/cookie,
-// unrelated to anything this codebase controls). Reverted to the known-good
-// custom domain. The Authorization-stripped-on-redirect bug this was meant
-// to fix (see diagnoseAuth() in _auth.js — smm_users_restricted with reason
-// no-authorization-header-received) is still open; the next fix needs to
-// confirm which of afghanfollowers.online / www.afghanfollowers.online is
-// the actual non-redirecting target and point directly at that one, rather
-// than guessing at an internal host this environment apparently blocks.
+// API routes (e.g. paypal-verify.js -> /api/db). Always the known-good
+// public custom domain — a prior attempt pointed this at process.env.
+// VERCEL_URL (the deployment's own *.vercel.app host) instead, reasoning
+// it would dodge a suspected redirect on the custom domain, but that broke
+// login entirely (even plain GET reads that carry no Authorization at all),
+// meaning that internal host isn't reachable from inside this project's own
+// functions the way that fix assumed — most likely Vercel's Deployment
+// Protection sits in front of the raw deployment URL. See fetchInternal()
+// below for the actual fix to the redirect problem, which doesn't require
+// leaving this domain at all.
 const API_BASE = 'https://afghanfollowers.online';
 
-module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE };
+// A same-process call to fetch(url, {redirect:'follow'}) (the default) that
+// crosses an origin boundary — e.g. Vercel's own apex<->www canonical-
+// domain redirect on the custom domain above, whichever direction it runs —
+// silently drops the Authorization header per the Fetch spec (ordinary
+// headers like x-db-key are unaffected). That's exactly what live
+// diagnostics showed: diagnoseAuth() reporting "no-authorization-header-
+// received" on every restricted PayPal write despite dbHeaders() building
+// the header correctly and both processes agreeing on AUTH_JWT_SECRET (see
+// SECRET_FINGERPRINT in _auth.js) — confirmed by reproducing the identical
+// pattern locally against a throwaway HTTP server (Authorization stripped,
+// x-db-key intact, only on a genuinely cross-origin redirect).
+//
+// redirect:'manual' hands back the raw 3xx response (status + a readable
+// Location header) instead of following it automatically — verified locally
+// that Node's fetch does NOT collapse this into browsers' unreadable
+// "opaqueredirect" response the way cross-origin redirects do client-side.
+// Since this call only ever targets our own first-party domain, it's safe
+// to follow that Location manually with the original headers (including
+// Authorization) still attached, which a plain fetch() with default
+// redirect handling refuses to do for a cross-origin hop. Works identically
+// whether or not a redirect actually happens, and — unlike the VERCEL_URL
+// attempt — never leaves the public custom domain, so it can't run into
+// Vercel's Deployment Protection wall around the internal deployment host.
+async function fetchInternal(url, opts, hopsLeft) {
+  opts = opts || {};
+  hopsLeft = hopsLeft === undefined ? 5 : hopsLeft;
+  const resp = await fetch(url, Object.assign({}, opts, { redirect: 'manual' }));
+  if (resp.status >= 300 && resp.status < 400 && hopsLeft > 0) {
+    const location = resp.headers.get('location');
+    if (location) {
+      const nextUrl = new URL(location, url).toString();
+      return fetchInternal(nextUrl, opts, hopsLeft - 1);
+    }
+  }
+  return resp;
+}
+
+module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal };
