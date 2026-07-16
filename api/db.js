@@ -357,13 +357,58 @@ module.exports = async (req, res) => {
       // transactions by their own id instead, so neither side can ever drop
       // an entry the other doesn't know about yet; every other field still
       // takes the incoming value, same as before.
-      function mergeUsersById(currentArr, incomingArr) {
+      //
+      // That union alone still left one gap: it protects the transaction
+      // RECORD, but not the numeric `balance` field, which reconcileBalance
+      // is for. An admin browser's cache can sit stale for minutes (it only
+      // refreshes on its own 30s poll, or when a page happens to re-render)
+      // — a customer's PayPal payment landing in that window, then ANY
+      // unrelated admin click (order status, ticket reply, free-likes
+      // approval — any of those ~10 call sites) pushes that admin's whole,
+      // now-stale smm_users array straight back, including this customer's
+      // OLD balance. The transaction itself survives (unioned above), but
+      // the balance the admin's browser never knew about is silently
+      // discarded — money "vanishes" the next time this user's balance is
+      // read, even though its own transaction is still sitting right there
+      // in the ledger. Reconcile by adding back the effect of any
+      // transaction the incoming push doesn't know about yet, instead of
+      // trusting its balance figure outright. Only used for the fully-
+      // trusted admin-role merge (see call site below) — the customer-role
+      // path already computes balance freshly against this same read on
+      // every request via sanitizeCustomerUserWrites, so re-applying this
+      // here would double-count.
+      function txBalanceDelta(t) {
+        if (!t || !t.type) return 0;
+        if (t.type === 'deposit') {
+          // A PayPal deposit's `amount` is the gross amount paid — what
+          // actually landed on the balance is `credit` (amount minus fees,
+          // see api/paypal-verify.js). Other deposit-crediting paths don't
+          // split the two, so fall back to `amount` if `credit` is absent.
+          if (t.status !== 'approved') return 0;
+          var c = t.credit !== undefined ? parseFloat(t.credit) : parseFloat(t.amount);
+          return c > 0 ? c : 0;
+        }
+        var amt = parseFloat(t.amount) || 0;
+        if (amt <= 0) return 0;
+        if (t.type === 'bonus' || t.type === 'refund' || t.type === 'admin_credit') return amt;
+        if (t.type === 'withdrawal' || t.type === 'spend' || t.type === 'admin_debit') return -amt;
+        return 0; // deposit_pending and anything unrecognized never affect balance
+      }
+      function mergeUsersById(currentArr, incomingArr, reconcileBalance) {
         var map = {};
         (currentArr || []).forEach(function (item) { if (item && item.id !== undefined) map[item.id] = item; });
         (incomingArr || []).forEach(function (item) {
           if (!item || item.id === undefined) return;
           var existing = map[item.id];
           if (existing && Array.isArray(existing.transactions) && Array.isArray(item.transactions)) {
+            var incomingTxIds = {};
+            item.transactions.forEach(function (t) { if (t && t.id !== undefined) incomingTxIds[t.id] = true; });
+            var missedDelta = 0;
+            if (reconcileBalance) {
+              existing.transactions.forEach(function (t) {
+                if (t && t.id !== undefined && !incomingTxIds[t.id]) missedDelta += txBalanceDelta(t);
+              });
+            }
             var txMap = {};
             existing.transactions.forEach(function (t) { if (t && t.id !== undefined) txMap[t.id] = t; });
             item.transactions.forEach(function (t) { if (t && t.id !== undefined) txMap[t.id] = t; });
@@ -371,6 +416,9 @@ module.exports = async (req, res) => {
               transactions: Object.keys(txMap).map(function (k) { return txMap[k]; })
                 .sort(function (a, b) { return (b.id || 0) - (a.id || 0); })
             });
+            if (missedDelta !== 0) {
+              item.balance = parseFloat(((parseFloat(item.balance) || 0) + missedDelta).toFixed(2));
+            }
           }
           map[item.id] = item;
         });
@@ -391,11 +439,11 @@ module.exports = async (req, res) => {
         // than lock everyone out mid-rollout. Once it's set, this activates
         // automatically on the next request.
         if (!AUTH_CONFIGURED) {
-          current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
+          current.smm_users = mergeUsersById(current.smm_users, body.smm_users, true);
         } else {
           const auth = getAuth(req);
           if (auth && auth.role === 'admin') {
-            current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
+            current.smm_users = mergeUsersById(current.smm_users, body.smm_users, true);
           } else {
             smmUsersRestricted = true;
             const allowed = sanitizeCustomerUserWrites(body.smm_users, current.smm_users, auth && auth.sub);
