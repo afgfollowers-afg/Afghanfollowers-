@@ -196,10 +196,17 @@ module.exports = async (req, res) => {
     if (Array.isArray(record.smm_pm)) {
       record.smm_pm = record.smm_pm.map(function (m) {
         const c = Object.assign({}, m);
-        delete c.clientSecret;
-        delete c.secretKey;
-        delete c.apiKey;
-        delete c.secKey;
+        // Replace each secret with a boolean "is it set" flag rather than
+        // just deleting it silently — the admin panel needs to tell "this
+        // secret is configured server-side, just not shown here" apart
+        // from "genuinely never configured", otherwise a fresh browser/
+        // device with no local copy of the secret looks identical to one
+        // where PayPal was never set up, and re-saving from that blank
+        // state would overwrite the real secret with nothing.
+        ['clientSecret', 'secretKey', 'apiKey', 'secKey'].forEach(function (k) {
+          c['_has_' + k] = !!c[k];
+          delete c[k];
+        });
         return c;
       });
     }
@@ -408,12 +415,44 @@ module.exports = async (req, res) => {
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
         current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
       }
-      // Payment methods: admin is the single source of truth, always overwrite
+      // Payment methods: admin is the single source of truth for everything
+      // EXCEPT secrets (clientSecret, secretKey, apiKey, secKey). Those are
+      // stripped out of every GET response (see above), so a browser/device
+      // that never had the real secret locally — a second device, or the
+      // same one after a storage clear — always pushes this array back with
+      // those fields blank. A blind overwrite here would let that blank
+      // permanently erase the real, previously-configured secret the moment
+      // that browser saved ANY unrelated setting. Instead, only replace a
+      // secret field when the incoming value is genuinely non-empty;
+      // otherwise keep whatever the server already has for that method id.
       if (body.smm_pm && Array.isArray(body.smm_pm)) {
-        current.smm_pm = body.smm_pm;
+        const prevPm = Array.isArray(current.smm_pm) ? current.smm_pm : [];
+        const SECRET_FIELDS = ['clientSecret', 'secretKey', 'apiKey', 'secKey'];
+        current.smm_pm = body.smm_pm.map(function (incoming) {
+          const prev = prevPm.find(function (p) { return String(p.id) === String(incoming.id); });
+          if (!prev) return incoming;
+          const merged = Object.assign({}, incoming);
+          SECRET_FIELDS.forEach(function (k) {
+            if (!merged[k] && prev[k]) merged[k] = prev[k];
+          });
+          return merged;
+        });
       }
+      // Same reasoning as smm_pm above: .key is stripped from every GET
+      // response, so a browser that never had the real provider API key
+      // locally would otherwise wipe it out the moment it saved any
+      // unrelated provider change (markup %, name, adding/removing a
+      // different provider) — which would silently break order dispatch
+      // for every customer, not just one payment method.
       if (body.smm_providers && Array.isArray(body.smm_providers)) {
-        current.smm_providers = body.smm_providers;
+        const prevProviders = Array.isArray(current.smm_providers) ? current.smm_providers : [];
+        current.smm_providers = body.smm_providers.map(function (incoming) {
+          const prev = prevProviders.find(function (p) { return String(p.id) === String(incoming.id); });
+          if (prev && !incoming.key && prev.key) {
+            return Object.assign({}, incoming, { key: prev.key });
+          }
+          return incoming;
+        });
       }
       if (body.smm_bonuses && Array.isArray(body.smm_bonuses)) {
         current.smm_bonuses = body.smm_bonuses;
