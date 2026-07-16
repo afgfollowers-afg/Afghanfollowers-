@@ -1583,6 +1583,14 @@ function saveCurrentUser(u){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({smm_users:users,smm_orders:_syncOrders,smm_ts:Date.now()})
+    }).then(function(r){return r.json();}).then(function(resp){
+      // The page-load check already sends a session with no token back to
+      // login before it can reach any of this — this covers the narrower
+      // case of a token expiring later in an already-open tab (e.g. a
+      // refund from cancelOrder()), so that doesn't silently vanish too.
+      if(resp&&resp.smm_users_restricted){
+        showToast('⚠️ Not saved — please log out and log back in, then try again','e');
+      }
     }).catch(function(){});
   }catch(e){}
 }
@@ -2520,6 +2528,14 @@ function placeOrder(){
     // Cleared so the disclaimer is required again before the *next* order —
     // it should be re-acknowledged every time, not just once per account.
     me.dropDisclaimerAgreedAt=null;
+    // api/db.js's write gate (see sanitizeCustomerUserWrites) only accepts
+    // a customer-authored balance DECREASE when it's justified by a new
+    // 'spend'/'withdrawal' transaction of the exact same amount — without
+    // one, this deduction used to be silently rejected server-side, so the
+    // order would look free locally but the server never actually charged
+    // for it (and the balance would "come back" on the next sync).
+    if(!me.transactions) me.transactions=[];
+    me.transactions.unshift({id:Date.now(),type:'spend',amount:cost,desc:'Order: '+svcName,date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(allUsers));
     _currentUser=me;
   }

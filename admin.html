@@ -4178,7 +4178,12 @@ function deleteStuckOrder(orderId){
   localStorage.setItem('smm_stuck_orders',JSON.stringify(stuck));
 
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})})
+    .then(function(r){return r.json();}).then(function(resp){
+      if(refund>0&&resp&&resp.smm_users_restricted){
+        toast('⚠️ Refund NOT saved to server — please log out and log back in, then retry','e');
+      }
+    }).catch(function(){});
 
   rStuckOrders();rOrders(getRealOrders());notifyPanel();
   toast(refund>0?('🗑 Order deleted — $'+refund.toFixed(2)+' refunded'):'🗑 Order deleted','s');
@@ -7227,6 +7232,17 @@ function pushToServer(){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_users:users,smm_orders:orders,smm_ref_visit_queue:refQueue,smm_ts:Date.now()})
+  }).then(function(r){return r.json();}).then(function(resp){
+    // This is the single shared push used by ~10+ admin actions (order
+    // status changes, free-likes approval/rejection, refunds, ticket
+    // replies, user edits...) — checking smm_users_restricted here once
+    // covers all of them, instead of a false "success" toast wherever a
+    // stale pre-token session let a user-affecting change silently fail to
+    // reach the server (see pushSmmUsersChecked() for the Wallets-page
+    // version of this same check).
+    if(resp&&resp.smm_users_restricted){
+      toast('⚠️ A change was NOT saved to the server — please log out and log back in','e');
+    }
   }).catch(function(){});
 }
 setInterval(pullFromServer,30000);
