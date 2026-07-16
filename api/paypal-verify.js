@@ -189,6 +189,21 @@ module.exports = async (req, res) => {
     // read-back genuinely confirms it — not just once the write call
     // itself reported success. This order hasn't been marked processed
     // until a verified write lands, so re-attempting is always safe.
+    // FOUND IT: the per-attempt trail below always showed write-ok but
+    // tx-missing/balance-unchanged, on every single attempt — and this
+    // function only ever checked j.ok, never j.smm_users_restricted.
+    // api/db.js's write gate returns ok:true EVEN when it silently routed
+    // the write through the customer-restricted path (see
+    // sanitizeCustomerUserWrites) instead of the fully-trusted admin path
+    // — and that restricted path explicitly strips any new `deposit`
+    // transaction with status:'approved' (admin/server-only, by design —
+    // see PRIVILEGED_TX_TYPES in api/db.js). If dbHeaders()'s admin-role
+    // service token isn't being recognized as role:'admin' by api/db.js
+    // for any reason, every retry in this loop would keep "succeeding"
+    // (ok:true) while api/db.js keeps quietly discarding the deposit
+    // transaction itself — exactly matching what every attempt reported.
+    // Treat a restricted write as a failure requiring retry, the same way
+    // admin.html/smm-panel.html already do for their own writes.
     async function writeCredit() {
       const r = await fetch(SITE + '/api/db', {
         method: 'POST',
@@ -200,6 +215,10 @@ module.exports = async (req, res) => {
         })
       });
       const j = await r.json().catch(() => null);
+      if (j && j.smm_users_restricted) {
+        attemptLog.push('write-RESTRICTED (dbHeaders() token not recognized as admin — deposit silently stripped server-side)');
+        return false;
+      }
       return !!(j && j.ok === true);
     }
     // Two prior fixes (retry-until-verified, then cache-busting the read)
