@@ -235,7 +235,7 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
-    if(typeof url==='string' && url.indexOf('/api/db')===0){
+    if(typeof url==='string' && (url.indexOf('/api/db')===0 || url.indexOf('/api/notify-telegram')===0)){
       opts=opts||{};
       opts.headers=Object.assign({},opts.headers||{},{'x-db-key':DB_CLIENT_KEY});
     }
@@ -332,7 +332,7 @@ fetch('/api/db').then(function(r){return r.json();}).then(function(d){
     // at the homepage for a second, then taps away before the request
     // finishes), which was likely why some real visits never notified.
     if(navigator.sendBeacon){
-      navigator.sendBeacon('/api/notify-telegram', new Blob([payload],{type:'application/json'}));
+      navigator.sendBeacon('/api/notify-telegram?db-key='+encodeURIComponent(DB_CLIENT_KEY), new Blob([payload],{type:'application/json'}));
     } else {
       fetch('/api/notify-telegram',{
         method:'POST',

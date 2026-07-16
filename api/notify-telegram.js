@@ -5,7 +5,7 @@
 // admin) can trigger a broadcast without needing to know either secret.
 
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
 
 // Vercel only gives a 2-letter ISO country code — spell out the ones most
 // relevant to this site's audience so the notification reads naturally;
@@ -20,6 +20,18 @@ const COUNTRY_NAMES = {
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Previously wide open — anyone on the internet could POST any message and
+  // spam the admin's Telegram bot/public channel. Gated with the same shared
+  // key every first-party page already carries. The anonymous "new visitor"
+  // beacon (index.html/blog.html/auth.html) uses navigator.sendBeacon(),
+  // which cannot set custom headers, so the key is also accepted via a
+  // query param for that one call path — this key already lives in public
+  // page source either way, so a query string doesn't weaken it further.
+  const suppliedKey = req.headers['x-db-key'] || (req.query && req.query['db-key']);
+  if (DB_SERVICE_KEY && suppliedKey !== DB_SERVICE_KEY) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});

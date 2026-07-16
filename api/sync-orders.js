@@ -62,6 +62,120 @@ module.exports = async (req, res) => {
   return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult }));
 };
 
+// Exposed so api/place-order.js can dispatch a single order on demand
+// (right after a customer places it, or an admin approves one) using the
+// exact same claim-then-dispatch logic this file's own retry sweep uses —
+// see dispatchOneOrder() above for why a shared implementation matters.
+module.exports.dispatchOneOrder = dispatchOneOrder;
+
+// Claim-then-dispatch for exactly one order, entirely server-side — the
+// provider's URL/API key never leave this function (read from the DB
+// snapshot passed in, or fetched fresh below), unlike the old
+// place-order.js which took them straight from the client's request body.
+// Used both by the batch retry loop below and, on demand, by
+// api/place-order.js right after a customer places (or an admin approves)
+// an order, so dispatch stays instant instead of waiting for the next cron.
+//
+// Re-checks against the LATEST server state immediately before dispatching
+// (not just the snapshot the caller passed in) and writes a fresh
+// dispatchAttemptedAt right away — this endpoint/job can be invoked more
+// than once close together (Vercel retries, overlapping cron/manual runs,
+// a customer's place-order call racing the daily retry sweep); without that
+// re-check, two overlapping calls could both see the same "never sent"
+// snapshot and both dispatch the same order to the provider before either
+// wrote back — a genuine duplicate order to the same link.
+async function dispatchOneOrder(order, dbSnapshot, opts) {
+  opts = opts || {};
+  const providers = (dbSnapshot && dbSnapshot.providers) || [];
+  const svcList = (dbSnapshot && dbSnapshot.svcList) || [];
+  const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
+  const RETRY_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+  if (order.provOrderId || finishedStatuses.includes(order.status)) {
+    return { ok: false, error: 'Already dispatched or finished' };
+  }
+
+  // Prefer the stable IDs captured directly on the order at creation time
+  // (smm-panel.html's placeOrder()/claimFreeLikes()) — immune to the
+  // service catalog's free-text name drifting after a re-import or edit,
+  // which is exactly what silently and permanently stuck real orders here
+  // before: the name-only lookup below stopped matching anything the
+  // moment a service got renamed. Only orders placed before this field
+  // existed fall back to the name-based lookup.
+  let provNumericId, provId;
+  if (order.svcId && order.provId) {
+    provNumericId = order.svcId;
+    provId = order.provId;
+  } else {
+    const svcRow = svcList.find(s => s[2] === order.svcName || s[2] === order.svc || s[3] === order.svcName);
+    if (!svcRow) return { ok: false, error: 'Service not found in catalog' };
+    provNumericId = svcRow[1]; // provider's numeric service id
+    provId = svcRow[5];
+  }
+  const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
+  if (!prov || !prov.url || !prov.key) return { ok: false, error: 'Provider config not found' };
+
+  let claimed;
+  try {
+    const freshResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const freshDb = await freshResp.json();
+    const freshOrder = (freshDb.smm_orders || []).find(x => String(x.id) === String(order.id));
+    if (!freshOrder) return { ok: false, error: 'Order not found' };
+    if (freshOrder.provOrderId || finishedStatuses.includes(freshOrder.status)) {
+      return { ok: false, error: 'Already dispatched or finished' };
+    }
+    if (!opts.force && freshOrder.dispatchAttemptedAt && (Date.now() - freshOrder.dispatchAttemptedAt) <= RETRY_AGE_MS) {
+      // Another call claimed (or already dispatched) this since our caller's
+      // snapshot was taken — back off rather than race it.
+      return { ok: false, error: 'Dispatch already in progress' };
+    }
+    claimed = Object.assign({}, freshOrder, { dispatchAttemptedAt: Date.now() });
+    await fetch(SITE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
+    });
+  } catch (e) {
+    return { ok: false, error: 'Claim check failed: ' + e.message };
+  }
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append('key', prov.key);
+    formData.append('action', 'add');
+    formData.append('service', provNumericId);
+    formData.append('link', claimed.link);
+    formData.append('quantity', claimed.qty);
+
+    const r = await fetch(prov.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString()
+    });
+    const text = await r.text();
+    let result;
+    try { result = JSON.parse(text); } catch (e) {
+      return { ok: false, error: 'Bad response', rawText: text.slice(0, 200) };
+    }
+    if (result.order) {
+      claimed.provOrderId = result.order;
+      claimed.status = 'processing';
+      // Write back immediately via a merge-safe single-order update (not a
+      // full-array overwrite) so this can never clobber an order placed or
+      // edited elsewhere while this call was running.
+      await fetch(SITE + '/api/db', {
+        method: 'POST',
+        headers: dbHeaders(),
+        body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
+      });
+      return { ok: true, provOrderId: result.order };
+    }
+    return { ok: false, error: result.error || 'No order id returned', rawResponse: result };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 async function runOrderSyncJob(force) {
   // 1. Get current data
   const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
@@ -76,14 +190,12 @@ async function runOrderSyncJob(force) {
   //
   // dispatchAttemptedAt is set the moment a customer order or an admin's
   // Free Likes approval fires its own /api/place-order call, *before*
-  // provOrderId comes back. This endpoint has no auth and gets hit more
-  // than once a day (Vercel retries, uptime pings, manual testing) — without
-  // this age check, any such hit landing in the few seconds/minutes before
-  // that original call's response set provOrderId treated the order as
-  // "never sent" and dispatched a second, genuinely duplicate order to the
-  // provider for the exact same link. Only orders stuck for a while (or
-  // with no attempt recorded at all — e.g. legacy orders, or the original
-  // call failing before it could even set this field) are retried.
+  // provOrderId comes back. This retry sweep also catches place-order.js
+  // calls that failed outright (network error, provider down) before they
+  // could write anything back. Only orders stuck for a while (or with no
+  // attempt recorded at all — e.g. legacy orders) are retried here; a fresh
+  // attempt is left alone for RETRY_AGE_MS so this sweep can never race an
+  // in-flight on-demand dispatch and send the same order twice.
   const RETRY_AGE_MS = 30 * 60 * 1000; // 30 minutes
   const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
   const neverSent = orders.filter(o => {
@@ -95,97 +207,12 @@ async function runOrderSyncJob(force) {
   const retryDebug = [];
 
   for (const o of neverSent) {
-    // Prefer the stable IDs captured directly on the order at creation time
-    // (smm-panel.html's placeOrder()/claimFreeLikes()) — immune to the
-    // service catalog's free-text name drifting after a re-import or edit,
-    // which is exactly what silently and permanently stuck real orders here
-    // before: the name-only lookup below stopped matching anything the
-    // moment a service got renamed. Only orders placed before this field
-    // existed fall back to the name-based lookup.
-    let provNumericId, provId;
-    if (o.svcId && o.provId) {
-      provNumericId = o.svcId;
-      provId = o.provId;
+    const result = await dispatchOneOrder(o, { providers, svcList }, { force });
+    if (result.ok) {
+      retried++;
+      retryDebug.push({ orderId: o.id, ok: true, newProvOrderId: result.provOrderId });
     } else {
-      const svcRow = svcList.find(s => s[2] === o.svcName || s[2] === o.svc || s[3] === o.svcName);
-      if (!svcRow) { retryDebug.push({ orderId: o.id, error: 'Service not found in catalog' }); continue; }
-      provNumericId = svcRow[1]; // provider's numeric service id
-      provId = svcRow[5];
-    }
-    const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
-    if (!prov || !prov.url || !prov.key) { retryDebug.push({ orderId: o.id, error: 'Provider config not found' }); continue; }
-
-    // Claim this order before dispatching — re-check against the LATEST
-    // server state first (not the batch snapshot read at the top of this
-    // function) and immediately write a fresh dispatchAttemptedAt. This
-    // endpoint is unauthenticated and gets hit more than once (Vercel
-    // retries, uptime pings, overlapping cron/manual runs); without
-    // re-verifying right before the provider call, two overlapping
-    // invocations could both read the same stale "never sent" snapshot and
-    // both dispatch the same order to the provider before either one wrote
-    // back — a genuine duplicate order to the same link. Claiming here
-    // shrinks that window from the whole batch's duration down to a single
-    // round trip.
-    let claimed;
-    try {
-      const freshResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
-      const freshDb = await freshResp.json();
-      const freshOrder = (freshDb.smm_orders || []).find(x => String(x.id) === String(o.id));
-      if (!freshOrder) continue;
-      if (freshOrder.provOrderId || finishedStatuses.includes(freshOrder.status)) continue;
-      if (!force && freshOrder.dispatchAttemptedAt && (Date.now() - freshOrder.dispatchAttemptedAt) <= RETRY_AGE_MS) {
-        // Another run claimed (or already dispatched) this since our batch
-        // snapshot was taken — back off rather than race it.
-        continue;
-      }
-      claimed = Object.assign({}, freshOrder, { dispatchAttemptedAt: Date.now() });
-      await fetch(SITE + '/api/db', {
-        method: 'POST',
-        headers: dbHeaders(),
-        body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
-      });
-    } catch (e) {
-      retryDebug.push({ orderId: o.id, error: 'Claim check failed: ' + e.message });
-      continue;
-    }
-
-    try {
-      const formData = new URLSearchParams();
-      formData.append('key', prov.key);
-      formData.append('action', 'add');
-      formData.append('service', provNumericId);
-      formData.append('link', claimed.link);
-      formData.append('quantity', claimed.qty);
-
-      const r = await fetch(prov.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
-      });
-      const text = await r.text();
-      let result;
-      try { result = JSON.parse(text); } catch (e) {
-        retryDebug.push({ orderId: o.id, error: 'Bad response', rawText: text.slice(0, 200) });
-        continue;
-      }
-      if (result.order) {
-        claimed.provOrderId = result.order;
-        claimed.status = 'processing';
-        retried++;
-        retryDebug.push({ orderId: o.id, ok: true, newProvOrderId: result.order });
-        // Write back immediately via a merge-safe single-order update (not a
-        // full-array overwrite) so this can never clobber an order placed or
-        // edited elsewhere while this loop was running.
-        await fetch(SITE + '/api/db', {
-          method: 'POST',
-          headers: dbHeaders(),
-          body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
-        });
-      } else {
-        retryDebug.push({ orderId: o.id, error: result.error || 'No order id returned', rawResponse: result });
-      }
-    } catch (e) {
-      retryDebug.push({ orderId: o.id, error: e.message });
+      retryDebug.push(Object.assign({ orderId: o.id }, result));
     }
   }
 
