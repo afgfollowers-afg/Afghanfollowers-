@@ -227,7 +227,9 @@ module.exports = async (req, res) => {
         // the header not reaching api/db.js intact, etc).
         const mine = SECRET_FINGERPRINT;
         const theirs = j.authSecretFingerprint;
-        attemptLog.push('write-RESTRICTED — secret fingerprint mine=' + mine + ' vs db.js=' + (theirs || 'n/a') + (mine === theirs ? ' (MATCH — not a secret mismatch)' : ' (MISMATCH — this is a stale-secret issue)'));
+        let line = 'write-RESTRICTED — secret fingerprint mine=' + mine + ' vs db.js=' + (theirs || 'n/a') + (mine === theirs ? ' (MATCH — not a secret mismatch)' : ' (MISMATCH — this is a stale-secret issue)');
+        if (j.authDiagnostic) line += ' | reason: ' + JSON.stringify(j.authDiagnostic);
+        attemptLog.push(line);
         return false;
       }
       return !!(j && j.ok === true);

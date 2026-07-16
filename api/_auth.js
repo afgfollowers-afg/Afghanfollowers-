@@ -72,6 +72,44 @@ function getAuth(req) {
   return verifyToken(header.slice(7));
 }
 
+// Diagnostic-only mirror of getAuth()/verifyToken() that reports WHY a
+// token was rejected instead of collapsing every failure into a plain
+// null — used only to explain an already-confirmed smm_users_restricted
+// write (see api/db.js), never for an actual authorization decision.
+// Written with the secret-fingerprint check already having ruled out a
+// mismatched AUTH_JWT_SECRET between processes, to isolate what's left:
+// no header reaching this function at all, a malformed/mismatched
+// signature, a token that's technically valid but already expired
+// (surfaces the exact timestamps so a clock-skew theory is checkable),
+// or a valid, unexpired token whose role just isn't 'admin'.
+function diagnoseAuth(req) {
+  const header = req.headers && req.headers.authorization;
+  if (!header) return { reason: 'no-authorization-header-received' };
+  if (header.indexOf('Bearer ') !== 0) return { reason: 'header-present-but-not-Bearer-scheme', headerPrefix: header.slice(0, 12) };
+  const token = header.slice(7);
+  if (!SECRET) return { reason: 'server-secret-not-configured' };
+  if (!token || typeof token !== 'string') return { reason: 'empty-token' };
+  const parts = token.split('.');
+  if (parts.length !== 3) return { reason: 'malformed-token-shape', partCount: parts.length };
+  const [headerB64, bodyB64, sigB64] = parts;
+  let expectedSigB64;
+  try {
+    const expectedSig = crypto.createHmac('sha256', SECRET).update(headerB64 + '.' + bodyB64).digest();
+    expectedSigB64 = base64url(expectedSig);
+  } catch (e) { return { reason: 'signature-computation-threw', error: e.message }; }
+  const a = Buffer.from(sigB64);
+  const b = Buffer.from(expectedSigB64);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { reason: 'signature-mismatch-despite-matching-secret-fingerprint' };
+  let payload;
+  try { payload = JSON.parse(base64urlDecode(bodyB64)); } catch (e) { return { reason: 'payload-not-valid-json', error: e.message }; }
+  if (!payload || typeof payload.exp !== 'number') return { reason: 'payload-missing-exp' };
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (nowSec > payload.exp) {
+    return { reason: 'token-expired', exp: payload.exp, serverNow: nowSec, secondsPastExpiry: nowSec - payload.exp, role: payload.role, sub: payload.sub };
+  }
+  return { reason: 'valid-but-role-is-' + (payload.role || 'undefined'), role: payload.role, sub: payload.sub, exp: payload.exp, serverNow: nowSec };
+}
+
 // A short, non-reversible fingerprint of AUTH_JWT_SECRET — safe to expose
 // in diagnostics (unlike the secret itself) since it can't be used to
 // forge a token, only to compare "are two processes seeing the same
@@ -83,4 +121,4 @@ function getAuth(req) {
 // gate silently routes it through the customer-restricted path" report.
 const SECRET_FINGERPRINT = SECRET ? crypto.createHash('sha256').update(SECRET).digest('hex').slice(0, 8) : 'unset';
 
-module.exports = { signToken, verifyToken, getAuth, AUTH_CONFIGURED: !!SECRET, SECRET_FINGERPRINT };
+module.exports = { signToken, verifyToken, getAuth, diagnoseAuth, AUTH_CONFIGURED: !!SECRET, SECRET_FINGERPRINT };
