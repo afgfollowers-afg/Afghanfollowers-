@@ -4972,12 +4972,46 @@ function rPms(){
   document.getElementById('pm-tbl').innerHTML=h+'</tbody></table>';
 }
 function isCfgd(m){
-  if(m.method==='paypal') return !!(m.clientId&&m.clientSecret);
+  // A secret set from another browser/device only ever comes back here as
+  // a "_has_*" boolean flag (see mergePmFromServer) — the real value never
+  // leaves the server a second time — so "configured" has to accept either
+  // a locally-known value or that flag, not just the local value alone.
+  if(m.method==='paypal') return !!(m.clientId&&(m.clientSecret||m._has_clientSecret));
   if(m.method==='paypal_manual') return !!(m.email);
   if(m.method==='binance') return !!(m.payId);
   if(m.method==='usdt_trc20'||m.method==='usdt_erc20') return !!(m.wallet);
-  if(m.method==='stripe') return !!(m.pubKey&&m.secKey);
+  if(m.method==='stripe') return !!(m.pubKey&&(m.secKey||m._has_secKey));
   return !!(m.account||m.instructions);
+}
+
+// Sync payment-method settings changed on ANOTHER admin browser/device down
+// into this one. Non-secret fields (vname, min/max, clientId, wallet...)
+// are copied straight over so settings genuinely show up everywhere, as
+// savePmVisibility() already promises. Secret fields (clientSecret,
+// secretKey, apiKey, secKey) are the one exception: the server never sends
+// their real value back (see api/db.js's GET handler), only a "_has_*"
+// flag — so they're left completely untouched here. If a stripped/blank
+// server value were allowed to overwrite this browser's own copy of a
+// secret, the very next unrelated save from here (e.g. toggling another
+// method's visibility) would push that blank back to the server and
+// permanently erase the real secret — which is the exact bug this fixes.
+var SECRET_PM_FIELDS=['clientSecret','secretKey','apiKey','secKey'];
+function mergePmFromServer(serverArr){
+  if(!Array.isArray(serverArr)) return false;
+  var changed=false;
+  serverArr.forEach(function(sm){
+    var local=pms.find(function(x){return String(x.id)===String(sm.id);});
+    if(!local){
+      pms.push(Object.assign({},sm));
+      changed=true;
+      return;
+    }
+    Object.keys(sm).forEach(function(k){
+      if(SECRET_PM_FIELDS.indexOf(k)>-1) return; // never let a stripped value clobber a local secret
+      if(local[k]!==sm[k]){local[k]=sm[k];changed=true;}
+    });
+  });
+  return changed;
 }
 function applyToPanel(){
   savePmVisibility();
@@ -5063,22 +5097,22 @@ function getPmEditFields(m){
   if(method==='paypal'){
     f+='<div class="fg full" style="background:rgba(0,112,186,.08);border:1px solid rgba(0,112,186,.25);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--tx)">💡 Client ID and Secret are <strong>required</strong> — payments are captured instantly via the PayPal SDK, then independently re-verified against PayPal\'s own API using these credentials before any balance is credited. Get them from your PayPal Business account → Developer Dashboard → Apps &amp; Credentials.</div>';
     f+='<div class="fg"><label class="fl">Client ID</label><input class="fi" id="pme-cid" value="'+(m.clientId||'')+'" placeholder="AfAlgLs_w1QedVwJUnI1BS4QC3uF4FqL7LQNc4dmIXP"></div>';
-    f+='<div class="fg"><label class="fl">Client Secret</label><input type="password" class="fi" id="pme-csec" value="'+(m.clientSecret||'')+'" placeholder="EPYxhDrIEXNP8Kwl3CkmqexNWHJgsQQwF7ciRdbmLy"></div>';
+    f+='<div class="fg"><label class="fl">Client Secret'+(m._has_clientSecret&&!m.clientSecret?' <span style="color:var(--gr);font-weight:400">(already set on the server — leave blank to keep it)</span>':'')+'</label><input type="password" class="fi" id="pme-csec" value="'+(m.clientSecret||'')+'" placeholder="'+(m._has_clientSecret&&!m.clientSecret?'•••••••• (leave blank to keep current secret)':'EPYxhDrIEXNP8Kwl3CkmqexNWHJgsQQwF7ciRdbmLy')+'"></div>';
     f+='<div class="fg"><label class="fl">Environment</label><select class="fi" id="pme-env"><option value="live"'+(m.env!=='sandbox'?' selected':'')+'>Live (real payments)</option><option value="sandbox"'+(m.env==='sandbox'?' selected':'')+'>Sandbox (testing)</option></select></div>';
     f+='<div class="fg"><label class="fl">PayPal Email <span style="color:var(--mt);font-weight:400">(display only, not used for verification)</span></label><input class="fi" id="pme-email" value="'+(m.email||'')+'" placeholder="yourpaypal@email.com"></div>';
   } else if(method==='paypal_manual'){
     f+='<div class="fg"><label class="fl">PayPal Email</label><input class="fi" id="pme-email" value="'+(m.email||'')+'" placeholder="payments@yoursite.com"></div>';
   } else if(method==='binance'){
     f+='<div class="fg"><label class="fl">Binance Pay ID</label><input class="fi" id="pme-binid" value="'+(m.payId||'')+'" placeholder="1116486314"></div>';
-    f+='<div class="fg"><label class="fl">API Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binkey" value="'+(m.apiKey||'')+'" placeholder="Binance API Key"></div>';
-    f+='<div class="fg"><label class="fl">Secret Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binsec" value="'+(m.secretKey||'')+'" placeholder="Secret Key"></div>';
+    f+='<div class="fg"><label class="fl">API Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binkey" value="'+(m.apiKey||'')+'" placeholder="'+(m._has_apiKey&&!m.apiKey?'•••••••• (leave blank to keep current key)':'Binance API Key')+'"></div>';
+    f+='<div class="fg"><label class="fl">Secret Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binsec" value="'+(m.secretKey||'')+'" placeholder="'+(m._has_secretKey&&!m.secretKey?'•••••••• (leave blank to keep current secret)':'Secret Key')+'"></div>';
     f+=qrFieldHtml('pme',m.qrCode);
   } else if(method==='usdt_trc20'||method==='usdt_erc20'){
     f+='<div class="fg"><label class="fl">Wallet Address</label><input class="fi" id="pme-wallet" value="'+(m.wallet||'')+'" placeholder="'+(method==='usdt_trc20'?'TRX7NfMpGJzJp...':'0x4e9cE36E442e...')+'"></div>';
     f+='<div class="fg"><label class="fl">Network</label><input class="fi" value="'+(method==='usdt_trc20'?'TRC20 (Tron)':'ERC20 (Ethereum)')+'" readonly style="color:var(--mt)"></div>';
   } else if(method==='stripe'){
     f+='<div class="fg"><label class="fl">Publishable Key</label><input class="fi" id="pme-spub" value="'+(m.pubKey||'')+'" placeholder="pk_live_..."></div>';
-    f+='<div class="fg"><label class="fl">Secret Key</label><input type="password" class="fi" id="pme-ssec" value="'+(m.secKey||'')+'" placeholder="sk_live_..."></div>';
+    f+='<div class="fg"><label class="fl">Secret Key'+(m._has_secKey&&!m.secKey?' <span style="color:var(--gr);font-weight:400">(already set — leave blank to keep it)</span>':'')+'</label><input type="password" class="fi" id="pme-ssec" value="'+(m.secKey||'')+'" placeholder="'+(m._has_secKey&&!m.secKey?'•••••••• (leave blank to keep current key)':'sk_live_...')+'"></div>';
   } else {
     f+='<div class="fg"><label class="fl">Account / Address</label><input class="fi" id="pme-acc" value="'+(m.account||'')+'" placeholder="Account number, phone, wallet..."></div>';
     f+=qrFieldHtml('pme',m.qrCode);
@@ -7221,6 +7255,12 @@ function pullFromServer(){
       }
       if(d.smm_modules&&typeof d.smm_modules==='object'){
         localStorage.setItem(MOD_KEY,JSON.stringify(d.smm_modules));
+      }
+      var pmChanged=mergePmFromServer(d.smm_pm);
+      if(pmChanged){
+        localStorage.setItem('smm_payment_methods',JSON.stringify(pms));
+        var activePgPm=document.querySelector('.page.on');
+        if(activePgPm&&activePgPm.id==='pg-settings'&&document.getElementById('pm-tbl')) rPms();
       }
       var refQChanged=false;
       if(d.smm_ref_visit_queue&&Array.isArray(d.smm_ref_visit_queue)){
