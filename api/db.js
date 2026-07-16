@@ -104,7 +104,16 @@ const BASE = 'https://api.jsonbin.io/v3/b/';
 const SITE_ORIGIN = 'https://afghanfollowers.online';
 
 async function readBin(binId) {
-  const r = await fetch(BASE + binId + '/latest', { headers: { 'X-Master-Key': API_KEY } });
+  // See api/paypal-verify.js's readRecord() for why: a write JSONBin's own
+  // PUT confirmed can still be invisible to a GET moments later, and it
+  // happened consistently across repeated real-world attempts rather than
+  // as an occasional fluke — pointing at a caching layer in front of
+  // JSONBin's read endpoint rather than an application-level race. Bust it
+  // explicitly on every read here too, since this is what both the
+  // pre-write re-check and every other caller's baseline read go through.
+  const r = await fetch(BASE + binId + '/latest?_=' + Date.now(), {
+    headers: { 'X-Master-Key': API_KEY, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+  });
   const text = await r.text();
   let j;
   try { j = JSON.parse(text); } catch (e) { return { ok: false, status: r.status, raw: text.slice(0, 300) }; }

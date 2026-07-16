@@ -18,7 +18,16 @@ const API_KEY = process.env.JSONBIN_API_KEY;
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
 
 async function readRecord() {
-  const r = await fetch(JSONBIN_BASE + BIN_ID + '/latest', { headers: { 'X-Master-Key': API_KEY } });
+  // The retry-until-verified loop below proved a write JSONBin's own PUT
+  // confirmed can still be invisible to a GET moments later, consistently,
+  // not as an occasional fluke — which stopped looking like an application-
+  // level race and started looking like a caching layer sitting in front
+  // of JSONBin's read endpoint (a CDN in front of `/latest` is a common
+  // setup for exactly this kind of read-heavy endpoint). Bust it explicitly
+  // instead of assuming a plain GET is always live.
+  const r = await fetch(JSONBIN_BASE + BIN_ID + '/latest?_=' + Date.now(), {
+    headers: { 'X-Master-Key': API_KEY, 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+  });
   const j = await r.json();
   if (!r.ok || !j.record) throw new Error('Failed to read database');
   return j.record;
