@@ -1665,7 +1665,8 @@ function getPanelServices(){
       if(arr2&&arr2.length>0){
         return arr2.filter(function(s){return s[10]!==0;}).map(function(s){
           return {id:s[0],svcId:s[1],name:s[2],category:s[3],
-                  provName:s[4],provId:s[5],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true};
+                  provName:s[4],provId:s[5],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true,
+                  cancel:s[11]===1,refill:s[12]===1};
         });
       }
     }
@@ -4559,7 +4560,12 @@ function renderOrdersList(){
     // locally, it doesn't tell the provider to stop, so allowing it would
     // let the provider keep fulfilling the order (spending real money)
     // while the customer got a full refund. Never offer to cancel one.
-    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel!==false)&&!o.provOrderId;
+    // o.cancel must be explicitly true (set at order-creation time from
+    // the service's real cancel capability, as reported by the provider's
+    // own catalog) — a missing/unknown value (older orders predating this
+    // field, or any creation path that doesn't set it) must default to NOT
+    // cancellable, not the reverse.
+    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel===true)&&!o.provOrderId;
     var canRefill=status==='completed'&&(o.refill||false)&&!o.refillRequested;
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
