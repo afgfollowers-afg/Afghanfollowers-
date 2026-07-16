@@ -350,6 +350,14 @@ module.exports = async (req, res) => {
         return Object.keys(map).map(function (k) { return map[k]; });
       }
 
+      // Set below whenever an smm_users write went through the restricted
+      // customer path (or was silently dropped for having no valid
+      // identity at all) instead of the full admin merge — reported back
+      // in the response so a caller that expected admin-level access (an
+      // admin.html write, run with a stale pre-token session) can tell its
+      // "success" toast was a lie instead of finding out only when the
+      // change reappears missing after the next fresh pull.
+      let smmUsersRestricted = false;
       if (body.smm_users && Array.isArray(body.smm_users)) {
         // Until AUTH_JWT_SECRET is configured (see _auth.js), no caller can
         // hold a real token yet — keep today's behavior unchanged rather
@@ -362,6 +370,7 @@ module.exports = async (req, res) => {
           if (auth && auth.role === 'admin') {
             current.smm_users = mergeUsersById(current.smm_users, body.smm_users);
           } else {
+            smmUsersRestricted = true;
             const allowed = sanitizeCustomerUserWrites(body.smm_users, current.smm_users, auth && auth.sub);
             if (allowed.length) current.smm_users = mergeUsersById(current.smm_users, allowed);
           }
@@ -518,7 +527,8 @@ module.exports = async (req, res) => {
         ok: true,
         users: (current.smm_users || []).length,
         orders: (current.smm_orders || []).length,
-        ts: current.smm_ts
+        ts: current.smm_ts,
+        smm_users_restricted: smmUsersRestricted
       });
     } catch (e) {
       return res.status(200).json({ diag: 'POST_EXCEPTION', error: e.message });

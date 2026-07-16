@@ -4578,6 +4578,23 @@ function showWalletHistory(userId){
   }
   document.getElementById('m-wallet-history').classList.add('open');
 }
+// Wallet-balance writes previously fired via a bare fetch(...).catch(...)
+// that never looked at the response — a toast always said "success" even
+// when the server actually rejected the write (e.g. this admin's own
+// session pre-dating server-side auth, so it carries no valid token and
+// api/db.js's write gate silently drops the change). Checking
+// smm_users_restricted here means that now surfaces immediately instead
+// of only being discovered later when the balance reappears missing.
+function pushSmmUsersChecked(users){
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_users:users,smm_ts:Date.now()})})
+    .then(function(r){return r.json();})
+    .then(function(resp){
+      if(resp&&resp.smm_users_restricted){
+        toast('⚠️ NOT saved to server — please log out and log back in, then try again','e');
+      }
+    }).catch(function(){});
+}
 function qAdd(id){
   var a=parseFloat(prompt('Add amount ($):','10'));
   if(!a||isNaN(a))return;
@@ -4591,8 +4608,7 @@ function qAdd(id){
     if(!u.transactions) u.transactions=[];
     u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:'Added by admin',date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(realU));
-    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    pushSmmUsersChecked(realU);
     var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
     rWallets(realU);
     toast('$'+a+' added to '+dispName.trim(),'s');
@@ -4608,8 +4624,7 @@ function qDed(id){
     if(!u.transactions) u.transactions=[];
     u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:a,desc:'Deducted by admin',date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(realU));
-    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    pushSmmUsersChecked(realU);
     rWallets(realU);
     toast('$'+a+' deducted','w');
   } else toast('Insufficient balance','e');
@@ -4635,8 +4650,7 @@ function addBal(){
     }
     localStorage.setItem('smm_users',JSON.stringify(realU));
     localStorage.setItem('smm_admin_updated',Date.now().toString());
-    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+    pushSmmUsersChecked(realU);
     var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
     rWallets(realU);
     cm('m-add-bal');
@@ -4662,8 +4676,7 @@ function deductBal(){
   u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
   localStorage.setItem('smm_users',JSON.stringify(realU));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
-  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_users:realU,smm_ts:Date.now()})}).catch(function(){});
+  pushSmmUsersChecked(realU);
   var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
   rWallets(realU);
   cm('m-add-bal');
@@ -6771,6 +6784,19 @@ function checkAdminSession(){
     var s=JSON.parse(d);
     var durH=parseInt(localStorage.getItem('smm_admin_session_dur')||'8');
     if(Date.now()-s.ts>durH*3600000){
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+      return false;
+    }
+    // A session created before server-side auth was turned on has no
+    // token — api/db.js's write gate now treats that as no identity at
+    // all, so every smm_users write this admin makes (Add Balance, approve
+    // payment, edit user, ...) would silently no-op: the local UI still
+    // shows a success toast (it never checks the server's response), but
+    // the change never actually reaches the server, and reappears missing
+    // the moment fresh data is pulled. Treat a tokenless session as
+    // invalid here, the one place every admin.html load already checks,
+    // instead of guarding each write function individually.
+    if(!s.token){
       localStorage.removeItem(ADMIN_SESSION_KEY);
       return false;
     }
