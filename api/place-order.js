@@ -9,7 +9,7 @@
 // sync-orders.js's dispatchOneOrder() — the provider's URL/key never leave
 // the server. Dispatch still happens immediately (not on the next cron);
 // this is the on-demand counterpart to that file's daily retry sweep.
-const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE } = require('./_dbkey');
 const { dispatchOneOrder } = require('./sync-orders');
 
 const SITE = 'https://afghanfollowers.online';
@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: false, error: 'Missing orderId' });
     }
 
-    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const order = (db.smm_orders || []).find((o) => String(o.id) === String(orderId));
     if (!order) {

@@ -14,7 +14,7 @@
 // hashPass()/genSalt() byte-for-byte, so no existing account needs a forced
 // reset) here on the server, and only then issue a signed session token
 // (see _auth.js) that api/db.js and api/paypal-verify.js can trust.
-const { dbHeaders } = require('./_dbkey');
+const { dbHeaders, API_BASE } = require('./_dbkey');
 const { hashPass, genSalt } = require('./_passhash');
 const { signToken, AUTH_CONFIGURED } = require('./_auth');
 
@@ -29,7 +29,7 @@ async function handleLogin(body) {
     return { ok: false, error: 'Missing email/phone or password' };
   }
 
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   const users = db.smm_users || [];
   const user = email
@@ -53,7 +53,7 @@ async function handleLogin(body) {
 
   if (upgrade) {
     const updatedUser = Object.assign({}, user, upgrade);
-    await fetch(SITE + '/api/db', {
+    await fetch(API_BASE + '/api/db', {
       method: 'POST', headers: dbHeaders(),
       body: JSON.stringify({ smm_users: [updatedUser], smm_ts: Date.now() })
     });
@@ -79,7 +79,7 @@ async function handleRegister(body) {
   if (!email && !phone) return { ok: false, error: 'Email or phone is required' };
   if (!password || String(password).length < 8) return { ok: false, error: 'Password must be at least 8 characters' };
 
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   const users = db.smm_users || [];
   if (email && users.some((u) => u.email && u.email.toLowerCase() === email)) {
@@ -98,7 +98,7 @@ async function handleRegister(body) {
     wallet: [], transactions: [], extra
   };
 
-  await fetch(SITE + '/api/db', {
+  await fetch(API_BASE + '/api/db', {
     method: 'POST', headers: dbHeaders(),
     body: JSON.stringify({ smm_users: [newUser], smm_ts: Date.now() })
   });
@@ -115,7 +115,7 @@ async function handleAdminLogin(body) {
   const password = body.password;
   if (!username || !password) return { ok: false, error: 'Missing username or password' };
 
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   const creds = (db.smm_admin_creds && db.smm_admin_creds.username && db.smm_admin_creds.password)
     ? db.smm_admin_creds

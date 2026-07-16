@@ -5,7 +5,7 @@
 // admin) can trigger a broadcast without needing to know either secret.
 
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE } = require('./_dbkey');
 
 // Vercel only gives a 2-letter ISO country code — spell out the ones most
 // relevant to this site's audience so the notification reads naturally;
@@ -53,7 +53,7 @@ module.exports = async (req, res) => {
       message += '\n🌍 ' + (cityDecoded ? cityDecoded + ', ' : '') + countryName;
     }
 
-    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
 
