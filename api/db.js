@@ -7,7 +7,7 @@
 
 const zlib = require('zlib');
 const { DB_SERVICE_KEY } = require('./_dbkey');
-const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
+const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 
 // Transaction types that credit or debit a wallet by admin/server decision
 // rather than the customer's own in-the-moment action — never allowed to
@@ -449,6 +449,7 @@ module.exports = async (req, res) => {
       // wrote in between (see below) — reconcileBalance's per-transaction
       // recovery only works if it's comparing against a baseline that's as
       // fresh as possible.
+      let smmUsersAuthDiagnostic = null;
       function computeMergedUsers(baselineUsers) {
         if (!AUTH_CONFIGURED) {
           return { merged: mergeUsersById(baselineUsers, body.smm_users, true), restricted: false };
@@ -457,6 +458,12 @@ module.exports = async (req, res) => {
         if (smmUsersAuth && smmUsersAuth.role === 'admin') {
           return { merged: mergeUsersById(baselineUsers, body.smm_users, true), restricted: false };
         }
+        // The secret-fingerprint check already ruled out a mismatched
+        // AUTH_JWT_SECRET between processes — capture exactly why THIS
+        // token still failed (missing header, bad signature, expired,
+        // wrong role) so a server-to-server caller can report it directly
+        // instead of the mystery repeating with no way to narrow further.
+        smmUsersAuthDiagnostic = smmUsersAuthDiagnostic || diagnoseAuth(req);
         const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub);
         return { merged: allowed.length ? mergeUsersById(baselineUsers, allowed) : baselineUsers, restricted: true };
       }
@@ -680,7 +687,8 @@ module.exports = async (req, res) => {
         // signed this token with" against "the secret db.js verified it
         // against" in the very same round trip, instead of guessing —
         // see _auth.js's SECRET_FINGERPRINT for why this is safe to expose.
-        authSecretFingerprint: smmUsersRestricted ? SECRET_FINGERPRINT : undefined
+        authSecretFingerprint: smmUsersRestricted ? SECRET_FINGERPRINT : undefined,
+        authDiagnostic: smmUsersAuthDiagnostic || undefined
       });
     } catch (e) {
       return res.status(200).json({ diag: 'POST_EXCEPTION', error: e.message });
