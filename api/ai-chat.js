@@ -4,14 +4,14 @@
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const SITE = 'https://afghanfollowers.online';
-const { DB_SERVICE_KEY, dbHeaders, API_BASE } = require('./_dbkey');
+const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
 // Best-effort ping to the admin's personal Telegram so customer support
 // chat questions don't just vanish — reuses the same bot config the rest
 // of the site already sends notifications through.
 async function notifyAdminOfChat(message, reply) {
   try {
-    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
     if (!cfg.token || !cfg.chatId) return;

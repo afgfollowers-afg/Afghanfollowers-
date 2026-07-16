@@ -9,7 +9,7 @@
 // PayPal itself confirms the order is COMPLETED and the amount matches. The
 // crediting decision never depends on trusting anything the client sent.
 
-const { dbHeaders, DB_SERVICE_KEY, API_BASE } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
 const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 
 const SITE = 'https://afghanfollowers.online';
@@ -205,7 +205,7 @@ module.exports = async (req, res) => {
     // Treat a restricted write as a failure requiring retry, the same way
     // admin.html/smm-panel.html already do for their own writes.
     async function writeCredit() {
-      const r = await fetch(API_BASE + '/api/db', {
+      const r = await fetchInternal(API_BASE + '/api/db', {
         method: 'POST',
         headers: dbHeaders(),
         body: JSON.stringify({
