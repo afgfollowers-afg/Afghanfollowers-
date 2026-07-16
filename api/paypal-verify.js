@@ -156,17 +156,19 @@ module.exports = async (req, res) => {
     processed.push(orderId);
     if (processed.length > 2000) processed.splice(0, processed.length - 2000);
 
-    // The response used to be reported to the client as soon as this fetch
-    // resolved, without ever checking whether the write actually succeeded
-    // — a transient failure writing to the database (JSONBin hiccup, an
-    // unexpected auth rejection, anything writeBin() surfaces as
-    // PUT_MAIN_FAILED) still returned "credited!" to the customer, whose
-    // balance then never actually changed server-side. It looked exactly
-    // like a real credit right up until their next fresh login pulled the
-    // server's true, unchanged balance. Confirm the write actually landed
-    // (with one retry for a transient blip) before telling the customer
-    // it's real — this order hasn't been marked processed yet, so a retry
-    // from here is safe and won't be rejected as a duplicate.
+    // The response used to be reported to the client as soon as the write
+    // fetch resolved with ok:true — but a diagnostic added to check this
+    // proved that isn't sufficient: api/db.js can report ok:true for a
+    // write whose own transaction is verifiably GONE on an immediate
+    // read-back moments later, within this same request. Whatever the
+    // exact cause (a race with something else, an inconsistency at the
+    // database layer — inconclusive so far), "the API call returned
+    // ok:true" is not being treated as good enough anymore. Loop:
+    // write, then independently verify the transaction is actually
+    // present via a completely separate read, and only stop once that
+    // read-back genuinely confirms it — not just once the write call
+    // itself reported success. This order hasn't been marked processed
+    // until a verified write lands, so re-attempting is always safe.
     async function writeCredit() {
       const r = await fetch(SITE + '/api/db', {
         method: 'POST',
@@ -180,32 +182,27 @@ module.exports = async (req, res) => {
       const j = await r.json().catch(() => null);
       return !!(j && j.ok === true);
     }
-    let saved = await writeCredit();
-    if (!saved) saved = await writeCredit();
+    async function verifyLanded() {
+      try {
+        const verifyRecord = await readRecord();
+        const verifyUser = (verifyRecord.smm_users || []).find((u) => String(u.id) === String(userId));
+        return !!(verifyUser && (verifyUser.transactions || []).some((t) => t && t.id === newTx.id));
+      } catch (e) { return false; }
+    }
+    let saved = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 4;
+    while (!saved && attempts < MAX_ATTEMPTS) {
+      attempts++;
+      const wroteOk = await writeCredit();
+      if (wroteOk) saved = await verifyLanded();
+    }
     if (!saved) {
       return res.status(200).json({
         ok: false,
-        error: 'Payment was verified with PayPal but could not be saved — please contact support with your PayPal receipt (Order: ' + orderId + ').'
+        error: 'Payment was verified with PayPal but could not be reliably saved — please contact support with your PayPal receipt (Order: ' + orderId + ').'
       });
     }
-
-    // DIAGNOSTIC ONLY (temporary): writeCredit() above already confirmed
-    // api/db.js reported ok:true for this write — but every fix attempted
-    // for "balance disappears after a refresh" so far hasn't stopped the
-    // report from recurring, including one that specifically shrunk the
-    // known race window. Re-read the record ONE more time, immediately,
-    // completely independent of that write's own confirmation, to see
-    // whether the transaction is durably there a few hundred milliseconds
-    // later — narrowing down whether the loss happens within this same
-    // request (a write/read issue at the database layer itself) or only
-    // shows up later (confirming it's still a race from elsewhere).
-    let selfCheckOk = null;
-    try {
-      const verifyRecord = await readRecord();
-      const verifyUser = (verifyRecord.smm_users || []).find((u) => String(u.id) === String(userId));
-      selfCheckOk = !!(verifyUser && (verifyUser.transactions || []).some((t) => t && t.id === newTx.id));
-    } catch (e) { selfCheckOk = null; }
-
     // Best-effort admin notification — must never fail the verified response.
     try {
       const cfg = record.smm_tg_bot || {};
@@ -216,7 +213,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({
             chat_id: cfg.chatId,
             parse_mode: 'HTML',
-            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\nOrder: ${orderId}\nImmediate self-check (transaction still present a moment later): ${selfCheckOk === null ? 'error checking' : selfCheckOk ? '✅ yes' : '❌ NO — lost within this same request'}`
+            text: `✅ <b>PayPal Verified & Credited</b>\nUser: ${updatedUser.fname || updatedUser.email || userId}\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\nOrder: ${orderId}\nWrite verified present on read-back${attempts > 1 ? ` (needed ${attempts} attempts — see if this keeps happening)` : ''}`
           })
         });
       }
