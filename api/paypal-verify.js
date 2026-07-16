@@ -16,6 +16,16 @@ const SITE = 'https://afghanfollowers.online';
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const API_KEY = process.env.JSONBIN_API_KEY;
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
+// Bumped on every deploy of this file specifically. Included in every
+// response (success or failure) so it's directly visible on the
+// customer's own screen without an extra step — after repeated fixes
+// that tested correctly in isolation but showed no change in production
+// behavior (including a diagnostic Telegram message that reportedly never
+// arrived at all, which should be impossible if this code were actually
+// running), this is the fastest way to confirm whether Vercel is truly
+// serving the latest deploy of this specific function or something
+// (a stale build, a caching layer) is still serving an old one.
+const DEPLOY_MARKER = 'pv-2026-07-16-v9-retry-diag';
 
 async function readRecord() {
   // The retry-until-verified loop below proved a write JSONBin's own PUT
@@ -52,6 +62,7 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('X-Deploy-Marker', DEPLOY_MARKER);
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
@@ -243,7 +254,8 @@ module.exports = async (req, res) => {
       } catch (e) { /* best-effort */ }
       return res.status(200).json({
         ok: false,
-        error: 'Payment was verified with PayPal but could not be reliably saved — please contact support with your PayPal receipt (Order: ' + orderId + ').'
+        deployMarker: DEPLOY_MARKER,
+        error: 'Payment was verified with PayPal but could not be reliably saved [' + DEPLOY_MARKER + '] — please contact support with your PayPal receipt (Order: ' + orderId + ').'
       });
     }
     // Best-effort admin notification — must never fail the verified response.
@@ -266,8 +278,8 @@ module.exports = async (req, res) => {
     // local copy of the user's history immediately — the balance patch
     // alone (see smm-panel.html's verifyPayPalOrder()) left Payment History
     // showing nothing for this deposit until the next full server sync.
-    return res.status(200).json({ ok: true, credited: credit, newBalance: newBalance, transaction: newTx });
+    return res.status(200).json({ ok: true, credited: credit, newBalance: newBalance, transaction: newTx, deployMarker: DEPLOY_MARKER });
   } catch (e) {
-    return res.status(200).json({ ok: false, error: e.message });
+    return res.status(200).json({ ok: false, deployMarker: DEPLOY_MARKER, error: e.message + ' [' + DEPLOY_MARKER + ']' });
   }
 };
