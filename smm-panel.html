@@ -1583,6 +1583,14 @@ function saveCurrentUser(u){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({smm_users:users,smm_orders:_syncOrders,smm_ts:Date.now()})
+    }).then(function(r){return r.json();}).then(function(resp){
+      // The page-load check already sends a session with no token back to
+      // login before it can reach any of this — this covers the narrower
+      // case of a token expiring later in an already-open tab (e.g. a
+      // refund from cancelOrder()), so that doesn't silently vanish too.
+      if(resp&&resp.smm_users_restricted){
+        showToast('⚠️ Not saved — please log out and log back in, then try again','e');
+      }
     }).catch(function(){});
   }catch(e){}
 }
@@ -1657,7 +1665,8 @@ function getPanelServices(){
       if(arr2&&arr2.length>0){
         return arr2.filter(function(s){return s[10]!==0;}).map(function(s){
           return {id:s[0],svcId:s[1],name:s[2],category:s[3],
-                  provName:s[4],provId:s[5],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true};
+                  provName:s[4],provId:s[5],myRate:s[7],price:s[7],min:s[8],max:s[9],active:true,
+                  cancel:s[11]===1,refill:s[12]===1};
         });
       }
     }
@@ -2520,6 +2529,14 @@ function placeOrder(){
     // Cleared so the disclaimer is required again before the *next* order —
     // it should be re-acknowledged every time, not just once per account.
     me.dropDisclaimerAgreedAt=null;
+    // api/db.js's write gate (see sanitizeCustomerUserWrites) only accepts
+    // a customer-authored balance DECREASE when it's justified by a new
+    // 'spend'/'withdrawal' transaction of the exact same amount — without
+    // one, this deduction used to be silently rejected server-side, so the
+    // order would look free locally but the server never actually charged
+    // for it (and the balance would "come back" on the next sync).
+    if(!me.transactions) me.transactions=[];
+    me.transactions.unshift({id:Date.now(),type:'spend',amount:cost,desc:'Order: '+svcName,date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(allUsers));
     _currentUser=me;
   }
@@ -4538,7 +4555,17 @@ function renderOrdersList(){
     var cost=parseFloat(o.cost||o.totalCost||0);
     var remain=o.remain!==undefined?o.remain:(status==='completed'?0:o.qty);
     var startCount=o.startCount||o.start_count||0;
-    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel!==false);
+    // Once an order has a provOrderId it's already been sent to the
+    // provider — cancelling it here only marks it cancelled and refunds
+    // locally, it doesn't tell the provider to stop, so allowing it would
+    // let the provider keep fulfilling the order (spending real money)
+    // while the customer got a full refund. Never offer to cancel one.
+    // o.cancel must be explicitly true (set at order-creation time from
+    // the service's real cancel capability, as reported by the provider's
+    // own catalog) — a missing/unknown value (older orders predating this
+    // field, or any creation path that doesn't set it) must default to NOT
+    // cancellable, not the reverse.
+    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel===true)&&!o.provOrderId;
     var canRefill=status==='completed'&&(o.refill||false)&&!o.refillRequested;
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
@@ -4576,6 +4603,29 @@ function cancelOrder(id){
   var o=orders.find(function(x){return String(x.id)===String(id);});
   if(!o){showToast('Order not found','e');return;}
   if(o.status==='cancelled'||o.status==='canceled'){showToast('Order already cancelled','w');return;}
+  if(o.provOrderId){showToast('This order was already sent to the provider and can no longer be cancelled here.','e');return;}
+
+  // The Cancel button is already hidden once an order has a provOrderId,
+  // but that local check can be a moment behind the real dispatch (a
+  // customer clicking right as the order goes out) — re-verify the live
+  // server state before actually refunding, so that race can't turn into
+  // a free order (customer refunded while the provider still fulfills it).
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    var freshOrder=(d&&Array.isArray(d.smm_orders)?d.smm_orders:orders).find(function(x){return String(x.id)===String(id);});
+    if(freshOrder&&freshOrder.provOrderId){
+      showToast('This order was just sent to the provider and can no longer be cancelled.','e');
+      renderOrdersList();
+      return;
+    }
+    finishCancelOrder(id);
+  }).catch(function(){
+    showToast('Could not verify this order\'s current status — please try again','e');
+  });
+}
+function finishCancelOrder(id){
+  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o) return;
   var refund=parseFloat(o.cost||o.totalCost||0);
   o.status='cancelled';
   localStorage.setItem('smm_orders',JSON.stringify(orders));

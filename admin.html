@@ -2241,7 +2241,9 @@ function saveServices(arr){
       s.id,s.svcId||'',s.name||'',s.category||'',
       s.provName||'',s.provId||0,s.provRate||0,
       s.myRate||s.price||0,s.min||100,s.max||50000,
-      s.active!==false?1:0
+      s.active!==false?1:0,
+      s.cancel===true?1:0,
+      s.refill===true?1:0
     ];
   });
   localStorage.removeItem(SVC_KEY);
@@ -2283,7 +2285,8 @@ function getServices(){
           id:s[0],svcId:s[1],name:s[2],category:s[3],
           provName:s[4],provId:s[5],provRate:s[6],
           myRate:s[7],price:s[7],min:s[8],max:s[9],
-          active:s[10]!==0
+          active:s[10]!==0,
+          cancel:s[11]===1,refill:s[12]===1
         };
       });
     }
@@ -3343,6 +3346,14 @@ function qiImportOne(btn){
   qiImportSelected();
 }
 
+// Provider APIs report cancel/refill support in inconsistent shapes
+// (boolean true, number 1, or string "1"/"true") — normalize all of them
+// to a real boolean so it round-trips cleanly through the compressed
+// smm_svc array format (0/1) synced to the customer panel.
+function qiTruthy(v){
+  return v===true||v===1||v==='1'||v==='true';
+}
+
 function qiImportSelected(){
   try{
     var provEl=document.getElementById('qi-provider');
@@ -3373,7 +3384,7 @@ function qiImportSelected(){
     var customCat=customCatEl?customCatEl.value.trim():'';
 
     var svcs=getServices();
-    var added=0;var skipped=0;
+    var added=0;var skipped=0;var refreshed=0;
     var ts=Date.now();
 
     // Sort selectedArr by provider order
@@ -3392,8 +3403,16 @@ function qiImportSelected(){
         return String(x.service||x.id||'')===svcIdStr;
       });
       if(!s){skipped++;return;}
-      // Skip if already imported
-      if(svcs.find(function(x){return String(x.svcId)===svcIdStr&&x.provId===provId;})){
+      // Already imported — don't add a duplicate, but do refresh its
+      // cancel/refill capability from the provider in case that changed
+      // (or is only now being captured for a service imported before this
+      // field existed).
+      var existing=svcs.find(function(x){return String(x.svcId)===svcIdStr&&x.provId===provId;});
+      if(existing){
+        var newCancel=qiTruthy(s.cancel),newRefill=qiTruthy(s.refill);
+        if(existing.cancel!==newCancel||existing.refill!==newRefill) refreshed++;
+        existing.cancel=newCancel;
+        existing.refill=newRefill;
         skipped++;return;
       }
       var rate=parseFloat(s.rate||s.price||s.rate_per_1000||0);
@@ -3424,13 +3443,22 @@ function qiImportSelected(){
         min:parseInt(s.min)||100,
         max:parseInt(s.max)||50000,
         type:s.type||'Default',
+        cancel:qiTruthy(s.cancel),
+        refill:qiTruthy(s.refill),
         active:true,
         importedAt:new Date().toISOString()
       });
     });
 
     if(added===0){
-      toast('⚠️ '+skipped+' services already imported or not found','w');
+      if(refreshed>0){
+        saveServices(svcs);
+        syncServicesToPanel(svcs);
+        rSvcs();
+        toast('✅ Refreshed cancel/refill support on '+refreshed+' already-imported service(s)','s');
+      } else {
+        toast('⚠️ '+skipped+' services already imported or not found','w');
+      }
       return;
     }
 
@@ -3538,7 +3566,9 @@ function syncServicesToPanel(svcs){
       s.id,s.svcId||'',s.name||'',s.category||'',
       s.provName||'',s.provId||0,s.provRate||0,
       s.myRate||s.price||0,s.min||100,s.max||50000,
-      s.active!==false?1:0
+      s.active!==false?1:0,
+      s.cancel===true?1:0,
+      s.refill===true?1:0
     ];
   });
   try{localStorage.setItem('smm_svc',JSON.stringify(compressed));}catch(e){}
@@ -4158,6 +4188,31 @@ function deleteStuckOrder(orderId){
   var refund=parseFloat(o.cost||o.totalCost||0);
   if(!confirm('Delete order #'+orderId+' (the provider could not accept it)'+(refund>0?' and refund $'+refund.toFixed(2)+' to '+(o.user||o.email||'the customer'):'')+'?\n\nThis cannot be undone.')) return;
 
+  // The "stuck orders" list is a snapshot from the last sync run (or the
+  // last 30s poll) — it can go stale if this exact order got successfully
+  // dispatched to the provider in between (a retry landing right after
+  // that snapshot, or a manual "Reassign Service"). Refunding an order
+  // that was actually sent would mean losing money twice: once to the
+  // provider (who's now fulfilling it), once back to the customer. Always
+  // re-check the live server state immediately before acting, never trust
+  // the cached snapshot for this decision.
+  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+    var freshOrder=(d&&Array.isArray(d.smm_orders)?d.smm_orders:orders).find(function(x){return String(x.id)===String(orderId);});
+    if(freshOrder&&freshOrder.provOrderId){
+      toast('⚠️ This order was already sent to the provider (Order #'+freshOrder.provOrderId+') — NOT deleted or refunded. Check its real status on the Orders page instead.','e');
+      pullFromServer();
+      return;
+    }
+    finishDeleteStuckOrder(orderId, refund);
+  }).catch(function(){
+    toast('Could not verify this order\'s current status — please try again','e');
+  });
+}
+function finishDeleteStuckOrder(orderId, refund){
+  var orders=getRealOrders();
+  var o=orders.find(function(x){return String(x.id)===String(orderId);});
+  if(!o) return;
+
   var remaining=orders.filter(function(x){return String(x.id)!==String(orderId);});
   localStorage.setItem('smm_orders',JSON.stringify(remaining));
 
@@ -4178,7 +4233,12 @@ function deleteStuckOrder(orderId){
   localStorage.setItem('smm_stuck_orders',JSON.stringify(stuck));
 
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})}).catch(function(){});
+    body:JSON.stringify({smm_orders:remaining,smm_orders_delete_id:orderId,smm_users:users,smm_stuck_orders:stuck,smm_ts:Date.now()})})
+    .then(function(r){return r.json();}).then(function(resp){
+      if(refund>0&&resp&&resp.smm_users_restricted){
+        toast('⚠️ Refund NOT saved to server — please log out and log back in, then retry','e');
+      }
+    }).catch(function(){});
 
   rStuckOrders();rOrders(getRealOrders());notifyPanel();
   toast(refund>0?('🗑 Order deleted — $'+refund.toFixed(2)+' refunded'):'🗑 Order deleted','s');
@@ -7227,6 +7287,17 @@ function pushToServer(){
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_users:users,smm_orders:orders,smm_ref_visit_queue:refQueue,smm_ts:Date.now()})
+  }).then(function(r){return r.json();}).then(function(resp){
+    // This is the single shared push used by ~10+ admin actions (order
+    // status changes, free-likes approval/rejection, refunds, ticket
+    // replies, user edits...) — checking smm_users_restricted here once
+    // covers all of them, instead of a false "success" toast wherever a
+    // stale pre-token session let a user-affecting change silently fail to
+    // reach the server (see pushSmmUsersChecked() for the Wallets-page
+    // version of this same check).
+    if(resp&&resp.smm_users_restricted){
+      toast('⚠️ A change was NOT saved to the server — please log out and log back in','e');
+    }
   }).catch(function(){});
 }
 setInterval(pullFromServer,30000);

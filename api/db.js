@@ -15,8 +15,13 @@ const { getAuth, AUTH_CONFIGURED } = require('./_auth');
 // sanitizeCustomerUserWrites below). A customer submitting their own manual
 // deposit gets 'deposit_pending' (no balance change until an admin
 // approves); PayPal's own auto-credit goes through paypal-verify.js with an
-// admin-equivalent server token, not a customer token.
-const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus', 'refund'];
+// admin-equivalent server token, not a customer token. 'refund' is NOT
+// listed here — smm-panel.html's cancelOrder() lets a customer cancel
+// their own order and refund themselves as a normal self-service action,
+// pre-dating this gate; smm_orders writes aren't validated by this gate at
+// all yet, so a forged order cost feeding a forged refund is a real,
+// separate gap this doesn't close — noted, not fixed here.
+const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus'];
 
 // Restricts an smm_users push from a plain customer token (or no/invalid
 // token at all) to only what that customer could legitimately have caused
@@ -64,6 +69,17 @@ function sanitizeCustomerUserWrites(incoming, currentUsers, subId) {
         const amt = parseFloat(t.amount) || 0;
         if (amt > 0 && amt <= runningBalance) {
           runningBalance = parseFloat((runningBalance - amt).toFixed(2));
+          acceptedTx.push(t);
+        }
+        return;
+      }
+      if (t.type === 'refund') {
+        // cancelOrder() in smm-panel.html — a customer cancelling their own
+        // order and refunding themselves. No upper bound checked against
+        // an actual order here (see the note above PRIVILEGED_TX_TYPES).
+        const amt = parseFloat(t.amount) || 0;
+        if (amt > 0) {
+          runningBalance = parseFloat((runningBalance + amt).toFixed(2));
           acceptedTx.push(t);
         }
         return;
