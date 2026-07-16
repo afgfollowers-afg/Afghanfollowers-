@@ -433,23 +433,28 @@ module.exports = async (req, res) => {
       // "success" toast was a lie instead of finding out only when the
       // change reappears missing after the next fresh pull.
       let smmUsersRestricted = false;
-      if (body.smm_users && Array.isArray(body.smm_users)) {
-        // Until AUTH_JWT_SECRET is configured (see _auth.js), no caller can
-        // hold a real token yet — keep today's behavior unchanged rather
-        // than lock everyone out mid-rollout. Once it's set, this activates
-        // automatically on the next request.
+      let smmUsersAuth = null; // computed once, reused by the re-check right before the write
+      // Factored out so it can run twice against two different baselines:
+      // once now (against the record read at the top of this request), and
+      // once again immediately before the final write if something else
+      // wrote in between (see below) — reconcileBalance's per-transaction
+      // recovery only works if it's comparing against a baseline that's as
+      // fresh as possible.
+      function computeMergedUsers(baselineUsers) {
         if (!AUTH_CONFIGURED) {
-          current.smm_users = mergeUsersById(current.smm_users, body.smm_users, true);
-        } else {
-          const auth = getAuth(req);
-          if (auth && auth.role === 'admin') {
-            current.smm_users = mergeUsersById(current.smm_users, body.smm_users, true);
-          } else {
-            smmUsersRestricted = true;
-            const allowed = sanitizeCustomerUserWrites(body.smm_users, current.smm_users, auth && auth.sub);
-            if (allowed.length) current.smm_users = mergeUsersById(current.smm_users, allowed);
-          }
+          return { merged: mergeUsersById(baselineUsers, body.smm_users, true), restricted: false };
         }
+        smmUsersAuth = smmUsersAuth || getAuth(req);
+        if (smmUsersAuth && smmUsersAuth.role === 'admin') {
+          return { merged: mergeUsersById(baselineUsers, body.smm_users, true), restricted: false };
+        }
+        const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub);
+        return { merged: allowed.length ? mergeUsersById(baselineUsers, allowed) : baselineUsers, restricted: true };
+      }
+      if (body.smm_users && Array.isArray(body.smm_users)) {
+        const usersResult = computeMergedUsers(current.smm_users);
+        current.smm_users = usersResult.merged;
+        smmUsersRestricted = usersResult.restricted;
       }
       if (body.smm_users_delete_id !== undefined) {
         current.smm_users = (current.smm_users || []).filter(function (u) {
@@ -624,6 +629,31 @@ module.exports = async (req, res) => {
         current.smm_users = (current.smm_users || []).map(u =>
           logById[u.id] ? Object.assign({}, u, { emailLog: logById[u.id] }) : u
         );
+      }
+      // JSONBin has no compare-and-swap — two concurrent requests here each
+      // independently read-then-write the WHOLE record, so whichever
+      // finishes last simply overwrites the other's changes outright,
+      // regardless of any per-field merge logic above (that logic only
+      // helps once a request's own baseline already reflects the other
+      // write; it can't if both requests read before either one wrote).
+      // This is exactly how a PayPal credit that lands correctly can still
+      // vanish moments later: this request's own read happened before that
+      // credit's write, so from this request's perspective the credit
+      // never existed to merge against or reconcile. A real fix needs
+      // proper optimistic concurrency (version-checked writes with retry);
+      // as a narrow, practical mitigation for the highest-stakes field,
+      // re-read and redo the smm_users merge one more time immediately
+      // before writing — shrinking the race window from "however long
+      // this whole request took" (PayPal's own API round-trip alone can
+      // run several seconds) down to the handful of milliseconds between
+      // this re-read and the write below.
+      if (body.smm_users && Array.isArray(body.smm_users)) {
+        const recheck = await readBin(BIN_ID);
+        if (recheck.ok && recheck.record && recheck.record.smm_ts !== main.record.smm_ts) {
+          const revisedResult = computeMergedUsers(recheck.record.smm_users || []);
+          current.smm_users = revisedResult.merged;
+          smmUsersRestricted = revisedResult.restricted;
+        }
       }
       current.smm_ts = Date.now();
 

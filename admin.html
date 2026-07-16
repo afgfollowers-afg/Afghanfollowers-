@@ -4596,11 +4596,27 @@ function debugUserServerRaw(userId){
     .then(function(d){
       var u=(d.smm_users||[]).find(function(x){return String(x.id)===String(userId);});
       if(!u){alert('No user with id '+userId+' found in the server\'s current smm_users array.');return;}
+      // JSONBin's free tier caps a single record at 100KB — smm_users lives
+      // in the SAME main record as smm_orders/smm_tickets (see api/db.js's
+      // header comment). If that record is near/over the cap, a write could
+      // behave unpredictably in ways the ok:true check doesn't cleanly
+      // catch. Surface the actual size here so that's visible instead of
+      // just theorized.
+      var totalUsers=(d.smm_users||[]).length;
+      // smm_svc lives in its own separate, gzip-compressed bin (see
+      // api/db.js's header comment) — exclude it here so this reflects the
+      // MAIN bin's actual size (the one smm_users/smm_orders/smm_tickets
+      // share and that's actually subject to the 100KB cap), not inflated
+      // by the services catalog which is stored elsewhere.
+      var mainRecordOnly=Object.assign({},d);
+      delete mainRecordOnly.smm_svc;
+      var mainRecordApproxKB=Math.round(JSON.stringify(mainRecordOnly).length/1024);
       var ex=document.getElementById('m-debug-raw');if(ex)ex.remove();
       var div=document.createElement('div');div.className='mo open';div.id='m-debug-raw';
       div.innerHTML='<div class="md" style="max-width:640px">'
         +'<div class="md-h"><div class="md-t">🔍 Raw server record — id '+userId+'</div><div class="md-x" onclick="document.getElementById(\'m-debug-raw\').remove()">✕</div></div>'
         +'<div class="md-b"><div style="font-size:11px;color:var(--mt);margin-bottom:8px">Fetched fresh just now (fetched_at: '+new Date().toISOString()+') — this is exactly what the server has, bypassing any local cache on this or any other device.</div>'
+        +'<div style="font-size:12px;background:var(--s2);border-radius:8px;padding:8px 10px;margin-bottom:10px">Full GET /api/db response: ~'+mainRecordApproxKB+'KB across '+totalUsers+' users'+(mainRecordApproxKB>=80?' <strong style="color:var(--rd)">— close to or over JSONBin\'s 100KB free-tier record cap, writes may be unreliable</strong>':'')+'</div>'
         +'<textarea readonly style="width:100%;min-height:340px;font-family:monospace;font-size:11px;background:var(--s2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:10px" onclick="this.select()">'+escHtmlAdmin(JSON.stringify(u,null,2))+'</textarea></div>'
         +'<div class="md-f"><button class="btn btn-g" onclick="document.getElementById(\'m-debug-raw\').remove()">Close</button></div></div>';
       document.body.appendChild(div);
