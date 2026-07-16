@@ -13,7 +13,7 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE } = require('./_dbkey');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -117,7 +117,7 @@ async function dispatchOneOrder(order, dbSnapshot, opts) {
 
   let claimed;
   try {
-    const freshResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const freshResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
     const freshDb = await freshResp.json();
     const freshOrder = (freshDb.smm_orders || []).find(x => String(x.id) === String(order.id));
     if (!freshOrder) return { ok: false, error: 'Order not found' };
@@ -130,7 +130,7 @@ async function dispatchOneOrder(order, dbSnapshot, opts) {
       return { ok: false, error: 'Dispatch already in progress' };
     }
     claimed = Object.assign({}, freshOrder, { dispatchAttemptedAt: Date.now() });
-    await fetch(SITE + '/api/db', {
+    await fetch(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
@@ -163,7 +163,7 @@ async function dispatchOneOrder(order, dbSnapshot, opts) {
       // Write back immediately via a merge-safe single-order update (not a
       // full-array overwrite) so this can never clobber an order placed or
       // edited elsewhere while this call was running.
-      await fetch(SITE + '/api/db', {
+      await fetch(API_BASE + '/api/db', {
         method: 'POST',
         headers: dbHeaders(),
         body: JSON.stringify({ smm_orders: [claimed], smm_ts: Date.now() })
@@ -178,7 +178,7 @@ async function dispatchOneOrder(order, dbSnapshot, opts) {
 
 async function runOrderSyncJob(force) {
   // 1. Get current data
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   const orders = db.smm_orders || [];
   const providers = db.smm_providers || [];
@@ -225,7 +225,7 @@ async function runOrderSyncJob(force) {
   // batched here, so this write only ever touches the diagnostics field.)
   const stuckOrders = retryDebug.filter(d => d.error);
   if (retryDebug.length > 0) {
-    await fetch(SITE + '/api/db', {
+    await fetch(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_stuck_orders: stuckOrders, smm_ts: Date.now() })
@@ -309,7 +309,7 @@ async function runOrderSyncJob(force) {
 
   // 4. Write updated orders back if anything changed
   if (updated > 0) {
-    await fetch(SITE + '/api/db', {
+    await fetch(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
@@ -398,7 +398,7 @@ async function sendViaResend(payload) {
 
 async function runEmailCampaignJob(req, res) {
   try {
-    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const users = db.smm_users || [];
     const cfg = db.smm_email_auto_cfg || {};
@@ -447,7 +447,7 @@ async function runEmailCampaignJob(req, res) {
     }
 
     if (updatedLogs.length) {
-      await fetch(SITE + '/api/db', {
+      await fetch(API_BASE + '/api/db', {
         method: 'POST',
         headers: dbHeaders(),
         body: JSON.stringify({ smm_users_email_log: updatedLogs, smm_ts: Date.now() })
@@ -495,7 +495,7 @@ function dayOfYear() {
 }
 
 async function generateAiBlogPost(topic, platform) {
-  const resp = await fetch(SITE + '/api/ai-chat', {
+  const resp = await fetch(API_BASE + '/api/ai-chat', {
     method: 'POST',
     headers: dbHeaders(),
     body: JSON.stringify({ mode: 'generate_blog', topic: topic })
@@ -560,7 +560,7 @@ async function broadcastNewPost(post, tgCfg) {
 }
 
 async function runDailyContentJob() {
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
 
   // This endpoint has no auth and is hit by more than just the daily cron
@@ -595,7 +595,7 @@ async function runDailyContentJob() {
 
   const combined = newPosts.concat(existing).slice(0, BLOG_POST_CAP);
 
-  await fetch(SITE + '/api/db', {
+  await fetch(API_BASE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
     body: JSON.stringify({ smm_blog: combined, smm_last_daily_content_date: today, smm_ts: Date.now() })
@@ -617,7 +617,7 @@ async function runAutoPostJob() {
   let tgCfg = {};
   const today = todayKey();
   try {
-    const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+    const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     tgCfg = db.smm_tg_bot || {};
     // Same reasoning as runDailyContentJob's guard — this endpoint gets hit
@@ -729,7 +729,7 @@ async function runAutoPostJobInner(tgCfg, today) {
   }
 
   if (today) {
-    await fetch(SITE + '/api/db', {
+    await fetch(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_last_autopost_date: today, smm_ts: Date.now() })
@@ -773,7 +773,7 @@ const BULK_EMAIL_TOPICS = [
 ];
 
 async function runBulkEmailCampaignJob() {
-  const dbResp = await fetch(SITE + '/api/db', { headers: dbHeaders() });
+  const dbResp = await fetch(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   const listData = db.smm_bulk_campaign_list;
   const cfg = db.smm_email_auto_cfg || {};
@@ -812,7 +812,7 @@ async function runBulkEmailCampaignJob() {
   const topic = BULK_EMAIL_TOPICS[dayOfYear() % BULK_EMAIL_TOPICS.length];
   let subject = null, innerHtml = null;
   try {
-    const aiResp = await fetch(SITE + '/api/ai-chat', {
+    const aiResp = await fetch(API_BASE + '/api/ai-chat', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ mode: 'generate_email', topic, lang: 'fa' })
@@ -847,7 +847,7 @@ async function runBulkEmailCampaignJob() {
     else failed++;
   }
 
-  await fetch(SITE + '/api/db', {
+  await fetch(API_BASE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
     body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })

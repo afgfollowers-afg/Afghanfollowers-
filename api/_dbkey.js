@@ -26,4 +26,20 @@ function dbHeaders(extra) {
   return headers;
 }
 
-module.exports = { dbHeaders, DB_SERVICE_KEY };
+// Base URL for server-to-server calls back into this same deployment's own
+// API routes (e.g. paypal-verify.js -> /api/db). Deliberately NOT the
+// public custom domain: if the custom domain has an apex<->www redirect
+// configured (common Vercel setup — one is primary, the other 301/308s to
+// it), a request across that redirect changes origin, and per the Fetch
+// spec, sensitive headers — Authorization, Cookie — are stripped from a
+// cross-origin redirected request while ordinary headers like x-db-key are
+// not. That silently turned every admin-role service token into "no
+// Authorization header received" by the time it reached db.js, even though
+// dbHeaders() built it correctly and the two processes agreed on the same
+// AUTH_JWT_SECRET (see diagnoseAuth() in _auth.js). VERCEL_URL is the
+// deployment's own host, which the platform serves directly with no
+// custom-domain redirect in front of it, so calls through it never cross
+// an origin boundary and keep every header intact.
+const API_BASE = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'https://afghanfollowers.online';
+
+module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE };
