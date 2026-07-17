@@ -3375,7 +3375,7 @@ function initAddFunds(){
   }
   sel.innerHTML='<option value="">— Select Method —</option>';
   methods.forEach(function(m){
-    sel.innerHTML+='<option value="'+m.key+'">'+m.icon+' '+m.name+'</option>';
+    sel.innerHTML+='<option value="'+escHtml(m.key)+'">'+escHtml(m.icon)+' '+escHtml(m.name)+'</option>';
   });
   var noMsg=document.getElementById('af-no-methods');
   if(methods.length){if(noMsg)noMsg.style.display='none';}
