@@ -1753,8 +1753,8 @@ function rProvs(){
   var h='<table><thead><tr><th>Provider</th><th>URL</th><th>Balance</th><th>Services</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<provs.length;i++){
     var p=provs[i];var sc=p.services?p.services.length:0;
-    h+='<tr><td><div style="font-weight:700;font-size:13px">'+p.name+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'%</div></td>';
-    h+='<td style="font-size:11px;color:var(--mt)">'+p.url+'</td>';
+    h+='<tr><td><div style="font-weight:700;font-size:13px">'+escHtmlAdmin(p.name)+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'%</div></td>';
+    h+='<td style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(p.url)+'</td>';
     h+='<td><span id="bal-'+p.id+'" style="cursor:pointer;color:'+(p.balance?'var(--gr)':'var(--mt)')+';font-weight:700;font-size:13px" onclick="chkBal('+p.id+')" title="Click to check balance">'+(p.balance?'$'+p.balance:'↻ Check')+'</span></td>';
     h+='<td><span class="b '+(sc?'bg':'by')+'" style="cursor:pointer" onclick="showQuickImport('+p.id+')" title="Search, filter and import services from this provider">'+(sc?sc+' services':'Load Services')+'</span></td>';
     h+='<td><div style="display:flex;gap:5px"><button class="btn btn-p btn-sm" onclick="editProv('+p.id+')">⚙ Edit</button><button class="btn btn-d btn-sm btn-ico" onclick="delProv('+p.id+')">✕</button></div></td></tr>';
@@ -2959,11 +2959,11 @@ function qiLoadServices(){
     document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">⚠️ No API Key — Edit provider first</div>';
     return;
   }
-  document.getElementById('qi-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--mt)"><div style="font-size:32px;margin-bottom:8px">⏳</div>Loading from '+p.name+'...</div>';
+  document.getElementById('qi-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--mt)"><div style="font-size:32px;margin-bottom:8px">⏳</div>Loading from '+escHtmlAdmin(p.name)+'...</div>';
   callProviderAPI(p.url,p.key,'services')
     .then(function(data){
       if(data.error){
-        document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+data.error+'</div>';
+        document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+escHtmlAdmin(data.error)+'</div>';
         return;
       }
       if(!Array.isArray(data)){
@@ -2981,7 +2981,7 @@ function qiLoadServices(){
       toast('✅ Loaded '+data.length+' services (in memory)','s');
     })
     .catch(function(e){
-      document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+e.message+'<br><small style="color:var(--mt)">Make sure Netlify proxy is deployed</small></div>';
+      document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+escHtmlAdmin(e.message)+'<br><small style="color:var(--mt)">Make sure Netlify proxy is deployed</small></div>';
     });
 }
 
@@ -4038,15 +4038,30 @@ function approveFreeLikes(id){
   // file's neverSent filter for the other half of this fix).
   o.dispatchAttemptedAt=Date.now();
   localStorage.setItem('smm_orders',JSON.stringify(orders));
+  rOrders(getRealOrders());notifyPanel();
+  toast('✅ Approved — delivery started','s');
 
   // Dispatch to the real provider now that it's approved. The provider's
   // URL/API key never travel through this browser — the server resolves
   // them itself from smm_providers and dispatches (dispatchOneOrder() in
   // sync-orders.js), which already persists provOrderId directly, so no
   // separate write-back is needed here either.
+  //
+  // /api/place-order immediately does its own GET /api/db to look this
+  // order up server-side before dispatching — the same race that broke
+  // customer placeOrder() (fixed by sequencing there): firing this order-
+  // status POST and the place-order call in parallel let place-order.js's
+  // read land while the order was still 'pending_approval' server-side,
+  // which dispatchOneOrder() treats as an already-finished order and
+  // silently refuses to dispatch — while the admin still saw "Approved —
+  // delivery started" with no error at all. Wait for the status POST to
+  // actually land first.
+  var statusPush=fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_orders:orders,smm_ts:Date.now()})}).catch(function(){});
   if(o.svcId&&o.provId){
-    fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({orderId:o.id})
+    statusPush.then(function(){
+      return fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:o.id})});
     }).then(function(r){return r.json();}).then(function(d){
       if(d&&d.ok&&d.order){
         var ords2=getRealOrders();
@@ -4054,13 +4069,17 @@ function approveFreeLikes(id){
         if(lo){
           lo.provOrderId=d.order;
           localStorage.setItem('smm_orders',JSON.stringify(ords2));
+          var opPg=document.querySelector('.page.on');
+          if(opPg&&opPg.id==='pg-orders') rOrders(getRealOrders());
         }
+      } else {
+        toast('⚠️ Approved, but provider dispatch failed: '+(d&&d.error?d.error:'unknown error')+' — will retry automatically','e');
       }
-    }).catch(function(){});
+    }).catch(function(){
+      toast('⚠️ Approved, but could not reach the dispatch endpoint — will retry automatically','e');
+    });
   }
-
-  rOrders(getRealOrders());notifyPanel();pushToServer();
-  toast('✅ Approved — delivery started','s');
+  pushToServer();
 }
 
 function rejectFreeLikes(id){
@@ -4323,14 +4342,14 @@ function viewTicket(id){
     var isAdmin=m.from==='admin';
     return '<div style="margin-bottom:10px;display:flex;flex-direction:'+(isAdmin?'row-reverse':'row')+';gap:8px">'
       +'<div style="background:'+(isAdmin?'rgba(124,92,252,.2)':'var(--s2)')+';border-radius:10px;padding:10px 14px;max-width:80%;font-size:13px">'
-      +'<div style="font-size:10px;color:var(--mt);margin-bottom:4px">'+(isAdmin?'Admin':'User')+' · '+(m.date||'')+'</div>'
-      +(m.text||m.msg||'')+'</div></div>';
+      +'<div style="font-size:10px;color:var(--mt);margin-bottom:4px">'+(isAdmin?'Admin':'User')+' · '+escHtmlAdmin(m.date||'')+'</div>'
+      +escHtmlAdmin(m.text||m.msg||'')+'</div></div>';
   }).join('');
   var div=document.createElement('div');
   div.className='mo open';div.id='m-view-ticket';
   div.innerHTML='<div class="md" style="max-width:520px">'
     +'<div class="md-h"><div class="md-t">🎫 Ticket #'+t.id+'</div><div class="md-x" id="tkt-x-btn">✕</div></div>'
-    +'<div style="padding:8px 16px;background:rgba(124,92,252,.08);font-size:13px;font-weight:600">'+( t.subject||t.title||'')+'</div>'
+    +'<div style="padding:8px 16px;background:rgba(124,92,252,.08);font-size:13px;font-weight:600">'+escHtmlAdmin(t.subject||t.title||'')+'</div>'
     +'<div class="md-b" style="max-height:280px;overflow-y:auto;padding:12px 16px" id="tkt-msgs-body">'+msgHtml+'</div>'
     +'<div style="padding:12px 16px;border-top:1px solid var(--bd)">'
     +'<textarea class="fi" id="ticket-reply-txt" rows="3" placeholder="Type your reply to the user..." style="margin-bottom:8px;resize:vertical"></textarea>'
@@ -4372,7 +4391,12 @@ function viewTicket(id){
   document.getElementById('tkt-close-btn').onclick=function(){
     var tks=getRealTickets();
     var tk=tks.find(function(x){return String(x.id)===String(id);});
-    if(tk){tk.status='closed';localStorage.setItem('smm_tickets',JSON.stringify(tks));}
+    if(tk){
+      tk.status='closed';
+      localStorage.setItem('smm_tickets',JSON.stringify(tks));
+      fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({smm_tickets:tks,smm_ts:Date.now()})}).catch(function(){});
+    }
     cm('m-view-ticket');
     rTickets(getRealTickets());
     toast('Ticket closed','s');
@@ -4404,7 +4428,12 @@ function replyTicket(id){
 function closeTicketFn(id){
   var tickets=getRealTickets();
   var t=tickets.find(function(x){return String(x.id)===String(id);});
-  if(t){t.status='closed';localStorage.setItem('smm_tickets',JSON.stringify(tickets));}
+  if(t){
+    t.status='closed';
+    localStorage.setItem('smm_tickets',JSON.stringify(tickets));
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_tickets:tickets,smm_ts:Date.now()})}).catch(function(){});
+  }
   var ex=document.getElementById('m-view-ticket');if(ex)ex.remove();
   loadAllRealData();rTickets(tickets);toast('Ticket closed','s');
 }
@@ -4828,8 +4857,8 @@ function rTickets(list){
   var h='<table><thead><tr><th>ID</th><th>User</th><th>Subject</th><th>Priority</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var t=list[i];
-    h+='<tr><td style="color:var(--mt);font-size:11px">#'+t.id+'</td><td style="font-weight:600">'+t.user+'</td>';
-    h+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+t.subject+'</td>';
+    h+='<tr><td style="color:var(--mt);font-size:11px">#'+t.id+'</td><td style="font-weight:600">'+escHtmlAdmin(t.user)+'</td>';
+    h+='<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtmlAdmin(t.subject)+'</td>';
     h+='<td><span class="b '+(pc2[t.priority]||'bp')+'">'+t.priority+'</span></td>';
     h+='<td><span class="b '+(bc[t.status]||'by')+'">'+t.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+t.date+'</td>';
@@ -4853,8 +4882,8 @@ function openTk(id){
   var msgs=(t.messages||[{from:'user',text:t.msg,time:t.date}]);
   var msgsHtml=msgs.map(function(m){
     return '<div style="display:flex;gap:8px;margin-bottom:8px'+(m.from==='admin'?';flex-direction:row-reverse':'')+'">'
-      +'<div style="max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;background:'+(m.from==='admin'?'rgba(124,92,252,.15)':'var(--s2)')+';border:1px solid '+(m.from==='admin'?'rgba(124,92,252,.3)':'var(--bd)')+'">'+m.text
-      +'<div style="font-size:10px;color:var(--mt);margin-top:3px">'+(m.from==='admin'?'👤 Admin':'👥 '+t.user)+' · '+m.time+'</div></div></div>';
+      +'<div style="max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;background:'+(m.from==='admin'?'rgba(124,92,252,.15)':'var(--s2)')+';border:1px solid '+(m.from==='admin'?'rgba(124,92,252,.3)':'var(--bd)')+'">'+escHtmlAdmin(m.text)
+      +'<div style="font-size:10px;color:var(--mt);margin-top:3px">'+(m.from==='admin'?'👤 Admin':'👥 '+escHtmlAdmin(t.user))+' · '+escHtmlAdmin(m.time)+'</div></div></div>';
   }).join('');
   document.getElementById('m-ticket-msg').innerHTML=msgsHtml;
   document.getElementById('tk-status').value=t.status;
@@ -5861,7 +5890,7 @@ function rBonuses(){
   if(!list.length){document.getElementById('bon-tbl').innerHTML='<div class="emp"><div class="emp-i">🎁</div><div class="emp-t">No bonuses</div></div>';return;}
   var h='<table><thead><tr><th>Name</th><th>Type</th><th>Value</th><th>Min Deposit</th><th>Active</th><th></th></tr></thead><tbody>';
   list.forEach(function(b,i){
-    h+='<tr><td style="font-weight:600">'+b.name+'</td>'
+    h+='<tr><td style="font-weight:600">'+escHtmlAdmin(b.name)+'</td>'
       +'<td><span class="b bp">'+b.type+'</span></td>'
       +'<td style="color:var(--gr);font-weight:700">'+(b.type==='percentage'?b.val+'%':'$'+b.val)+'</td>'
       +'<td>$'+b.min+'</td>'
@@ -5921,7 +5950,7 @@ function rAnnouncements(){
   if(!list.length){document.getElementById('ann-tbl').innerHTML='<div class="emp"><div class="emp-i">📢</div><div class="emp-t">No announcements</div></div>';return;}
   var h='<table><thead><tr><th>Title</th><th>Type</th><th>Active</th><th></th></tr></thead><tbody>';
   list.forEach(function(a,i){
-    h+='<tr><td style="font-weight:600">'+a.title+'</td>'
+    h+='<tr><td style="font-weight:600">'+escHtmlAdmin(a.title)+'</td>'
       +'<td><span class="b '+(annTypeBadge[a.type]||'bp')+'">'+(annTypeLabel[a.type]||a.type)+'</span></td>'
       +'<td><div class="tog '+(a.active?'on':'')+'" onclick="togAnn('+i+')"></div></td>'
       +'<td><div style="display:flex;gap:5px"><button class="btn btn-g btn-sm btn-ico" onclick="editAnn('+i+')">✏️</button><button class="btn btn-d btn-sm btn-ico" onclick="delAnn('+i+')">✕</button></div></td></tr>';
@@ -6758,6 +6787,16 @@ async function eaRunEmailCampaign(){
   }
   eaAddLog('📊 Campaign complete: '+sent+' sent, '+failed+' failed','s');
   eaUpdateStats();
+  // emailLog (used above by eaCanSendTo() to enforce the per-user cooldown/
+  // max-emails cap) was only ever written to this browser's localStorage —
+  // a campaign run from a different device, or after this one clears its
+  // storage, had no idea these users were already emailed and could
+  // re-send past the intended limit. Sync once at the end rather than
+  // after every single send, since a campaign can touch hundreds of users.
+  if(sent>0){
+    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({smm_users:eaGetUsers(),smm_ts:Date.now()})}).catch(function(){});
+  }
   return{sent:sent,failed:failed};
 }
 
@@ -6772,7 +6811,12 @@ async function eaSendToUser(userId){
   if(result.ok){
     var users=eaGetUsers();
     var uu=users.find(function(x){return x.id===userId;});
-    if(uu){if(!uu.emailLog)uu.emailLog=[];uu.emailLog.push(new Date().toISOString());localStorage.setItem('smm_users',JSON.stringify(users));}
+    if(uu){
+      if(!uu.emailLog)uu.emailLog=[];uu.emailLog.push(new Date().toISOString());
+      localStorage.setItem('smm_users',JSON.stringify(users));
+      fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({smm_users:users,smm_ts:Date.now()})}).catch(function(){});
+    }
     eaAddLog('✅ Manual email sent to '+u.email,'s');
     toast('Email sent to '+u.email,'s');
     eaLoadUsers();eaUpdateStats();
