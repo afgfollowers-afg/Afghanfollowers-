@@ -244,6 +244,8 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="ni" onclick="go('withdrawals',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>Withdrawals<span class="nbg" id="nb-wd" style="display:none">0</span></div>
     <div class="sb-sec">Support</div>
     <div class="ni" onclick="go('tickets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Tickets<span class="nbg" id="nb-t">5</span></div>
+    <div class="sb-sec">System</div>
+    <div class="ni" onclick="go('alerts',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>System Alerts<span class="nbg" id="nb-al" style="display:none">0</span></div>
     <div class="sb-sec">Config</div>
     <div class="ni" onclick="go('settings',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   </div>
@@ -838,6 +840,18 @@ textarea.fi{resize:vertical;min-height:75px;}
           <select class="fi btn-sm" style="font-size:12px" onchange="filterTickets(this.value)"><option value="all">All</option><option value="open">Open</option><option value="pending">Pending</option><option value="closed">Closed</option></select>
         </div>
         <div class="tw" id="tickets-tbl"></div>
+      </div>
+    </div>
+
+    <!-- SYSTEM ALERTS -->
+    <div class="page" id="pg-alerts">
+      <div class="sec">
+        <div class="sec-h">
+          <div class="sec-t">⚠️ System Alerts</div>
+          <button class="btn btn-d btn-sm" onclick="clearAlerts()">🗑 Clear all</button>
+        </div>
+        <div style="font-size:12px;color:var(--mt);margin:-6px 0 12px">Real backend failures — an order that couldn't be dispatched to its provider, a PayPal credit that exhausted every retry — logged here automatically so they're visible without digging through Telegram history.</div>
+        <div class="tw" id="alerts-tbl"></div>
       </div>
     </div>
 
@@ -1882,7 +1896,7 @@ var pc={instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',tiktok:'#010
 var _selTk=null;
 
 // ═══ NAV ═══
-var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals',tickets:'Tickets',settings:'Settings'};
+var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals',tickets:'Tickets',alerts:'System Alerts',settings:'Settings'};
 function go(pg,el){
   // Hide all pages
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
@@ -1917,6 +1931,7 @@ function go(pg,el){
   else if(pg==='wallets') rWallets(getRealUsers());
   else if(pg==='withdrawals') rWithdrawals(getRealWithdrawals());
   else if(pg==='tickets') rTickets(getRealTickets());
+  else if(pg==='alerts') rAlerts(getRealAlerts());
   else if(pg==='settings') initSettings();
   closeSb();
 }
@@ -4959,6 +4974,62 @@ function tgReply(tkId, replyText, targetChatId){
 
 // Override initDash to also sync tickets from localStorage
 
+// ═══ SYSTEM ALERTS ═══
+// Server-logged real backend failures (api/db.js appends to smm_error_log
+// whenever sync-orders.js's dispatchOneOrder() or paypal-verify.js's retry
+// loop genuinely fails — see _dbkey.js's logSystemError()) — previously
+// visible only in Telegram history, or not at all if Telegram wasn't
+// configured. "Seen" tracking is purely local (a timestamp in this
+// browser's localStorage, same pattern as everything else in this admin
+// panel that isn't itself the source of truth) — opening this page marks
+// everything currently loaded as seen.
+var ALERTS_SEEN_KEY='smm_alerts_seen_ts';
+function getRealAlerts(){
+  try{return JSON.parse(localStorage.getItem('smm_error_log')||'[]');}catch(e){return [];}
+}
+function updateAlertsBadge(){
+  var badge=document.getElementById('nb-al');
+  if(!badge) return;
+  var seenTs=parseInt(localStorage.getItem(ALERTS_SEEN_KEY)||'0',10);
+  var unread=getRealAlerts().filter(function(a){return (a.ts||0)>seenTs;}).length;
+  badge.textContent=unread;
+  badge.style.display=unread?'flex':'none';
+}
+var ALERT_SOURCE_BADGE={dispatch:'bo',paypal:'br'};
+function rAlerts(list){
+  list=list||[];
+  var tbl=document.getElementById('alerts-tbl');
+  if(!tbl) return;
+  if(!list.length){
+    tbl.innerHTML='<div class="emp"><div class="emp-i">✅</div><div class="emp-t">No alerts</div><div class="emp-s">Backend failures (failed order dispatches, PayPal credits that could not be saved) will show up here automatically.</div></div>';
+  }else{
+    var h='<table><thead><tr><th>Time</th><th>Source</th><th>Message</th><th>Details</th></tr></thead><tbody>';
+    for(var i=0;i<list.length;i++){
+      var a=list[i];
+      var timeStr=a.ts?new Date(a.ts).toLocaleString():'';
+      var detailsId='al-d-'+i;
+      h+='<tr><td style="color:var(--mt);font-size:11px;white-space:nowrap">'+timeStr+'</td>';
+      h+='<td><span class="b '+(ALERT_SOURCE_BADGE[a.source]||'by')+'">'+escHtmlAdmin(a.source||'unknown')+'</span></td>';
+      h+='<td style="font-size:12px">'+escHtmlAdmin(a.message||'')+'</td>';
+      h+='<td>'+(a.details?'<button class="btn btn-g btn-sm" onclick="var d=document.getElementById(\''+detailsId+'\');d.style.display=d.style.display===\'none\'?\'block\':\'none\';">Show</button><pre id="'+detailsId+'" style="display:none;font-size:10px;white-space:pre-wrap;max-width:340px;margin-top:6px;color:var(--mt)">'+escHtmlAdmin(JSON.stringify(a.details,null,2))+'</pre>':'—')+'</td>';
+      h+='</tr>';
+    }
+    h+='</tbody></table>';
+    tbl.innerHTML=h;
+  }
+  localStorage.setItem(ALERTS_SEEN_KEY,Date.now().toString());
+  updateAlertsBadge();
+}
+function clearAlerts(){
+  if(!confirm('Clear all system alerts? This cannot be undone.')) return;
+  localStorage.setItem('smm_error_log','[]');
+  rAlerts([]);
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_error_log_clear:true,smm_ts:Date.now()})
+  }).catch(function(){});
+  toast('🗑 Alerts cleared','s');
+}
+
 // ═══ SETTINGS ═══
 function initSettings(){
   setSec('general', document.querySelector('#pg-settings .set-mi'));
@@ -7312,6 +7383,15 @@ function pullFromServer(){
         var localT=getRealTickets();
         localStorage.setItem('smm_tickets',JSON.stringify(mergeByIdPreferServer(d.smm_tickets,localT)));
         changed=true;
+      }
+      if(d.smm_error_log&&Array.isArray(d.smm_error_log)){
+        var newLog=JSON.stringify(d.smm_error_log);
+        if(newLog!==(localStorage.getItem('smm_error_log')||'[]')){
+          localStorage.setItem('smm_error_log',newLog);
+          updateAlertsBadge();
+          var activePgAl=document.querySelector('.page.on');
+          if(activePgAl&&activePgAl.id==='pg-alerts') rAlerts(d.smm_error_log);
+        }
       }
       if(d.smm_admin_creds&&d.smm_admin_creds.username&&d.smm_admin_creds.password){
         localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
