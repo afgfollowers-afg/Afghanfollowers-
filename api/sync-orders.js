@@ -846,6 +846,31 @@ async function runBulkEmailCampaignJob() {
   const fullHtml = wrapBulkEmailHtml(innerHtml, siteName);
   const panelLink = SITE + '/smm-panel.html';
 
+  // Best-effort daily preview copy — lets the admin see exactly what this
+  // job is actually sending each day (the AI-generated content varies by
+  // day, so there was previously no way to know without waiting for a
+  // customer to forward one) without needing to be one of the real
+  // recipients. Uses the same content real recipients get (with the
+  // {{name}}/{{email}} placeholders filled generically, not left raw) but
+  // must never block or fail the real batch below if it errors.
+  if (cfg.dailyPreviewEmail) {
+    try {
+      const previewHtml = fullHtml
+        .replace(/\{\{name\}\}/g, 'دوست عزیز')
+        .replace(/\{\{email\}\}/g, cfg.dailyPreviewEmail)
+        .replace(/\{\{site_name\}\}/g, siteName)
+        .replace(/\{\{panel_link\}\}/g, panelLink);
+      const previewPayload = {
+        from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+        to: [cfg.dailyPreviewEmail],
+        subject: '[Preview] ' + subject + ' (' + recipients.length + ' recipient(s) today)',
+        html: previewHtml
+      };
+      if (cfg.replyTo) previewPayload.reply_to = cfg.replyTo;
+      await sendViaResend(previewPayload);
+    } catch (e) { /* best-effort — must not block the real send below */ }
+  }
+
   let sent = 0, failed = 0;
   for (const r of batch) {
     const personalSubject = subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز');

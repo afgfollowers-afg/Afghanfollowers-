@@ -596,7 +596,9 @@ textarea.fi{resize:vertical;min-height:75px;}
                   <div class="fg"><label class="fl">From Name</label><input class="fi" id="ea-cfg-fname" value="Afghan Followers" placeholder="Afghan Followers"></div>
                   <div class="fg"><label class="fl">Reply-To Email</label><input class="fi" id="ea-cfg-reply" placeholder="support@afghanfollowers.online"></div>
                   <div class="fg"><label class="fl">Daily Send Limit <span style="color:var(--mt);font-weight:400;text-transform:none">(0 = unlimited)</span></label><input type="number" class="fi" id="ea-cfg-daily-limit" value="0" min="0" placeholder="e.g. 100"></div>
+                  <div class="fg"><label class="fl">Daily Preview Email <span style="color:var(--mt);font-weight:400;text-transform:none">(optional)</span></label><input class="fi" id="ea-cfg-daily-preview" placeholder="you@example.com"></div>
                 </div>
+                <div style="font-size:11px;color:var(--mt);margin:-6px 0 12px">If set, a copy of that day's real automated email (the daily bulk campaign — see Vercel's 3am cron) is also sent to this address every day it runs, so you can see exactly what went out.</div>
                 <div style="font-size:11px;color:var(--mt);margin-bottom:12px" id="ea-daily-limit-status"></div>
                 <div style="display:flex;gap:10px">
                   <button class="btn btn-p" onclick="eaSaveCfg()">💾 Save Config</button>
@@ -6224,6 +6226,7 @@ function eaSaveCfg(){
   c.fromName=document.getElementById('ea-cfg-fname').value.trim()||'Afghan Followers';
   c.replyTo=document.getElementById('ea-cfg-reply').value.trim();
   c.dailyLimit=parseInt(document.getElementById('ea-cfg-daily-limit').value)||0;
+  c.dailyPreviewEmail=document.getElementById('ea-cfg-daily-preview').value.trim();
   c.subject=document.getElementById('ea-t-subj').value;
   c.bodyHtml=document.getElementById('ea-t-body').value;
   eaSaveCfgData(c);
@@ -6253,6 +6256,7 @@ function eaLoadCfgUI(){
   if(c.fromName) document.getElementById('ea-cfg-fname').value=c.fromName;
   if(c.replyTo) document.getElementById('ea-cfg-reply').value=c.replyTo;
   document.getElementById('ea-cfg-daily-limit').value=c.dailyLimit||0;
+  if(c.dailyPreviewEmail) document.getElementById('ea-cfg-daily-preview').value=c.dailyPreviewEmail;
   eaUpdateDailyLimitStatus();
   if(c.days) document.getElementById('ea-r-days').value=c.days;
   if(c.maxEmails) document.getElementById('ea-r-max').value=c.maxEmails;
