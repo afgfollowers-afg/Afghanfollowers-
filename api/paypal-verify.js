@@ -9,7 +9,7 @@
 // PayPal itself confirms the order is COMPLETED and the amount matches. The
 // crediting decision never depends on trusting anything the client sent.
 
-const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 
 const SITE = 'https://afghanfollowers.online';
@@ -284,6 +284,9 @@ module.exports = async (req, res) => {
           });
         }
       } catch (e) { /* best-effort */ }
+      logSystemError('paypal', 'PayPal credit for order ' + orderId + ' could NOT be verified after ' + MAX_ATTEMPTS + ' attempts', {
+        orderId: orderId, userId: userId, expectedTxId: newTx.id, attemptLog: attemptLog
+      });
       return res.status(200).json({
         ok: false,
         deployMarker: DEPLOY_MARKER,

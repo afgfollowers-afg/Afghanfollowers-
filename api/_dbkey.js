@@ -76,4 +76,22 @@ async function fetchInternal(url, opts, hopsLeft) {
   return resp;
 }
 
-module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal };
+// Shared, best-effort push into the admin panel's "System Alerts" page
+// (api/db.js appends body.smm_error_log_push to smm_error_log, capped to
+// the most recent 200 entries) — a real backend failure like an order that
+// couldn't be dispatched or a PayPal credit that exhausted every retry used
+// to be visible only in Telegram history (or not at all, if Telegram was
+// misconfigured); this gives the admin one place in the panel itself to see
+// it. Logging a failure must never itself throw or block the caller's own
+// error handling, so every failure here is swallowed.
+async function logSystemError(source, message, details) {
+  try {
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_error_log_push: { source: source, message: message, details: details || null }, smm_ts: Date.now() })
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError };

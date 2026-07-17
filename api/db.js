@@ -516,6 +516,26 @@ module.exports = async (req, res) => {
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
         current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
       }
+      // Best-effort, append-only system error log — surfaced on the admin
+      // panel's "System Alerts" page so a real backend failure (an order
+      // that couldn't be dispatched, a PayPal credit that exhausted every
+      // retry) is visible without digging through Telegram history. Capped
+      // to the most recent 200 entries so it can't grow the main JSONBin
+      // record without bound (see the 100KB-cap notes elsewhere in this
+      // file). Diagnostic-only, not security-sensitive — any first-party
+      // caller past the shared x-db-key gate above can push an entry.
+      if (body.smm_error_log_push && typeof body.smm_error_log_push === 'object') {
+        const entry = Object.assign({}, body.smm_error_log_push, { id: Date.now() + '-' + Math.random().toString(36).slice(2, 8), ts: Date.now() });
+        current.smm_error_log = [entry].concat(Array.isArray(current.smm_error_log) ? current.smm_error_log : []).slice(0, 200);
+      }
+      // Clearing is admin-only — an anonymous caller shouldn't be able to
+      // wipe the admin's only visibility into failures happening elsewhere.
+      if (body.smm_error_log_clear === true) {
+        const clearAuth = AUTH_CONFIGURED ? getAuth(req) : null;
+        if (!AUTH_CONFIGURED || (clearAuth && clearAuth.role === 'admin')) {
+          current.smm_error_log = [];
+        }
+      }
       // Payment methods: admin is the single source of truth for everything
       // EXCEPT secrets (clientSecret, secretKey, apiKey, secKey). Those are
       // stripped out of every GET response (see above), so a browser/device

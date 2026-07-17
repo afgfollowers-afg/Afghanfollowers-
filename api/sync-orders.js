@@ -13,7 +13,7 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -84,7 +84,26 @@ module.exports.dispatchOneOrder = dispatchOneOrder;
 // re-check, two overlapping calls could both see the same "never sent"
 // snapshot and both dispatch the same order to the provider before either
 // wrote back — a genuine duplicate order to the same link.
+//
+// A handful of the core function's failure reasons are routine concurrency
+// guards, not bugs (another call already claimed/finished this exact
+// order) — logging those to the admin panel's System Alerts page would
+// just be noise on every busy moment. Everything else (config missing,
+// the provider itself rejecting the order, a thrown exception) is a real
+// problem worth surfacing, so this thin wrapper is the one place that
+// decides which is which, instead of scattering that judgment across every
+// return statement inside the core function below.
+const BENIGN_DISPATCH_ERRORS = ['Already dispatched or finished', 'Dispatch already in progress'];
 async function dispatchOneOrder(order, dbSnapshot, opts) {
+  const result = await dispatchOneOrderCore(order, dbSnapshot, opts);
+  if (!result.ok && BENIGN_DISPATCH_ERRORS.indexOf(result.error) === -1) {
+    logSystemError('dispatch', 'Order #' + order.id + ' failed to dispatch: ' + result.error, {
+      orderId: order.id, service: order.svcName || order.svc || order.service, error: result.error
+    });
+  }
+  return result;
+}
+async function dispatchOneOrderCore(order, dbSnapshot, opts) {
   opts = opts || {};
   const providers = (dbSnapshot && dbSnapshot.providers) || [];
   const svcList = (dbSnapshot && dbSnapshot.svcList) || [];
