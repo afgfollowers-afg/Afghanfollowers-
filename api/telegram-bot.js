@@ -839,6 +839,47 @@ module.exports = async (req, res) => {
     await showBalance(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
+  // Full step-by-step walkthrough for /buy + /topup — separate from /help
+  // (which is a one-line command index) since a first-time customer needs
+  // the actual sequence of steps and a concrete example, not just a list of
+  // slash commands to guess the order of.
+  if (text === '/guide' || lower.trim() === 'راهنمای خرید' || lower.trim() === 'guide' || lower.trim() === 'how to buy') {
+    await sendMsg(chatId, isEnglish
+      ? `🛍️ <b>How to buy — step by step</b>\n\n`
+        + `1️⃣ Send /buy\n`
+        + `2️⃣ Pick a platform (Instagram, TikTok, YouTube, ...)\n`
+        + `3️⃣ Tap a service from the list (price per 1000 is shown)\n`
+        + `4️⃣ First time only: if your account isn't linked yet, the bot tells you to open the panel → "Free Likes" → "🔗 Connect Telegram" once\n`
+        + `5️⃣ Send the link/username <b>and</b> quantity in one message:\n<code>https://instagram.com/yourpage 1000</code>\n`
+        + `6️⃣ Check the summary (service, cost, balance after) and tap ✅ Confirm\n`
+        + `7️⃣ Done! You get an order number — track it any time with <code>/order 12345</code>\n\n`
+        + `💳 <b>If your balance isn't enough:</b>\n`
+        + `1️⃣ Send /topup (or tap "💳 Top up now" when it's offered)\n`
+        + `2️⃣ Pick a payment method\n`
+        + `3️⃣ Send the amount\n`
+        + `4️⃣ PayPal: tap the payment link, pay, come back and tap "✅ I've paid" — credited instantly\n`
+        + `   Other methods (Binance Pay/USDT/Hawala): pay to the shown address, then send your transaction ID — an admin approves it shortly\n\n`
+        + `🚫 /cancel anytime to abort an order or payment in progress.\n\n`
+        + `Need the full list of commands? Send /help.`
+      : `🛍️ <b>راهنمای خرید — قدم به قدم</b>\n\n`
+        + `1️⃣ دستور /buy را بفرست\n`
+        + `2️⃣ پلتفرم را انتخاب کن (اینستاگرام، تیک‌تاک، یوتیوب، ...)\n`
+        + `3️⃣ از لیست، روی یک سرویس بزن (قیمت هر ۱۰۰۰ تا نشان داده می‌شود)\n`
+        + `4️⃣ فقط بار اول: اگر حسابت به تلگرام وصل نیست، ربات می‌گوید از پنل → «Free Likes» → «🔗 اتصال تلگرام» یک‌بار وصل کن\n`
+        + `5️⃣ لینک/یوزرنیم <b>و</b> تعداد را در یک پیام بفرست:\n<code>https://instagram.com/yourpage 1000</code>\n`
+        + `6️⃣ خلاصه سفارش (سرویس، هزینه، موجودی بعد از خرید) را چک کن و روی ✅ تایید بزن\n`
+        + `7️⃣ تمام! شماره سفارش می‌گیری — هر وقت خواستی با <code>/order 12345</code> پیگیری کن\n\n`
+        + `💳 <b>اگر موجودی کافی نبود:</b>\n`
+        + `1️⃣ /topup را بفرست (یا دکمه‌ی «💳 شارژ حساب» که نشان داده می‌شود را بزن)\n`
+        + `2️⃣ روش پرداخت را انتخاب کن\n`
+        + `3️⃣ مبلغ را بفرست\n`
+        + `4️⃣ PayPal: روی لینک پرداخت بزن، پرداخت را کامل کن، برگرد و «✅ پرداخت کردم» را بزن — همون لحظه شارژ می‌شود\n`
+        + `   بقیه روش‌ها (Binance Pay/USDT/حواله): مبلغ را به آدرس/شناسه‌ی نشان‌داده‌شده واریز کن، سپس شماره تراکنش را بفرست — ادمین به‌زودی تایید می‌کند\n\n`
+        + `🚫 هر زمان با /cancel می‌توانی سفارش یا پرداخت نیمه‌کاره را لغو کنی.\n\n`
+        + `لیست کامل دستورات را می‌خواهی؟ /help را بفرست.`
+    );
+    return res.status(200).send('ok');
+  }
 
   // If this chat is mid-/buy or mid-/topup (waiting for "<link> <quantity>",
   // a top-up amount, or manual payment proof), treat any non-command text as
@@ -916,8 +957,8 @@ module.exports = async (req, res) => {
     // already handled above
   } else if (text === '/start') {
     reply = isEnglish
-      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n🛒 /buy - order a service right here\n💳 /topup - add funds right here (PayPal, Binance Pay, USDT, Hawala)\n💰 /balance - check your wallet balance\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
-      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n🛒 /buy - سفارش مستقیم همین‌جا\n💳 /topup - شارژ مستقیم همین‌جا (PayPal، Binance Pay، USDT، حواله)\n💰 /balance - مشاهده موجودی کیف پول\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
+      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n📖 /guide - step-by-step buying guide\n🛒 /buy - order a service right here\n💳 /topup - add funds right here (PayPal, Binance Pay, USDT, Hawala)\n💰 /balance - check your wallet balance\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
+      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n📖 /guide - راهنمای قدم‌به‌قدم خرید\n🛒 /buy - سفارش مستقیم همین‌جا\n💳 /topup - شارژ مستقیم همین‌جا (PayPal، Binance Pay، USDT، حواله)\n💰 /balance - مشاهده موجودی کیف پول\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
   } else if (/^(سلام|درود|hi|hello|hey)[\s!.]*$/i.test(text)) {
     reply = isEnglish
       ? `👋 Hey ${firstName}, welcome!\n\nAsk me anything about buying followers, likes, views or members — pricing, payment, account safety, whatever's on your mind 😊\n\nOr just send /services to see what we offer.`
@@ -964,8 +1005,8 @@ module.exports = async (req, res) => {
     reply = `🎥 <b>Twitch Services</b>\n\n✅ Followers\n✅ Channel Views\n\n🌐 ${SITE}`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
     reply = isEnglish
-      ? `📋 <b>Help</b>\n\n🛒 /buy - order a service right here (pick platform → service → send link + quantity → confirm)\n💳 /topup - add funds right here — PayPal is credited instantly, other methods are verified by an admin\n💰 /balance - check your wallet balance\n/cancel - abort an in-progress order or payment\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
-      : `📋 <b>راهنما</b>\n\n🛒 /buy - سفارش مستقیم همین‌جا (پلتفرم → سرویس → ارسال لینک و تعداد → تایید)\n💳 /topup - شارژ مستقیم همین‌جا — PayPal فوری اعمال می‌شود، بقیه روش‌ها توسط ادمین تایید می‌شوند\n💰 /balance - مشاهده موجودی کیف پول\n/cancel - لغو سفارش یا پرداخت نیمه‌کاره\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+      ? `📋 <b>Help</b>\n\n📖 /guide - full step-by-step buying guide (start here if you're new)\n🛒 /buy - order a service right here (pick platform → service → send link + quantity → confirm)\n💳 /topup - add funds right here — PayPal is credited instantly, other methods are verified by an admin\n💰 /balance - check your wallet balance\n/cancel - abort an in-progress order or payment\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
+      : `📋 <b>راهنما</b>\n\n📖 /guide - راهنمای کامل قدم‌به‌قدم خرید (اگه تازه‌کاری از اینجا شروع کن)\n🛒 /buy - سفارش مستقیم همین‌جا (پلتفرم → سرویس → ارسال لینک و تعداد → تایید)\n💳 /topup - شارژ مستقیم همین‌جا — PayPal فوری اعمال می‌شود، بقیه روش‌ها توسط ادمین تایید می‌شوند\n💰 /balance - مشاهده موجودی کیف پول\n/cancel - لغو سفارش یا پرداخت نیمه‌کاره\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
     reply = isEnglish
       ? `🔗 <b>Panel link</b>\n\n${SITE}\n\nSign up or log in to get started.`
