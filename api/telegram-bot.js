@@ -1,6 +1,356 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
+const { dispatchOneOrder } = require('./sync-orders');
+
+function escapeHtml(s) {
+  return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function tgApi(token, method, payload) {
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return r.json();
+}
+
+async function getDb() {
+  const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+  return r.json();
+}
+
+async function saveUsers(users) {
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_users: users, smm_ts: Date.now() })
+  });
+}
+
+function findUserByChat(users, chatId) {
+  return (users || []).find(function (u) { return u && u.tgChatId !== undefined && u.tgChatId !== null && String(u.tgChatId) === String(chatId); });
+}
+
+// Mirrors smm-panel.html's own detectPlatform() so the bot's platform
+// grouping (see groupByPlatform below) matches what customers already see
+// in the web panel, rather than inventing a second, divergent taxonomy.
+function detectPlatform(str) {
+  if (!str) return 'other';
+  var s = String(str).toLowerCase();
+  if (s.indexOf('tiktok') > -1 || s.indexOf('tik tok') > -1 || s.indexOf('tik-tok') > -1) return 'tiktok';
+  if (s.indexOf('instagram') > -1 || s.indexOf('insta ') > -1) return 'instagram';
+  if (s.indexOf('telegram') > -1) return 'telegram';
+  if (s.indexOf('youtube') > -1 || s.indexOf('yt ') > -1) return 'youtube';
+  if (s.indexOf('facebook') > -1 || s.indexOf(' fb ') > -1) return 'facebook';
+  if (s.indexOf('twitter') > -1 || s.indexOf(' x ') > -1 || s.indexOf('tweet') > -1) return 'twitter';
+  if (s.indexOf('whatsapp') > -1 || s.indexOf('whats app') > -1) return 'whatsapp';
+  if (s.indexOf('linkedin') > -1) return 'linkedin';
+  if (s.indexOf('twitch') > -1) return 'twitch';
+  if (s.indexOf('spotify') > -1) return 'spotify';
+  if (s.indexOf('pinterest') > -1) return 'pinterest';
+  if (s.indexOf('snapchat') > -1) return 'snapchat';
+  if (s.indexOf('discord') > -1) return 'discord';
+  if (s.indexOf('reddit') > -1) return 'reddit';
+  return 'other';
+}
+
+const PLATFORM_ORDER = ['instagram', 'tiktok', 'telegram', 'youtube', 'facebook', 'twitter', 'whatsapp', 'linkedin', 'twitch', 'spotify', 'pinterest', 'snapchat', 'discord', 'reddit', 'other'];
+const PLATFORM_LABEL = {
+  instagram: '📸 Instagram', tiktok: '🎵 TikTok', telegram: '✈️ Telegram', youtube: '▶️ YouTube',
+  facebook: '👍 Facebook', twitter: '🐦 Twitter/X', whatsapp: '💚 WhatsApp', linkedin: '💼 LinkedIn',
+  twitch: '🎥 Twitch', spotify: '🎧 Spotify', pinterest: '📌 Pinterest', snapchat: '👻 Snapchat',
+  discord: '🎮 Discord', reddit: '👽 Reddit', other: '📦 Other'
+};
+
+// smm_svc compact row format (see api/db.js / sync-orders.js):
+// [id, svcId, fullDesc, category, provName, provId, cost, price, min, max, active, cancel, refill]
+function decompressSvc(raw) {
+  return (raw || [])
+    .filter(function (s) { return s && s[10] !== 0; })
+    .map(function (s) {
+      return {
+        id: s[0], svcId: s[1], name: s[2], category: s[3], provName: s[4], provId: s[5],
+        price: parseFloat(s[7]) || 0, min: parseInt(s[8], 10) || 1, max: parseInt(s[9], 10) || 1000000
+      };
+    });
+}
+
+function groupByPlatform(svcs) {
+  var map = {};
+  svcs.forEach(function (s) {
+    var p = detectPlatform(s.category);
+    if (p === 'other') p = detectPlatform(s.name);
+    if (!map[p]) map[p] = [];
+    map[p].push(s);
+  });
+  return map;
+}
+
+// Pending in-bot order requests never last more than this — an old "confirm"
+// button tapped long after the fact would otherwise place an order at a
+// price/balance that may no longer be accurate.
+const PENDING_TTL_MS = 20 * 60 * 1000;
+
+async function startBuyFlow(token, chatId, isEnglish) {
+  const db = await getDb();
+  const groups = groupByPlatform(decompressSvc(db.smm_svc));
+  const buttons = [];
+  let row = [];
+  PLATFORM_ORDER.forEach(function (p) {
+    if (!groups[p] || !groups[p].length) return;
+    row.push({ text: PLATFORM_LABEL[p] || p, callback_data: 'buyp|' + (isEnglish ? '1' : '0') + '|' + p });
+    if (row.length === 2) { buttons.push(row); row = []; }
+  });
+  if (row.length) buttons.push(row);
+  if (!buttons.length) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'No services available right now — please try the panel.' : 'در حال حاضر سرویسی موجود نیست — از پنل استفاده کنید.' });
+    return;
+  }
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish ? '🛒 <b>Buy a service</b>\n\nChoose a platform:' : '🛒 <b>خرید سرویس</b>\n\nیک پلتفرم را انتخاب کنید:',
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+async function showServiceList(token, chatId, platform, isEnglish) {
+  const db = await getDb();
+  const groups = groupByPlatform(decompressSvc(db.smm_svc));
+  const list = (groups[platform] || []).slice().sort(function (a, b) { return a.price - b.price; }).slice(0, 10);
+  if (!list.length) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'No services found for this platform.' : 'سرویسی برای این پلتفرم پیدا نشد.' });
+    return;
+  }
+  const buttons = list.map(function (s) {
+    const label = (s.name || '').slice(0, 45) + ' — $' + s.price.toFixed(4) + '/1000';
+    return [{ text: label, callback_data: 'buys|' + (isEnglish ? '1' : '0') + '|' + s.id }];
+  });
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: (isEnglish
+      ? '📦 <b>Services</b>\n\nTap one to order — min/max shown after you pick.\n\n💡 See all options: '
+      : '📦 <b>سرویس‌ها</b>\n\nروی یکی بزن تا سفارش بدی — حداقل/حداکثر بعد از انتخاب نشان داده می‌شود.\n\n💡 دیدن همه‌ی سرویس‌ها: ') + SITE + '/smm-panel.html',
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+async function selectService(token, chatId, rowId, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `🔒 <b>Account not linked</b>\n\nTo order directly from Telegram, first link your account: log into the panel, open "Free Likes", and tap "🔗 Connect Telegram".\n\n🌐 ${SITE}/smm-panel.html`
+        : `🔒 <b>حساب متصل نیست</b>\n\nبرای سفارش مستقیم از تلگرام، اول باید حسابتان را وصل کنید: وارد پنل شوید، بخش «Free Likes» را باز کنید و روی «🔗 اتصال تلگرام» بزنید.\n\n🌐 ${SITE}/smm-panel.html`
+    });
+    return;
+  }
+  const svc = decompressSvc(db.smm_svc).find(function (s) { return String(s.id) === String(rowId); });
+  if (!svc) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This service is no longer available.' : 'این سرویس دیگر موجود نیست.' });
+    return;
+  }
+  user.tgPending = {
+    svcRowId: svc.id, svcId: svc.svcId, provId: svc.provId, name: svc.name, category: svc.category,
+    price: svc.price, min: svc.min, max: svc.max, step: 'await_qty_link', ts: Date.now()
+  };
+  await saveUsers(users);
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish
+      ? `✅ <b>${escapeHtml(svc.name)}</b>\n💰 $${svc.price.toFixed(4)} / 1000\n🔢 Min: ${svc.min} — Max: ${svc.max}\n\nNow send the link/username and quantity in one message, e.g.:\n<code>https://instagram.com/yourpage 1000</code>\n\nSend /cancel to abort.`
+      : `✅ <b>${escapeHtml(svc.name)}</b>\n💰 $${svc.price.toFixed(4)} به ازای ۱۰۰۰\n🔢 حداقل: ${svc.min} — حداکثر: ${svc.max}\n\nحالا لینک/یوزرنیم و تعداد را در یک پیام بفرست، مثلاً:\n<code>https://instagram.com/yourpage 1000</code>\n\nبرای انصراف /cancel را بفرست.`
+  });
+}
+
+// Handles a free-text message while the chat has an in-progress "waiting for
+// link+quantity" order — returns false (no-op) when there's nothing pending,
+// so the caller falls through to the bot's normal keyword/FAQ replies.
+async function maybeHandlePendingQtyLink(token, chatId, text, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user || !user.tgPending || user.tgPending.step !== 'await_qty_link') return false;
+  const pending = user.tgPending;
+  if (Date.now() - pending.ts > PENDING_TTL_MS) {
+    user.tgPending = null;
+    await saveUsers(users);
+    return false;
+  }
+
+  const m = text.match(/^(\S[\s\S]*?)\s+(\d+)\s*$/);
+  if (!m) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? '❌ Please send it as: <link/username> <quantity>\ne.g. <code>https://instagram.com/yourpage 1000</code>\n\nOr /cancel to abort.'
+        : '❌ لطفاً به این شکل بفرست: لینک/یوزرنیم و تعداد\nمثلاً: <code>https://instagram.com/yourpage 1000</code>\n\nیا /cancel برای انصراف.'
+    });
+    return true;
+  }
+  const link = m[1].trim();
+  const qty = parseInt(m[2], 10);
+  if (qty < pending.min || qty > pending.max) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: isEnglish
+        ? `❌ Quantity must be between ${pending.min} and ${pending.max}. Please resend.`
+        : `❌ تعداد باید بین ${pending.min} تا ${pending.max} باشد. دوباره بفرست.`
+    });
+    return true;
+  }
+
+  const cost = parseFloat((pending.price * qty / 1000).toFixed(4)) || 0.0001;
+  const balance = parseFloat(user.balance) || 0;
+  if (cost > balance) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `❌ <b>Insufficient balance</b>\n\nThis order costs $${cost.toFixed(4)}, your balance is $${balance.toFixed(2)}.\n\nAdd funds, then resend the link and quantity:\n${SITE}/smm-panel.html`
+        : `❌ <b>موجودی کافی نیست</b>\n\nهزینه این سفارش $${cost.toFixed(4)} است، موجودی شما $${balance.toFixed(2)} است.\n\nابتدا شارژ کنید، سپس دوباره لینک و تعداد را بفرست:\n${SITE}/smm-panel.html`
+    });
+    return true;
+  }
+
+  user.tgPending = Object.assign({}, pending, { step: 'await_confirm', qty: qty, link: link, cost: cost, ts: Date.now() });
+  await saveUsers(users);
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish
+      ? `🧾 <b>Confirm your order</b>\n\n📦 ${escapeHtml(pending.name)}\n🔗 ${escapeHtml(link)}\n🔢 Qty: ${qty}\n💰 Cost: $${cost.toFixed(4)}\n💳 Balance after: $${(balance - cost).toFixed(2)}`
+      : `🧾 <b>تایید سفارش</b>\n\n📦 ${escapeHtml(pending.name)}\n🔗 ${escapeHtml(link)}\n🔢 تعداد: ${qty}\n💰 هزینه: $${cost.toFixed(4)}\n💳 موجودی بعد از خرید: $${(balance - cost).toFixed(2)}`,
+    reply_markup: {
+      inline_keyboard: [[
+        { text: isEnglish ? '✅ Confirm' : '✅ تایید', callback_data: 'buyc|' + (isEnglish ? '1' : '0') },
+        { text: isEnglish ? '❌ Cancel' : '❌ انصراف', callback_data: 'buyx|' + (isEnglish ? '1' : '0') }
+      ]]
+    }
+  });
+  return true;
+}
+
+async function confirmPendingOrder(token, chatId, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user || !user.tgPending || user.tgPending.step !== 'await_confirm') {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'Nothing to confirm — start over with /buy.' : 'چیزی برای تایید نیست — دوباره با /buy شروع کن.' });
+    return;
+  }
+  const pending = user.tgPending;
+  if (Date.now() - pending.ts > PENDING_TTL_MS) {
+    user.tgPending = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This request expired — start over with /buy.' : 'این درخواست منقضی شد — دوباره با /buy شروع کن.' });
+    return;
+  }
+  const svc = decompressSvc(db.smm_svc).find(function (s) { return String(s.id) === String(pending.svcRowId); });
+  if (!svc || Math.abs(svc.price - pending.price) > 1e-9) {
+    user.tgPending = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This service changed or is no longer available — start over with /buy.' : 'این سرویس تغییر کرده یا دیگر موجود نیست — دوباره با /buy شروع کن.' });
+    return;
+  }
+  const balance = parseFloat(user.balance) || 0;
+  if (pending.cost > balance) {
+    user.tgPending = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'Insufficient balance now — add funds and start over with /buy.' : 'موجودی کافی نیست — شارژ کن و دوباره با /buy شروع کن.' });
+    return;
+  }
+
+  const orderId = Date.now();
+  const orderPlatform = detectPlatform(pending.category);
+  const order = {
+    id: orderId, userId: user.id, user: ((user.fname || user.name || '') + (user.lname ? ' ' + user.lname : '')).trim(),
+    email: user.email || '', platform: orderPlatform, plat: orderPlatform,
+    service: pending.name, svc: pending.name, svcName: pending.name,
+    svcId: pending.svcId, provId: pending.provId,
+    link: pending.link, qty: pending.qty, cost: pending.cost,
+    startCount: 0, remain: pending.qty, status: 'processing',
+    dispatchAttemptedAt: Date.now(), date: new Date().toISOString(), source: 'telegram'
+  };
+
+  user.balance = parseFloat((balance - pending.cost).toFixed(4));
+  user.orders = (parseInt(user.orders, 10) || 0) + 1;
+  user.transactions = user.transactions || [];
+  user.transactions.unshift({ id: Date.now(), type: 'spend', amount: pending.cost, desc: 'Order: ' + pending.name, date: new Date().toISOString(), status: 'approved' });
+  user.tgPending = null;
+
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_users: users, smm_orders: [order], smm_ts: Date.now() })
+  });
+
+  let dispatchNote = '';
+  try {
+    const result = await dispatchOneOrder(order, { providers: db.smm_providers || [], svcList: db.smm_svc || [] }, {});
+    if (!result.ok) dispatchNote = isEnglish ? '\n\n⏳ Sending to the provider — this can take a moment.' : '\n\n⏳ در حال ارسال به سرویس‌دهنده — کمی طول می‌کشد.';
+  } catch (e) {
+    dispatchNote = isEnglish ? '\n\n⏳ Sending to the provider — this can take a moment.' : '\n\n⏳ در حال ارسال به سرویس‌دهنده — کمی طول می‌کشد.';
+  }
+
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: (isEnglish
+      ? `✅ <b>Order placed!</b>\n\nOrder #${orderId}\n📦 ${escapeHtml(pending.name)}\n🔢 Qty: ${pending.qty}\n💰 $${pending.cost.toFixed(4)}\n\nTrack it any time: <code>/order ${orderId}</code>`
+      : `✅ <b>سفارش ثبت شد!</b>\n\nشماره سفارش #${orderId}\n📦 ${escapeHtml(pending.name)}\n🔢 تعداد: ${pending.qty}\n💰 $${pending.cost.toFixed(4)}\n\nبرای پیگیری: <code>/order ${orderId}</code>`) + dispatchNote
+  });
+
+  await notifyAdmin(token, `🛒 <b>New Telegram Order #${orderId}</b>\n👤 ${escapeHtml(order.user || order.email || ('User ' + user.id))}\n📦 ${escapeHtml(pending.name)}\n🔢 ${pending.qty}\n💰 $${pending.cost.toFixed(4)}`);
+}
+
+async function cancelPendingOrder(token, chatId, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (user && user.tgPending) {
+    user.tgPending = null;
+    await saveUsers(users);
+  }
+  await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Cancelled.' : '❌ لغو شد.' });
+}
+
+async function showBalance(token, chatId, isEnglish) {
+  const db = await getDb();
+  const user = findUserByChat(db.smm_users || [], chatId);
+  if (!user) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `🔒 Account not linked yet. Open the panel → Free Likes → "Connect Telegram" to link it.\n\n🌐 ${SITE}/smm-panel.html`
+        : `🔒 حساب هنوز وصل نشده. از پنل وارد شو → بخش Free Likes → «اتصال تلگرام».\n\n🌐 ${SITE}/smm-panel.html`
+    });
+    return;
+  }
+  const bal = parseFloat(user.balance) || 0;
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish ? `💳 <b>Your balance:</b> $${bal.toFixed(2)}\n📦 Orders: ${user.orders || 0}` : `💳 <b>موجودی شما:</b> $${bal.toFixed(2)}\n📦 تعداد سفارش‌ها: ${user.orders || 0}`
+  });
+}
+
+async function handleCallbackQuery(cbq, token) {
+  const chatId = (cbq.message && cbq.message.chat && cbq.message.chat.id) || (cbq.from && cbq.from.id);
+  const data = cbq.data || '';
+  // Best-effort ack so Telegram stops showing a loading spinner on the
+  // tapped button — must never block the actual action below.
+  try { await tgApi(token, 'answerCallbackQuery', { callback_query_id: cbq.id }); } catch (e) {}
+  if (!chatId) return;
+
+  const parts = data.split('|');
+  const kind = parts[0];
+  const isEnglish = parts[1] === '1';
+  if (kind === 'buyp') await showServiceList(token, chatId, parts[2], isEnglish);
+  else if (kind === 'buys') await selectService(token, chatId, parts[2], isEnglish);
+  else if (kind === 'buyc') await confirmPendingOrder(token, chatId, isEnglish);
+  else if (kind === 'buyx') await cancelPendingOrder(token, chatId, isEnglish);
+}
 
 async function lookupOrder(orderId) {
   try {
@@ -95,15 +445,24 @@ module.exports = async (req, res) => {
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
 
+  const token = process.env.TG_BOT_TOKEN || req.query.token;
+  if (!token) return res.status(200).send('no token');
+
+  // Inline-keyboard button taps (platform/service pick, order confirm/cancel
+  // in the /buy flow below) arrive as their own update type with no
+  // `message`/`edited_message` field — handled entirely separately from the
+  // plain-text command routing below.
+  if (body.callback_query) {
+    await handleCallbackQuery(body.callback_query, token);
+    return res.status(200).send('ok');
+  }
+
   const msg = body.message || body.edited_message;
   if (!msg) return res.status(200).send('ok');
 
   const chatId = msg.chat.id;
   const text = (msg.text || '').trim();
   const firstName = (msg.from && msg.from.first_name) || 'User';
-
-  const token = process.env.TG_BOT_TOKEN || req.query.token;
-  if (!token) return res.status(200).send('no token');
 
   async function sendMsg(chat, txt) {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -122,6 +481,37 @@ module.exports = async (req, res) => {
   // misfire as English for the site's mostly Persian/Dari-speaking audience.
   const textForLangCheck = text.replace(/^\/[a-zA-Z]+\s*/, '');
   const isEnglish = /[a-zA-Z]{2,}/.test(textForLangCheck) && !/[؀-ۿ]/.test(text);
+
+  // Direct-sale flow: /buy walks the customer through picking a platform,
+  // then a service, then link+quantity, entirely inside Telegram — see
+  // startBuyFlow()/handleCallbackQuery() above. Checked as an exact command
+  // (plus a couple of bare trigger words) rather than a substring match, so
+  // it can't misfire on unrelated messages that merely contain "buy".
+  if (text === '/buy' || lower.trim() === 'خرید' || lower.trim() === 'buy') {
+    await startBuyFlow(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
+  if (text === '/cancel') {
+    await cancelPendingOrder(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
+  if (text === '/balance' || lower.trim() === 'موجودی' || lower.trim() === 'balance') {
+    await showBalance(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
+
+  // If this chat is mid-/buy (a service was picked and the bot is waiting
+  // for "<link> <quantity>"), treat any non-command text as that answer —
+  // must run before every keyword/FAQ branch below, since a pasted
+  // Instagram link would otherwise get swallowed by the generic "instagram"
+  // FAQ reply further down instead of being read as the order's link.
+  // Cheap pre-filter (a quantity is mandatory, so any valid answer has a
+  // digit in it) before paying for a DB round-trip on every plain chat
+  // message — most FAQ traffic ("سلام", "قیمت‌ها", …) never reaches here.
+  if (!text.startsWith('/') && /\d/.test(text)) {
+    const handledPending = await maybeHandlePendingQtyLink(token, chatId, text, isEnglish);
+    if (handledPending) return res.status(200).send('ok');
+  }
 
   // Account linking: "/start LINK_<refCode>" (deep link from the panel's
   // Free Likes "Connect Telegram" button) — must run before the generic
@@ -185,8 +575,8 @@ module.exports = async (req, res) => {
     // already handled above
   } else if (text === '/start') {
     reply = isEnglish
-      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
-      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
+      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n🛒 /buy - order a service right here\n💳 /balance - check your wallet balance\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
+      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n🛒 /buy - سفارش مستقیم همین‌جا\n💳 /balance - مشاهده موجودی کیف پول\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
   } else if (/^(سلام|درود|hi|hello|hey)[\s!.]*$/i.test(text)) {
     reply = isEnglish
       ? `👋 Hey ${firstName}, welcome!\n\nAsk me anything about buying followers, likes, views or members — pricing, payment, account safety, whatever's on your mind 😊\n\nOr just send /services to see what we offer.`
@@ -233,8 +623,8 @@ module.exports = async (req, res) => {
     reply = `🎥 <b>Twitch Services</b>\n\n✅ Followers\n✅ Channel Views\n\n🌐 ${SITE}`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
     reply = isEnglish
-      ? `📋 <b>Help</b>\n\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
-      : `📋 <b>راهنما</b>\n\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+      ? `📋 <b>Help</b>\n\n🛒 /buy - order a service right here (pick platform → service → send link + quantity → confirm)\n💳 /balance - check your wallet balance\n/cancel - abort an in-progress order\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
+      : `📋 <b>راهنما</b>\n\n🛒 /buy - سفارش مستقیم همین‌جا (پلتفرم → سرویس → ارسال لینک و تعداد → تایید)\n💳 /balance - مشاهده موجودی کیف پول\n/cancel - لغو سفارش نیمه‌کاره\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
     reply = isEnglish
       ? `🔗 <b>Panel link</b>\n\n${SITE}\n\nSign up or log in to get started.`
