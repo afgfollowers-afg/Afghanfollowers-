@@ -806,11 +806,6 @@ function initRecaptchaWidget(){
 }
 initRecaptchaWidget(); // in case settings were already cached from a previous visit
 function getUsers(){try{var d=localStorage.getItem(AK);return d?JSON.parse(d):[{id:1,fname:'Admin',lname:'',email:'admin@panel.com',phone:'',password:hashPass('admin123','a1f9c3e7b2d84605'),salt:'a1f9c3e7b2d84605',role:'admin',balance:500,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[]}];}catch(e){return[];}}
-function saveUsers(u){
-  localStorage.setItem(AK,JSON.stringify(u));
-  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_users:u,smm_ts:Date.now()})}).catch(function(){});
-}
 function createSess(u,token){localStorage.setItem(SK,JSON.stringify({userId:u.id,email:u.email,name:u.fname+' '+u.lname,role:u.role,token:token,ts:Date.now()}));}
 
 // Check existing session
@@ -947,15 +942,32 @@ function doReg(){
 
 // ═══ GOOGLE ═══
 // Shared callback for both the login and register Google buttons.
+// Verified server-side now (api/auth.js?action=google) — this used to
+// decode the Google ID token's payload right here with atob() (never
+// checking its signature, so anyone could forge one with any email) and
+// call createSess(user) with no token at all, which meant every Google
+// sign-in ended up with token:undefined — smm-panel.html's page-load check
+// treats that exactly like "not logged in" and immediately bounces back
+// here, so "registration" appeared to work but the user could never
+// actually get into the panel.
 function handleGoogleCredential(res){
-  try{
-    var p=JSON.parse(atob(res.credential.split('.')[1]));
-    var users=getUsers();var ex=users.find(function(u){return u.email===p.email;});
-    if(ex){createSess(ex);showA('Welcome back, '+ex.fname+'!','s');}
-    else{var nu={id:Date.now(),fname:(p.name||'').split(' ')[0]||'User',lname:(p.name||'').split(' ').slice(1).join(' '),email:p.email,phone:'',password:'',googleId:p.sub,role:'user',balance:0,orders:0,joined:new Date().toISOString(),status:'active',wallet:[],transactions:[],avatar:p.picture||''};users.push(nu);saveUsers(users);createSess(nu);showA('Welcome! 🎉','s');tgAuthNotify('🆕 <b>New Registration</b> (Google)\nName: '+nu.fname+' '+nu.lname+'\nEmail: '+nu.email);}
-    showA('✅ Logged in! Redirecting...','s');
+  fetch('/api/auth?action=google',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({credential:res.credential})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(!d||!d.ok){showA(d&&d.error?d.error:'Google sign-in failed','e');return;}
+    var users=getUsers();
+    var idx=users.findIndex(function(x){return String(x.id)===String(d.user.id);});
+    if(idx>-1) users[idx]=Object.assign({},users[idx],d.user);
+    else users.push(d.user);
+    localStorage.setItem(AK,JSON.stringify(users));
+    createSess(d.user,d.token);
+    if(d.isNewUser) tgAuthNotify('🆕 <b>New Registration</b> (Google)\nName: '+d.user.fname+' '+d.user.lname+'\nEmail: '+d.user.email);
+    showA(d.isNewUser?'Welcome! 🎉':'Welcome back, '+d.user.fname+'!','s');
     setTimeout(function(){window.location.href='smm-panel.html';},900);
-  }catch(e){showA('Google error','e');}
+  }).catch(function(){
+    showA('Network error — please try again.','e');
+  });
 }
 
 // Fallback used only if the real Google button never managed to render

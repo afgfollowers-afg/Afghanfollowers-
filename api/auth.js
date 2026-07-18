@@ -110,6 +110,82 @@ async function handleRegister(body) {
   return { ok: true, token, user: safeUser };
 }
 
+// Google Sign-In used to be handled entirely client-side (auth.html decoded
+// the ID token's payload itself with atob() — never checking its signature
+// at all — and called createSess(user) with NO token argument, since there
+// was nothing server-side to issue one from). Two separate problems:
+// 1. createSess() with no token meant every Google-signed-in session had
+//    token:undefined, which smm-panel.html's page-load check treats as no
+//    identity at all and immediately bounces back to auth.html?reauth=1 —
+//    "registration" appeared to succeed (a local user object got created)
+//    but the user could never actually get past the login page.
+// 2. Trusting the client-decoded payload meant anyone could POST a forged
+//    base64 blob shaped like a Google credential with any email of their
+//    choosing — no proof it ever came from Google at all.
+// Fixed by verifying the credential really was issued by Google (and for
+// this site's own configured Google Client ID) via Google's tokeninfo
+// endpoint — which does real signature verification — before creating the
+// account and issuing a real signed session token, the same as every other
+// login path in this file.
+async function handleGoogleLogin(body) {
+  const credential = body.credential;
+  if (!credential) return { ok: false, error: 'Missing Google credential' };
+
+  const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const cfg = db.smm_auth_settings || {};
+  if (!cfg.googleClientId) return { ok: false, error: 'Google Sign-In is not configured' };
+
+  let payload;
+  try {
+    const verifyResp = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
+    payload = await verifyResp.json();
+    if (!verifyResp.ok || payload.error) return { ok: false, error: 'Invalid Google credential' };
+  } catch (e) {
+    return { ok: false, error: 'Could not verify Google credential' };
+  }
+  if (payload.aud !== cfg.googleClientId) return { ok: false, error: 'Google credential was issued for a different app' };
+  if (payload.email_verified !== 'true' && payload.email_verified !== true) return { ok: false, error: 'Google email not verified' };
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (!email) return { ok: false, error: 'Google account has no email' };
+
+  const users = db.smm_users || [];
+  const existing = users.find((u) => u.email && u.email.toLowerCase() === email);
+  const isNewUser = !existing;
+  let user;
+
+  if (existing) {
+    if (existing.status === 'suspended') return { ok: false, error: 'Account suspended' };
+    user = existing;
+    if (!existing.googleId || !existing.avatar) {
+      user = Object.assign({}, existing, { googleId: existing.googleId || payload.sub, avatar: existing.avatar || payload.picture || '' });
+      await fetchInternal(API_BASE + '/api/db', {
+        method: 'POST', headers: dbHeaders(),
+        body: JSON.stringify({ smm_users: [user], smm_ts: Date.now() })
+      });
+    }
+  } else {
+    const nameParts = String(payload.name || '').trim().split(' ');
+    user = {
+      id: Date.now(), fname: nameParts[0] || 'User', lname: nameParts.slice(1).join(' '),
+      email, phone: '', password: '', googleId: payload.sub,
+      role: 'user', balance: 0, orders: 0,
+      joined: new Date().toISOString(), status: 'active',
+      wallet: [], transactions: [], avatar: payload.picture || ''
+    };
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST', headers: dbHeaders(),
+      body: JSON.stringify({ smm_users: [user], smm_ts: Date.now() })
+    });
+  }
+
+  const token = signToken({ sub: user.id, role: user.role || 'user' });
+  const safeUser = Object.assign({}, user);
+  delete safeUser.password;
+  delete safeUser.salt;
+  return { ok: true, token, user: safeUser, isNewUser };
+}
+
 async function handleAdminLogin(body) {
   const username = String(body.username || '').trim();
   const password = body.password;
@@ -144,6 +220,7 @@ module.exports = async (req, res) => {
     let result;
     if (action === 'login') result = await handleLogin(body);
     else if (action === 'register') result = await handleRegister(body);
+    else if (action === 'google') result = await handleGoogleLogin(body);
     else if (action === 'admin-login') result = await handleAdminLogin(body);
     else return res.status(200).json({ ok: false, error: 'Unknown action' });
     return res.status(200).json(result);
