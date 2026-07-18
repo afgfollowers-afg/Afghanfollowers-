@@ -1761,8 +1761,14 @@ function mergeProvidersFromServer(serverArr){
 // ── API PROXY (Netlify Function) ──
 var PROXY_URL='/api/api-proxy';
 
-function callProviderAPI(provUrl, key, action, extraParams){
+function callProviderAPI(provUrl, key, action, extraParams, providerId){
   var body={url:provUrl, key:key, action:action};
+  // GET /api/db strips the real key from every browser response — on a
+  // device that never had it locally, providerId lets api-proxy.js resolve
+  // the real url+key itself (see the comment there), instead of this call
+  // failing with "Missing url or key" even though the provider genuinely
+  // has one configured.
+  if(providerId) body.providerId=providerId;
   if(extraParams) Object.assign(body, extraParams);
   return fetch(PROXY_URL,{
     method:'POST',
@@ -1784,7 +1790,7 @@ function rProvs(){
     var keyConfigured=!!(p.key||p._has_key);
     h+='<tr><td><div style="font-weight:700;font-size:13px">'+escHtmlAdmin(p.name)+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'% · '+(keyConfigured?'<span style="color:var(--gr)">🔑 Key set</span>':'<span style="color:var(--rd)">⚠️ No key</span>')+'</div></td>';
     h+='<td style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(p.url)+'</td>';
-    h+='<td><span id="bal-'+p.id+'" style="cursor:pointer;color:'+(p.balance?'var(--gr)':'var(--mt)')+';font-weight:700;font-size:13px" onclick="chkBal('+p.id+')" title="Click to check balance">'+(p.balance?'$'+p.balance:'↻ Check')+'</span></td>';
+    h+='<td><span id="bal-'+p.id+'" style="cursor:pointer;color:'+(p.balance?'var(--gr)':'var(--mt)')+';font-weight:700;font-size:13px" onclick="chkBal(\''+String(p.id).replace(/'/g,'')+'\')" title="Click to check balance">'+(p.balance?'$'+p.balance:'↻ Check')+'</span></td>';
     h+='<td><span class="b '+(sc?'bg':'by')+'" style="cursor:pointer" onclick="showQuickImport('+p.id+')" title="Search, filter and import services from this provider">'+(sc?sc+' services':'Load Services')+'</span></td>';
     h+='<td><div style="display:flex;gap:5px"><button class="btn btn-p btn-sm" onclick="editProv('+p.id+')">⚙ Edit</button><button class="btn btn-d btn-sm btn-ico" onclick="delProv('+p.id+')">✕</button></div></td></tr>';
   }
@@ -1835,11 +1841,11 @@ function saveEditProv(){
 }
 
 function chkBal(id){
-  var p=provs.find(function(x){return x.id===id;});
-  if(!p||!p.key){toast('Add API key first (Edit provider)','e');return;}
+  var p=provs.find(function(x){return String(x.id)===String(id);});
+  if(!p||(!p.key&&!p._has_key)){toast('Add API key first (Edit provider)','e');return;}
   var el=document.getElementById('bal-'+id);
   if(el){el.textContent='Checking...';el.style.color='var(--yw)';}
-  callProviderAPI(p.url, p.key, 'balance')
+  callProviderAPI(p.url, p.key, 'balance', null, p.id)
     .then(function(d){
       if(d.balance!==undefined){
         p.balance=parseFloat(d.balance).toFixed(2);
@@ -2929,7 +2935,7 @@ function showQuickImport(autoProvId){
     om('m-quick-import'); return;
   }
   provs.forEach(function(p){
-    var label=p.name+(p.services&&p.services.length?' ('+p.services.length+' loaded)':(!p.key?' ⚠️ No API Key':''));
+    var label=p.name+(p.services&&p.services.length?' ('+p.services.length+' loaded)':(!p.key&&!p._has_key?' ⚠️ No API Key':''));
     provSel.innerHTML+='<option value="'+p.id+'">'+label+'</option>';
   });
   var autoId=autoProvId||( provs.length===1?provs[0].id:null);
@@ -2971,7 +2977,7 @@ function qiLoadServices(){
   var cdd=document.getElementById('qi-cat-dd');if(cdd)cdd.value='';
   var sdd=document.getElementById('qi-svc-dd');if(sdd)sdd.innerHTML='<option value="">— Select Service —</option>';
   if(!provId){document.getElementById('qi-list').innerHTML='';return;}
-  var p=provs.find(function(x){return x.id===provId;});
+  var p=provs.find(function(x){return String(x.id)===String(provId);});
   _qiSelected=new Set();
   if(!p) return;
   // Update markup to provider's margin
@@ -2984,12 +2990,16 @@ function qiLoadServices(){
     qiRender(p.services,provId);
     return;
   }
-  if(!p.key){
+  if(!p.key&&!p._has_key){
     document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">⚠️ No API Key — Edit provider first</div>';
     return;
   }
   document.getElementById('qi-list').innerHTML='<div style="padding:30px;text-align:center;color:var(--mt)"><div style="font-size:32px;margin-bottom:8px">⏳</div>Loading from '+escHtmlAdmin(p.name)+'...</div>';
-  callProviderAPI(p.url,p.key,'services')
+  // A key configured on a different device than this one is stripped out
+  // of every browser GET (see api/db.js) — pass providerId so
+  // api-proxy.js can resolve the real key itself server-side instead of
+  // this call failing here even though the provider genuinely has one.
+  callProviderAPI(p.url,p.key,'services',null,p.id)
     .then(function(data){
       if(data.error){
         document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+escHtmlAdmin(data.error)+'</div>';
