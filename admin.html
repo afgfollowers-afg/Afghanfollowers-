@@ -2872,13 +2872,13 @@ function editSvc(id){
     +(s.provRate?'<div style="background:var(--s2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--mt)">Provider rate: $'+s.provRate.toFixed(4)+'/K · Margin: '+Math.round(((s.myRate/s.provRate)-1)*100)+'%</div>':'')
     +'</div>'
     +'<div class="md-f"><button class="btn btn-g" onclick="closeEditSvc()">Cancel</button>'
-    +'<button class="btn btn-p" onclick="saveEditSvc('+id+')">💾 Save</button></div></div>';
+    +'<button class="btn btn-p" onclick="saveEditSvc(\''+String(id).replace(/'/g,'')+'\')">💾 Save</button></div></div>';
   document.body.appendChild(div);
 }
 
 function saveEditSvc(id){
   var svcs=getServices();
-  var s=svcs.find(function(x){return x.id===id;});
+  var s=svcs.find(function(x){return String(x.id)===String(id);});
   if(!s)return;
   s.name=document.getElementById('es-name').value.trim()||s.name;
   s.myRate=parseFloat(document.getElementById('es-price').value)||s.myRate;
