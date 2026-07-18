@@ -62,42 +62,79 @@
 :root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--bd:#232a3d;--acc:#7c5cfc;--acc2:#a78bfa;--gr:#00d2a0;--tx:#e2e8f0;--mt:#8a93a6;--wh:#fff;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--tx);font-family:'Vazirmatn','Inter',sans-serif;line-height:1.8;}
-body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(124,92,252,.15),transparent 60%),radial-gradient(ellipse at 85% 30%,rgba(0,210,160,.1),transparent 60%);pointer-events:none;z-index:0;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(124,92,252,.15),transparent 60%),radial-gradient(ellipse at 85% 30%,rgba(0,210,160,.1),transparent 60%);pointer-events:none;z-index:0;animation:bgDrift 18s ease-in-out infinite;}
+@keyframes bgDrift{
+  0%,100%{background-position:20% 0%,85% 30%;opacity:1;}
+  50%{background-position:28% 6%,78% 22%;opacity:.85;}
+}
+@media(prefers-reduced-motion:reduce){body::before{animation:none;}}
 .wrap{max-width:1000px;margin:0 auto;padding:24px 20px;position:relative;z-index:1;}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;animation:fadeDown .5s ease both;}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--wh);}
-.logo-ic{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:block;object-fit:cover;}
+.logo-ic{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:block;object-fit:cover;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+.logo:hover .logo-ic{transform:scale(1.08) rotate(-4deg);}
 .nav-cta{display:flex;gap:10px;}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid transparent;transition:transform .15s;}
-.btn:hover{transform:translateY(-1px);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:11px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;border:1px solid transparent;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s,background-color .2s,border-color .2s;}
+.btn:hover{transform:translateY(-2px) scale(1.02);}
+.btn:active{transform:translateY(0) scale(.98);}
 .btn-p{background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;box-shadow:0 6px 20px rgba(124,92,252,.35);}
+.btn-p:hover{box-shadow:0 10px 30px rgba(124,92,252,.5);}
 .btn-g{background:var(--s2);border-color:var(--bd);color:var(--tx);}
+.btn-g:hover{border-color:var(--acc);color:var(--acc2);}
 .hero{text-align:center;padding:40px 0 50px;}
-.badge{display:inline-block;background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.3);color:var(--acc2);padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:20px;}
-h1{font-size:clamp(26px,5vw,42px);font-weight:900;color:var(--wh);margin-bottom:14px;}
-h1 span{background:linear-gradient(135deg,var(--acc2),var(--gr));-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{font-size:16px;color:var(--mt);max-width:640px;margin:0 auto 26px;}
-.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;}
+.badge{display:inline-block;background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.3);color:var(--acc2);padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:20px;animation:fadeUp .5s ease both,badgeGlow 2.6s ease-in-out infinite;}
+@keyframes badgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(124,92,252,0)}50%{box-shadow:0 0 16px 2px rgba(124,92,252,.25)}}
+h1{font-size:clamp(26px,5vw,42px);font-weight:900;color:var(--wh);margin-bottom:14px;animation:fadeUp .6s .05s ease both;}
+h1 span{background:linear-gradient(135deg,var(--acc2),var(--gr));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:shine 4s linear infinite;}
+@keyframes shine{to{background-position:200% center;}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.sub{font-size:16px;color:var(--mt);max-width:640px;margin:0 auto 26px;animation:fadeUp .6s .1s ease both;}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;animation:fadeUp .6s .15s ease both;}
 .hero-cta .btn{padding:14px 26px;font-size:15px;}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:640px;margin:0 auto;}
-.stat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:14px 8px;text-align:center;}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:14px 8px;text-align:center;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s;animation:fadeUp .5s ease both;}
+.stat:hover{transform:translateY(-3px);border-color:var(--acc);}
+.stats .stat:nth-child(1){animation-delay:.2s}
+.stats .stat:nth-child(2){animation-delay:.26s}
+.stats .stat:nth-child(3){animation-delay:.32s}
+.stats .stat:nth-child(4){animation-delay:.38s}
 .stat b{display:block;font-size:19px;font-weight:900;color:var(--wh);}
 .stat span{font-size:11px;color:var(--mt);}
 .platforms{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:40px 0;}
-.plat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--tx);}
-.plat .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;}
+.plat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--tx);transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s,box-shadow .25s;}
+.plat:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 10px 24px rgba(124,92,252,.18);}
+.plat .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+.plat:hover .ic{transform:scale(1.12) rotate(-4deg);}
 section{margin:50px 0;}
 h2{font-size:24px;font-weight:800;color:var(--wh);margin-bottom:8px;text-align:center;}
 .section-sub{text-align:center;color:var(--mt);font-size:14px;margin-bottom:26px;}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:22px 18px;}
-.card .ic{font-size:26px;margin-bottom:10px;}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:22px 18px;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s,box-shadow .25s;}
+.card:hover{transform:translateY(-5px);border-color:var(--acc);box-shadow:0 14px 32px rgba(124,92,252,.16);}
+.card .ic{font-size:26px;margin-bottom:10px;display:inline-block;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+.card:hover .ic{transform:scale(1.15) translateY(-2px);}
 .card h3{font-size:15px;font-weight:800;color:var(--wh);margin-bottom:6px;}
 .card p{font-size:13px;color:var(--mt);}
 .svc-list{list-style:none;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-.svc-list li{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--tx);}
-.cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:18px;padding:40px 24px;}
+.svc-list li{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--tx);transition:transform .2s,border-color .2s,background-color .2s;}
+.svc-list li:hover{transform:translateX(-3px);border-color:var(--acc);background:var(--s2);}
+body[dir="ltr"] .svc-list li:hover{transform:translateX(3px);}
+.cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:18px;padding:40px 24px;position:relative;overflow:hidden;}
+.cta-band::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.06),transparent);background-size:200% 100%;animation:ctaSheen 6s ease-in-out infinite;pointer-events:none;}
+@keyframes ctaSheen{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .cta-band h2{margin-bottom:10px;}
+/* ── Scroll-reveal (progressive enhancement — content is visible by default,
+   JS below only adds the .reveal class where IntersectionObserver exists) ── */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);}
+.reveal.in{opacity:1;transform:translateY(0);}
+.platforms .plat.reveal:nth-child(1),.grid3 .card.reveal:nth-child(1),.svc-list li.reveal:nth-child(1){transition-delay:0s}
+.platforms .plat.reveal:nth-child(2),.grid3 .card.reveal:nth-child(2),.svc-list li.reveal:nth-child(2){transition-delay:.06s}
+.platforms .plat.reveal:nth-child(3),.grid3 .card.reveal:nth-child(3),.svc-list li.reveal:nth-child(3){transition-delay:.12s}
+.platforms .plat.reveal:nth-child(4),.grid3 .card.reveal:nth-child(4),.svc-list li.reveal:nth-child(4){transition-delay:.18s}
+.platforms .plat.reveal:nth-child(5),.grid3 .card.reveal:nth-child(5),.svc-list li.reveal:nth-child(5){transition-delay:.24s}
+.platforms .plat.reveal:nth-child(6),.grid3 .card.reveal:nth-child(6),.svc-list li.reveal:nth-child(6){transition-delay:.3s}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none;}}
 @keyframes giftWiggle{0%,100%{transform:rotate(0deg) translateY(0);}20%{transform:rotate(-12deg) translateY(-6px);}40%{transform:rotate(9deg) translateY(0);}60%{transform:rotate(-7deg) translateY(-4px);}80%{transform:rotate(5deg) translateY(0);}}
 .gift-emoji{display:inline-block;animation:giftWiggle 1.6s ease-in-out infinite;}
 /* Announcements dropdown — same collapsible pattern as the panel */
@@ -166,7 +203,7 @@ footer a{color:var(--acc2);text-decoration:none;}
   </div>
 </div>
 
-<section class="cta-band" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
+<section class="cta-band reveal" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
   <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
   <h2>🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
   <p class="sub" style="margin-bottom:20px">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
@@ -177,12 +214,12 @@ footer a{color:var(--acc2);text-decoration:none;}
   <h2>پلتفرم‌های پشتیبانی‌شده</h2>
   <div class="section-sub">Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
   <div class="platforms">
-    <div class="plat"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span>اینستاگرام</div>
-    <div class="plat"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span>تیک‌تاک</div>
-    <div class="plat"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span>تلگرام</div>
-    <div class="plat"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span>یوتیوب</div>
-    <div class="plat"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span>فیسبوک</div>
-    <div class="plat"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span>ایکس (توییتر)</div>
+    <div class="plat reveal"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span>اینستاگرام</div>
+    <div class="plat reveal"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span>تیک‌تاک</div>
+    <div class="plat reveal"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span>تلگرام</div>
+    <div class="plat reveal"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span>یوتیوب</div>
+    <div class="plat reveal"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span>فیسبوک</div>
+    <div class="plat reveal"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span>ایکس (توییتر)</div>
   </div>
 </section>
 
@@ -190,32 +227,32 @@ footer a{color:var(--acc2);text-decoration:none;}
   <h2>محبوب‌ترین سرویس‌ها</h2>
   <div class="section-sub">قیمت‌ها و جزئیات کامل هر سرویس پس از ورود به پنل نمایش داده می‌شود</div>
   <ul class="svc-list">
-    <li>📷 خرید فالوور اینستاگرام (Instagram Followers)</li>
-    <li>❤️ خرید لایک اینستاگرام (Instagram Likes)</li>
-    <li>👁 خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</li>
-    <li>🎵 خرید فالوور تیک‌تاک (TikTok Followers)</li>
-    <li>👀 خرید ویو تیک‌تاک (TikTok Views)</li>
-    <li>✈️ خرید ممبر تلگرام (Telegram Members)</li>
-    <li>▶️ خرید ویو یوتیوب (YouTube Views)</li>
-    <li>👍 خرید سابسکرایبر یوتیوب (YouTube Subscribers)</li>
-    <li>📘 خرید فالوور فیسبوک (Facebook Followers)</li>
-    <li>✖️ خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
+    <li class="reveal">📷 خرید فالوور اینستاگرام (Instagram Followers)</li>
+    <li class="reveal">❤️ خرید لایک اینستاگرام (Instagram Likes)</li>
+    <li class="reveal">👁 خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</li>
+    <li class="reveal">🎵 خرید فالوور تیک‌تاک (TikTok Followers)</li>
+    <li class="reveal">👀 خرید ویو تیک‌تاک (TikTok Views)</li>
+    <li class="reveal">✈️ خرید ممبر تلگرام (Telegram Members)</li>
+    <li class="reveal">▶️ خرید ویو یوتیوب (YouTube Views)</li>
+    <li class="reveal">👍 خرید سابسکرایبر یوتیوب (YouTube Subscribers)</li>
+    <li class="reveal">📘 خرید فالوور فیسبوک (Facebook Followers)</li>
+    <li class="reveal">✖️ خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
   </ul>
 </section>
 
 <section>
   <h2>چرا افغان فالوورز؟</h2>
   <div class="grid3">
-    <div class="card"><div class="ic">⚡</div><h3>تحویل سریع</h3><p>شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
-    <div class="card"><div class="ic">🔒</div><h3>امن و بدون نیاز به رمز عبور</h3><p>فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
-    <div class="card"><div class="ic">💰</div><h3>ارزان‌ترین قیمت</h3><p>قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
-    <div class="card"><div class="ic">🔄</div><h3>گارانتی Refill</h3><p>بسیاری از سرویس‌ها گارانتی جبران ریزش (۳۰ تا ۳۶۵ روزه یا مادام‌العمر) دارند.</p></div>
-    <div class="card"><div class="ic">🎧</div><h3>پشتیبانی ۲۴ ساعته</h3><p>پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
-    <div class="card"><div class="ic">🤖</div><h3>پنل هوشمند</h3><p>ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
+    <div class="card reveal"><div class="ic">⚡</div><h3>تحویل سریع</h3><p>شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
+    <div class="card reveal"><div class="ic">🔒</div><h3>امن و بدون نیاز به رمز عبور</h3><p>فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
+    <div class="card reveal"><div class="ic">💰</div><h3>ارزان‌ترین قیمت</h3><p>قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
+    <div class="card reveal"><div class="ic">🔄</div><h3>گارانتی Refill</h3><p>بسیاری از سرویس‌ها گارانتی جبران ریزش (۳۰ تا ۳۶۵ روزه یا مادام‌العمر) دارند.</p></div>
+    <div class="card reveal"><div class="ic">🎧</div><h3>پشتیبانی ۲۴ ساعته</h3><p>پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
+    <div class="card reveal"><div class="ic">🤖</div><h3>پنل هوشمند</h3><p>ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
   </div>
 </section>
 
-<section class="cta-band">
+<section class="cta-band reveal">
   <h2>همین امروز شروع کنید</h2>
   <p class="sub" style="margin-bottom:20px">در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.</p>
   <a class="btn btn-p" href="/auth.html">🚀 ثبت‌نام رایگان / ورود</a>
@@ -280,6 +317,22 @@ function renderAnnouncements(){
     +'<div class="ann-feed-list">'+posts+'</div>'
     +'</div>';
 }
+// ── Scroll-reveal: progressively fade+slide .reveal elements into view.
+// Falls back to instantly-visible (no IntersectionObserver support) via the
+// try/catch below — never blocks content from showing.
+(function(){
+  try{
+    if(!('IntersectionObserver' in window)) return;
+    var els=document.querySelectorAll('.reveal');
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    },{threshold:.15,rootMargin:'0px 0px -40px 0px'});
+    els.forEach(function(el){ io.observe(el); });
+  }catch(e){}
+})();
+
 renderAnnouncements(); // paint from cached localStorage immediately
 fetch('/api/db').then(function(r){return r.json();}).then(function(d){
   if(d&&Array.isArray(d.smm_announcements)){
