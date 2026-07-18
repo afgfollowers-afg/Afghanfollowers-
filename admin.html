@@ -1781,7 +1781,8 @@ function rProvs(){
   var h='<table><thead><tr><th>Provider</th><th>URL</th><th>Balance</th><th>Services</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<provs.length;i++){
     var p=provs[i];var sc=p.services?p.services.length:0;
-    h+='<tr><td><div style="font-weight:700;font-size:13px">'+escHtmlAdmin(p.name)+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'%</div></td>';
+    var keyConfigured=!!(p.key||p._has_key);
+    h+='<tr><td><div style="font-weight:700;font-size:13px">'+escHtmlAdmin(p.name)+'</div><div style="font-size:10px;color:var(--mt)">Margin: '+(p.margin||20)+'% · '+(keyConfigured?'<span style="color:var(--gr)">🔑 Key set</span>':'<span style="color:var(--rd)">⚠️ No key</span>')+'</div></td>';
     h+='<td style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(p.url)+'</td>';
     h+='<td><span id="bal-'+p.id+'" style="cursor:pointer;color:'+(p.balance?'var(--gr)':'var(--mt)')+';font-weight:700;font-size:13px" onclick="chkBal('+p.id+')" title="Click to check balance">'+(p.balance?'$'+p.balance:'↻ Check')+'</span></td>';
     h+='<td><span class="b '+(sc?'bg':'by')+'" style="cursor:pointer" onclick="showQuickImport('+p.id+')" title="Search, filter and import services from this provider">'+(sc?sc+' services':'Load Services')+'</span></td>';
@@ -1801,7 +1802,7 @@ function editProv(id){
     +'<div class="md-b">'
     +'<div class="fg"><label class="fl">Provider Name</label><input class="fi" id="ep-name" value="'+p.name+'"></div>'
     +'<div class="fg"><label class="fl">API URL</label><input class="fi" id="ep-url" value="'+p.url+'"></div>'
-    +'<div class="fg"><label class="fl">API Key</label><div style="position:relative"><input type="password" class="fi" id="ep-key" value="'+(p.key||'')+'" placeholder="Enter API Key" style="padding-right:36px"><button type="button" onclick="toggleSecEye(\'ep-key\',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mt);cursor:pointer;font-size:14px">👁</button></div></div>'
+    +'<div class="fg"><label class="fl">API Key'+(p._has_key&&!p.key?' <span style="color:var(--gr);font-weight:400">(already set on the server — leave blank to keep it)</span>':'')+'</label><div style="position:relative"><input type="password" class="fi" id="ep-key" value="'+(p.key||'')+'" placeholder="'+(p._has_key&&!p.key?'•••••••• (leave blank to keep current key)':'Enter API Key')+'" style="padding-right:36px"><button type="button" onclick="toggleSecEye(\'ep-key\',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mt);cursor:pointer;font-size:14px">👁</button></div></div>'
     +'<div class="fg"><label class="fl">Profit Margin (%)</label>'
     +'<input type="number" class="fi" id="ep-margin" value="'+(p.margin||20)+'" min="0" max="500">'
     +'<div style="font-size:11px;color:var(--mt);margin-top:5px">Your price = Provider price × (1 + margin/100)</div></div>'
