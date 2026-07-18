@@ -168,13 +168,10 @@ async function selectService(token, chatId, rowId, isEnglish) {
 }
 
 // Handles a free-text message while the chat has an in-progress "waiting for
-// link+quantity" order — returns false (no-op) when there's nothing pending,
-// so the caller falls through to the bot's normal keyword/FAQ replies.
-async function maybeHandlePendingQtyLink(token, chatId, text, isEnglish) {
-  const db = await getDb();
-  const users = db.smm_users || [];
-  const user = findUserByChat(users, chatId);
-  if (!user || !user.tgPending || user.tgPending.step !== 'await_qty_link') return false;
+// link+quantity" order — assumes the caller (maybeHandlePendingFreeText)
+// already confirmed user.tgPending.step === 'await_qty_link' and passes in
+// the already-fetched user/users so this doesn't re-read the DB itself.
+async function handleQtyLinkText(token, chatId, user, users, text, isEnglish) {
   const pending = user.tgPending;
   if (Date.now() - pending.ts > PENDING_TTL_MS) {
     user.tgPending = null;
@@ -210,8 +207,9 @@ async function maybeHandlePendingQtyLink(token, chatId, text, isEnglish) {
     await tgApi(token, 'sendMessage', {
       chat_id: chatId, parse_mode: 'HTML',
       text: isEnglish
-        ? `❌ <b>Insufficient balance</b>\n\nThis order costs $${cost.toFixed(4)}, your balance is $${balance.toFixed(2)}.\n\nAdd funds, then resend the link and quantity:\n${SITE}/smm-panel.html`
-        : `❌ <b>موجودی کافی نیست</b>\n\nهزینه این سفارش $${cost.toFixed(4)} است، موجودی شما $${balance.toFixed(2)} است.\n\nابتدا شارژ کنید، سپس دوباره لینک و تعداد را بفرست:\n${SITE}/smm-panel.html`
+        ? `❌ <b>Insufficient balance</b>\n\nThis order costs $${cost.toFixed(4)}, your balance is $${balance.toFixed(2)}.\n\nTop up, then resend the link and quantity.`
+        : `❌ <b>موجودی کافی نیست</b>\n\nهزینه این سفارش $${cost.toFixed(4)} است، موجودی شما $${balance.toFixed(2)} است.\n\nابتدا شارژ کنید، سپس دوباره لینک و تعداد را بفرست.`,
+      reply_markup: { inline_keyboard: [[{ text: isEnglish ? '💳 Top up now' : '💳 شارژ حساب', callback_data: 'tup|' + (isEnglish ? '1' : '0') }]] }
     });
     return true;
   }
@@ -259,7 +257,11 @@ async function confirmPendingOrder(token, chatId, isEnglish) {
   if (pending.cost > balance) {
     user.tgPending = null;
     await saveUsers(users);
-    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'Insufficient balance now — add funds and start over with /buy.' : 'موجودی کافی نیست — شارژ کن و دوباره با /buy شروع کن.' });
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: isEnglish ? 'Insufficient balance now — top up and start over with /buy.' : 'موجودی کافی نیست — شارژ کن و دوباره با /buy شروع کن.',
+      reply_markup: { inline_keyboard: [[{ text: isEnglish ? '💳 Top up now' : '💳 شارژ حساب', callback_data: 'tup|' + (isEnglish ? '1' : '0') }]] }
+    });
     return;
   }
 
@@ -305,15 +307,22 @@ async function confirmPendingOrder(token, chatId, isEnglish) {
   await notifyAdmin(token, `🛒 <b>New Telegram Order #${orderId}</b>\n👤 ${escapeHtml(order.user || order.email || ('User ' + user.id))}\n📦 ${escapeHtml(pending.name)}\n🔢 ${pending.qty}\n💰 $${pending.cost.toFixed(4)}`);
 }
 
-async function cancelPendingOrder(token, chatId, isEnglish) {
+// Clears both in-progress flows (an order awaiting link/qty/confirm, and a
+// top-up awaiting amount/proof/PayPal confirmation) — used by /cancel and by
+// every "❌ Cancel" button, since only one flow is ever meaningfully active
+// per chat and clearing the other one too is harmless.
+async function cancelAnyPending(token, chatId, isEnglish) {
   const db = await getDb();
   const users = db.smm_users || [];
   const user = findUserByChat(users, chatId);
-  if (user && user.tgPending) {
-    user.tgPending = null;
-    await saveUsers(users);
-  }
-  await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Cancelled.' : '❌ لغو شد.' });
+  let hadSomething = false;
+  if (user && user.tgPending) { user.tgPending = null; hadSomething = true; }
+  if (user && user.tgTopup) { user.tgTopup = null; hadSomething = true; }
+  if (hadSomething) await saveUsers(users);
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId,
+    text: isEnglish ? (hadSomething ? '❌ Cancelled.' : 'Nothing to cancel.') : (hadSomething ? '❌ لغو شد.' : 'چیزی برای لغو نیست.')
+  });
 }
 
 async function showBalance(token, chatId, isEnglish) {
@@ -331,8 +340,327 @@ async function showBalance(token, chatId, isEnglish) {
   const bal = parseFloat(user.balance) || 0;
   await tgApi(token, 'sendMessage', {
     chat_id: chatId, parse_mode: 'HTML',
-    text: isEnglish ? `💳 <b>Your balance:</b> $${bal.toFixed(2)}\n📦 Orders: ${user.orders || 0}` : `💳 <b>موجودی شما:</b> $${bal.toFixed(2)}\n📦 تعداد سفارش‌ها: ${user.orders || 0}`
+    text: isEnglish
+      ? `💳 <b>Your balance:</b> $${bal.toFixed(2)}\n📦 Orders: ${user.orders || 0}\n\nUse /topup to add funds right here.`
+      : `💳 <b>موجودی شما:</b> $${bal.toFixed(2)}\n📦 تعداد سفارش‌ها: ${user.orders || 0}\n\nبرای شارژ همینجا از /topup استفاده کن.`
   });
+}
+
+// ── Direct top-up flow (/topup) ──────────────────────────────────────────
+// Lets the customer pay from inside the chat instead of going to the panel:
+// PayPal orders are created via PayPal's own REST API (same Orders v2 flow
+// api/paypal-verify.js already trusts) and captured the moment the customer
+// taps "I've paid"; every other configured method (Binance Pay, USDT,
+// Cash/Hawala, ...) shows the same payment details the panel's manual "Add
+// Funds" flow does and logs a deposit_pending transaction for the admin to
+// approve — identical shape to smm-panel.html's afSubmitManual(), so it
+// shows up in the existing admin approval UI without any changes there.
+const PM_ICON = {
+  paypal: '🅿️ PayPal', binance: '🟡 Binance Pay', usdt_trc20: '₮ USDT (TRC20)',
+  usdt_erc20: 'Ξ USDT (ERC20)', payment_approval: '💵 Cash / Hawala', perfectmoney: '💎 Perfect Money'
+};
+
+async function paypalToken(clientId, secret, apiBase) {
+  const r = await fetch(apiBase + '/v1/oauth2/token', {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + Buffer.from(clientId + ':' + secret).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials'
+  });
+  const j = await r.json();
+  if (!r.ok || !j.access_token) throw new Error('PayPal auth failed: ' + JSON.stringify(j));
+  return j.access_token;
+}
+
+async function startTopupFlow(token, chatId, isEnglish) {
+  const db = await getDb();
+  // Stripe needs a hosted card-entry form the bot has no way to drive, so
+  // it's excluded here even if an admin has it toggled on — every other
+  // method either redirects to a real payment page (PayPal) or is a manual
+  // proof-of-payment method the panel already supports the same way.
+  const pms = (db.smm_pm || []).filter(function (m) { return m && m.on && m.method !== 'stripe'; });
+  if (!pms.length) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'No payment method is configured yet — please contact support.' : 'هنوز روش پرداختی تنظیم نشده — با پشتیبانی تماس بگیرید.' });
+    return;
+  }
+  const buttons = pms.map(function (m) {
+    return [{ text: PM_ICON[m.method] || m.vname || m.method, callback_data: 'tupm|' + (isEnglish ? '1' : '0') + '|' + m.id }];
+  });
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish ? '💳 <b>Add funds</b>\n\nChoose a payment method:' : '💳 <b>افزایش موجودی</b>\n\nیک روش پرداخت را انتخاب کنید:',
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+async function selectTopupMethod(token, chatId, pmId, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `🔒 <b>Account not linked</b>\n\nLog into the panel, open "Free Likes", and tap "🔗 Connect Telegram" first.\n\n🌐 ${SITE}/smm-panel.html`
+        : `🔒 <b>حساب متصل نیست</b>\n\nاول وارد پنل شو، بخش «Free Likes» را باز کن و روی «🔗 اتصال تلگرام» بزن.\n\n🌐 ${SITE}/smm-panel.html`
+    });
+    return;
+  }
+  const pm = (db.smm_pm || []).find(function (m) { return String(m.id) === String(pmId) && m.on; });
+  if (!pm) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This payment method is no longer available.' : 'این روش پرداخت دیگر موجود نیست.' });
+    return;
+  }
+  const min = parseFloat(pm.min) || 1;
+  const max = parseFloat(pm.max) || 100000;
+  user.tgTopup = { pmId: pm.id, method: pm.method, vname: pm.vname, min: min, max: max, step: 'await_amount', ts: Date.now() };
+  await saveUsers(users);
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish
+      ? `💳 <b>${escapeHtml(pm.vname || pm.method)}</b>\n\nSend the amount you want to add (between $${min} and $${max}):`
+      : `💳 <b>${escapeHtml(pm.vname || pm.method)}</b>\n\nمبلغی که می‌خواهید شارژ کنید را بفرست (بین $${min} تا $${max}):`
+  });
+}
+
+async function finishStartPaypalOrder(token, db, chatId, user, users, amt, isEnglish) {
+  const pm = (db.smm_pm || []).find(function (m) { return m.method === 'paypal'; });
+  if (!pm || !pm.clientId || !pm.clientSecret) {
+    user.tgTopup = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'PayPal is not fully configured — please use another method or the panel.' : 'PayPal کامل تنظیم نشده — از روش دیگر یا پنل استفاده کنید.' });
+    return;
+  }
+  const apiBase = pm.env === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+  try {
+    const accessToken = await paypalToken(pm.clientId, pm.clientSecret, apiBase);
+    const orderResp = await fetch(apiBase + '/v2/checkout/orders', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [{ amount: { currency_code: pm.cur || 'USD', value: amt.toFixed(2) }, description: 'Wallet top-up — Afghan Followers' }],
+        application_context: { brand_name: 'Afghan Followers', user_action: 'PAY_NOW', shipping_preference: 'NO_SHIPPING' }
+      })
+    });
+    const order = await orderResp.json();
+    const approveLink = (order.links || []).find(function (l) { return l.rel === 'approve'; });
+    if (!orderResp.ok || !approveLink) {
+      user.tgTopup = null;
+      await saveUsers(users);
+      await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Could not start the PayPal payment. Please try again later.' : '❌ شروع پرداخت PayPal ممکن نشد. بعداً دوباره امتحان کنید.' });
+      return;
+    }
+    user.tgTopup = { pmId: pm.id, method: 'paypal', amount: amt, ppOrderId: order.id, step: 'await_paypal_confirm', ts: Date.now() };
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `💰 <b>Pay $${amt.toFixed(2)} with PayPal</b>\n\n1️⃣ Tap the button below and complete the payment\n2️⃣ Come back and tap "✅ I've paid"\n\nYour balance is credited automatically once PayPal confirms it.`
+        : `💰 <b>پرداخت $${amt.toFixed(2)} با PayPal</b>\n\n1️⃣ روی دکمه زیر بزن و پرداخت را کامل کن\n2️⃣ برگرد و روی «✅ پرداخت کردم» بزن\n\nبه محض تایید PayPal، موجودی‌ات خودکار شارژ می‌شود.`,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: isEnglish ? '🔗 Pay with PayPal' : '🔗 پرداخت با PayPal', url: approveLink.href }],
+          [
+            { text: isEnglish ? '✅ I\'ve paid' : '✅ پرداخت کردم', callback_data: 'tupx|' + (isEnglish ? '1' : '0') },
+            { text: isEnglish ? '❌ Cancel' : '❌ انصراف', callback_data: 'tupc|' + (isEnglish ? '1' : '0') }
+          ]
+        ]
+      }
+    });
+  } catch (e) {
+    user.tgTopup = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ PayPal error — please try again later.' : '❌ خطای PayPal — بعداً دوباره امتحان کنید.' });
+  }
+}
+
+async function showManualPaymentInstructions(token, db, chatId, user, users, amt, isEnglish) {
+  const pm = (db.smm_pm || []).find(function (m) { return String(m.id) === String(user.tgTopup.pmId); });
+  if (!pm) {
+    user.tgTopup = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This payment method is no longer available.' : 'این روش پرداخت دیگر موجود نیست.' });
+    return;
+  }
+  user.tgTopup = Object.assign({}, user.tgTopup, { amount: amt, step: 'await_proof', ts: Date.now() });
+  await saveUsers(users);
+
+  var details;
+  if (pm.method === 'binance') details = (isEnglish ? 'Binance Pay ID: ' : 'شناسه Binance Pay: ') + '<code>' + escapeHtml(pm.payId || '-') + '</code>';
+  else if (pm.method === 'usdt_trc20' || pm.method === 'usdt_erc20') details = (isEnglish ? 'Wallet address: ' : 'آدرس کیف پول: ') + '<code>' + escapeHtml(pm.wallet || '-') + '</code>';
+  else details = escapeHtml(pm.account || '') + (pm.instructions ? '\n' + escapeHtml(pm.instructions) : '');
+
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish
+      ? `💵 <b>Pay $${amt.toFixed(2)} — ${escapeHtml(pm.vname || pm.method)}</b>\n\n${details}\n\nAfter sending the payment, reply here with your transaction ID / reference so an admin can verify and credit it.\n\nOr /cancel to abort.`
+      : `💵 <b>پرداخت $${amt.toFixed(2)} — ${escapeHtml(pm.vname || pm.method)}</b>\n\n${details}\n\nبعد از انجام پرداخت، شماره تراکنش/مرجع را همینجا بفرست تا ادمین تایید و شارژ کند.\n\nیا /cancel برای انصراف.`
+  });
+}
+
+async function handleTopupAmountText(token, db, chatId, user, users, text, isEnglish) {
+  const topup = user.tgTopup;
+  const amt = parseFloat(text.replace(/[^0-9.]/g, ''));
+  if (!amt || isNaN(amt) || amt <= 0) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Please send a valid amount, e.g. 20' : '❌ لطفاً یک مبلغ معتبر بفرست، مثلاً 20' });
+    return;
+  }
+  if (amt < topup.min || amt > topup.max) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: isEnglish ? `❌ Amount must be between $${topup.min} and $${topup.max}.` : `❌ مبلغ باید بین $${topup.min} تا $${topup.max} باشد.`
+    });
+    return;
+  }
+  if (topup.method === 'paypal') {
+    await finishStartPaypalOrder(token, db, chatId, user, users, amt, isEnglish);
+  } else {
+    await showManualPaymentInstructions(token, db, chatId, user, users, amt, isEnglish);
+  }
+}
+
+async function handleTopupProofText(token, chatId, user, users, text, isEnglish) {
+  const topup = user.tgTopup;
+  const txid = text.trim().slice(0, 200);
+  user.transactions = user.transactions || [];
+  user.transactions.unshift({
+    id: Date.now(), type: 'deposit_pending', method: topup.method, amount: topup.amount,
+    txid: txid, status: 'pending', desc: 'Telegram — awaiting admin approval', date: new Date().toISOString()
+  });
+  user.tgTopup = null;
+  await saveUsers(users);
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish
+      ? `✅ <b>Payment submitted!</b>\n\nAmount: $${topup.amount.toFixed(2)}\nReference: ${escapeHtml(txid)}\n\nAn admin will verify and credit your wallet shortly.`
+      : `✅ <b>پرداخت ثبت شد!</b>\n\nمبلغ: $${topup.amount.toFixed(2)}\nمرجع: ${escapeHtml(txid)}\n\nادمین به‌زودی تایید و شارژ می‌کند.`
+  });
+  await notifyAdmin(token, `💰 <b>New Telegram Top-up Request</b>\n👤 ${escapeHtml(user.fname || user.name || user.email || ('User ' + user.id))}\n💳 ${escapeHtml(topup.method)}\n💵 $${topup.amount.toFixed(2)}\n🔖 ${escapeHtml(txid)}`);
+}
+
+async function confirmPaypalTopup(token, chatId, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user || !user.tgTopup || user.tgTopup.step !== 'await_paypal_confirm') {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'Nothing pending — start over with /topup.' : 'چیزی در انتظار نیست — دوباره با /topup شروع کن.' });
+    return;
+  }
+  const topup = user.tgTopup;
+  if (Date.now() - topup.ts > PENDING_TTL_MS) {
+    user.tgTopup = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This payment request expired — start over with /topup.' : 'این درخواست پرداخت منقضی شد — دوباره با /topup شروع کن.' });
+    return;
+  }
+  const pm = (db.smm_pm || []).find(function (m) { return m.method === 'paypal'; });
+  if (!pm || !pm.clientId || !pm.clientSecret) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'PayPal is not configured.' : 'PayPal تنظیم نشده.' });
+    return;
+  }
+
+  // Same idempotency ledger api/paypal-verify.js writes to — a captured
+  // order must only ever be credited once, no matter which path captured it.
+  const processed = db.smm_paypal_processed || [];
+  if (processed.indexOf(topup.ppOrderId) !== -1) {
+    user.tgTopup = null;
+    await saveUsers(users);
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'This payment was already processed.' : 'این پرداخت قبلاً پردازش شده.' });
+    return;
+  }
+
+  const apiBase = pm.env === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+  try {
+    const accessToken = await paypalToken(pm.clientId, pm.clientSecret, apiBase);
+    const captureResp = await fetch(apiBase + '/v2/checkout/orders/' + encodeURIComponent(topup.ppOrderId) + '/capture', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }
+    });
+    const captureJson = await captureResp.json();
+    if (!captureResp.ok) {
+      const notApproved = Array.isArray(captureJson.details) && captureJson.details.some(function (d) { return d.issue === 'ORDER_NOT_APPROVED'; });
+      await tgApi(token, 'sendMessage', {
+        chat_id: chatId,
+        text: notApproved
+          ? (isEnglish ? "⏳ You haven't completed the PayPal payment yet — tap the payment link first, then try again." : '⏳ هنوز پرداخت PayPal را کامل نکردی — اول روی لینک پرداخت بزن، سپس دوباره امتحان کن.')
+          : (isEnglish ? '❌ Payment could not be verified. Please try again in a moment.' : '❌ تایید پرداخت ممکن نشد. کمی بعد دوباره امتحان کن.')
+      });
+      return;
+    }
+    if (captureJson.status !== 'COMPLETED') {
+      await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Payment not completed yet. Please finish it in PayPal, then try again.' : '❌ پرداخت هنوز کامل نشده. آن را در PayPal کامل کن و دوباره امتحان کن.' });
+      return;
+    }
+    const unit = captureJson.purchase_units && captureJson.purchase_units[0];
+    const capture = unit && unit.payments && unit.payments.captures && unit.payments.captures[0];
+    const paidAmount = capture && parseFloat(capture.amount.value);
+    if (!paidAmount || paidAmount <= 0) {
+      await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Could not verify the paid amount — contact support with order id: ' + topup.ppOrderId : '❌ تایید مبلغ پرداختی ممکن نشد — با پشتیبانی و این شماره تماس بگیر: ' + topup.ppOrderId });
+      return;
+    }
+
+    const fee = parseFloat(pm.fee) || 0;
+    const feeFixed = parseFloat(pm.feeFixed) || 0;
+    const feeAmt = parseFloat((paidAmount * (fee / 100) + feeFixed).toFixed(2));
+    const credit = parseFloat((paidAmount - feeAmt).toFixed(2));
+    if (credit <= 0) {
+      await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Payment too small to cover fees — contact support with order id: ' + topup.ppOrderId : '❌ مبلغ برای پوشش کارمزد کافی نیست — با پشتیبانی و این شماره تماس بگیر: ' + topup.ppOrderId });
+      return;
+    }
+
+    const newBalance = parseFloat(((parseFloat(user.balance) || 0) + credit).toFixed(2));
+    user.balance = newBalance;
+    user.transactions = user.transactions || [];
+    user.transactions.unshift({
+      id: Date.now(), type: 'deposit', method: 'PayPal', amount: paidAmount, fee: feeAmt, credit: credit,
+      ppOrderId: topup.ppOrderId, desc: 'PayPal (Telegram) — verified and auto-credited', date: new Date().toISOString(), status: 'approved'
+    });
+    user.tgTopup = null;
+
+    const newProcessed = processed.concat([topup.ppOrderId]);
+    if (newProcessed.length > 2000) newProcessed.splice(0, newProcessed.length - 2000);
+
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_users: users, smm_paypal_processed: newProcessed, smm_ts: Date.now() })
+    });
+
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: isEnglish
+        ? `✅ <b>Payment confirmed!</b>\n\nPaid: $${paidAmount.toFixed(2)}\nCredited: $${credit.toFixed(2)}\nNew balance: $${newBalance.toFixed(2)}`
+        : `✅ <b>پرداخت تایید شد!</b>\n\nمبلغ پرداختی: $${paidAmount.toFixed(2)}\nمبلغ شارژ شده: $${credit.toFixed(2)}\nموجودی جدید: $${newBalance.toFixed(2)}`
+    });
+    await notifyAdmin(token, `✅ <b>PayPal Top-up via Telegram</b>\n👤 ${escapeHtml(user.fname || user.email || ('User ' + user.id))}\n💵 Paid $${paidAmount.toFixed(2)} → Credited $${credit.toFixed(2)}\nOrder: ${topup.ppOrderId}`);
+  } catch (e) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '❌ Error verifying the payment — please try again in a moment.' : '❌ خطا در تایید پرداخت — کمی بعد دوباره امتحان کن.' });
+  }
+}
+
+// Single entry point for every free-text message that might be answering an
+// in-progress /buy or /topup flow — one DB read, routed to whichever step
+// (if any) is actually pending. Returns false when there's nothing pending
+// so the caller falls through to the bot's normal keyword/FAQ replies.
+async function maybeHandlePendingFreeText(token, chatId, text, isEnglish) {
+  const db = await getDb();
+  const users = db.smm_users || [];
+  const user = findUserByChat(users, chatId);
+  if (!user) return false;
+  if (user.tgPending && user.tgPending.step === 'await_qty_link') {
+    return handleQtyLinkText(token, chatId, user, users, text, isEnglish);
+  }
+  if (user.tgTopup && user.tgTopup.step === 'await_amount') {
+    if (Date.now() - user.tgTopup.ts > PENDING_TTL_MS) { user.tgTopup = null; await saveUsers(users); return false; }
+    await handleTopupAmountText(token, db, chatId, user, users, text, isEnglish);
+    return true;
+  }
+  if (user.tgTopup && user.tgTopup.step === 'await_proof') {
+    if (Date.now() - user.tgTopup.ts > PENDING_TTL_MS) { user.tgTopup = null; await saveUsers(users); return false; }
+    await handleTopupProofText(token, chatId, user, users, text, isEnglish);
+    return true;
+  }
+  return false;
 }
 
 async function handleCallbackQuery(cbq, token) {
@@ -349,7 +677,11 @@ async function handleCallbackQuery(cbq, token) {
   if (kind === 'buyp') await showServiceList(token, chatId, parts[2], isEnglish);
   else if (kind === 'buys') await selectService(token, chatId, parts[2], isEnglish);
   else if (kind === 'buyc') await confirmPendingOrder(token, chatId, isEnglish);
-  else if (kind === 'buyx') await cancelPendingOrder(token, chatId, isEnglish);
+  else if (kind === 'buyx') await cancelAnyPending(token, chatId, isEnglish);
+  else if (kind === 'tup') await startTopupFlow(token, chatId, isEnglish);
+  else if (kind === 'tupm') await selectTopupMethod(token, chatId, parts[2], isEnglish);
+  else if (kind === 'tupx') await confirmPaypalTopup(token, chatId, isEnglish);
+  else if (kind === 'tupc') await cancelAnyPending(token, chatId, isEnglish);
 }
 
 async function lookupOrder(orderId) {
@@ -491,8 +823,16 @@ module.exports = async (req, res) => {
     await startBuyFlow(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
+  // Direct top-up: /topup lets the customer pay from inside the chat (PayPal
+  // is captured automatically the moment they confirm; every other
+  // configured method logs a pending deposit for the admin to approve, same
+  // as the panel's manual "Add Funds" flow) — see startTopupFlow() above.
+  if (text === '/topup' || lower.trim() === 'شارژ' || lower.trim() === 'topup' || lower.trim() === 'top up') {
+    await startTopupFlow(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
   if (text === '/cancel') {
-    await cancelPendingOrder(token, chatId, isEnglish);
+    await cancelAnyPending(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
   if (text === '/balance' || lower.trim() === 'موجودی' || lower.trim() === 'balance') {
@@ -500,16 +840,17 @@ module.exports = async (req, res) => {
     return res.status(200).send('ok');
   }
 
-  // If this chat is mid-/buy (a service was picked and the bot is waiting
-  // for "<link> <quantity>"), treat any non-command text as that answer —
-  // must run before every keyword/FAQ branch below, since a pasted
-  // Instagram link would otherwise get swallowed by the generic "instagram"
-  // FAQ reply further down instead of being read as the order's link.
-  // Cheap pre-filter (a quantity is mandatory, so any valid answer has a
-  // digit in it) before paying for a DB round-trip on every plain chat
-  // message — most FAQ traffic ("سلام", "قیمت‌ها", …) never reaches here.
-  if (!text.startsWith('/') && /\d/.test(text)) {
-    const handledPending = await maybeHandlePendingQtyLink(token, chatId, text, isEnglish);
+  // If this chat is mid-/buy or mid-/topup (waiting for "<link> <quantity>",
+  // a top-up amount, or manual payment proof), treat any non-command text as
+  // that answer — must run before every keyword/FAQ branch below, since a
+  // pasted Instagram link, a bare amount, or a non-numeric transaction
+  // reference would otherwise get swallowed by a generic FAQ reply further
+  // down instead of being read as real input. No cheap digit-based
+  // pre-filter here (unlike an earlier version of this check) — a manual
+  // payment reference isn't guaranteed to contain a digit at all, so
+  // skipping the DB lookup for text without one would silently drop it.
+  if (!text.startsWith('/')) {
+    const handledPending = await maybeHandlePendingFreeText(token, chatId, text, isEnglish);
     if (handledPending) return res.status(200).send('ok');
   }
 
@@ -575,8 +916,8 @@ module.exports = async (req, res) => {
     // already handled above
   } else if (text === '/start') {
     reply = isEnglish
-      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n🛒 /buy - order a service right here\n💳 /balance - check your wallet balance\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
-      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n🛒 /buy - سفارش مستقیم همین‌جا\n💳 /balance - مشاهده موجودی کیف پول\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
+      ? `👋 Hi ${firstName}!\n\nWelcome to the <b>Afghan Followers</b> panel.\n\n🌐 Site: ${SITE}\n\nUseful commands:\n🛒 /buy - order a service right here\n💳 /topup - add funds right here (PayPal, Binance Pay, USDT, Hawala)\n💰 /balance - check your wallet balance\n/help - help\n/panel - open the panel\n/services - service list\n/order [number] - order status\n/ticket [message] - open a support ticket\n/support - support\n\n🎁 Tip: ask me "free likes" to find out how to get free likes just by inviting friends.`
+      : `👋 سلام ${firstName}!\n\nبه پنل <b>Afghan Followers</b> خوش آمدید.\n\n🌐 سایت: ${SITE}\n\nبرای دریافت کمک از دستورات زیر استفاده کنید:\n🛒 /buy - سفارش مستقیم همین‌جا\n💳 /topup - شارژ مستقیم همین‌جا (PayPal، Binance Pay، USDT، حواله)\n💰 /balance - مشاهده موجودی کیف پول\n/help - راهنما\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/support - پشتیبانی\n\n🎁 نکته: بپرس «لایک رایگان» تا بگم چطور فقط با دعوت دوستات لایک رایگان بگیری.`;
   } else if (/^(سلام|درود|hi|hello|hey)[\s!.]*$/i.test(text)) {
     reply = isEnglish
       ? `👋 Hey ${firstName}, welcome!\n\nAsk me anything about buying followers, likes, views or members — pricing, payment, account safety, whatever's on your mind 😊\n\nOr just send /services to see what we offer.`
@@ -623,8 +964,8 @@ module.exports = async (req, res) => {
     reply = `🎥 <b>Twitch Services</b>\n\n✅ Followers\n✅ Channel Views\n\n🌐 ${SITE}`;
   } else if (text === '/help' || lower.includes('help') || lower.includes('کمک')) {
     reply = isEnglish
-      ? `📋 <b>Help</b>\n\n🛒 /buy - order a service right here (pick platform → service → send link + quantity → confirm)\n💳 /balance - check your wallet balance\n/cancel - abort an in-progress order\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
-      : `📋 <b>راهنما</b>\n\n🛒 /buy - سفارش مستقیم همین‌جا (پلتفرم → سرویس → ارسال لینک و تعداد → تایید)\n💳 /balance - مشاهده موجودی کیف پول\n/cancel - لغو سفارش نیمه‌کاره\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
+      ? `📋 <b>Help</b>\n\n🛒 /buy - order a service right here (pick platform → service → send link + quantity → confirm)\n💳 /topup - add funds right here — PayPal is credited instantly, other methods are verified by an admin\n💰 /balance - check your wallet balance\n/cancel - abort an in-progress order or payment\n/panel - open the panel\n/services - service list\n/order [order number] - order status\n/ticket [message] - open a support ticket\n/prices - pricing\n/support - support\n\n🎁 Ask "free likes" any time to learn about our invite-and-earn program.\n\n💬 Contact admin for support.`
+      : `📋 <b>راهنما</b>\n\n🛒 /buy - سفارش مستقیم همین‌جا (پلتفرم → سرویس → ارسال لینک و تعداد → تایید)\n💳 /topup - شارژ مستقیم همین‌جا — PayPal فوری اعمال می‌شود، بقیه روش‌ها توسط ادمین تایید می‌شوند\n💰 /balance - مشاهده موجودی کیف پول\n/cancel - لغو سفارش یا پرداخت نیمه‌کاره\n/panel - ورود به پنل\n/services - لیست سرویس‌ها\n/order [شماره سفارش] - وضعیت سفارش\n/ticket [پیام] - باز کردن تیکت پشتیبانی\n/prices - قیمت‌ها\n/support - پشتیبانی\n\n🎁 هر وقت خواستی بپرس «لایک رایگان» تا برنامه‌ی دعوت و جایزه رو برات توضیح بدم.\n\n💬 برای پشتیبانی با ادمین تماس بگیرید.`;
   } else if (text === '/panel') {
     reply = isEnglish
       ? `🔗 <b>Panel link</b>\n\n${SITE}\n\nSign up or log in to get started.`
