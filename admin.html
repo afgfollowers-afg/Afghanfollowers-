@@ -1731,6 +1731,32 @@ function saveProvs(){
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_providers:lite,smm_ts:Date.now()})}).catch(function(){});
 }
+// Same reasoning/pattern as mergePmFromServer() below: providers pushed by
+// saveProvs() were never read back down by pullFromServer() — a second
+// browser/device (or the same one after a storage clear) had an empty
+// local provs array and both the Providers settings page and Quick Import
+// showed "No providers added yet", even though the real config was sitting
+// on the server the whole time. GET /api/db strips .key from every
+// response except a genuine internal server-to-server call (see api/db.js)
+// — never let that stripped/blank value overwrite a real key this browser
+// already has cached locally.
+function mergeProvidersFromServer(serverArr){
+  if(!Array.isArray(serverArr)) return false;
+  var changed=false;
+  serverArr.forEach(function(sp){
+    var local=provs.find(function(x){return String(x.id)===String(sp.id);});
+    if(!local){
+      provs.push(Object.assign({services:[]},sp));
+      changed=true;
+      return;
+    }
+    Object.keys(sp).forEach(function(k){
+      if(k==='key') return; // never let a stripped value clobber a local key
+      if(local[k]!==sp[k]){local[k]=sp[k];changed=true;}
+    });
+  });
+  return changed;
+}
 
 // ── API PROXY (Netlify Function) ──
 var PROXY_URL='/api/api-proxy';
@@ -7483,6 +7509,17 @@ function pullFromServer(){
           var activePgSvc=document.querySelector('.page.on');
           if(activePgSvc&&activePgSvc.id==='pg-services') rSvcs();
         }
+      }
+      var provChanged=mergeProvidersFromServer(d.smm_providers);
+      if(provChanged){
+        // Local cache only — must NOT re-POST here, or every pull that
+        // merges in a genuinely new/changed provider would immediately
+        // write it straight back to the server (wasteful, and a needless
+        // race window against a concurrent edit from another device).
+        var provsLite=provs.map(function(p){return {id:p.id,name:p.name,url:p.url,key:p.key||'',margin:p.margin||20,balance:p.balance};});
+        localStorage.setItem(PROV_KEY,JSON.stringify(provsLite));
+        var provPnl=document.getElementById('sp-providers');
+        if(provPnl&&provPnl.classList.contains('on')) rProvs();
       }
       var refQChanged=false;
       if(d.smm_ref_visit_queue&&Array.isArray(d.smm_ref_visit_queue)){
