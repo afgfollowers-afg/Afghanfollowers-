@@ -249,6 +249,13 @@ module.exports = async (req, res) => {
     if (!isInternalServiceCall && Array.isArray(record.smm_providers)) {
       record.smm_providers = record.smm_providers.map(function (p) {
         const c = Object.assign({}, p);
+        // Same "_has_x" boolean pattern as smm_pm's secrets above — without
+        // it, a browser that never had the real key locally (any device
+        // other than the one it was originally entered on) can't tell "a
+        // key is genuinely configured, just hidden here" from "no key was
+        // ever set", which read as "the key isn't being saved" even though
+        // it always was, safely, on the server.
+        c._has_key = !!c.key;
         delete c.key;
         return c;
       });
