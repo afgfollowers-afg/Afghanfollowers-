@@ -88,6 +88,43 @@ function groupByPlatform(svcs) {
   return map;
 }
 
+// A platform can easily have 50+ services (TikTok alone: views, saves, live
+// likes, shares, ...) — showing just the 10 cheapest after picking a
+// platform buried Followers behind a wall of cheaper Views/Saves services
+// that happened to sort first. Splitting by service TYPE first (Followers,
+// Likes, Views, ...) means the customer picks what they actually want
+// before price ever narrows the list.
+function detectServiceType(name) {
+  if (!name) return 'other';
+  var s = String(name).toLowerCase();
+  if (s.indexOf('subscri') > -1) return 'subscribers';
+  if (s.indexOf('follow') > -1) return 'followers';
+  if (s.indexOf('member') > -1) return 'members';
+  if (s.indexOf('comment') > -1) return 'comments';
+  if (s.indexOf('retweet') > -1 || s.indexOf('repin') > -1 || s.indexOf('share') > -1) return 'shares';
+  if (s.indexOf('save') > -1) return 'saves';
+  if (s.indexOf('like') > -1 || s.indexOf('upvote') > -1 || s.indexOf('react') > -1) return 'likes';
+  if (s.indexOf('view') > -1 || s.indexOf('play') > -1 || s.indexOf('stream') > -1) return 'views';
+  return 'other';
+}
+
+const TYPE_ORDER = ['followers', 'subscribers', 'members', 'likes', 'views', 'comments', 'shares', 'saves', 'other'];
+const TYPE_LABEL = {
+  followers: '👥 Followers', subscribers: '🔔 Subscribers', members: '👨‍👩‍👧 Members',
+  likes: '❤️ Likes', views: '👁 Views', comments: '💬 Comments', shares: '🔁 Shares/Retweets',
+  saves: '📌 Saves', other: '📦 Other'
+};
+
+function groupByType(svcs) {
+  var map = {};
+  svcs.forEach(function (s) {
+    var t = detectServiceType(s.name);
+    if (!map[t]) map[t] = [];
+    map[t].push(s);
+  });
+  return map;
+}
+
 // Pending in-bot order requests never last more than this — an old "confirm"
 // button tapped long after the fact would otherwise place an order at a
 // price/balance that may no longer be accurate.
@@ -115,12 +152,42 @@ async function startBuyFlow(token, chatId, isEnglish) {
   });
 }
 
-async function showServiceList(token, chatId, platform, isEnglish) {
+// Step 2 of /buy: after a platform, show its service TYPES (Followers,
+// Likes, Views, ...) rather than jumping straight to a price-sorted list —
+// see detectServiceType()/groupByType() above for why.
+async function showTypeMenu(token, chatId, platform, isEnglish) {
   const db = await getDb();
   const groups = groupByPlatform(decompressSvc(db.smm_svc));
-  const list = (groups[platform] || []).slice().sort(function (a, b) { return a.price - b.price; }).slice(0, 10);
-  if (!list.length) {
+  const byType = groupByType(groups[platform] || []);
+  const buttons = [];
+  let row = [];
+  TYPE_ORDER.forEach(function (t) {
+    if (!byType[t] || !byType[t].length) return;
+    row.push({ text: (TYPE_LABEL[t] || t) + ' (' + byType[t].length + ')', callback_data: 'buyt|' + (isEnglish ? '1' : '0') + '|' + platform + '|' + t });
+    if (row.length === 2) { buttons.push(row); row = []; }
+  });
+  if (row.length) buttons.push(row);
+  if (!buttons.length) {
     await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'No services found for this platform.' : 'سرویسی برای این پلتفرم پیدا نشد.' });
+    return;
+  }
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: isEnglish ? '📦 <b>What do you need?</b>\n\nPick a type:' : '📦 <b>چه چیزی می‌خوای؟</b>\n\nنوع سرویس را انتخاب کن:',
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+// Step 3 of /buy: the actual price-sorted, tappable service list, now
+// scoped to one platform + one type so Followers can never get crowded out
+// by cheaper Views/Saves services the way a single flat list did.
+async function showServiceList(token, chatId, platform, type, isEnglish) {
+  const db = await getDb();
+  const groups = groupByPlatform(decompressSvc(db.smm_svc));
+  const byType = groupByType(groups[platform] || []);
+  const list = (byType[type] || []).slice().sort(function (a, b) { return a.price - b.price; }).slice(0, 15);
+  if (!list.length) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? 'No services found for this type.' : 'سرویسی برای این نوع پیدا نشد.' });
     return;
   }
   const buttons = list.map(function (s) {
@@ -674,7 +741,8 @@ async function handleCallbackQuery(cbq, token) {
   const parts = data.split('|');
   const kind = parts[0];
   const isEnglish = parts[1] === '1';
-  if (kind === 'buyp') await showServiceList(token, chatId, parts[2], isEnglish);
+  if (kind === 'buyp') await showTypeMenu(token, chatId, parts[2], isEnglish);
+  else if (kind === 'buyt') await showServiceList(token, chatId, parts[2], parts[3], isEnglish);
   else if (kind === 'buys') await selectService(token, chatId, parts[2], isEnglish);
   else if (kind === 'buyc') await confirmPendingOrder(token, chatId, isEnglish);
   else if (kind === 'buyx') await cancelAnyPending(token, chatId, isEnglish);
@@ -848,11 +916,12 @@ module.exports = async (req, res) => {
       ? `🛍️ <b>How to buy — step by step</b>\n\n`
         + `1️⃣ Send /buy\n`
         + `2️⃣ Pick a platform (Instagram, TikTok, YouTube, ...)\n`
-        + `3️⃣ Tap a service from the list (price per 1000 is shown)\n`
-        + `4️⃣ First time only: if your account isn't linked yet, the bot tells you to open the panel → "Free Likes" → "🔗 Connect Telegram" once\n`
-        + `5️⃣ Send the link/username <b>and</b> quantity in one message:\n<code>https://instagram.com/yourpage 1000</code>\n`
-        + `6️⃣ Check the summary (service, cost, balance after) and tap ✅ Confirm\n`
-        + `7️⃣ Done! You get an order number — track it any time with <code>/order 12345</code>\n\n`
+        + `3️⃣ Pick a type (Followers, Likes, Views, ...)\n`
+        + `4️⃣ Tap a service from the list (price per 1000 is shown)\n`
+        + `5️⃣ First time only: if your account isn't linked yet, the bot tells you to open the panel → "Free Likes" → "🔗 Connect Telegram" once\n`
+        + `6️⃣ Send the link/username <b>and</b> quantity in one message:\n<code>https://instagram.com/yourpage 1000</code>\n`
+        + `7️⃣ Check the summary (service, cost, balance after) and tap ✅ Confirm\n`
+        + `8️⃣ Done! You get an order number — track it any time with <code>/order 12345</code>\n\n`
         + `💳 <b>If your balance isn't enough:</b>\n`
         + `1️⃣ Send /topup (or tap "💳 Top up now" when it's offered)\n`
         + `2️⃣ Pick a payment method\n`
@@ -864,11 +933,12 @@ module.exports = async (req, res) => {
       : `🛍️ <b>راهنمای خرید — قدم به قدم</b>\n\n`
         + `1️⃣ دستور /buy را بفرست\n`
         + `2️⃣ پلتفرم را انتخاب کن (اینستاگرام، تیک‌تاک، یوتیوب، ...)\n`
-        + `3️⃣ از لیست، روی یک سرویس بزن (قیمت هر ۱۰۰۰ تا نشان داده می‌شود)\n`
-        + `4️⃣ فقط بار اول: اگر حسابت به تلگرام وصل نیست، ربات می‌گوید از پنل → «Free Likes» → «🔗 اتصال تلگرام» یک‌بار وصل کن\n`
-        + `5️⃣ لینک/یوزرنیم <b>و</b> تعداد را در یک پیام بفرست:\n<code>https://instagram.com/yourpage 1000</code>\n`
-        + `6️⃣ خلاصه سفارش (سرویس، هزینه، موجودی بعد از خرید) را چک کن و روی ✅ تایید بزن\n`
-        + `7️⃣ تمام! شماره سفارش می‌گیری — هر وقت خواستی با <code>/order 12345</code> پیگیری کن\n\n`
+        + `3️⃣ نوع سرویس را انتخاب کن (فالوور، لایک، ویو، ...)\n`
+        + `4️⃣ از لیست، روی یک سرویس بزن (قیمت هر ۱۰۰۰ تا نشان داده می‌شود)\n`
+        + `5️⃣ فقط بار اول: اگر حسابت به تلگرام وصل نیست، ربات می‌گوید از پنل → «Free Likes» → «🔗 اتصال تلگرام» یک‌بار وصل کن\n`
+        + `6️⃣ لینک/یوزرنیم <b>و</b> تعداد را در یک پیام بفرست:\n<code>https://instagram.com/yourpage 1000</code>\n`
+        + `7️⃣ خلاصه سفارش (سرویس، هزینه، موجودی بعد از خرید) را چک کن و روی ✅ تایید بزن\n`
+        + `8️⃣ تمام! شماره سفارش می‌گیری — هر وقت خواستی با <code>/order 12345</code> پیگیری کن\n\n`
         + `💳 <b>اگر موجودی کافی نبود:</b>\n`
         + `1️⃣ /topup را بفرست (یا دکمه‌ی «💳 شارژ حساب» که نشان داده می‌شود را بزن)\n`
         + `2️⃣ روش پرداخت را انتخاب کن\n`
