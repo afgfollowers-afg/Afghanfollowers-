@@ -4519,6 +4519,28 @@ function pullFromServerOnLoad(){
 pullFromServerOnLoad();
 setInterval(pullFromServerOnLoad,30000);
 
+// Mobile browsers/installed PWAs throttle or fully suspend setInterval
+// while the tab is backgrounded (phone locked, switched to another app) —
+// often for hours. Coming back to an already-open tab then just resumes
+// the suspended JS context without a real page reload, so the 30s poll
+// above never fires again and the panel can keep showing a balance/order
+// list that's stale by however long it sat backgrounded (this is how an
+// admin-credited balance can look "missing" for a customer who genuinely
+// never closed the tab). Force one fresh pull the moment the tab becomes
+// visible/focused again, on top of the interval, so returning to the app
+// always shows current data without needing a manual reload.
+var _lastVisPull=Date.now();
+function _pullIfDue(){
+  if(Date.now()-_lastVisPull<5000) return; // avoid duplicate pulls firing together
+  _lastVisPull=Date.now();
+  pullFromServerOnLoad();
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible') _pullIfDue();
+});
+window.addEventListener('focus',_pullIfDue);
+window.addEventListener('pageshow',function(e){ if(e.persisted) _pullIfDue(); });
+
 // Start sync when page loads
 startRealTimeSync();
 
