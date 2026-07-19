@@ -434,12 +434,19 @@ async function sendEmailStatus(token, chatId, isEnglish) {
     }
     const bulk = status.bulkEmailCampaign;
     const weekly = status.weeklyReengagementEmail;
+    const cycleLineEn = bulk.cycleResetInDays === null
+      ? `Remaining this cycle: ${bulk.remainingInCycle}\n`
+      : `List fully sent — restarts in ${bulk.cycleResetInDays} day(s)\n`;
+    const cycleLineFa = bulk.cycleResetInDays === null
+      ? `باقی‌مانده این چرخه: ${bulk.remainingInCycle}\n`
+      : `کل لیست ارسال شده — ${bulk.cycleResetInDays} روز دیگر دوباره شروع می‌شود\n`;
     const text = isEnglish
       ? `📧 <b>Email status — ${status.today}</b>\n\n`
         + `<b>Bulk campaign</b>\n`
         + `Recipient list uploaded: ${bulk.active ? 'yes' : 'no'}\n`
         + `Ran today: ${bulk.ranToday ? '✅ yes' : '❌ no'}\n`
-        + `Sent today: ${bulk.sentToday}\n`
+        + `Sent today: ${bulk.sentToday} (daily limit: ${bulk.dailyLimit})\n`
+        + cycleLineEn
         + `Total ever sent: ${bulk.totalEverSent}\n\n`
         + `<b>Weekly re-engagement</b>\n`
         + `Enabled: ${weekly.active ? 'yes' : 'no'}\n`
@@ -450,7 +457,8 @@ async function sendEmailStatus(token, chatId, isEnglish) {
         + `<b>کمپین گروهی (Bulk)</b>\n`
         + `لیست گیرنده آپلود شده: ${bulk.active ? 'بله' : 'خیر'}\n`
         + `امروز اجرا شده: ${bulk.ranToday ? '✅ بله' : '❌ خیر'}\n`
-        + `ارسال‌شده امروز: ${bulk.sentToday}\n`
+        + `ارسال‌شده امروز: ${bulk.sentToday} (سقف روزانه: ${bulk.dailyLimit})\n`
+        + cycleLineFa
         + `مجموع کل ارسال‌شده‌ها: ${bulk.totalEverSent}\n\n`
         + `<b>یادآوری هفتگی</b>\n`
         + `فعال: ${weekly.active ? 'بله' : 'خیر'}\n`

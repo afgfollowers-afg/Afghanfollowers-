@@ -668,6 +668,17 @@ module.exports = async (req, res) => {
         // Same guard, for the daily bulk-email cron (sole writer).
         current.smm_last_bulk_campaign_date = body.smm_last_bulk_campaign_date;
       }
+      if (typeof body.smm_bulk_campaign_cycle_at === 'number') {
+        // Marks when the bulk campaign's recipient list was first found
+        // fully exhausted (every recipient already emailed) — sole writer
+        // is runBulkEmailCampaignJob, which uses this to wait a full week
+        // before starting the same list over from the top instead of just
+        // stopping forever once everyone's been emailed once. Reset back
+        // to 0 the moment that restart actually happens (see
+        // smm_bulk_campaign_sent_clear below, sent in the same request),
+        // so the NEXT exhaustion starts its own fresh countdown.
+        current.smm_bulk_campaign_cycle_at = body.smm_bulk_campaign_cycle_at;
+      }
       if (body.smm_bulk_campaign_list && typeof body.smm_bulk_campaign_list === 'object') {
         // The CSV the admin uploaded (recipients + status filter) — sole
         // writer is the admin panel, plain overwrite is fine.
