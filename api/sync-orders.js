@@ -18,6 +18,17 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 module.exports = async (req, res) => {
+  // ?status=1 — a pure read: report whether today's email jobs (the daily
+  // bulk campaign, the weekly re-engagement campaign) have actually sent
+  // anything, without running ANY job. Every other query shape on this
+  // endpoint (including a bare hit with no params at all) has real side
+  // effects — it retries stuck order dispatches to the real provider and,
+  // once a day, sends real customer emails — so "just check status" can
+  // never safely reuse those paths; this is the one branch that only reads.
+  if (req.query && (req.query.status === '1' || req.query.status === 'true')) {
+    return runStatusCheck(req, res);
+  }
+
   if (req.query && req.query.job === 'email-campaign') {
     return runEmailCampaignJob(req, res);
   }
@@ -192,6 +203,71 @@ async function dispatchOneOrderCore(order, dbSnapshot, opts) {
     return { ok: false, error: result.error || 'No order id returned', rawResponse: result };
   } catch (e) {
     return { ok: false, error: e.message };
+  }
+}
+
+// Read-only status report for the two actual EMAIL jobs this file runs
+// (the daily bulk campaign and the weekly re-engagement campaign) — see the
+// ?status=1 branch in module.exports above for why this never triggers
+// either job itself. Gated behind the same shared key every other
+// admin-only read/write in this project requires (see place-order.js,
+// notify-telegram.js, db.js) — nothing sensitive is returned (just dates
+// and counts, no addresses or content), but keeping one consistent gate
+// everywhere is simpler to reason about than deciding case by case which
+// "harmless" endpoint gets to skip it.
+async function runStatusCheck(req, res) {
+  if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  try {
+    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    const db = await dbResp.json();
+    const today = todayKey();
+
+    // Bulk campaign: smm_last_bulk_campaign_date is the job's own
+    // once-a-day guard (see runBulkEmailCampaignJob below) — it only gets
+    // set to today's date on a day the job actually ran (found a recipient
+    // list, had a configured "from" address, etc.), not just on any hit to
+    // this file. smm_bulk_campaign_sent maps email -> ISO timestamp of the
+    // last time each recipient was sent to, across all days.
+    const sentLog = db.smm_bulk_campaign_sent || {};
+    const sentTimestamps = Object.keys(sentLog).map(function (k) { return sentLog[k]; });
+    const bulkSentToday = sentTimestamps.filter(function (ts) { return typeof ts === 'string' && ts.slice(0, 10) === today; }).length;
+    const listData = db.smm_bulk_campaign_list;
+    const hasRecipientList = !!(listData && Array.isArray(listData.all) && listData.all.length);
+
+    // Weekly re-engagement campaign has no single "did it run" flag —
+    // runEmailCampaignJob only appends to each recipient's own emailLog, so
+    // "sent today" here means "count of users with an emailLog entry dated
+    // today", not a job-level marker. The cron for this one only fires
+    // Mondays (see vercel.json) — 0 on any other day is expected, not a
+    // failure.
+    const cfg = db.smm_email_auto_cfg || {};
+    const users = db.smm_users || [];
+    const reengagementSentToday = users.filter(function (u) {
+      var log = u.emailLog || [];
+      return log.some(function (ts) { return typeof ts === 'string' && ts.slice(0, 10) === today; });
+    }).length;
+
+    return res.status(200).json({
+      ok: true,
+      today: today,
+      bulkEmailCampaign: {
+        active: hasRecipientList,
+        lastRunDate: db.smm_last_bulk_campaign_date || null,
+        ranToday: db.smm_last_bulk_campaign_date === today,
+        sentToday: bulkSentToday,
+        totalEverSent: sentTimestamps.length
+      },
+      weeklyReengagementEmail: {
+        active: !!cfg.active,
+        sentToday: reengagementSentToday,
+        note: 'Runs Mondays only via /api/sync-orders?job=email-campaign — sentToday being 0 on other days is expected, not a failure.'
+      },
+      resendConfigured: !!RESEND_API_KEY
+    });
+  } catch (e) {
+    return res.status(200).json({ ok: false, error: e.message });
   }
 }
 
