@@ -413,6 +413,56 @@ async function showBalance(token, chatId, isEnglish) {
   });
 }
 
+// Admin-only — restricted to the chat configured as smm_tg_bot.chatId (the
+// same "admin's personal chat" notifyAdmin() already pings) so a customer
+// can't probe internal job status. Calls the read-only status endpoint
+// (api/sync-orders.js's ?status=1) rather than re-deriving the same numbers
+// here a second time.
+async function sendEmailStatus(token, chatId, isEnglish) {
+  const db = await getDb();
+  const adminChat = (db.smm_tg_bot && db.smm_tg_bot.chatId) || null;
+  if (!adminChat || String(adminChat) !== String(chatId)) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: isEnglish ? '🔒 This command is for the admin only.' : '🔒 این دستور فقط برای ادمین است.' });
+    return;
+  }
+  try {
+    const r = await fetchInternal(API_BASE + '/api/sync-orders?status=1', { headers: dbHeaders() });
+    const status = await r.json();
+    if (!status.ok) {
+      await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ ' + (status.error || 'Unknown error') });
+      return;
+    }
+    const bulk = status.bulkEmailCampaign;
+    const weekly = status.weeklyReengagementEmail;
+    const text = isEnglish
+      ? `📧 <b>Email status — ${status.today}</b>\n\n`
+        + `<b>Bulk campaign</b>\n`
+        + `Recipient list uploaded: ${bulk.active ? 'yes' : 'no'}\n`
+        + `Ran today: ${bulk.ranToday ? '✅ yes' : '❌ no'}\n`
+        + `Sent today: ${bulk.sentToday}\n`
+        + `Total ever sent: ${bulk.totalEverSent}\n\n`
+        + `<b>Weekly re-engagement</b>\n`
+        + `Enabled: ${weekly.active ? 'yes' : 'no'}\n`
+        + `Sent today: ${weekly.sentToday}\n`
+        + `<i>Runs Mondays only — 0 on other days is expected, not a failure.</i>\n\n`
+        + `Resend configured: ${status.resendConfigured ? 'yes' : 'no'}`
+      : `📧 <b>وضعیت ایمیل — ${status.today}</b>\n\n`
+        + `<b>کمپین گروهی (Bulk)</b>\n`
+        + `لیست گیرنده آپلود شده: ${bulk.active ? 'بله' : 'خیر'}\n`
+        + `امروز اجرا شده: ${bulk.ranToday ? '✅ بله' : '❌ خیر'}\n`
+        + `ارسال‌شده امروز: ${bulk.sentToday}\n`
+        + `مجموع کل ارسال‌شده‌ها: ${bulk.totalEverSent}\n\n`
+        + `<b>یادآوری هفتگی</b>\n`
+        + `فعال: ${weekly.active ? 'بله' : 'خیر'}\n`
+        + `ارسال‌شده امروز: ${weekly.sentToday}\n`
+        + `<i>این کمپین فقط دوشنبه‌ها اجرا می‌شود؛ صفر بودن در روزهای دیگر طبیعی است.</i>\n\n`
+        + `Resend تنظیم شده: ${status.resendConfigured ? 'بله' : 'خیر'}`;
+    await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML', text: text });
+  } catch (e) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ ' + e.message });
+  }
+}
+
 // ── Direct top-up flow (/topup) ──────────────────────────────────────────
 // Lets the customer pay from inside the chat instead of going to the panel:
 // PayPal orders are created via PayPal's own REST API (same Orders v2 flow
@@ -905,6 +955,14 @@ module.exports = async (req, res) => {
   }
   if (text === '/balance' || lower.trim() === 'موجودی' || lower.trim() === 'balance') {
     await showBalance(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
+  // Admin-only: reads today's email-job status (same data as the safe
+  // /api/sync-orders?status=1 endpoint) straight into the admin's own
+  // Telegram chat — meant for checking from a phone, where opening
+  // DevTools to call that endpoint directly isn't an option.
+  if (text === '/emailstatus') {
+    await sendEmailStatus(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
   // Full step-by-step walkthrough for /buy + /topup — separate from /help
