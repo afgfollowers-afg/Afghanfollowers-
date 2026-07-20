@@ -1342,15 +1342,18 @@ var PANEL_T={
   da:{dnNewOrder:'سفارش نو',dnServices:'خدمات',dnOrders:'سفارشات',dnAddFunds:'اضافه کردن پول',dnFreeLikes:'لایک رایگان',dnTickets:'تکت‌ها',dnRefill:'جبران ریزش',dnRefunds:'برگشت پول',dnApi:'API',dnAccount:'حساب',dnTheme:'رنگ',dnLogout:'خروج',phTitle:'سفارش نو',phSub:'پلتفرم و خدمت را انتخاب کنید'},
   ps:{dnNewOrder:'نوی امر',dnServices:'خدمتونه',dnOrders:'امرونه',dnAddFunds:'پیسې اضافه کول',dnFreeLikes:'وړیا لایکونه',dnTickets:'ټکټونه',dnRefill:'بیاډکول',dnRefunds:'بیرته ورکړه',dnApi:'API',dnAccount:'حساب',dnTheme:'رنګ',dnLogout:'وتل',phTitle:'نوی امر',phSub:'پلیټ فارم او خدمت وټاکئ'},
   ar:{dnNewOrder:'طلب جديد',dnServices:'الخدمات',dnOrders:'الطلبات',dnAddFunds:'إضافة رصيد',dnFreeLikes:'إعجابات مجانية',dnTickets:'التذاكر',dnRefill:'إعادة التعبئة',dnRefunds:'المبالغ المستردة',dnApi:'API',dnAccount:'الحساب',dnTheme:'المظهر',dnLogout:'تسجيل الخروج',phTitle:'طلب جديد',phSub:'اختر المنصة والخدمة'},
-  tr:{dnNewOrder:'Yeni Sipariş',dnServices:'Hizmetler',dnOrders:'Siparişler',dnAddFunds:'Bakiye Ekle',dnFreeLikes:'Ücretsiz Beğeni',dnTickets:'Talepler',dnRefill:'Yeniden Doldur',dnRefunds:'İadeler',dnApi:'API',dnAccount:'Hesap',dnTheme:'Tema',dnLogout:'Çıkış',phTitle:'Yeni Sipariş',phSub:'Platform ve hizmet seçin'}
+  tr:{dnNewOrder:'Yeni Sipariş',dnServices:'Hizmetler',dnOrders:'Siparişler',dnAddFunds:'Bakiye Ekle',dnFreeLikes:'Ücretsiz Beğeni',dnTickets:'Talepler',dnRefill:'Yeniden Doldur',dnRefunds:'İadeler',dnApi:'API',dnAccount:'Hesap',dnTheme:'Tema',dnLogout:'Çıkış',phTitle:'Yeni Sipariş',phSub:'Platform ve hizmet seçin'},
+  de:{dnNewOrder:'Neue Bestellung',dnServices:'Dienste',dnOrders:'Bestellungen',dnAddFunds:'Guthaben aufladen',dnFreeLikes:'Gratis Likes',dnTickets:'Tickets',dnRefill:'Auffüllen',dnRefunds:'Rückerstattungen',dnApi:'API',dnAccount:'Konto',dnTheme:'Design',dnLogout:'Abmelden',phTitle:'Neue Bestellung',phSub:'Plattform und Dienst auswählen'}
 };
 (function applyPanelLang(){
   try{
     var lang=localStorage.getItem('smm_auth_lang');
     var t=PANEL_T[lang]||PANEL_T.en;
-    // Every non-English option here uses a non-Latin script, so they all
-    // share the one Vazirmatn font swap (see body.lang-fa in <style>).
-    if(lang&&lang!=='en') document.body.classList.add('lang-fa');
+    // Only the non-Latin-script options need the Vazirmatn font swap —
+    // Turkish and German use the Latin alphabet just like English, so they
+    // stay on Inter (see body.lang-fa in <style>).
+    var NON_LATIN=['fa','da','ps','ar'];
+    if(NON_LATIN.indexOf(lang)!==-1) document.body.classList.add('lang-fa');
     var m={
       't-dn-neworder':t.dnNewOrder,'t-dn-services':t.dnServices,'t-dn-orders':t.dnOrders,
       't-dn-addfunds':t.dnAddFunds,'t-dn-freelikes':t.dnFreeLikes,'t-dn-tickets':t.dnTickets,
