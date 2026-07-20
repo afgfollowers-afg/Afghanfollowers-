@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="da" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -88,8 +88,9 @@ body.rtl .fi{font-family:var(--fn-fa);}
 .fi-wrap{position:relative;}
 .fi-wrap .fi{padding-right:42px;}
 body.rtl .fi-wrap .fi{padding-right:13px;padding-left:42px;}
-.eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--mt);background:none;border:none;font-size:15px;}
-body.rtl .eye{right:auto;left:12px;}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--mt);background:none;border:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background-color .15s,color .15s;}
+.eye:hover{background:var(--bd);color:var(--tx);}
+body.rtl .eye{right:auto;left:6px;}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .phone-row{display:flex;gap:7px;}
 .p-code{background:var(--s2);border:1.5px solid var(--bd);color:var(--tx);padding:10px 8px;border-radius:10px;font-size:13px;font-family:var(--fn);outline:none;width:95px;flex-shrink:0;}
@@ -132,10 +133,10 @@ body.rtl .btn{font-family:var(--fn-fa);}
 .tr label a{color:var(--acc2);text-decoration:none;}
 
 /* FOOTER STATS */
-.foot-stats{margin-top:20px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap;}
-.fs{text-align:center;}
-.fs-v{font-size:16px;font-weight:800;color:var(--wh);}
-.fs-l{font-size:10px;color:var(--mt);}
+.foot-stats{margin-top:20px;display:flex;justify-content:center;gap:22px;flex-wrap:wrap;}
+.fs{text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.fs-ic{width:30px;height:30px;border-radius:9px;background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.25);display:flex;align-items:center;justify-content:center;color:var(--gr);}
+.fs-l{font-size:11px;color:var(--mt);font-weight:600;}
 
 @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fg{animation:slideUp .2s ease both;}
@@ -143,43 +144,43 @@ body.rtl .btn{font-family:var(--fn-fa);}
 .spinner{width:17px;height:17px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
 </style>
 </head>
-<body>
+<body class="rtl">
 <div class="wrap">
 
 <!-- TOP NAV: Home / Blog + LANGUAGE DROPDOWN -->
 <div class="top-row">
   <nav class="top-nav">
-    <a href="/"><span>🏠</span><span id="t-home">Home</span></a>
-    <a href="/blog.html"><span>📝</span><span id="t-blog">Blog</span></a>
+    <a href="/"><span>🏠</span><span id="t-home">خانه</span></a>
+    <a href="/blog.html"><span>📝</span><span id="t-blog">وبلاگ</span></a>
   </nav>
   <div class="lang-wrap">
     <div class="lang-sel" onclick="toggleLangDrop()" id="lang-sel-btn">
-      <span id="lang-flag">🇺🇸</span>
-      <span id="lang-name">English</span>
+      <span id="lang-flag">🇦🇫</span>
+      <span id="lang-name">دری</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
     <div class="lang-drop" id="lang-drop">
-      <div class="lang-opt on" onclick="setLang('en',this,'🇺🇸','English')">🇺🇸 English</div>
-      <div class="lang-opt" onclick="setLang('fa',this,'🇮🇷','فارسی')">🇮🇷 فارسی</div>
-      <div class="lang-opt" onclick="setLang('da',this,'🇦🇫','دری')">🇦🇫 دری</div>
-      <div class="lang-opt" onclick="setLang('ps',this,'🇦🇫','پښتو')">🇦🇫 پښتو</div>
-      <div class="lang-opt" onclick="setLang('ar',this,'🌍','العربية')">🌍 العربية</div>
-      <div class="lang-opt" onclick="setLang('tr',this,'🇹🇷','Türkçe')">🇹🇷 Türkçe</div>
+      <div class="lang-opt" data-lang="en" onclick="setLang('en',this,'🇺🇸','English')">🇺🇸 English</div>
+      <div class="lang-opt" data-lang="fa" onclick="setLang('fa',this,'🇮🇷','فارسی')">🇮🇷 فارسی</div>
+      <div class="lang-opt on" data-lang="da" onclick="setLang('da',this,'🇦🇫','دری')">🇦🇫 دری</div>
+      <div class="lang-opt" data-lang="ps" onclick="setLang('ps',this,'🇦🇫','پښتو')">🇦🇫 پښتو</div>
+      <div class="lang-opt" data-lang="ar" onclick="setLang('ar',this,'🌍','العربية')">🌍 العربية</div>
+      <div class="lang-opt" data-lang="tr" onclick="setLang('tr',this,'🇹🇷','Türkçe')">🇹🇷 Türkçe</div>
     </div>
   </div>
 </div>
 
 <!-- HERO -->
 <div class="hero">
-  <div class="hero-badge" id="h-badge">🚀 #1 SMM Panel in Afghanistan</div>
-  <h1 class="hero-title" id="h-title">Grow Your Social Media<br>with <span id="h-title-sp">Real Results</span></h1>
-  <p class="hero-sub" id="h-sub">Join thousands of satisfied customers. Fast delivery, real engagement, and 24/7 support. Start growing today!</p>
+  <div class="hero-badge" id="h-badge">🚀 بهترین پنل SMM در افغانستان</div>
+  <h1 class="hero-title" id="h-title">شبکه‌های اجتماعی خود را با <span id="h-title-sp">نتایج واقعی رشد دهید</span></h1>
+  <p class="hero-sub" id="h-sub">به هزاران مشتری خوشنود بپیوندید. تحویل سریع، تعامل واقعی و پشتیبانی ۲۴ ساعته.</p>
   <!-- Live stats -->
   <div class="stats">
-    <div class="stat"><div class="stat-val" id="s-users">12,847</div><div class="stat-lbl" id="sl-users">Happy Users</div></div>
-    <div class="stat"><div class="stat-val" id="s-orders">94,312</div><div class="stat-lbl" id="sl-orders">Orders Done</div></div>
-    <div class="stat"><div class="stat-val" id="s-svc">250+</div><div class="stat-lbl" id="sl-svc">Services</div></div>
-    <div class="stat"><div class="stat-val" id="s-sup">24/7</div><div class="stat-lbl" id="sl-sup">Support</div></div>
+    <div class="stat"><div class="stat-val" id="s-users">۱۲,۸۴۷</div><div class="stat-lbl" id="sl-users">کاربر</div></div>
+    <div class="stat"><div class="stat-val" id="s-orders">۹۴,۳۱۲</div><div class="stat-lbl" id="sl-orders">سفارش</div></div>
+    <div class="stat"><div class="stat-val" id="s-svc">۲۵۰+</div><div class="stat-lbl" id="sl-svc">سرویس</div></div>
+    <div class="stat"><div class="stat-val" id="s-sup">۲۴/۷</div><div class="stat-lbl" id="sl-sup">پشتیبانی</div></div>
   </div>
 </div>
 
@@ -188,22 +189,22 @@ body.rtl .btn{font-family:var(--fn-fa);}
 
   <!-- TABS -->
   <div class="tabs">
-    <div class="tab on" id="tab-login" onclick="switchTab('login')"><span id="t-signin">Sign In</span></div>
-    <div class="tab" id="tab-reg" onclick="switchTab('reg')"><span id="t-create">Create Account</span></div>
+    <div class="tab on" id="tab-login" onclick="switchTab('login')"><span id="t-signin">ورود</span></div>
+    <div class="tab" id="tab-reg" onclick="switchTab('reg')"><span id="t-create">ثبت حساب</span></div>
   </div>
 
   <!-- ══ LOGIN ══ -->
   <div id="form-login">
     <div class="m-tog">
-      <div class="m-btn on" id="lm-e" onclick="setLM('email')">✉️ <span id="t-em">Email</span></div>
-      <div class="m-btn" id="lm-p" onclick="setLM('phone')">📱 <span id="t-ph">Phone</span></div>
+      <div class="m-btn on" id="lm-e" onclick="setLM('email')">✉️ <span id="t-em">ایمیل</span></div>
+      <div class="m-btn" id="lm-p" onclick="setLM('phone')">📱 <span id="t-ph">تیلفون</span></div>
     </div>
     <div id="le-f" class="fg">
-      <label class="fl"><span id="t-fle">Email Address</span></label>
+      <label class="fl"><span id="t-fle">آدرس ایمیل</span></label>
       <input class="fi" id="l-email" type="email" placeholder="your@email.com" autocomplete="email">
     </div>
     <div id="lp-f" class="fg" style="display:none">
-      <label class="fl"><span id="t-flp">Phone Number</span></label>
+      <label class="fl"><span id="t-flp">شماره تیلفون</span></label>
       <div class="phone-row">
         <select class="p-code" id="l-code">
           <option value="+93">🇦🇫 +93</option>
@@ -219,22 +220,25 @@ body.rtl .btn{font-family:var(--fn-fa);}
       </div>
     </div>
     <div class="fg">
-      <label class="fl"><span id="t-flpass">Password</span></label>
+      <label class="fl"><span id="t-flpass">پسورد</span></label>
       <div class="fi-wrap">
         <input class="fi" id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
-        <button class="eye" onclick="toggleEye('l-pass',this)">👁</button>
+        <button class="eye" type="button" aria-label="نمایش پسورد" onclick="toggleEye('l-pass',this)">
+          <svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
-      <span style="font-size:12px;color:var(--acc2);cursor:pointer" onclick="doForgot()" id="t-forgot">Forgot password?</span>
+      <span style="font-size:12px;color:var(--acc2);cursor:pointer" onclick="doForgot()" id="t-forgot">پسورد را فراموش کردید؟</span>
     </div>
     <button class="btn btn-p" onclick="doLogin()" id="l-btn">
-      <span id="t-lbtn">Sign In</span>
+      <span id="t-lbtn">ورود</span>
     </button>
-    <div class="div"><span id="t-or">or</span></div>
+    <div class="div"><span id="t-or">یا</span></div>
     <button class="btn btn-google" onclick="loginGoogle()" id="g-login-fallback-btn">
       <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-      <span id="t-google">Continue with Google</span>
+      <span id="t-google">ورود با گوگل</span>
     </button>
     <div id="g-login-btn-wrap" style="display:none;margin-top:8px"></div>
   </div>
@@ -246,15 +250,15 @@ body.rtl .btn{font-family:var(--fn-fa);}
     <div id="rs1">
       <div class="steps"><div class="sd on"></div><div class="sd"></div></div>
       <div class="m-tog">
-        <div class="m-btn on" id="rm-e" onclick="setRM('email')">✉️ <span id="t-re">Email</span></div>
-        <div class="m-btn" id="rm-p" onclick="setRM('phone')">📱 <span id="t-rp">Phone</span></div>
+        <div class="m-btn on" id="rm-e" onclick="setRM('email')">✉️ <span id="t-re">ایمیل</span></div>
+        <div class="m-btn" id="rm-p" onclick="setRM('phone')">📱 <span id="t-rp">تیلفون</span></div>
       </div>
       <div id="re-f" class="fg">
-        <label class="fl"><span id="t-rfe">Email Address</span> <span class="req">*</span></label>
+        <label class="fl"><span id="t-rfe">آدرس ایمیل</span> <span class="req">*</span></label>
         <input class="fi" id="r-email" type="email" placeholder="your@email.com">
       </div>
       <div id="rp-f" class="fg" style="display:none">
-        <label class="fl"><span id="t-rfp">Phone Number</span> <span class="req">*</span></label>
+        <label class="fl"><span id="t-rfp">شماره تیلفون</span> <span class="req">*</span></label>
         <div class="phone-row">
           <select class="p-code" id="r-code">
             <option value="+93">🇦🇫 +93</option>
@@ -271,25 +275,25 @@ body.rtl .btn{font-family:var(--fn-fa);}
       </div>
       <div class="fgrid">
         <div class="fg">
-          <label class="fl"><span id="t-fn">First Name</span> <span class="req">*</span></label>
-          <input class="fi" id="r-fn" placeholder="Ahmad">
+          <label class="fl"><span id="t-fn">نام</span> <span class="req">*</span></label>
+          <input class="fi" id="r-fn" placeholder="احمد">
         </div>
         <div class="fg">
-          <label class="fl"><span id="t-ln">Last Name</span> <span class="req">*</span></label>
-          <input class="fi" id="r-ln" placeholder="Karimi">
+          <label class="fl"><span id="t-ln">تخلص</span> <span class="req">*</span></label>
+          <input class="fi" id="r-ln" placeholder="کریمی">
         </div>
       </div>
       <div class="fg" id="fg-inv">
-        <label class="fl"><span id="t-inv">Invite / Referral Code</span> <span class="opt" id="t-iopt">(optional)</span></label>
+        <label class="fl"><span id="t-inv">کود دعوت</span> <span class="opt" id="t-iopt">(اختیاری)</span></label>
         <input class="fi" id="r-inv" placeholder="AFGHAN10" style="text-transform:uppercase">
       </div>
       <!-- Extra fields from admin -->
       <div id="extra-fields"></div>
-      <button class="btn btn-p" onclick="goS2()"><span id="t-cont">Continue</span> →</button>
-      <div class="div"><span id="t-or2">or</span></div>
+      <button class="btn btn-p" onclick="goS2()"><span id="t-cont">ادامه</span> →</button>
+      <div class="div"><span id="t-or2">یا</span></div>
       <button class="btn btn-google" onclick="loginGoogle()" id="g-reg-fallback-btn">
         <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        <span id="t-g2">Sign up with Google</span>
+        <span id="t-g2">ثبت‌نام با گوگل</span>
       </button>
       <div id="g-reg-btn-wrap" style="display:none;margin-top:8px"></div>
     </div>
@@ -298,19 +302,25 @@ body.rtl .btn{font-family:var(--fn-fa);}
     <div id="rs2" style="display:none">
       <div class="steps"><div class="sd"></div><div class="sd on"></div></div>
       <div class="fg">
-        <label class="fl"><span id="t-np">New Password</span> <span class="req">*</span></label>
+        <label class="fl"><span id="t-np">پسورد جدید</span> <span class="req">*</span></label>
         <div class="fi-wrap">
-          <input class="fi" id="r-pass" type="password" placeholder="Min 8 characters" oninput="checkStr(this.value)" autocomplete="new-password">
-          <button class="eye" onclick="toggleEye('r-pass',this)">👁</button>
+          <input class="fi" id="r-pass" type="password" placeholder="حداقل ۸ حرف" oninput="checkStr(this.value)" autocomplete="new-password">
+          <button class="eye" type="button" aria-label="نمایش پسورد" onclick="toggleEye('r-pass',this)">
+            <svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
         </div>
         <div class="str-wrap"><div class="str-bar" id="s-bar"></div></div>
         <div style="font-size:11px;margin-top:3px;color:var(--mt)" id="s-lbl"></div>
       </div>
       <div class="fg">
-        <label class="fl"><span id="t-cp">Confirm Password</span> <span class="req">*</span></label>
+        <label class="fl"><span id="t-cp">تکرار پسورد</span> <span class="req">*</span></label>
         <div class="fi-wrap">
-          <input class="fi" id="r-pass2" type="password" placeholder="Repeat password" autocomplete="new-password">
-          <button class="eye" onclick="toggleEye('r-pass2',this)">👁</button>
+          <input class="fi" id="r-pass2" type="password" placeholder="پسورد را دوباره وارد کنید" autocomplete="new-password">
+          <button class="eye" type="button" aria-label="نمایش پسورد" onclick="toggleEye('r-pass2',this)">
+            <svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
         </div>
       </div>
       <div id="r-recaptcha-wrap" style="display:none;margin-bottom:14px">
@@ -318,24 +328,24 @@ body.rtl .btn{font-family:var(--fn-fa);}
       </div>
       <div class="tr">
         <input type="checkbox" id="r-terms">
-        <label for="r-terms" id="t-tlbl">I agree to the <a href="#" id="t-tos">Terms of Service</a> and <a href="#" id="t-pp">Privacy Policy</a></label>
+        <label for="r-terms" id="t-tlbl">موافقم با <a href="#" id="t-tos">شرایط استفاده</a> و <a href="#" id="t-pp">حریم خصوصی</a></label>
       </div>
       <div style="display:flex;gap:9px">
-        <button class="btn btn-g" onclick="goS1()" style="width:auto;padding:12px 18px">← <span id="t-back">Back</span></button>
-        <button class="btn btn-p" onclick="doReg()" id="r-btn"><span id="t-cacc">Create Account</span> 🎉</button>
+        <button class="btn btn-g" onclick="goS1()" style="width:auto;padding:12px 18px">← <span id="t-back">برگشت</span></button>
+        <button class="btn btn-p" onclick="doReg()" id="r-btn"><span id="t-cacc">ثبت حساب</span> 🎉</button>
       </div>
     </div>
   </div>
 
-  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--mt)" id="t-foot">🔒 Your data is protected · Afghan Followers Panel</div>
+  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--mt)" id="t-foot">🔒 معلومات شما محافظت می‌شود · پنل افغان فالورز</div>
 </div>
 
 <!-- BOTTOM PROMO -->
 <div class="foot-stats">
-  <div class="fs"><div class="fs-v">⚡ Fast</div><div class="fs-l" id="fp-fast">Instant delivery</div></div>
-  <div class="fs"><div class="fs-v">🔒 Safe</div><div class="fs-l" id="fp-safe">100% secure</div></div>
-  <div class="fs"><div class="fs-v">💰 Cheap</div><div class="fs-l" id="fp-cheap">Best prices</div></div>
-  <div class="fs"><div class="fs-v">🌍 Global</div><div class="fs-l" id="fp-global">Worldwide</div></div>
+  <div class="fs"><span class="fs-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><div class="fs-l" id="fp-fast">تحویل فوری</div></div>
+  <div class="fs"><span class="fs-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg></span><div class="fs-l" id="fp-safe">۱۰۰٪ امن</div></div>
+  <div class="fs"><span class="fs-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><div class="fs-l" id="fp-cheap">بهترین قیمت</div></div>
+  <div class="fs"><span class="fs-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span><div class="fs-l" id="fp-global">جهانی</div></div>
 </div>
 
 
@@ -630,7 +640,14 @@ var _efDefs=[
   {key:'website',icon:'🌐',labels:{en:'Website',fa:'وبسایت',da:'وبسایت',ps:'ویبپاڼه',ar:'الموقع',tr:'Website'},ph:'https://...'},
 ];
 
-var _lang='en';
+// Every other public page (index.html, blog.html) defaults to Dari/RTL —
+// this page previously defaulted to English/LTR regardless, so a visitor
+// clicking "ثبت‌نام رایگان" on the Persian homepage landed on an English
+// signup form. 'da' matches the site's actual audience and its own
+// hardcoded HTML fallback below (kept in sync so there's no flash of the
+// wrong language before this script runs).
+var LANG_KEY='smm_auth_lang';
+var _lang='da';
 var _lm='email'; // login method
 var _rm='email'; // register method
 
@@ -638,10 +655,13 @@ var _rm='email'; // register method
 function toggleLangDrop(){document.getElementById('lang-drop').classList.toggle('open');}
 document.addEventListener('click',function(e){if(!e.target.closest('.lang-wrap'))document.getElementById('lang-drop').classList.remove('open');});
 
+var LANG_META={en:['🇺🇸','English'],fa:['🇮🇷','فارسی'],da:['🇦🇫','دری'],ps:['🇦🇫','پښتو'],ar:['🌍','العربية'],tr:['🇹🇷','Türkçe']};
 function setLang(lang,el,flag,name){
   _lang=lang;
+  if(!el) el=document.querySelector('.lang-opt[data-lang="'+lang+'"]');
+  if(!flag||!name){var meta=LANG_META[lang]||LANG_META.da;flag=flag||meta[0];name=name||meta[1];}
   document.querySelectorAll('.lang-opt').forEach(function(o){o.classList.remove('on');});
-  el.classList.add('on');
+  if(el) el.classList.add('on');
   document.getElementById('lang-flag').textContent=flag;
   document.getElementById('lang-name').textContent=name;
   document.getElementById('lang-drop').classList.remove('open');
@@ -651,7 +671,17 @@ function setLang(lang,el,flag,name){
   document.documentElement.setAttribute('lang',lang);
   applyT(t);
   renderExtraFields();
+  try{localStorage.setItem(LANG_KEY,lang);}catch(e){}
 }
+// Remembers a manually-chosen language across visits — without this, a
+// customer who switches to e.g. Pashto has to redo it every single time
+// they come back, since nothing else here persists the choice.
+(function applySavedLang(){
+  try{
+    var saved=localStorage.getItem(LANG_KEY);
+    if(saved&&T[saved]&&saved!==_lang) setLang(saved);
+  }catch(e){}
+})();
 
 function applyT(t){
   var m={
@@ -758,7 +788,15 @@ function checkStr(v){
 }
 
 // ═══ EYE ═══
-function toggleEye(id,btn){var i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.textContent=i.type==='password'?'👁':'🙈';}
+function toggleEye(id,btn){
+  var i=document.getElementById(id);
+  i.type=i.type==='password'?'text':'password';
+  var on=btn.querySelector('.eye-ic-on'),off=btn.querySelector('.eye-ic-off');
+  var showing=i.type==='text';
+  if(on) on.style.display=showing?'none':'block';
+  if(off) off.style.display=showing?'block':'none';
+  btn.setAttribute('aria-label',showing?'پنهان کردن پسورد':'نمایش پسورد');
+}
 
 // ═══ USERS ═══
 var AK='smm_users',SK='smm_session';
