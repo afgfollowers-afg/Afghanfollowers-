@@ -13,14 +13,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AF Panel">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Estedad:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0f1117;--surface:#181c27;--surface2:#1e2336;--border:#252b40;
   --accent:#7c5cfc;--accent2:#a78bfa;--accent-dark:#5b21b6;--accent-glow:rgba(124,92,252,.3);
   --green:#00d2a0;--red:#ff5c7d;--yellow:#fbbf24;--orange:#f97316;
   --text:#e2e8f0;--muted:#64748b;--white:#fff;
-  --radius:14px;--font:'Inter',sans-serif;--font-fa:'Vazirmatn',sans-serif;
+  --radius:14px;--font:'Inter',sans-serif;--font-fa:'Estedad',sans-serif;
 }
 /* Applied when the customer's language choice (set on auth.html, shared via
    localStorage) is a non-Latin-script language — swaps the typeface only.
@@ -1349,7 +1349,7 @@ var PANEL_T={
   try{
     var lang=localStorage.getItem('smm_auth_lang');
     var t=PANEL_T[lang]||PANEL_T.en;
-    // Only the non-Latin-script options need the Vazirmatn font swap —
+    // Only the non-Latin-script options need the Estedad font swap —
     // Turkish and German use the Latin alphabet just like English, so they
     // stay on Inter (see body.lang-fa in <style>).
     var NON_LATIN=['fa','da','ps','ar'];
