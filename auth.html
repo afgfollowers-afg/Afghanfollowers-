@@ -166,6 +166,7 @@ body.rtl .btn{font-family:var(--fn-fa);}
       <div class="lang-opt" data-lang="ps" onclick="setLang('ps',this,'🇦🇫','پښتو')">🇦🇫 پښتو</div>
       <div class="lang-opt" data-lang="ar" onclick="setLang('ar',this,'🌍','العربية')">🌍 العربية</div>
       <div class="lang-opt" data-lang="tr" onclick="setLang('tr',this,'🇹🇷','Türkçe')">🇹🇷 Türkçe</div>
+      <div class="lang-opt" data-lang="de" onclick="setLang('de',this,'🇩🇪','Deutsch')">🇩🇪 Deutsch</div>
     </div>
   </div>
 </div>
@@ -627,17 +628,39 @@ var T={
     foot:'🔒 Verileriniz korunmaktadır · Afghan Followers Paneli',
     fast:'Anında teslimat',safe:'%100 güvenli',cheap:'En iyi fiyatlar',global:'Dünya çapında',
     home:'Ana Sayfa',blog:'Blog',
+  },
+  de:{rtl:false,
+    badge:'🚀 Afghanistans Nr. 1 SMM-Panel',
+    title:'Wachsen Sie in sozialen Medien mit ',titleSp:'echten Ergebnissen',
+    sub:'Schließen Sie sich Tausenden zufriedener Kunden an. Schnelle Lieferung, echtes Engagement und 24/7-Support.',
+    sUsers:'Zufriedene Nutzer',sOrders:'Abgeschlossene Bestellungen',sSvc:'Dienste',sSup:'Support',
+    signin:'Anmelden',create:'Konto erstellen',
+    em:'E-Mail',ph:'Telefon',
+    fle:'E-Mail-Adresse',flp:'Telefonnummer',flpass:'Passwort',
+    forgot:'Passwort vergessen?',lbtn:'Anmelden',
+    or:'oder',google:'Weiter mit Google',
+    re:'E-Mail',rp:'Telefon',
+    rfe:'E-Mail-Adresse',rfp:'Telefonnummer',
+    fn:'Vorname',ln:'Nachname',
+    inv:'Einladungscode',iopt:'(optional)',
+    cont:'Weiter',or2:'oder',g2:'Mit Google registrieren',
+    np:'Neues Passwort',cp:'Passwort bestätigen',
+    tlbl:'Ich stimme den ',tos:'Nutzungsbedingungen',pp:'Datenschutzrichtlinie',tand:' und der ',
+    back:'Zurück',cacc:'Konto erstellen',
+    foot:'🔒 Ihre Daten sind geschützt · Afghan Followers Panel',
+    fast:'Sofortige Lieferung',safe:'100% sicher',cheap:'Beste Preise',global:'Weltweit',
+    home:'Startseite',blog:'Blog',
   }
 };
 
 // Extra field definitions
 var _efDefs=[
-  {key:'telegram',icon:'✈️',labels:{en:'Telegram',fa:'تلگرام',da:'تلگرام',ps:'تلیګرام',ar:'تيليغرام',tr:'Telegram'},ph:'@username'},
-  {key:'whatsapp',icon:'📱',labels:{en:'WhatsApp',fa:'واتس‌اپ',da:'واتساپ',ps:'واتساپ',ar:'واتساب',tr:'WhatsApp'},ph:'+93700000000'},
-  {key:'instagram',icon:'📷',labels:{en:'Instagram',fa:'اینستاگرام',da:'انستاگرام',ps:'انستاګرام',ar:'إنستغرام',tr:'Instagram'},ph:'@yourpage'},
-  {key:'country',icon:'🌍',labels:{en:'Country',fa:'کشور',da:'کشور',ps:'هیواد',ar:'الدولة',tr:'Ülke'},type:'select',opts:['Afghanistan','Iran','Pakistan','UAE','Germany','USA','UK','Turkey','Other']},
-  {key:'skype',icon:'💬',labels:{en:'Skype',fa:'اسکایپ',da:'اسکایپ',ps:'اسکایپ',ar:'سكايب',tr:'Skype'},ph:'live:username'},
-  {key:'website',icon:'🌐',labels:{en:'Website',fa:'وبسایت',da:'وبسایت',ps:'ویبپاڼه',ar:'الموقع',tr:'Website'},ph:'https://...'},
+  {key:'telegram',icon:'✈️',labels:{en:'Telegram',fa:'تلگرام',da:'تلگرام',ps:'تلیګرام',ar:'تيليغرام',tr:'Telegram',de:'Telegram'},ph:'@username'},
+  {key:'whatsapp',icon:'📱',labels:{en:'WhatsApp',fa:'واتس‌اپ',da:'واتساپ',ps:'واتساپ',ar:'واتساب',tr:'WhatsApp',de:'WhatsApp'},ph:'+93700000000'},
+  {key:'instagram',icon:'📷',labels:{en:'Instagram',fa:'اینستاگرام',da:'انستاگرام',ps:'انستاګرام',ar:'إنستغرام',tr:'Instagram',de:'Instagram'},ph:'@yourpage'},
+  {key:'country',icon:'🌍',labels:{en:'Country',fa:'کشور',da:'کشور',ps:'هیواد',ar:'الدولة',tr:'Ülke',de:'Land'},type:'select',opts:['Afghanistan','Iran','Pakistan','UAE','Germany','USA','UK','Turkey','Other']},
+  {key:'skype',icon:'💬',labels:{en:'Skype',fa:'اسکایپ',da:'اسکایپ',ps:'اسکایپ',ar:'سكايب',tr:'Skype',de:'Skype'},ph:'live:username'},
+  {key:'website',icon:'🌐',labels:{en:'Website',fa:'وبسایت',da:'وبسایت',ps:'ویبپاڼه',ar:'الموقع',tr:'Website',de:'Webseite'},ph:'https://...'},
 ];
 
 // Every other public page (index.html, blog.html) defaults to Dari/RTL —
@@ -655,7 +678,7 @@ var _rm='email'; // register method
 function toggleLangDrop(){document.getElementById('lang-drop').classList.toggle('open');}
 document.addEventListener('click',function(e){if(!e.target.closest('.lang-wrap'))document.getElementById('lang-drop').classList.remove('open');});
 
-var LANG_META={en:['🇺🇸','English'],fa:['🇮🇷','فارسی'],da:['🇦🇫','دری'],ps:['🇦🇫','پښتو'],ar:['🌍','العربية'],tr:['🇹🇷','Türkçe']};
+var LANG_META={en:['🇺🇸','English'],fa:['🇮🇷','فارسی'],da:['🇦🇫','دری'],ps:['🇦🇫','پښتو'],ar:['🌍','العربية'],tr:['🇹🇷','Türkçe'],de:['🇩🇪','Deutsch']};
 function setLang(lang,el,flag,name){
   _lang=lang;
   if(!el) el=document.querySelector('.lang-opt[data-lang="'+lang+'"]');
