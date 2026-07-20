@@ -59,17 +59,17 @@
 </script>
 
 <style>
-:root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--bd:#232a3d;--acc:#7c5cfc;--acc2:#a78bfa;--gr:#00d2a0;--tx:#e2e8f0;--mt:#8a93a6;--wh:#fff;}
+:root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--bd:#232a3d;--acc:#7c5cfc;--acc2:#a78bfa;--gr:#00d2a0;--ember:#ff8a5c;--tx:#e2e8f0;--mt:#8a93a6;--wh:#fff;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--tx);font-family:'Vazirmatn','Inter',sans-serif;line-height:1.8;}
+body{background:var(--bg);color:var(--tx);font-family:'Vazirmatn','Inter',sans-serif;line-height:1.8;font-variant-numeric:tabular-nums;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(124,92,252,.15),transparent 60%),radial-gradient(ellipse at 85% 30%,rgba(0,210,160,.1),transparent 60%);pointer-events:none;z-index:0;animation:bgDrift 18s ease-in-out infinite;}
 @keyframes bgDrift{
   0%,100%{background-position:20% 0%,85% 30%;opacity:1;}
   50%{background-position:28% 6%,78% 22%;opacity:.85;}
 }
-@media(prefers-reduced-motion:reduce){body::before{animation:none;}}
-.wrap{max-width:1000px;margin:0 auto;padding:24px 20px;position:relative;z-index:1;}
-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;animation:fadeDown .5s ease both;}
+@media(prefers-reduced-motion:reduce){body::before{animation:none;}*{animation-duration:.01ms !important;animation-iteration-count:1 !important;}}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px;position:relative;z-index:1;}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;animation:fadeDown .5s ease both;}
 @keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--wh);}
 .logo-ic{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:block;object-fit:cover;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
@@ -82,16 +82,52 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .btn-p:hover{box-shadow:0 10px 30px rgba(124,92,252,.5);}
 .btn-g{background:var(--s2);border-color:var(--bd);color:var(--tx);}
 .btn-g:hover{border-color:var(--acc);color:var(--acc2);}
-.hero{text-align:center;padding:40px 0 50px;}
+.btn-ember{background:linear-gradient(135deg,var(--ember),#e0693a);color:#fff;box-shadow:0 8px 24px rgba(255,138,92,.32);}
+.btn-ember:hover{box-shadow:0 12px 32px rgba(255,138,92,.44);}
+
+/* ---------- hero ---------- */
+.hero{padding:48px 0 44px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;text-align:right;}
+@media(max-width:880px){.hero{grid-template-columns:1fr;padding:32px 0 20px;gap:28px;text-align:center;}}
+.live-chip{display:inline-flex;align-items:center;gap:9px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.28);padding:7px 14px;border-radius:99px;font-size:12.5px;font-weight:700;color:var(--gr);margin-bottom:16px;}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--gr);position:relative;flex-shrink:0;}
+.pulse-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--gr);animation:pulseRing 2s ease-out infinite;}
+@keyframes pulseRing{0%{transform:scale(.6);opacity:.9;}100%{transform:scale(2.2);opacity:0;}}
 .badge{display:inline-block;background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.3);color:var(--acc2);padding:7px 16px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:20px;animation:fadeUp .5s ease both,badgeGlow 2.6s ease-in-out infinite;}
 @keyframes badgeGlow{0%,100%{box-shadow:0 0 0 0 rgba(124,92,252,0)}50%{box-shadow:0 0 16px 2px rgba(124,92,252,.25)}}
-h1{font-size:clamp(26px,5vw,42px);font-weight:900;color:var(--wh);margin-bottom:14px;animation:fadeUp .6s .05s ease both;}
-h1 span{background:linear-gradient(135deg,var(--acc2),var(--gr));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:shine 4s linear infinite;}
+h1{font-size:clamp(28px,4.6vw,46px);font-weight:900;color:var(--wh);margin-bottom:14px;line-height:1.2;animation:fadeUp .6s .05s ease both;}
+h1 span{background:linear-gradient(135deg,var(--gr),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:shine 4s linear infinite;}
 @keyframes shine{to{background-position:200% center;}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.sub{font-size:16px;color:var(--mt);max-width:640px;margin:0 auto 26px;animation:fadeUp .6s .1s ease both;}
-.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:32px;animation:fadeUp .6s .15s ease both;}
+.sub{font-size:16px;color:var(--mt);max-width:520px;margin:0 0 26px;animation:fadeUp .6s .1s ease both;}
+.hero:not(:has(.chart-card)) .sub{margin-inline:auto;}
+@media(max-width:880px){.sub{margin-inline:auto;}}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;animation:fadeUp .6s .15s ease both;}
+@media(max-width:880px){.hero-cta{justify-content:center;}}
 .hero-cta .btn{padding:14px 26px;font-size:15px;}
+.trust-row{display:flex;gap:18px;flex-wrap:wrap;color:var(--mt);font-size:12.5px;list-style:none;animation:fadeUp .6s .2s ease both;}
+@media(max-width:880px){.trust-row{justify-content:center;}}
+.trust-row li{display:flex;align-items:center;gap:6px;}
+.trust-row svg{width:15px;height:15px;flex-shrink:0;color:var(--gr);}
+
+/* hero growth-chart card — the visual thesis: growth you can see */
+.chart-card{background:var(--s1);border:1px solid var(--bd);border-radius:18px;padding:20px 18px 14px;position:relative;overflow:hidden;box-shadow:0 26px 60px -20px rgba(0,0,0,.55);animation:fadeUp .6s .1s ease both;}
+.chart-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 85% 10%,rgba(0,210,160,.14),transparent 55%);pointer-events:none;}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.chart-title{font-size:12px;font-weight:700;color:var(--mt);}
+.chart-sample{font-size:10.5px;color:var(--mt);opacity:.75;}
+.chart-metric{font-size:24px;font-weight:900;color:#fff;}
+.chart-metric small{font-size:12px;font-weight:700;color:var(--gr);margin-inline-start:6px;}
+.chart-svg{width:100%;height:140px;margin:8px 0 2px;}
+.chart-line{fill:none;stroke:var(--gr);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:600;stroke-dashoffset:600;animation:draw 1.8s cubic-bezier(.16,1,.3,1) .3s forwards;filter:drop-shadow(0 0 8px rgba(0,210,160,.5));}
+@keyframes draw{to{stroke-dashoffset:0;}}
+.chart-fill{opacity:0;animation:chartFadeIn 1s ease .9s forwards;}
+@keyframes chartFadeIn{to{opacity:1;}}
+.chart-dot{offset-path:path('M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26');animation:travel 3.2s linear infinite,glow 1.6s ease-in-out infinite;}
+@keyframes travel{to{offset-distance:100%;}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 3px var(--gr));}50%{filter:drop-shadow(0 0 9px var(--gr));}}
+@media(prefers-reduced-motion:reduce){.chart-line{animation:none;stroke-dashoffset:0;}.chart-fill{animation:none;opacity:1;}.chart-dot{animation:none;offset-distance:100%;}}
+.chart-foot{display:flex;justify-content:space-between;font-size:11px;color:var(--mt);padding-top:6px;border-top:1px solid var(--bd);}
+
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:640px;margin:0 auto;}
 .stat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:14px 8px;text-align:center;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s;animation:fadeUp .5s ease both;}
 .stat:hover{transform:translateY(-3px);border-color:var(--acc);}
@@ -101,36 +137,61 @@ h1 span{background:linear-gradient(135deg,var(--acc2),var(--gr));-webkit-backgro
 .stats .stat:nth-child(4){animation-delay:.38s}
 .stat b{display:block;font-size:19px;font-weight:900;color:var(--wh);}
 .stat span{font-size:11px;color:var(--mt);}
-.platforms{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:40px 0;}
-.plat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--tx);transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s,box-shadow .25s;}
+.stat .tick{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--gr),transparent);margin-top:9px;}
+
+/* ---------- platform signal chain ---------- */
+.chain{position:relative;}
+.chain-line{position:absolute;top:38px;right:38px;left:38px;height:2px;background:linear-gradient(90deg,#f09433,#dc2743,#000,#2AABEE,#FF0000,#1877F2);opacity:.3;}
+.platforms{position:relative;display:grid;grid-template-columns:repeat(6,1fr);gap:10px;}
+@media(max-width:720px){.chain-line{display:none;}}
+.plat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:16px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--tx);transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s,box-shadow .25s;position:relative;}
 .plat:hover{transform:translateY(-4px);border-color:var(--acc);box-shadow:0 10px 24px rgba(124,92,252,.18);}
 .plat .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
 .plat:hover .ic{transform:scale(1.12) rotate(-4deg);}
-section{margin:50px 0;}
+
+section{margin:56px 0;}
+.eyebrow{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gr);text-align:center;margin-bottom:8px;}
 h2{font-size:24px;font-weight:800;color:var(--wh);margin-bottom:8px;text-align:center;}
 .section-sub{text-align:center;color:var(--mt);font-size:14px;margin-bottom:26px;}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 .card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:22px 18px;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s,box-shadow .25s;}
 .card:hover{transform:translateY(-5px);border-color:var(--acc);box-shadow:0 14px 32px rgba(124,92,252,.16);}
-.card .ic{font-size:26px;margin-bottom:10px;display:inline-block;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
-.card:hover .ic{transform:scale(1.15) translateY(-2px);}
+.card .ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,rgba(124,92,252,.18),rgba(0,210,160,.14));border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;margin-bottom:12px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+.card:hover .ic{transform:scale(1.1) translateY(-2px);}
+.card .ic svg{width:22px;height:22px;color:var(--gr);}
 .card h3{font-size:15px;font-weight:800;color:var(--wh);margin-bottom:6px;}
 .card p{font-size:13px;color:var(--mt);}
 .svc-list{list-style:none;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-.svc-list li{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--tx);transition:transform .2s,border-color .2s,background-color .2s;}
-.svc-list li:hover{transform:translateX(-3px);border-color:var(--acc);background:var(--s2);}
+.svc-list li{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--tx);transition:transform .2s,border-color .2s,background-color .2s;}
+.svc-list li:hover{transform:translateX(-3px);border-color:var(--gr);background:var(--s2);}
+.svc-list svg{width:16px;height:16px;flex-shrink:0;color:var(--gr);}
 body[dir="ltr"] .svc-list li:hover{transform:translateX(3px);}
 .cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:18px;padding:40px 24px;position:relative;overflow:hidden;}
 .cta-band::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.06),transparent);background-size:200% 100%;animation:ctaSheen 6s ease-in-out infinite;pointer-events:none;}
 @keyframes ctaSheen{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .cta-band h2{margin-bottom:10px;}
+.cta-band.ember{background:radial-gradient(ellipse 480px 240px at 50% 0%,rgba(255,138,92,.16),transparent 70%),linear-gradient(160deg,var(--s1),var(--s2));border-color:var(--bd);}
+.cta-band.ember .eyebrow{color:var(--ember);}
+
+/* ---------- trust strip ---------- */
+.trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:820px){.trust-grid{grid-template-columns:1fr;}}
+.trust-card{background:linear-gradient(160deg,var(--s1),var(--s2));border:1px solid var(--bd);border-radius:16px;padding:22px 20px;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .25s;}
+.trust-card:hover{transform:translateY(-3px);border-color:var(--acc2);}
+.trust-num{font-size:26px;font-weight:900;color:#fff;margin-bottom:4px;}
+.trust-num small{font-size:13px;color:var(--gr);font-weight:800;margin-inline-start:4px;}
+.trust-label{font-size:13px;color:var(--mt);}
+.trust-badges{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;justify-content:center;}
+.tbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--mt);background:var(--s1);border:1px solid var(--bd);padding:6px 12px;border-radius:99px;}
+.tbadge svg{width:13px;height:13px;color:var(--gr);}
+
 /* ── Scroll-reveal (progressive enhancement — content is visible by default,
    JS below only adds the .reveal class where IntersectionObserver exists) ── */
 .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);}
 .reveal.in{opacity:1;transform:translateY(0);}
-.platforms .plat.reveal:nth-child(1),.grid3 .card.reveal:nth-child(1),.svc-list li.reveal:nth-child(1){transition-delay:0s}
-.platforms .plat.reveal:nth-child(2),.grid3 .card.reveal:nth-child(2),.svc-list li.reveal:nth-child(2){transition-delay:.06s}
-.platforms .plat.reveal:nth-child(3),.grid3 .card.reveal:nth-child(3),.svc-list li.reveal:nth-child(3){transition-delay:.12s}
+.platforms .plat.reveal:nth-child(1),.grid3 .card.reveal:nth-child(1),.svc-list li.reveal:nth-child(1),.trust-grid .trust-card.reveal:nth-child(1){transition-delay:0s}
+.platforms .plat.reveal:nth-child(2),.grid3 .card.reveal:nth-child(2),.svc-list li.reveal:nth-child(2),.trust-grid .trust-card.reveal:nth-child(2){transition-delay:.06s}
+.platforms .plat.reveal:nth-child(3),.grid3 .card.reveal:nth-child(3),.svc-list li.reveal:nth-child(3),.trust-grid .trust-card.reveal:nth-child(3){transition-delay:.12s}
 .platforms .plat.reveal:nth-child(4),.grid3 .card.reveal:nth-child(4),.svc-list li.reveal:nth-child(4){transition-delay:.18s}
 .platforms .plat.reveal:nth-child(5),.grid3 .card.reveal:nth-child(5),.svc-list li.reveal:nth-child(5){transition-delay:.24s}
 .platforms .plat.reveal:nth-child(6),.grid3 .card.reveal:nth-child(6),.svc-list li.reveal:nth-child(6){transition-delay:.3s}
@@ -187,39 +248,78 @@ footer a{color:var(--acc2);text-decoration:none;}
 
 <main>
 <div id="ann-banners"></div>
+
 <div class="hero">
-  <div class="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
-  <h1>خرید فالوور، لایک و ویو <span>با نتایج واقعی</span></h1>
-  <p class="sub">افغان فالوورز (Afghan Followers) به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی ۲۴ ساعته.</p>
-  <div class="hero-cta">
-    <a class="btn btn-p" href="/auth.html">🎉 همین حالا ثبت‌نام کنید</a>
-    <a class="btn btn-g" href="/auth.html">مشاهده قیمت‌ها و ورود</a>
+  <div>
+    <div class="live-chip">
+      <span class="pulse-dot"></span>
+      پشتیبانی تلگرام هم‌اکنون آنلاین است
+    </div>
+    <div class="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
+    <h1>رشدی که <span>می‌توانی ببینی</span></h1>
+    <p class="sub">افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی ۲۴ ساعته.</p>
+    <div class="hero-cta">
+      <a class="btn btn-p" href="/auth.html">🎉 همین حالا ثبت‌نام کنید</a>
+      <a class="btn btn-g" href="/auth.html">مشاهده قیمت‌ها و ورود</a>
+    </div>
+    <ul class="trust-row">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg> بدون نیاز به رمز عبور</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg> گارانتی جبران ریزش</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> تحویل از چند دقیقه</li>
+    </ul>
   </div>
-  <div class="stats">
-    <div class="stat"><b>+۱۲,۸۰۰</b><span>کاربر راضی</span></div>
-    <div class="stat"><b>+۹۴,۰۰۰</b><span>سفارش انجام‌شده</span></div>
-    <div class="stat"><b>+۲۵۰</b><span>سرویس</span></div>
-    <div class="stat"><b>۲۴/۷</b><span>پشتیبانی</span></div>
+
+  <div class="chart-card">
+    <div class="chart-head">
+      <div>
+        <div class="chart-title">نمودار نمونه — رشد فالوور</div>
+        <div class="chart-metric">+۴,۸۲۰ <small>▲ ۳۱٪</small></div>
+      </div>
+      <div class="chart-sample">نمونه</div>
+    </div>
+    <svg class="chart-svg" viewBox="0 0 392 150" preserveAspectRatio="none" role="img" aria-label="نمودار نمونه‌ی رشد فالوور رو به بالا">
+      <defs>
+        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#00d2a0" stop-opacity=".28"/>
+          <stop offset="100%" stop-color="#00d2a0" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path class="chart-fill" fill="url(#cg)" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26 L392,150 L8,150 Z"/>
+      <path class="chart-line" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26"/>
+      <circle class="chart-dot" r="4.5" fill="#e2e8f0"/>
+    </svg>
+    <div class="chart-foot"><span>شنبه</span><span>سه‌شنبه</span><span>پنج‌شنبه</span><span>امروز</span></div>
   </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><b>+۱۲,۸۰۰</b><span>کاربر راضی</span><div class="tick"></div></div>
+  <div class="stat"><b>+۹۴,۰۰۰</b><span>سفارش انجام‌شده</span><div class="tick"></div></div>
+  <div class="stat"><b>+۲۵۰</b><span>سرویس</span><div class="tick"></div></div>
+  <div class="stat"><b>۲۴/۷</b><span>پشتیبانی</span><div class="tick"></div></div>
 </div>
 
 <section class="cta-band reveal" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
   <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
   <h2>🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
-  <p class="sub" style="margin-bottom:20px">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
+  <p class="sub" style="margin-bottom:20px;margin-inline:auto">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
   <a class="btn btn-p" href="/auth.html">ثبت‌نام رایگان</a>
 </section>
 
 <section>
-  <h2>پلتفرم‌های پشتیبانی‌شده</h2>
-  <div class="section-sub">Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
-  <div class="platforms">
-    <div class="plat reveal"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span>اینستاگرام</div>
-    <div class="plat reveal"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span>تیک‌تاک</div>
-    <div class="plat reveal"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span>تلگرام</div>
-    <div class="plat reveal"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span>یوتیوب</div>
-    <div class="plat reveal"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span>فیسبوک</div>
-    <div class="plat reveal"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span>ایکس (توییتر)</div>
+  <div class="eyebrow">پلتفرم‌ها</div>
+  <h2>جایی که مخاطبت آنجاست</h2>
+  <div class="section-sub">یک پنل، همه‌ی شبکه‌های اجتماعی — Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
+  <div class="chain">
+    <div class="chain-line"></div>
+    <div class="platforms">
+      <div class="plat reveal"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span>اینستاگرام</div>
+      <div class="plat reveal"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span>تیک‌تاک</div>
+      <div class="plat reveal"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span>تلگرام</div>
+      <div class="plat reveal"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span>یوتیوب</div>
+      <div class="plat reveal"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span>فیسبوک</div>
+      <div class="plat reveal"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span>ایکس (توییتر)</div>
+    </div>
   </div>
 </section>
 
@@ -227,35 +327,61 @@ footer a{color:var(--acc2);text-decoration:none;}
   <h2>محبوب‌ترین سرویس‌ها</h2>
   <div class="section-sub">قیمت‌ها و جزئیات کامل هر سرویس پس از ورود به پنل نمایش داده می‌شود</div>
   <ul class="svc-list">
-    <li class="reveal">📷 خرید فالوور اینستاگرام (Instagram Followers)</li>
-    <li class="reveal">❤️ خرید لایک اینستاگرام (Instagram Likes)</li>
-    <li class="reveal">👁 خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</li>
-    <li class="reveal">🎵 خرید فالوور تیک‌تاک (TikTok Followers)</li>
-    <li class="reveal">👀 خرید ویو تیک‌تاک (TikTok Views)</li>
-    <li class="reveal">✈️ خرید ممبر تلگرام (Telegram Members)</li>
-    <li class="reveal">▶️ خرید ویو یوتیوب (YouTube Views)</li>
-    <li class="reveal">👍 خرید سابسکرایبر یوتیوب (YouTube Subscribers)</li>
-    <li class="reveal">📘 خرید فالوور فیسبوک (Facebook Followers)</li>
-    <li class="reveal">✖️ خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور اینستاگرام (Instagram Followers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید لایک اینستاگرام (Instagram Likes)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور تیک‌تاک (TikTok Followers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو تیک‌تاک (TikTok Views)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ممبر تلگرام (Telegram Members)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو یوتیوب (YouTube Views)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید سابسکرایبر یوتیوب (YouTube Subscribers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور فیسبوک (Facebook Followers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
   </ul>
+</section>
+
+<section>
+  <div class="eyebrow">اعتماد</div>
+  <h2>چرا کاربران به ما اعتماد می‌کنند</h2>
+  <div class="section-sub">در بازاری که نسبت به پرداخت آنلاین حساس است، شفافیت مهم‌ترین چیزی است که ارائه می‌کنیم.</div>
+  <div class="trust-grid">
+    <div class="trust-card reveal">
+      <div class="trust-num">+۱۲,۸۰۰ <small>کاربر</small></div>
+      <div class="trust-label">کاربر راضی که تاکنون از پنل استفاده کرده‌اند</div>
+    </div>
+    <div class="trust-card reveal">
+      <div class="trust-num">+۹۴,۰۰۰ <small>سفارش</small></div>
+      <div class="trust-label">سفارش با موفقیت انجام‌شده تا امروز</div>
+    </div>
+    <div class="trust-card reveal">
+      <div class="trust-num">۲۴/۷ <small>پشتیبانی</small></div>
+      <div class="trust-label">پاسخ‌گویی تلگرام و واتساپ در تمام ساعات</div>
+    </div>
+  </div>
+  <div class="trust-badges">
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg> بدون نیاز به رمز عبور</span>
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg> گارانتی جبران ریزش</span>
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg> پرداخت امن</span>
+  </div>
 </section>
 
 <section>
   <h2>چرا افغان فالوورز؟</h2>
   <div class="grid3">
-    <div class="card reveal"><div class="ic">⚡</div><h3>تحویل سریع</h3><p>شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
-    <div class="card reveal"><div class="ic">🔒</div><h3>امن و بدون نیاز به رمز عبور</h3><p>فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
-    <div class="card reveal"><div class="ic">💰</div><h3>ارزان‌ترین قیمت</h3><p>قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
-    <div class="card reveal"><div class="ic">🔄</div><h3>گارانتی Refill</h3><p>بسیاری از سرویس‌ها گارانتی جبران ریزش (۳۰ تا ۳۶۵ روزه یا مادام‌العمر) دارند.</p></div>
-    <div class="card reveal"><div class="ic">🎧</div><h3>پشتیبانی ۲۴ ساعته</h3><p>پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
-    <div class="card reveal"><div class="ic">🤖</div><h3>پنل هوشمند</h3><p>ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><h3>تحویل سریع</h3><p>شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg></span><h3>امن و بدون نیاز به رمز عبور</h3><p>فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><h3>ارزان‌ترین قیمت</h3><p>قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg></span><h3>گارانتی Refill</h3><p>بسیاری از سرویس‌ها گارانتی جبران ریزش (۳۰ تا ۳۶۵ روزه یا مادام‌العمر) دارند.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7v4a3 3 0 0 0 3 3h1v-7H6v-.5a6 6 0 0 1 12 0v.5h-3v7h1a3 3 0 0 0 3-3v-4a7 7 0 0 0-7-7z"/><path d="M9 19v1a3 3 0 0 0 6 0v-1"/></svg></span><h3>پشتیبانی ۲۴ ساعته</h3><p>پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M8 15c1 1.5 2.5 2 4 2s3-.5 4-2"/></svg></span><h3>پنل هوشمند</h3><p>ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
   </div>
 </section>
 
-<section class="cta-band reveal">
-  <h2>همین امروز شروع کنید</h2>
-  <p class="sub" style="margin-bottom:20px">در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.</p>
-  <a class="btn btn-p" href="/auth.html">🚀 ثبت‌نام رایگان / ورود</a>
+<section class="cta-band ember reveal">
+  <div class="eyebrow">شروع کنید</div>
+  <h2>رشد بعدی، همین امروز شروع می‌شود</h2>
+  <p class="sub" style="margin-bottom:20px;margin-inline:auto">در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.</p>
+  <a class="btn btn-ember" href="/auth.html">🚀 ثبت‌نام رایگان / ورود</a>
 </section>
 </main>
 
