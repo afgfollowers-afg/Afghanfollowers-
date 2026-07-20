@@ -1182,10 +1182,6 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <span class="bn-label" id="t-bn-tickets">Tickets</span>
     <span id="ticket-dot" style="display:none;position:absolute;top:0;right:4px;background:#ff5c7d;color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:0 5px;min-width:16px;height:16px;line-height:16px;text-align:center">!</span>
   </div>
-  <div class="bn-item" id="bn-services" onclick="navTo('services')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-    <span class="bn-label" id="t-bn-services">Services</span>
-  </div>
   <div class="bn-item" id="bn-profile" onclick="navTo('profile')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     <span class="bn-label" id="t-bn-profile">Profile</span>
@@ -1360,7 +1356,7 @@ var PANEL_T={
       't-dn-refill':t.dnRefill,'t-dn-refunds':t.dnRefunds,'t-dn-api':t.dnApi,
       't-dn-account':t.dnAccount,'t-dn-theme':t.dnTheme,'t-dn-logout':t.dnLogout,
       't-bn-neworder':t.dnNewOrder,'t-bn-addfunds':t.dnAddFunds,'t-bn-freelikes':t.dnFreeLikes,
-      't-bn-tickets':t.dnTickets,'t-bn-services':t.dnServices,'t-bn-profile':t.dnAccount,
+      't-bn-tickets':t.dnTickets,'t-bn-profile':t.dnAccount,
       't-ph-neworder':t.phTitle,'t-ph-neworder-sub':t.phSub
     };
     Object.keys(m).forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=m[id];});
