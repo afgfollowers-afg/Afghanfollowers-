@@ -261,6 +261,48 @@ module.exports = async (req, res) => {
       });
     }
 
+    // smm_users previously went out to this GET completely unfiltered: every
+    // customer's email, phone, balance, full transaction ledger, and salted
+    // password hash+salt, to ANY caller holding the shared DB_CLIENT_KEY —
+    // which is a literal constant visible via view-source on every public
+    // page, no login required. api/auth.js's login/register/google actions
+    // need the real, un-redacted array (they look up an arbitrary user by
+    // email/phone/id to verify a password or check for a duplicate), so the
+    // internal service token keeps seeing it exactly as before. A real admin
+    // session legitimately needs full customer records for user management,
+    // but never reads password/salt (verified: admin.html only ever checks
+    // those fields against smm_admin_creds, never against an smm_users
+    // entry), so those two fields are dropped even for admin. Every other
+    // caller — a logged-in customer, or no token at all (auth.html fetches
+    // this pre-login just to seed its local cache) — gets their OWN record
+    // untouched (smm-panel.html's profile "change password" flow verifies
+    // the old password client-side and needs its own hash+salt for that),
+    // and every OTHER user reduced to only the fields the referral "Free
+    // Likes" feature actually scans for (id/fname/inviteCode/joined/status)
+    // plus email (only used for auth.html's pre-submit "already registered"
+    // duplicate check — api/auth.js re-validates this server-side regardless,
+    // so exposing it changes nothing a registration attempt wouldn't already
+    // reveal one step later).
+    if (!isInternalServiceCall && Array.isArray(record.smm_users)) {
+      const callerIsAdmin = !!(_getAuthForGet && _getAuthForGet.role === 'admin');
+      const callerSub = _getAuthForGet ? _getAuthForGet.sub : null;
+      if (callerIsAdmin) {
+        record.smm_users = record.smm_users.map(function (u) {
+          const c = Object.assign({}, u);
+          delete c.password;
+          delete c.salt;
+          return c;
+        });
+      } else {
+        record.smm_users = record.smm_users.map(function (u) {
+          if (callerSub !== null && callerSub !== undefined && String(u.id) === String(callerSub)) {
+            return Object.assign({}, u);
+          }
+          return { id: u.id, email: u.email, fname: u.fname, inviteCode: u.inviteCode, joined: u.joined, status: u.status };
+        });
+      }
+    }
+
     // Surfaced so the admin panel can show a clear "auth not active" warning
     // instead of the alternative — a customer/admin silently getting the
     // pre-auth, unprotected write path with no visible sign why a balance
