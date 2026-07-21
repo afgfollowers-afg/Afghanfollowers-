@@ -32,7 +32,6 @@ const RATE_LIMITS = {
   google: [10, 5 * 60 * 1000],
   'admin-login': [5, 15 * 60 * 1000]
 };
-const DEFAULT_ADMIN_CREDS = { username: 'admin', password: hashPass('admin123', 'a1f9c3e7b2d84605'), salt: 'a1f9c3e7b2d84605' };
 
 async function handleLogin(body) {
   const email = body.email ? String(body.email).trim().toLowerCase() : '';
@@ -206,9 +205,16 @@ async function handleAdminLogin(body) {
 
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
-  const creds = (db.smm_admin_creds && db.smm_admin_creds.username && db.smm_admin_creds.password)
-    ? db.smm_admin_creds
-    : DEFAULT_ADMIN_CREDS;
+  // No longer falls back to a hardcoded default password when
+  // smm_admin_creds isn't configured — a real admin credential has been set
+  // on this deployment, so if that setting were ever accidentally cleared,
+  // the correct outcome is login being blocked (visibly broken, gets
+  // noticed and fixed) rather than silently accepting a public, well-known
+  // password (admin/admin123) that anyone reading this repo's history knows.
+  if (!db.smm_admin_creds || !db.smm_admin_creds.username || !db.smm_admin_creds.password) {
+    return { ok: false, error: 'Admin credentials are not configured.' };
+  }
+  const creds = db.smm_admin_creds;
 
   if (username !== creds.username || !creds.salt || hashPass(password, creds.salt) !== creds.password) {
     return { ok: false, error: 'Invalid credentials' };
