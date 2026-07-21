@@ -5332,7 +5332,7 @@ function qrFieldHtml(prefix,qrCode){
   return '<div class="fg"><label class="fl">QR Code <span style="color:var(--mt);font-weight:400;text-transform:none">(optional — shown to customers at checkout)</span></label>'
     +'<div style="display:flex;gap:12px;align-items:center">'
     +'<div id="'+prefix+'-qr-preview" style="width:72px;height:72px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">'
-    +(qrCode?'<img src="'+qrCode+'" style="width:100%;height:100%;object-fit:contain">':'<span style="font-size:22px;opacity:.4">▦</span>')
+    +(qrCode?'<img src="'+qrCode+'" alt="Payment QR code preview" style="width:100%;height:100%;object-fit:contain">':'<span style="font-size:22px;opacity:.4">▦</span>')
     +'</div>'
     +'<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
     +'<input type="file" accept="image/*" class="fi" id="'+prefix+'-qr-file" onchange="handleQrUpload(this,\''+prefix+'\')" style="padding:6px;font-size:11px">'
@@ -5365,7 +5365,7 @@ function handleQrUpload(input,prefix){
       ctx.drawImage(img,0,0,w,h);
       var dataUrl=canvas.toDataURL('image/jpeg',0.8);
       document.getElementById(prefix+'-qr-data').value=dataUrl;
-      document.getElementById(prefix+'-qr-preview').innerHTML='<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+      document.getElementById(prefix+'-qr-preview').innerHTML='<img src="'+dataUrl+'" alt="Payment QR code preview" style="width:100%;height:100%;object-fit:contain">';
       toast('QR code ready — click Save Settings to apply','s');
     };
     img.onerror=function(){toast('Could not read that image','e');};
