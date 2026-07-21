@@ -582,20 +582,40 @@ module.exports = async (req, res) => {
           return String(u.id) !== String(body.smm_users_delete_id);
         });
       }
+      // Looks up a service's real per-1000 price from the compressed smm_svc
+      // catalog array (see admin.html's syncServicesToPanel(): index 1=svcId,
+      // 2=name, 5=provId, 7=price). Prefers the stable svcId+provId pair
+      // placeOrder() stamps on every new order — immune to a service's
+      // display name drifting — falling back to a name match only for
+      // legacy orders that predate those fields.
+      function findSvcPrice(svcCatalog, item) {
+        if (!Array.isArray(svcCatalog)) return null;
+        var row = null;
+        if (item && item.svcId !== undefined && item.svcId !== '' && item.provId !== undefined && item.provId !== '') {
+          row = svcCatalog.find(function (s) { return Array.isArray(s) && String(s[1]) === String(item.svcId) && String(s[5]) === String(item.provId); });
+        }
+        if (!row && item) {
+          row = svcCatalog.find(function (s) { return Array.isArray(s) && (s[2] === item.svcName || s[2] === item.service || s[2] === item.svc); });
+        }
+        return row ? (parseFloat(row[7]) || 0) : null;
+      }
       // Restricts an smm_orders push from a plain customer token (or no/
       // invalid token) to only orders that customer could legitimately have
-      // caused: creating a brand-new order under their own userId (cost/qty
-      // are still whatever the client computed here — re-deriving order
-      // cost from a real service-price catalog server-side is a separate,
-      // larger fix this doesn't attempt), or flipping a small fixed set of
-      // safe fields (status -> 'cancelled' pre-dispatch, refillRequested)
-      // on an order they already own. Every economically sensitive field on
-      // an EXISTING order — cost, qty, service, userId, provOrderId — is
-      // frozen to the server's stored value no matter what the client
-      // sends. This is what stops "edit my own past order's cost upward,
-      // then refund it": the 'refund' branch in sanitizeCustomerUserWrites
-      // above only trusts THIS frozen server-side cost, never the client's.
-      function sanitizeCustomerOrderWrites(incoming, currentOrders, subId) {
+      // caused: creating a brand-new order under their own userId, with its
+      // cost re-derived from the real server-side price catalog rather than
+      // trusted from the client — closes placing an order for less than its
+      // real price outright (separate from the refund-amplification gap
+      // already closed below, which stopped a forged cost from being cashed
+      // out, but not from being spent as free/underpriced services). Or
+      // flipping a small fixed set of safe fields (status -> 'cancelled'
+      // pre-dispatch, refillRequested) on an order they already own. Every
+      // economically sensitive field on an EXISTING order — cost, qty,
+      // service, userId, provOrderId — is frozen to the server's stored
+      // value no matter what the client sends. This is what stops "edit my
+      // own past order's cost upward, then refund it": the 'refund' branch
+      // in sanitizeCustomerUserWrites above only trusts THIS frozen
+      // server-side cost, never the client's.
+      function sanitizeCustomerOrderWrites(incoming, currentOrders, subId, svcCatalog) {
         if (subId === undefined || subId === null) return [];
         const currentMap = {};
         (currentOrders || []).forEach(function (o) { if (o && o.id !== undefined) currentMap[o.id] = o; });
@@ -605,7 +625,19 @@ module.exports = async (req, res) => {
           if (!item || item.id === undefined) return;
           const existing = currentMap[item.id];
           if (!existing) {
-            if (String(item.userId) === String(subId)) out.push(item);
+            if (String(item.userId) !== String(subId)) return;
+            const price = findSvcPrice(svcCatalog, item);
+            // Unknown service -> can't verify a price at all, fail safe by
+            // rejecting rather than trusting an unverifiable claimed cost.
+            if (price === null) return;
+            const qty = parseFloat(item.qty) || 0;
+            const expectedCost = parseFloat(((price * qty) / 1000).toFixed(4));
+            const claimedCost = parseFloat(item.cost) || 0;
+            // Only guards against UNDERpaying — a customer voluntarily
+            // claiming a higher cost than the catalog price harms no one
+            // and isn't what this closes. Small epsilon for float rounding.
+            if (claimedCost < expectedCost - 0.01) return;
+            out.push(item);
             return;
           }
           if (String(existing.userId) !== String(subId)) return; // not this customer's order
@@ -625,7 +657,22 @@ module.exports = async (req, res) => {
         if (!AUTH_CONFIGURED || (ordersAuth && ordersAuth.role === 'admin')) {
           current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
         } else {
-          const allowedOrders = sanitizeCustomerOrderWrites(body.smm_orders, ordersAtRequestStart, ordersAuth && ordersAuth.sub);
+          // Only pay the extra JSONBin round-trip for the service catalog
+          // when there's actually a brand-new order to price-check — a
+          // ticket reply or profile save that happens to also re-send the
+          // unchanged local orders array shouldn't incur it.
+          const hasNewOrder = body.smm_orders.some(function (o) {
+            return o && o.id !== undefined && !ordersAtRequestStart.some(function (eo) { return eo && String(eo.id) === String(o.id); });
+          });
+          let svcCatalogForCheck = null;
+          if (hasNewOrder && SVC_BIN_ID) {
+            try {
+              const svcResult = await readBin(SVC_BIN_ID);
+              if (svcResult.ok && svcResult.record.svc_gz) svcCatalogForCheck = base64ToObj(svcResult.record.svc_gz);
+              else if (svcResult.ok && svcResult.record.smm_svc) svcCatalogForCheck = svcResult.record.smm_svc;
+            } catch (e) { svcCatalogForCheck = null; }
+          }
+          const allowedOrders = sanitizeCustomerOrderWrites(body.smm_orders, ordersAtRequestStart, ordersAuth && ordersAuth.sub, svcCatalogForCheck);
           if (allowedOrders.length) current.smm_orders = mergeById(current.smm_orders, allowedOrders);
         }
       }
