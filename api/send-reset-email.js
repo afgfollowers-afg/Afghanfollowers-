@@ -15,6 +15,7 @@ const SITE = 'https://afghanfollowers.online';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
+const { rateLimit } = require('./_ratelimit');
 
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -60,6 +61,12 @@ module.exports = async (req, res) => {
     }
 
     // ── Mode 1: password reset (public) ──
+    // Unauthenticated by design (anyone logged-out needs to trigger this),
+    // so IP-based throttling is the only thing standing between this and
+    // an email-bombing tool spamming arbitrary inboxes with reset links.
+    if (!rateLimit(req, 'send-reset-email', 5, 15 * 60 * 1000)) {
+      return res.status(200).json({ ok: true }); // same non-committal response as "user not found" — don't leak that a limit was hit either
+    }
     const email = (body.email || '').trim().toLowerCase();
     if (!email) return res.status(200).json({ ok: true }); // don't leak validation info
 

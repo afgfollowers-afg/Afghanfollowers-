@@ -17,8 +17,21 @@
 const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 const { hashPass, genSalt } = require('./_passhash');
 const { signToken, AUTH_CONFIGURED } = require('./_auth');
+const { rateLimit } = require('./_ratelimit');
 
 const SITE = 'https://afghanfollowers.online';
+
+// Per-IP attempt caps for each action — none of this existed before, so
+// login/register/admin-login could all be brute-forced with no throttling
+// at all. admin-login gets the tightest window since a compromised admin
+// account is the highest-impact outcome; register is capped mainly to stop
+// mass fake-account creation rather than credential guessing.
+const RATE_LIMITS = {
+  login: [10, 5 * 60 * 1000],
+  register: [5, 15 * 60 * 1000],
+  google: [10, 5 * 60 * 1000],
+  'admin-login': [5, 15 * 60 * 1000]
+};
 const DEFAULT_ADMIN_CREDS = { username: 'admin', password: hashPass('admin123', 'a1f9c3e7b2d84605'), salt: 'a1f9c3e7b2d84605' };
 
 async function handleLogin(body) {
@@ -215,6 +228,10 @@ module.exports = async (req, res) => {
   if (!AUTH_CONFIGURED) return res.status(500).json({ ok: false, error: 'Auth not configured. Set AUTH_JWT_SECRET.' });
 
   const action = (req.query && req.query.action) || '';
+  const limit = RATE_LIMITS[action];
+  if (limit && !rateLimit(req, 'auth:' + action, limit[0], limit[1])) {
+    return res.status(429).json({ ok: false, error: 'Too many attempts. Please try again later.' });
+  }
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     let result;

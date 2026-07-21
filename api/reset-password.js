@@ -3,10 +3,17 @@
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 const { hashPass, genSalt } = require('./_passhash');
+const { rateLimit } = require('./_ratelimit');
 
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // The reset token itself is an unguessable 32-byte random value, but
+  // without a cap an attacker could still burn a huge number of guesses
+  // against it (or just hammer this endpoint) from one IP.
+  if (!rateLimit(req, 'reset-password', 20, 15 * 60 * 1000)) {
+    return res.status(429).json({ ok: false, error: 'Too many attempts. Please try again later.' });
+  }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
