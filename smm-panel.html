@@ -3182,7 +3182,7 @@ var gwMethods={
         +'<div style="background:#4caf50;border-radius:12px;padding:14px;text-align:center;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">'
         +'<span style="font-size:22px">🪙</span>'
         +'<span style="font-size:18px;font-weight:800;color:#fff">Amount: '+(amt>0?amt+' USDT':'Enter amount above')+'</span></div>'
-        +(c.qrCode?'<div style="text-align:center;margin-bottom:16px"><img src="'+c.qrCode+'" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px;border:1px solid #eee"><div style="font-size:12px;color:#666;margin-top:6px">Scan to pay</div></div>':'')
+        +(c.qrCode?'<div style="text-align:center;margin-bottom:16px"><img src="'+c.qrCode+'" alt="Payment QR code" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px;border:1px solid #eee"><div style="font-size:12px;color:#666;margin-top:6px">Scan to pay</div></div>':'')
         // Pay ID
         +'<div style="font-size:14px;font-weight:600;color:#555;margin-bottom:8px">Binance Pay ID</div>'
         +'<div style="background:#f0b90b;border-radius:10px;padding:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
@@ -3498,7 +3498,7 @@ function onAfMethodChange(){
     var payId=cfg.payId||'—';
     info='<div style="background:rgba(243,186,47,.08);border:1px solid rgba(243,186,47,.25);border-radius:11px;padding:14px;font-size:13px">'
       +'<div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:10px">🟡 Binance Pay</div>'
-      +(cfg.qrCode?'<div style="text-align:center;margin-bottom:12px"><img src="'+cfg.qrCode+'" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px"><div style="font-size:11px;color:var(--muted);margin-top:6px">Scan to pay</div></div>':'')
+      +(cfg.qrCode?'<div style="text-align:center;margin-bottom:12px"><img src="'+cfg.qrCode+'" alt="Payment QR code" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px"><div style="font-size:11px;color:var(--muted);margin-top:6px">Scan to pay</div></div>':'')
       +'<div style="color:var(--muted);margin-bottom:6px">Binance Pay ID</div>'
       +'<div style="background:rgba(243,186,47,.1);border:1px solid rgba(243,186,47,.3);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       +'<span style="color:#f3ba2f;font-weight:700;font-size:16px">'+payId+'</span>'
@@ -3523,7 +3523,7 @@ function onAfMethodChange(){
     var acct=cfg.account||'';var instr=cfg.instructions||'Contact us via WhatsApp to arrange payment.';
     info='<div style="background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:11px;padding:14px;font-size:13px">'
       +'<div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:8px">💵 Cash / Hawala Payment</div>'
-      +(cfg.qrCode?'<div style="text-align:center;margin-bottom:12px"><img src="'+cfg.qrCode+'" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px"><div style="font-size:11px;color:var(--muted);margin-top:6px">Scan to pay</div></div>':'')
+      +(cfg.qrCode?'<div style="text-align:center;margin-bottom:12px"><img src="'+cfg.qrCode+'" alt="Payment QR code" style="max-width:180px;width:100%;border-radius:10px;background:#fff;padding:8px"><div style="font-size:11px;color:var(--muted);margin-top:6px">Scan to pay</div></div>':'')
       +(acct?'<div style="color:var(--muted);margin-bottom:6px">Account / Contact: <strong style="color:var(--white)">'+acct+'</strong></div>':'')
       +'<div style="color:var(--muted);font-size:12px;line-height:1.7">'+instr+'</div>'
       +'</div>';
