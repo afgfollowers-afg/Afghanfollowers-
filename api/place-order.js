@@ -11,6 +11,7 @@
 // this is the on-demand counterpart to that file's daily retry sweep.
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
 const { dispatchOneOrder } = require('./sync-orders');
+const { getAuth, AUTH_CONFIGURED } = require('./_auth');
 
 const SITE = 'https://afghanfollowers.online';
 
@@ -39,6 +40,22 @@ module.exports = async (req, res) => {
     const order = (db.smm_orders || []).find((o) => String(o.id) === String(orderId));
     if (!order) {
       return res.status(200).json({ ok: false, error: 'Order not found' });
+    }
+
+    // The shared x-db-key alone isn't ownership — it's a constant baked
+    // into every public page's source, so without this check any visitor
+    // could force-dispatch (force:true below skips the normal cooldown)
+    // an order belonging to a different customer just by guessing/
+    // enumerating an orderId (these are Date.now() timestamps). Admin
+    // callers (approveFreeLikes()) and the internal service token both
+    // need to dispatch orders they don't personally "own", so only a
+    // plain customer token is restricted to its own orders.
+    if (AUTH_CONFIGURED) {
+      const auth = getAuth(req);
+      const isInternalOrAdmin = !!(auth && auth.role === 'admin');
+      if (!isInternalOrAdmin && (!auth || String(order.userId) !== String(auth.sub))) {
+        return res.status(200).json({ ok: false, error: 'Not authorized to dispatch this order' });
+      }
     }
 
     const result = await dispatchOneOrder(

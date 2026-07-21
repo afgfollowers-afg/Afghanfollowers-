@@ -1380,7 +1380,7 @@ var _DB_KEY_PATHS=['/api/db','/api/paypal-verify','/api/place-order','/api/notif
 // which logged-in customer is actually making the request — without this,
 // a customer's own writes (deposit_pending, withdrawal, PayPal credit) fall
 // back to the least-privileged "no identity" path.
-var _AUTH_TOKEN_PATHS=['/api/db','/api/paypal-verify'];
+var _AUTH_TOKEN_PATHS=['/api/db','/api/paypal-verify','/api/place-order'];
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
