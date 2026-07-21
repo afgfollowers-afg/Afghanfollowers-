@@ -1002,14 +1002,14 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <label class="form-label">Current Password</label>
           <div style="display:flex;gap:8px">
             <input type="password" class="form-input" id="prof-oldpass" style="flex:1">
-            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-oldpass',this)">👁</button>
+            <button type="button" class="btn btn-sm" aria-label="Show password" style="width:auto;padding:0 12px;display:flex;align-items:center;justify-content:center" onclick="profToggleEye('prof-oldpass',this)"><svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">New Password</label>
           <div style="display:flex;gap:8px">
             <input type="password" class="form-input" id="prof-newpass" style="flex:1" oninput="profStrength(this.value)">
-            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-newpass',this)">👁</button>
+            <button type="button" class="btn btn-sm" aria-label="Show password" style="width:auto;padding:0 12px;display:flex;align-items:center;justify-content:center" onclick="profToggleEye('prof-newpass',this)"><svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
           </div>
           <div style="height:4px;background:var(--surface2);border-radius:3px;margin-top:8px;overflow:hidden">
             <div id="prof-str-bar" style="height:100%;width:0%;transition:width .2s"></div>
@@ -1020,7 +1020,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <label class="form-label">Confirm New Password</label>
           <div style="display:flex;gap:8px">
             <input type="password" class="form-input" id="prof-confpass" style="flex:1">
-            <button type="button" class="btn btn-sm" style="width:auto;padding:0 12px" onclick="profToggleEye('prof-confpass',this)">👁</button>
+            <button type="button" class="btn btn-sm" aria-label="Show password" style="width:auto;padding:0 12px;display:flex;align-items:center;justify-content:center" onclick="profToggleEye('prof-confpass',this)"><svg class="eye-ic-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-ic-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.14 19.14 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
           </div>
         </div>
       </div>
@@ -3794,7 +3794,11 @@ function pickEmoji(e){
 function profToggleEye(id,btn){
   var el=document.getElementById(id);
   el.type=el.type==='password'?'text':'password';
-  btn.textContent=el.type==='password'?'👁':'🙈';
+  var on=btn.querySelector('.eye-ic-on'),off=btn.querySelector('.eye-ic-off');
+  var showing=el.type==='text';
+  if(on) on.style.display=showing?'none':'block';
+  if(off) off.style.display=showing?'block':'none';
+  btn.setAttribute('aria-label',showing?'Hide password':'Show password');
 }
 
 function profStrength(v){
