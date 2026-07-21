@@ -1,13 +1,23 @@
 // Vercel Serverless Function — SMM Provider API Proxy
 // Bypasses CORS restrictions for provider API calls. Only ever called from
-// admin.html (testing/managing provider accounts) — gated with the same
-// shared key every other first-party/admin-only endpoint requires, since it
-// was previously a fully open relay to any URL with any key.
+// admin.html (testing/managing provider accounts).
+//
+// The shared x-db-key alone isn't a real gate here: it's a constant baked
+// into every public page's source (view-source, no login needed), so
+// requiring only that made this endpoint a de facto open relay — anyone
+// could make this server issue an arbitrary outbound POST to a URL of
+// their choosing (SSRF: port-scanning internal infra, hitting internal-
+// only services, or just abusing this server's IP/reputation against a
+// third party), by supplying their own url/key body fields instead of
+// providerId. Now also requires a real, server-verified admin session
+// token (or the internal service token dispatchOneOrder() uses) — the
+// same bar every other admin-only write already has to clear.
 const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
+const { getAuth, AUTH_CONFIGURED } = require('./_auth');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', 'https://afghanfollowers.online');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-db-key, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
 
@@ -17,6 +27,12 @@ module.exports = async (req, res) => {
 
   if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (AUTH_CONFIGURED) {
+    const auth = getAuth(req);
+    if (!auth || auth.role !== 'admin') {
+      return res.status(401).json({ error: 'Admin session required' });
+    }
   }
 
   try {
