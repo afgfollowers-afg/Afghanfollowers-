@@ -1189,12 +1189,12 @@ tr:hover td{background:rgba(30,35,54,.5);}
 </div>
 
 <!-- Telegram FAB -->
-<div id="tg-fab" title="Telegram Support" onclick="openTelegramBot()" style="cursor:pointer;position:fixed;bottom:140px;right:16px;width:52px;height:52px;background:#2AABEE;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999">
+<div id="tg-fab" title="Telegram Support" role="button" tabindex="0" aria-label="Telegram Support" onclick="openTelegramBot()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTelegramBot();}" style="cursor:pointer;position:fixed;bottom:140px;right:16px;width:52px;height:52px;background:#2AABEE;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:999">
   <svg width="26" height="26" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
 </div>
 
 <!-- AI Assistant FAB (next to the Telegram FAB, opens a mini chat popup) -->
-<div id="ai-fab" title="AI Assistant" onclick="toggleAiWidget()" style="cursor:pointer;position:fixed;bottom:204px;right:16px;width:52px;height:52px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(124,92,252,.5);z-index:999">
+<div id="ai-fab" title="AI Assistant" role="button" tabindex="0" aria-label="AI Assistant" onclick="toggleAiWidget()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAiWidget();}" style="cursor:pointer;position:fixed;bottom:204px;right:16px;width:52px;height:52px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(124,92,252,.5);z-index:999">
   <img src="/icons/nav-badge.png" alt="AI Assistant" style="width:100%;height:100%;object-fit:cover;display:block">
 </div>
 <div id="ai-widget" style="display:none;flex-direction:column;position:fixed;bottom:264px;right:16px;width:320px;max-width:calc(100vw - 32px);height:420px;max-height:60vh;background:#10131c;border:1px solid #232a3d;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:1000;overflow:hidden">
