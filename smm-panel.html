@@ -4747,7 +4747,7 @@ function finishCancelOrder(id){
   if(u&&refund>0){
     u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
     if(!u.transactions) u.transactions=[];
-    u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,desc:'Order #'+id+' cancelled — refunded',date:new Date().toISOString(),status:'approved'});
+    u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,orderId:id,desc:'Order #'+id+' cancelled — refunded',date:new Date().toISOString(),status:'approved'});
     saveCurrentUser(u);
   }
   try{

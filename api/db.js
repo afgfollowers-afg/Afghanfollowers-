@@ -17,10 +17,12 @@ const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('
 // approves); PayPal's own auto-credit goes through paypal-verify.js with an
 // admin-equivalent server token, not a customer token. 'refund' is NOT
 // listed here — smm-panel.html's cancelOrder() lets a customer cancel
-// their own order and refund themselves as a normal self-service action,
-// pre-dating this gate; smm_orders writes aren't validated by this gate at
-// all yet, so a forged order cost feeding a forged refund is a real,
-// separate gap this doesn't close — noted, not fixed here.
+// their own order and refund themselves as a normal self-service action —
+// but see the 'refund' branch below: it's validated against the order's
+// own server-stored cost (via serverOrders/ordersMap), not whatever amount
+// the client claims, and sanitizeCustomerOrderWrites (below) freezes an
+// existing order's cost field so those two checks can't be defeated by
+// also forging the order in the same request.
 const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus'];
 
 // Restricts an smm_users push from a plain customer token (or no/invalid
@@ -34,10 +36,18 @@ const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus'];
 // the gap the rest of this file's history documents repeatedly: a customer
 // forging their own balance, another user's balance, or a self-granted
 // bonus/admin_credit by POSTing a crafted smm_users array directly.
-function sanitizeCustomerUserWrites(incoming, currentUsers, subId) {
+function sanitizeCustomerUserWrites(incoming, currentUsers, subId, serverOrders) {
   if (subId === undefined || subId === null) return [];
   const currentMap = {};
   (currentUsers || []).forEach(function (u) { if (u && u.id !== undefined) currentMap[u.id] = u; });
+  const ordersMap = {};
+  (serverOrders || []).forEach(function (o) { if (o && o.id !== undefined) ordersMap[o.id] = o; });
+  // Caps a customer token to at most one accepted 'refund' per order per
+  // request — without this, two refund transactions for the same orderId
+  // in one push would both pass the "order not already cancelled" check
+  // below, since that check reads a single fixed snapshot (serverOrders)
+  // rather than being updated as each transaction is processed.
+  const refundedOrderIds = {};
 
   const out = [];
   (incoming || []).forEach(function (item) {
@@ -75,10 +85,22 @@ function sanitizeCustomerUserWrites(incoming, currentUsers, subId) {
       }
       if (t.type === 'refund') {
         // cancelOrder() in smm-panel.html — a customer cancelling their own
-        // order and refunding themselves. No upper bound checked against
-        // an actual order here (see the note above PRIVILEGED_TX_TYPES).
+        // order and refunding themselves. Previously trusted t.amount
+        // outright with no upper bound: a forged smm_orders entry with an
+        // inflated cost, paired with a matching forged refund in the same
+        // request, was a straightforward way to self-credit an arbitrary
+        // balance. Now cross-checked against serverOrders — the DB's own
+        // pre-existing copy of the order, captured before this same
+        // request's smm_orders write is applied — so nothing the client
+        // just claimed about that order (its cost included) has any say
+        // in how much this refund is allowed to be worth.
+        const order = t.orderId !== undefined ? ordersMap[t.orderId] : null;
         const amt = parseFloat(t.amount) || 0;
-        if (amt > 0) {
+        const orderCost = order ? (parseFloat(order.cost !== undefined ? order.cost : order.totalCost) || 0) : 0;
+        const alreadyFinished = order && ['cancelled', 'canceled', 'refunded'].indexOf(order.status) !== -1;
+        if (order && String(order.userId) === String(subId) && !alreadyFinished
+            && !refundedOrderIds[t.orderId] && amt > 0 && amt <= orderCost + 0.0001) {
+          refundedOrderIds[t.orderId] = true;
           runningBalance = parseFloat((runningBalance + amt).toFixed(2));
           acceptedTx.push(t);
         }
@@ -405,6 +427,12 @@ module.exports = async (req, res) => {
       const main = await readBin(BIN_ID);
       if (!main.ok) return res.status(200).json({ diag: 'POST_READ_MAIN_FAILED', jsonbinStatus: main.status, jsonbinBodyRaw: main.raw });
       const current = main.record;
+      // Captured before anything below mutates current.smm_orders — this is
+      // what a 'refund' transaction (see sanitizeCustomerUserWrites) and the
+      // order-ownership gate (see sanitizeCustomerOrderWrites) validate
+      // against, specifically so a forged order in THIS SAME request body
+      // can never be used to justify a matching forged refund in it.
+      const ordersAtRequestStart = current.smm_orders || [];
 
       // Merge by unique id — this prevents one browser's push from wiping out
       // records another browser already saved (the old "keep longer array"
@@ -530,7 +558,7 @@ module.exports = async (req, res) => {
         // wrong role) so a server-to-server caller can report it directly
         // instead of the mystery repeating with no way to narrow further.
         smmUsersAuthDiagnostic = smmUsersAuthDiagnostic || diagnoseAuth(req);
-        const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub);
+        const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub, ordersAtRequestStart);
         // "restricted" is the signal the client uses to force a re-login
         // (see forceCustomerReauth()/forceAdminReauth()) — it must mean
         // "there was no valid identity to write as at all" (no token,
@@ -554,13 +582,60 @@ module.exports = async (req, res) => {
           return String(u.id) !== String(body.smm_users_delete_id);
         });
       }
+      // Restricts an smm_orders push from a plain customer token (or no/
+      // invalid token) to only orders that customer could legitimately have
+      // caused: creating a brand-new order under their own userId (cost/qty
+      // are still whatever the client computed here — re-deriving order
+      // cost from a real service-price catalog server-side is a separate,
+      // larger fix this doesn't attempt), or flipping a small fixed set of
+      // safe fields (status -> 'cancelled' pre-dispatch, refillRequested)
+      // on an order they already own. Every economically sensitive field on
+      // an EXISTING order — cost, qty, service, userId, provOrderId — is
+      // frozen to the server's stored value no matter what the client
+      // sends. This is what stops "edit my own past order's cost upward,
+      // then refund it": the 'refund' branch in sanitizeCustomerUserWrites
+      // above only trusts THIS frozen server-side cost, never the client's.
+      function sanitizeCustomerOrderWrites(incoming, currentOrders, subId) {
+        if (subId === undefined || subId === null) return [];
+        const currentMap = {};
+        (currentOrders || []).forEach(function (o) { if (o && o.id !== undefined) currentMap[o.id] = o; });
+        const FINISHED = ['completed', 'cancelled', 'canceled', 'partial', 'refunded'];
+        const out = [];
+        (incoming || []).forEach(function (item) {
+          if (!item || item.id === undefined) return;
+          const existing = currentMap[item.id];
+          if (!existing) {
+            if (String(item.userId) === String(subId)) out.push(item);
+            return;
+          }
+          if (String(existing.userId) !== String(subId)) return; // not this customer's order
+          const next = Object.assign({}, existing);
+          if (item.status === 'cancelled' && FINISHED.indexOf(existing.status) === -1 && !existing.provOrderId) {
+            next.status = 'cancelled';
+          }
+          if (item.refillRequested === true && !existing.refillRequested) {
+            next.refillRequested = true;
+          }
+          out.push(next);
+        });
+        return out;
+      }
       if (body.smm_orders && Array.isArray(body.smm_orders)) {
-        current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
+        const ordersAuth = AUTH_CONFIGURED ? (smmUsersAuth || getAuth(req)) : null;
+        if (!AUTH_CONFIGURED || (ordersAuth && ordersAuth.role === 'admin')) {
+          current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
+        } else {
+          const allowedOrders = sanitizeCustomerOrderWrites(body.smm_orders, ordersAtRequestStart, ordersAuth && ordersAuth.sub);
+          if (allowedOrders.length) current.smm_orders = mergeById(current.smm_orders, allowedOrders);
+        }
       }
       if (body.smm_orders_delete_id !== undefined) {
-        current.smm_orders = (current.smm_orders || []).filter(function (o) {
-          return String(o.id) !== String(body.smm_orders_delete_id);
-        });
+        const delAuth = AUTH_CONFIGURED ? (smmUsersAuth || getAuth(req)) : null;
+        if (!AUTH_CONFIGURED || (delAuth && delAuth.role === 'admin')) {
+          current.smm_orders = (current.smm_orders || []).filter(function (o) {
+            return String(o.id) !== String(body.smm_orders_delete_id);
+          });
+        }
       }
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
         current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
