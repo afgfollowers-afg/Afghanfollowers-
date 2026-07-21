@@ -1539,7 +1539,11 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
       // api/db.js's smm_users write gate grants full access the way it did
       // before that gate existed — without it, admin actions fall back to
       // the least-privileged customer path and get silently restricted.
-      if(url.indexOf('/api/db')===0){
+      // api-proxy also needs the real admin token now (see api/api-proxy.js)
+      // — it makes the server issue outbound requests to a caller-chosen
+      // URL, which the shared x-db-key alone can't gate safely since that
+      // key lives in every public page's source.
+      if(url.indexOf('/api/db')===0||url.indexOf('/api/api-proxy')===0){
         try{
           var asess=JSON.parse(localStorage.getItem('smm_admin_session')||'{}');
           if(asess.token) opts.headers=Object.assign({},opts.headers,{'Authorization':'Bearer '+asess.token});
