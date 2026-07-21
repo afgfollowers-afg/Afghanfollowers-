@@ -2096,13 +2096,13 @@ function viewMyTicket(id){
   div.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:flex-end';
   div.onclick=function(e){ if(e.target===div) div.remove(); }; // tap the backdrop to dismiss
   div.innerHTML='<div style="background:var(--card);border-radius:16px 16px 0 0;padding:20px;width:100%;max-height:80vh;overflow-y:auto">'+
-    '<div style="font-size:16px;font-weight:700;margin-bottom:12px">'+t.subject+'</div>'+
+    '<div style="font-size:16px;font-weight:700;margin-bottom:12px">'+escHtml(t.subject)+'</div>'+
     msgs.map(function(m){
       var isAdmin=m.from==='admin';
       return '<div style="margin-bottom:10px;display:flex;flex-direction:'+(isAdmin?'row-reverse':'row')+';gap:8px">'+
         '<div style="background:'+(isAdmin?'color-mix(in srgb,var(--accent) 20%,transparent)':'var(--bg)')+';border-radius:10px;padding:10px 14px;max-width:80%;font-size:13px">'+
-        '<div style="font-size:10px;color:var(--text2);margin-bottom:4px">'+(isAdmin?'Support':'You')+' · '+(m.date||'')+'</div>'+
-        (m.text||m.msg||'')+'</div></div>';
+        '<div style="font-size:10px;color:var(--text2);margin-bottom:4px">'+(isAdmin?'Support':'You')+' · '+escHtml(m.date||'')+'</div>'+
+        escHtml(m.text||m.msg||'')+'</div></div>';
     }).join('')+
     '<button id="tkt-close-btn" style="width:100%;padding:12px;background:var(--bg);border:none;border-radius:10px;color:var(--text);font-size:14px;margin-top:12px;cursor:pointer">Close</button>'+
     '</div>';
