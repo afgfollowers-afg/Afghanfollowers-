@@ -1221,7 +1221,6 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <div style="font-size:13px">Loading PayPal...</div>
         </div>
       </div>
-      <div id="paypal-btn-container" style="min-height:50px;margin-top:8px"></div>
       <div style="text-align:center;margin-top:14px;font-size:11px;color:#999;display:flex;align-items:center;justify-content:center;gap:5px">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="#999"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
         Secured by PayPal · 256-bit SSL
@@ -1458,6 +1457,15 @@ var _currentUser=null;
       allUsers[idx].lastVisit=new Date().toISOString();
       localStorage.setItem('smm_users',JSON.stringify(allUsers));
       _currentUser=allUsers[idx];
+      // Only local writes here used to reach the server, so a customer's
+      // lastVisit went permanently stale once set — admin.html's inactive-
+      // user re-engagement email job (eaGetInactiveUsers/eaRunEmailCampaign)
+      // reads this same field from the server-synced copy, so a still-active
+      // customer could get wrongly emailed as "inactive" forever.
+      try{
+        fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({smm_users:allUsers,smm_ts:Date.now()})}).catch(function(){});
+      }catch(e){}
     }
   }catch(e){
     window.location.replace('auth.html');
