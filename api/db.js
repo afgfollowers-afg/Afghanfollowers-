@@ -503,6 +503,24 @@ module.exports = async (req, res) => {
         (incomingArr || []).forEach(function (item) {
           if (!item || item.id === undefined) return;
           var existing = map[item.id];
+          // GET /api/db strips password+salt from every smm_users record it
+          // returns EXCEPT a caller's own, unexpired session (see the
+          // smm_users leak fix above) — meaning both admin.html's cache and
+          // a logged-in customer's cache of everyone ELSE (and, briefly
+          // post-login, even their own record — see auth.html's doLogin(),
+          // whose response also has these deleted) routinely holds objects
+          // with no password/salt keys at all. This `map[item.id] = item`
+          // replace is a FULL object replacement, not a per-field patch —
+          // pushing one of those objects back used to silently erase that
+          // user's real password+salt server-side, permanently locking
+          // them out on their next login. Preserve the server's existing
+          // values whenever the incoming item doesn't supply BOTH halves of
+          // a genuinely new pair (a real password change always sets salt
+          // and password together — see saveProfile()/reset-password.js —
+          // so requiring both is never a legitimate rejection).
+          if (existing && (item.password === undefined || item.salt === undefined)) {
+            item = Object.assign({}, item, { password: existing.password, salt: existing.salt });
+          }
           if (existing && Array.isArray(existing.transactions) && Array.isArray(item.transactions)) {
             var incomingTxIds = {};
             item.transactions.forEach(function (t) { if (t && t.id !== undefined) incomingTxIds[t.id] = true; });
