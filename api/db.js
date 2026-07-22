@@ -653,8 +653,23 @@ module.exports = async (req, res) => {
             const claimedCost = parseFloat(item.cost) || 0;
             // Only guards against UNDERpaying — a customer voluntarily
             // claiming a higher cost than the catalog price harms no one
-            // and isn't what this closes. Small epsilon for float rounding.
-            if (claimedCost < expectedCost - 0.01) return;
+            // and isn't what this closes. Tolerance must be relative, not a
+            // flat cent: smm-panel.html's order-cost field displays (and
+            // submits) the value formatted with toPrecision(4) — 4
+            // SIGNIFICANT digits, e.g. a true cost of $119.94 displays as
+            // "$119.9" — while this re-derives the true cost with
+            // .toFixed(4) (4 DECIMAL places). That formatting gap grows
+            // with the order's size (a flat $0.01 epsilon wrongly rejected
+            // every real order above roughly $100, silently — the customer
+            // had already been charged via the matching wallet transaction,
+            // which is validated independently, so the order simply
+            // vanished). 0.5% comfortably covers toPrecision(4)'s worst-case
+            // rounding error (~0.05%) with a wide margin, while still
+            // rejecting the actual underpricing exploit this exists for
+            // (claiming a small fraction of the real price, not a rounding-
+            // sized sliver of it). $0.01 floor keeps tiny orders protected.
+            const tolerance = Math.max(0.01, expectedCost * 0.005);
+            if (claimedCost < expectedCost - tolerance) return;
             out.push(item);
             return;
           }
