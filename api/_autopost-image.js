@@ -58,6 +58,25 @@ function ensureFontconfig() {
 const BOX = { x: 80, y: 660, width: 920, height: 312 };
 const PADDING = { x: 60, y: 30 };
 
+// Only Farsi/Arabic-block characters (U+0600–U+06FF — this already covers
+// native Farsi punctuation like ؟ ، ؛), plain spaces, and a small set of
+// universal ASCII punctuation survive onto the image. Everything else —
+// emoji, Latin letters (including the brand name), digits, any other
+// symbol — is stripped outright rather than drawn.
+//
+// This isn't cosmetic: pango's fallback for a codepoint it can identify but
+// has no font coverage for is a literal "box containing the hex codepoint
+// number", not a blank/invisible glyph. The earlier fontconfig fix solved
+// this for Farsi text specifically (Vazirmatn now resolves), but Groq's
+// output routinely includes emoji (the prompt explicitly asks for them)
+// and the Latin brand name — neither has a matching font in this
+// fontless Linux environment, so they rendered as hex-code boxes even
+// after that fix. The brand name and full styled text (emoji included)
+// still go out fine as the actual Telegram/Facebook caption, which those
+// platforms render client-side — this filtering only affects what WE
+// rasterize onto the image ourselves.
+const FARSI_ALLOWLIST = /[؀-ۿ\s!.,:;\-–—()"']/g;
+
 // The image only needs the core sentence(s) — hashtags and the bare URL are
 // redundant here (every template already has "afghanfollowers.online" baked
 // into its own footer) and, left in, were long enough to overflow the
@@ -65,9 +84,11 @@ const PADDING = { x: 60, y: 30 };
 // URL and all) still goes out as the actual Telegram/Facebook caption —
 // this trimming only affects what gets drawn on the image itself.
 function coreTextForImage(text) {
-  return text
+  const withoutTags = text
     .replace(/#\S+/g, '')
-    .replace(/afghanfollowers\.online/gi, '')
+    .replace(/afghanfollowers\.online/gi, '');
+  const farsiOnly = (withoutTags.match(FARSI_ALLOWLIST) || []).join('');
+  return farsiOnly
     .replace(/[ \t]+/g, ' ')
     .split(/\n+/).map(l => l.trim()).filter(Boolean).join(' ')
     .trim();
