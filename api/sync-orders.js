@@ -797,16 +797,15 @@ const AUTOPOST_ANGLES = [
 
 // Rotating urgency/time-limited appeal — folded naturally into the post
 // text, not tacked on as a separate generic line every day.
-// NOTE: keep these truthful to whatever real promotions are actually
-// running — "تخفیف" phrasing implies an active discount, so if there's no
-// real discount mechanism live, swap these for pure urgency wording
-// instead (e.g. "همین امروز سفارش بده") to avoid a false-advertising claim.
+// Pure urgency/CTA wording only — no "تخفیف"/"پیشنهاد ویژه" or any other
+// phrasing implying an active discount or special price, since no such
+// mechanism actually exists. High energy, but never a false claim.
 const AUTOPOST_URGENCY = [
-  'فقط امروز: سفارش بده و سریع‌تر از همیشه تحویل بگیر 🔥',
-  'پیشنهاد این هفته — فرصت را از دست نده ⏰',
-  'تا ۲۴ ساعت آینده تخفیف ویژه فعال است ⚡',
-  'محدود و فقط برای امروز — همین حالا اقدام کن 🎯',
-  'تا پایان این هفته پیشنهاد ویژه داریم 💥'
+  'همین امروز شروع کن — چرا صبر کنی؟ 🔥',
+  'وقت محدوده — الان اقدام کن ⏰',
+  'دیرتر نره، همین حالا سفارش بده ⚡',
+  'رشد پیجت رو امروز شروع کن، نه فردا 🎯',
+  'فرصت امروز رو از دست نده — همین الان بخر 💥'
 ];
 
 // Curated pool of real Afghan/Farsi SMM + gaming hashtags — the model picks
