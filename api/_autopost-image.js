@@ -51,8 +51,12 @@ function ensureFontconfig() {
   fontconfigReady = true;
 }
 
-const BOX = { x: 40, y: 242, width: 1000, height: 558 };
-const PADDING = { x: 70, y: 50 };
+// Matches the redesigned templates' reserved empty gradient area — logo,
+// platform icon and label now occupy y:0-660, and the site URL sits below
+// y:972, leaving this band as the only place the dynamic post-text panel
+// can go without overlapping either.
+const BOX = { x: 80, y: 660, width: 920, height: 312 };
+const PADDING = { x: 60, y: 30 };
 
 // The image only needs the core sentence(s) — hashtags and the bare URL are
 // redundant here (every template already has "afghanfollowers.online" baked
