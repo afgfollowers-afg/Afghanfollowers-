@@ -1,7 +1,7 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
-const { dispatchOneOrder, publishApprovedAutoPost } = require('./sync-orders');
+const { dispatchOneOrder } = require('./sync-orders');
 
 function escapeHtml(s) {
   return String(s === undefined || s === null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -808,41 +808,6 @@ async function handleCallbackQuery(cbq, token) {
   else if (kind === 'tupm') await selectTopupMethod(token, chatId, parts[2], isEnglish);
   else if (kind === 'tupx') await confirmPaypalTopup(token, chatId, isEnglish);
   else if (kind === 'tupc') await cancelAnyPending(token, chatId, isEnglish);
-  else if (kind === 'apy') await handleAutoPostApproval(chatId, parts[1], true, token);
-  else if (kind === 'apn') await handleAutoPostApproval(chatId, parts[1], false, token);
-}
-
-// Admin-only gate for the daily auto-post's 🧪 PREVIEW message (see
-// runAutoPostJobInner / publishApprovedAutoPost in sync-orders.js). Restricted
-// to the configured admin chat the same way sendEmailStatus() is — this
-// webhook is public (any Telegram user can message the bot), so without this
-// check anyone who somehow learned/guessed an approvalId could approve or
-// reject a post that was never meant to be theirs to decide.
-async function handleAutoPostApproval(chatId, approvalId, approve, token) {
-  const db = await getDb();
-  const adminChat = (db.smm_tg_bot && db.smm_tg_bot.chatId) || null;
-  if (!adminChat || String(adminChat) !== String(chatId)) {
-    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '🔒 این دستور فقط برای ادمین است.' });
-    return;
-  }
-  const pending = db.smm_autopost_pending;
-  if (!pending || pending.id !== approvalId) {
-    await tgApi(token, 'sendMessage', { chat_id: chatId, text: 'این درخواست دیگر معتبر نیست — شاید قبلاً تایید/رد شده یا منقضی شده.' });
-    return;
-  }
-  if (!approve) {
-    await fetchInternal(API_BASE + '/api/db', {
-      method: 'POST', headers: dbHeaders(),
-      body: JSON.stringify({ smm_autopost_pending: null, smm_ts: Date.now() })
-    });
-    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ رد شد — چیزی منتشر نشد.' });
-    return;
-  }
-  const result = await publishApprovedAutoPost(pending);
-  await tgApi(token, 'sendMessage', {
-    chat_id: chatId, parse_mode: 'HTML',
-    text: `✅ <b>تایید شد و منتشر شد</b> (${escapeHtml(result.focus)})\n\nفیسبوک: ${escapeHtml(result.results.facebook)}\nتلگرام: ${escapeHtml(result.results.telegram)}`
-  });
 }
 
 async function lookupOrder(orderId) {

@@ -115,12 +115,6 @@ module.exports = async (req, res) => {
 // see dispatchOneOrder() above for why a shared implementation matters.
 module.exports.dispatchOneOrder = dispatchOneOrder;
 
-// Exposed so api/telegram-bot.js's callback_query handler can publish the
-// daily auto-post the moment the admin taps ✅ on the PREVIEW message,
-// instead of waiting for the next cron tick — see publishApprovedAutoPost()
-// below and handleAutoPostApproval() in telegram-bot.js.
-module.exports.publishApprovedAutoPost = publishApprovedAutoPost;
-
 // Claim-then-dispatch for exactly one order, entirely server-side — the
 // provider's URL/API key never leave this function (read from the DB
 // snapshot passed in, or fetched fresh below), unlike the old
@@ -762,10 +756,6 @@ async function runDailyContentJob() {
 }
 
 const AUTOPOST_ADMIN_CHAT_ID = '7993801735';
-// If the admin never taps ✅/❌ within this window, the next real run is
-// allowed to generate a fresh candidate rather than staying blocked forever
-// on one missed approval (e.g. admin asleep or away for the day).
-const AUTOPOST_APPROVAL_TTL_MS = 12 * 60 * 60 * 1000;
 
 async function runAutoPostJob(opts) {
   opts = opts || {};
@@ -782,16 +772,11 @@ async function runAutoPostJob(opts) {
     // Same reasoning as runDailyContentJob's guard — this endpoint gets hit
     // more than once a day (retries, manual visits, etc.), and without this
     // check each hit fired off a brand new promo post to Facebook/Telegram.
-    // Dry runs never write smm_last_autopost_date (see runAutoPostJobInner),
-    // so they must also never be blocked by it — a preview should always be
-    // available on demand regardless of whether today's real post went out.
+    // Dry runs never write smm_last_autopost_date, so they must also never
+    // be blocked by it — a preview should always be available on demand
+    // regardless of whether today's real post went out.
     if (!dryRun && db.smm_last_autopost_date === today) {
       return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
-    }
-    // A candidate is already generated and waiting on the admin's ✅/❌ —
-    // don't generate a second one and spam a duplicate approval prompt.
-    if (!dryRun && db.smm_autopost_pending && (Date.now() - (db.smm_autopost_pending.createdAt || 0)) < AUTOPOST_APPROVAL_TTL_MS) {
-      return { ok: true, skipped: true, reason: 'Awaiting admin approval from an earlier run', approvalId: db.smm_autopost_pending.id };
     }
   } catch (e) { /* fall through with empty tgCfg — job still runs, just skips Telegram */ }
 
@@ -859,7 +844,6 @@ const AUTOPOST_HASHTAG_POOL = [
 ];
 
 async function runAutoPostJobInner(tgCfg, today, dryRun) {
-  const results = { facebook: null, telegram: null };
   const doy = dayOfYear();
   const focus = AUTOPOST_FOCUS[doy % AUTOPOST_FOCUS.length];
   const angle = AUTOPOST_ANGLES[doy % AUTOPOST_ANGLES.length];
@@ -911,89 +895,28 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
 
   // Dry run: preview only — no Facebook publish, no real Telegram channel
   // post, no smm_last_autopost_date write (so it can never block or count as
-  // today's real run). Only DMs the admin chat, clearly labeled.
-  //
-  // Buttons ARE attached here too (previously this call omitted the 5th
-  // tgSendPhoto argument entirely, so dry runs never got a reply_markup at
-  // all — that's why they never appeared on dry-run tests). No matching
-  // smm_autopost_pending record ever gets written for a dry run, so tapping
-  // either button safely round-trips through the exact same handler the
-  // real flow uses and reports "no longer valid" — a full pipeline test
-  // (render -> send -> tap -> callback -> handler) without any publish risk.
+  // today's real run). Only DMs the admin chat, clearly labeled. No
+  // approval buttons — there's nothing to approve, this is a plain preview.
   if (dryRun) {
     if (tgCfg.token) {
-      const dryRunId = 'dryrun_' + Date.now();
       await tgSendPhoto(
         tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
         `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
           + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
-          + `متن پست:\n${postText}`,
-        { inline_keyboard: [[
-          { text: '✅ تایید و انتشار', callback_data: 'apy|' + dryRunId },
-          { text: '❌ رد کردن', callback_data: 'apn|' + dryRunId }
-        ]] }
+          + `متن پست:\n${postText}`
       ).catch(() => {});
     }
     return { ok: true, dryRun: true, focus, template: templateKey, post: postText };
   }
 
-  // Real run: never publish directly from here. Queue it for manual admin
-  // approval instead — a rare AI glitch (stray non-Farsi characters, an
-  // off-topic tangent, etc.) gets caught by a human before it ever reaches
-  // Facebook or the real Telegram channel, rather than relying solely on the
-  // prompt rules to never slip up. Only the small text fields go to the DB
-  // (JSONBin's ~100KB/record cap makes storing the actual image bytes there
-  // a bad idea) — publishApprovedAutoPost regenerates the identical image
-  // from templateKey + postText, which is deterministic.
-  const approvalId = 'ap_' + Date.now();
-  await fetchInternal(API_BASE + '/api/db', {
-    method: 'POST',
-    headers: dbHeaders(),
-    body: JSON.stringify({
-      smm_autopost_pending: { id: approvalId, postText, focus, templateKey, createdAt: Date.now() },
-      smm_ts: Date.now()
-    })
-  }).catch(() => {});
-
-  if (tgCfg.token) {
-    await tgSendPhoto(
-      tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
-      `🧪 PREVIEW — پست خودکار امروز (${focus})\n\n${postText}\n\nتایید می‌کنی که منتشر بشه؟`,
-      { inline_keyboard: [[
-        { text: '✅ تایید و انتشار', callback_data: 'apy|' + approvalId },
-        { text: '❌ رد کردن', callback_data: 'apn|' + approvalId }
-      ]] }
-    ).catch(() => {});
-  }
-
-  return { ok: true, pendingApproval: true, focus, template: templateKey, approvalId, post: postText };
-}
-
-// Runs only after the admin taps "✅ تایید و انتشار" on the 🧪 PREVIEW message
-// (see handleAutoPostApproval in telegram-bot.js) — the actual Facebook +
-// Telegram-channel publish step, deliberately split out of
-// runAutoPostJobInner so it never executes until a human has approved the
-// exact text going out. `pending` is the smm_autopost_pending record
-// ({ id, postText, focus, templateKey, createdAt }) read by the caller.
-async function publishApprovedAutoPost(pending) {
+  // Real run: publish directly — no approval gate. A rare AI glitch (stray
+  // non-Farsi characters, foreign-language mixing, an off-topic tangent)
+  // now reaches Facebook and the real Telegram channel unreviewed; the
+  // Farsi-only character filter in _autopost-image.js still protects the
+  // IMAGE overlay specifically, but the caption text below goes out exactly
+  // as Groq wrote it. logSystemError below is a monitoring/audit trail, not
+  // a safety gate — it only records what already happened.
   const results = { facebook: null, telegram: null };
-  const postText = pending.postText;
-  const focus = pending.focus;
-  const today = todayKey();
-  // Regenerated from the same (templateKey, postText) pair the PREVIEW image
-  // was built from — deterministic, so what gets published is pixel-identical
-  // to what the admin approved, without needing to persist the image bytes
-  // themselves anywhere between the preview and the approval tap.
-  const imageBuffer = await renderPostImage(pending.templateKey || pickTemplate(0), postText);
-
-  // Re-fetch the Telegram config fresh — time has passed since the preview
-  // was generated, and the admin may have reconfigured the bot meanwhile.
-  let tgCfg = {};
-  try {
-    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
-    const db = await dbResp.json();
-    tgCfg = db.smm_tg_bot || {};
-  } catch (e) { /* fall through — Telegram publish just gets skipped below */ }
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
     const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, imageBuffer, postText);
@@ -1010,15 +933,41 @@ async function publishApprovedAutoPost(pending) {
     results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';
   }
 
-  // Marks today as done AND clears the pending record in one write, so a
-  // resolved approval never lingers to be mistaken for a fresh one.
-  await fetchInternal(API_BASE + '/api/db', {
-    method: 'POST',
-    headers: dbHeaders(),
-    body: JSON.stringify({ smm_last_autopost_date: today, smm_autopost_pending: null, smm_ts: Date.now() })
-  }).catch(() => {});
+  // Monitoring: surfaces in the admin panel's System Alerts page
+  // (smm_error_log, same mechanism dispatchOneOrder and the email jobs
+  // already use) regardless of outcome, so today's run can be audited
+  // without digging through Telegram history. Best-effort, never throws.
+  const failed = /❌/.test(results.facebook) || /❌/.test(results.telegram);
+  await logSystemError(
+    'autopost',
+    failed ? 'Auto-post run had a failure' : 'Auto-post run completed',
+    { focus, template: templateKey, results, postText }
+  );
 
-  return { ok: true, focus, results };
+  // Notification only — informational, no buttons, nothing to act on.
+  if (tgCfg.token) {
+    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
+        text: `📢 گزارش پست خودکار (${focus})\n\n`
+          + `فیسبوک: ${results.facebook}\n`
+          + `تلگرام: ${results.telegram}\n\n`
+          + `متن پست:\n${postText}`
+      })
+    }).catch(() => {});
+  }
+
+  if (today) {
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_last_autopost_date: today, smm_ts: Date.now() })
+    }).catch(() => {});
+  }
+
+  return { ok: true, focus, template: templateKey, results };
 }
 
 // ── Daily bulk email campaign ──
