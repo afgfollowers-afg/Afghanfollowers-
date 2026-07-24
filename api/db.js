@@ -861,6 +861,14 @@ module.exports = async (req, res) => {
         // Same guard, for the daily Facebook/Telegram promo post.
         current.smm_last_autopost_date = body.smm_last_autopost_date;
       }
+      if (body.smm_autopost_pending !== undefined && (body.smm_autopost_pending === null || typeof body.smm_autopost_pending === 'object')) {
+        // Manual-approval gate for the daily promo post — holds the
+        // generated text awaiting an admin's ✅/❌ tap in Telegram before it
+        // ever reaches Facebook or the real channel (see runAutoPostJobInner
+        // / publishApprovedAutoPost in sync-orders.js, handleAutoPostApproval
+        // in telegram-bot.js). null clears it once approved or rejected.
+        current.smm_autopost_pending = body.smm_autopost_pending;
+      }
       if (typeof body.smm_last_bulk_campaign_date === 'string') {
         // Same guard, for the daily bulk-email cron (sole writer).
         current.smm_last_bulk_campaign_date = body.smm_last_bulk_campaign_date;
