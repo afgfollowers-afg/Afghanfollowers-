@@ -14,8 +14,31 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
+const { renderPostImage, pickTemplate } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+// Multipart uploads for Telegram sendPhoto / Facebook /photos — both need an
+// actual file part, not a JSON body, so these can't reuse the plain
+// fetch(...,{body:JSON.stringify(...)}) pattern the rest of this file uses.
+async function tgSendPhoto(token, chatId, imageBuffer, caption, replyMarkup) {
+  const form = new FormData();
+  form.append('chat_id', String(chatId));
+  if (caption) form.append('caption', caption);
+  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
+  form.append('photo', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+  return r.json();
+}
+
+async function fbPostPhoto(pageId, pageToken, imageBuffer, caption) {
+  const form = new FormData();
+  form.append('caption', caption);
+  form.append('access_token', pageToken);
+  form.append('source', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
+  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, { method: 'POST', body: form });
+  return r.json();
+}
 
 module.exports = async (req, res) => {
   // ?status=1 — a pure read: report whether today's email jobs (the daily
@@ -879,58 +902,58 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const postText = groqData?.choices?.[0]?.message?.content?.trim();
   if (!postText) throw new Error('Groq هیچ متنی تولید نکرد: ' + JSON.stringify(groqData));
 
+  // Template rotates by day-of-year, independent of AUTOPOST_FOCUS's own
+  // rotation length (3 templates vs 5 focus topics), so the two cycles drift
+  // relative to each other instead of always pairing the same template with
+  // the same topic.
+  const templateKey = pickTemplate(doy);
+  const imageBuffer = await renderPostImage(templateKey, postText);
+
   // Dry run: preview only — no Facebook publish, no real Telegram channel
   // post, no smm_last_autopost_date write (so it can never block or count as
   // today's real run). Only DMs the admin chat, clearly labeled.
   if (dryRun) {
     if (tgCfg.token) {
-      await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
-          text: `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
-            + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
-            + `متن پست:\n${postText}`
-        })
-      }).catch(() => {});
+      await tgSendPhoto(
+        tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
+        `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
+          + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
+          + `متن پست:\n${postText}`
+      ).catch(() => {});
     }
-    return { ok: true, dryRun: true, focus, post: postText };
+    return { ok: true, dryRun: true, focus, template: templateKey, post: postText };
   }
 
   // Real run: never publish directly from here. Queue it for manual admin
   // approval instead — a rare AI glitch (stray non-Farsi characters, an
   // off-topic tangent, etc.) gets caught by a human before it ever reaches
   // Facebook or the real Telegram channel, rather than relying solely on the
-  // prompt rules to never slip up.
+  // prompt rules to never slip up. Only the small text fields go to the DB
+  // (JSONBin's ~100KB/record cap makes storing the actual image bytes there
+  // a bad idea) — publishApprovedAutoPost regenerates the identical image
+  // from templateKey + postText, which is deterministic.
   const approvalId = 'ap_' + Date.now();
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
     body: JSON.stringify({
-      smm_autopost_pending: { id: approvalId, postText, focus, createdAt: Date.now() },
+      smm_autopost_pending: { id: approvalId, postText, focus, templateKey, createdAt: Date.now() },
       smm_ts: Date.now()
     })
   }).catch(() => {});
 
   if (tgCfg.token) {
-    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
-        text: `🧪 PREVIEW — پست خودکار امروز (${focus})\n\n${postText}\n\nتایید می‌کنی که منتشر بشه؟`,
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '✅ تایید و انتشار', callback_data: 'apy|' + approvalId },
-            { text: '❌ رد کردن', callback_data: 'apn|' + approvalId }
-          ]]
-        }
-      })
-    }).catch(() => {});
+    await tgSendPhoto(
+      tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
+      `🧪 PREVIEW — پست خودکار امروز (${focus})\n\n${postText}\n\nتایید می‌کنی که منتشر بشه؟`,
+      { inline_keyboard: [[
+        { text: '✅ تایید و انتشار', callback_data: 'apy|' + approvalId },
+        { text: '❌ رد کردن', callback_data: 'apn|' + approvalId }
+      ]] }
+    ).catch(() => {});
   }
 
-  return { ok: true, pendingApproval: true, focus, approvalId, post: postText };
+  return { ok: true, pendingApproval: true, focus, template: templateKey, approvalId, post: postText };
 }
 
 // Runs only after the admin taps "✅ تایید و انتشار" on the 🧪 PREVIEW message
@@ -938,12 +961,17 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
 // Telegram-channel publish step, deliberately split out of
 // runAutoPostJobInner so it never executes until a human has approved the
 // exact text going out. `pending` is the smm_autopost_pending record
-// ({ id, postText, focus, createdAt }) read by the caller.
+// ({ id, postText, focus, templateKey, createdAt }) read by the caller.
 async function publishApprovedAutoPost(pending) {
   const results = { facebook: null, telegram: null };
   const postText = pending.postText;
   const focus = pending.focus;
   const today = todayKey();
+  // Regenerated from the same (templateKey, postText) pair the PREVIEW image
+  // was built from — deterministic, so what gets published is pixel-identical
+  // to what the admin approved, without needing to persist the image bytes
+  // themselves anywhere between the preview and the approval tap.
+  const imageBuffer = await renderPostImage(pending.templateKey || pickTemplate(0), postText);
 
   // Re-fetch the Telegram config fresh — time has passed since the preview
   // was generated, and the admin may have reconfigured the bot meanwhile.
@@ -955,15 +983,7 @@ async function publishApprovedAutoPost(pending) {
   } catch (e) { /* fall through — Telegram publish just gets skipped below */ }
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    const fbResp = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // Explicit `link` — the AI-generated text only mentions the bare
-      // domain (no https://) so Facebook won't auto-detect it as a URL to
-      // scrape for a preview card; without this param the post had no image.
-      body: JSON.stringify({ message: postText, link: SITE + '/', access_token: process.env.FB_PAGE_TOKEN })
-    });
-    const fbData = await fbResp.json();
+    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, imageBuffer, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
     results.facebook = '⏭ تنظیم نشده';
@@ -971,12 +991,7 @@ async function publishApprovedAutoPost(pending) {
 
   const tgChannel = tgCfg.channelId || tgCfg.chatId;
   if (tgCfg.token && tgChannel) {
-    const tgResp = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: tgChannel, text: postText })
-    });
-    const tgData = await tgResp.json();
+    const tgData = await tgSendPhoto(tgCfg.token, tgChannel, imageBuffer, postText);
     results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
   } else {
     results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';
