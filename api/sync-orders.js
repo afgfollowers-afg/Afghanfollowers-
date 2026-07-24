@@ -782,20 +782,70 @@ const AUTOPOST_FOCUS = [
   'لایک و فالوور واقعی صفحه فیسبوک'
 ];
 
+// Rotating post ANGLE — combined with AUTOPOST_FOCUS so consecutive days
+// differ in how the post is written, not just which platform it mentions.
+// Previously every day used the exact same prompt structure with only
+// ${focus} swapped in, which reads as "the same template reworded" even
+// though the topic technically rotated.
+const AUTOPOST_ANGLES = [
+  'روی فوریت و پیشنهاد زمان‌دار امروز تمرکز کن',
+  'با یک سوال جذاب برای مخاطب شروع کن',
+  'به یک ادعای اجتماعی اشاره کن (مثلاً تعداد مشتریان راضی یا سفارش‌های موفق)',
+  'روی سرعت واقعی تحویل و کیفیت سرویس تمرکز کن',
+  'با یک نکته یا ترفند کوچک درباره رشد واقعی در شبکه‌های اجتماعی شروع کن'
+];
+
+// Rotating urgency/time-limited appeal — folded naturally into the post
+// text, not tacked on as a separate generic line every day.
+// NOTE: keep these truthful to whatever real promotions are actually
+// running — "تخفیف" phrasing implies an active discount, so if there's no
+// real discount mechanism live, swap these for pure urgency wording
+// instead (e.g. "همین امروز سفارش بده") to avoid a false-advertising claim.
+const AUTOPOST_URGENCY = [
+  'فقط امروز: سفارش بده و سریع‌تر از همیشه تحویل بگیر 🔥',
+  'پیشنهاد این هفته — فرصت را از دست نده ⏰',
+  'تا ۲۴ ساعت آینده تخفیف ویژه فعال است ⚡',
+  'محدود و فقط برای امروز — همین حالا اقدام کن 🎯',
+  'تا پایان این هفته پیشنهاد ویژه داریم 💥'
+];
+
+// Curated pool of real Afghan/Farsi SMM + gaming hashtags — the model picks
+// from this fixed list instead of inventing generic ones each time, so
+// hashtags actually match what an Afghan/Persian-speaking audience uses.
+const AUTOPOST_HASHTAG_POOL = [
+  '#فالوور_اینستاگرام', '#افزایش_فالوور', '#پیج_اینستاگرام', '#تبلیغات_اینستاگرام',
+  '#فالوور_واقعی', '#لایک_اینستاگرام', '#رشد_پیج', '#سوشال_مدیا_مارکتینگ',
+  '#تیک_تاک_افغانستان', '#فالوور_تیک_تاک', '#ویو_تیک_تاک',
+  '#کانال_تلگرام', '#ممبر_تلگرام', '#تلگرام_افغانستان',
+  '#یوتیوب_افغانستان', '#ساب_اسکرایب_یوتیوب',
+  '#افغان_فالوورز', '#افغانستان', '#گیم_افغانستان', '#بازی_موبایل', '#پابجی_موبایل'
+];
+
 async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const results = { facebook: null, telegram: null };
-  const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
+  const doy = dayOfYear();
+  const focus = AUTOPOST_FOCUS[doy % AUTOPOST_FOCUS.length];
+  const angle = AUTOPOST_ANGLES[doy % AUTOPOST_ANGLES.length];
+  const urgency = AUTOPOST_URGENCY[doy % AUTOPOST_URGENCY.length];
+  // Picks a rotating 4-tag slice of the pool so the whole set cycles through
+  // over several days instead of the model choosing (or repeating) freely.
+  const hashtagStart = (doy * 4) % AUTOPOST_HASHTAG_POOL.length;
+  const hashtags = [0, 1, 2, 3].map(i => AUTOPOST_HASHTAG_POOL[(hashtagStart + i) % AUTOPOST_HASHTAG_POOL.length]);
 
-  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
+  const promoPrompt = `یک پست تبلیغاتی کوتاه، پرانرژی و با شخصیت به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
 
 امروز تمرکز پست را روی این موضوع بگذار: ${focus}
+زاویه نوشتن امروز: ${angle}
+این پیام فوریت/پیشنهاد را به‌طور طبیعی داخل متن بگنجان (نه به شکل جمله جدا و بریده): ${urgency}
 
 قوانین:
 - حداکثر ۶ خط
-- با ایموجی‌های مناسب
+- لحن دوستانه، پرانرژی و با شخصیت — انگار داری با یک دوست حرف می‌زنی، نه یک آگهی رسمی و خشک
+- با ایموجی‌های مناسب (نه بیش از حد)
 - درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس
-- در آخر آدرس سایت afghanfollowers.online و ۳-۴ هشتگ فارسی مرتبط
-- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری (جز خود "AfghanFollowers" و آدرس سایت) داخل جمله‌ها استفاده نکن
+- در پایان دقیقاً همین هشتگ‌ها را بیار: ${hashtags.join(' ')}
+- بعد از هشتگ‌ها آدرس سایت afghanfollowers.online را بنویس
+- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها استفاده نکن؛ تنها استثنا خود کلمه "AfghanFollowers"، آدرس سایت و هشتگ‌های داده‌شده است
 - فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
 
   const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
