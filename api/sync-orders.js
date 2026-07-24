@@ -14,7 +14,7 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
-const { renderPostImage, pickTemplate } = require('./_autopost-image');
+const { renderPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -794,22 +794,42 @@ async function runAutoPostJob(opts) {
   }
 }
 
-// One entry per platform so the daily promo post rotates evenly across all
-// 5 — this used to skew heavily toward Instagram/TikTok (4 of 6 entries)
-// with Facebook never mentioned at all despite being a broadcast target.
-const AUTOPOST_FOCUS = [
-  'فالوور و لایک واقعی اینستاگرام',
-  'لایک و ویو واقعی تیک‌تاک',
-  'ممبر و بازدید واقعی کانال تلگرام',
-  'ساب‌اسکرایب و ویو واقعی یوتیوب',
-  'لایک و فالوور واقعی صفحه فیسبوک'
+// Single source of truth for the daily platform rotation — template image
+// AND content focus AND hashtags all come from the SAME entry, so they can
+// never drift apart. Previously the template picked from a 3-length array
+// (pickTemplate, dayOfYear % 3) while the content focus picked from an
+// unrelated 5-length array (dayOfYear % 5) and hashtags from a 20-length
+// pool (dayOfYear*4 % 20) — three different cycle lengths meant the
+// template and the text it was captioning agreed only by coincidence (e.g.
+// an Instagram template paired with TikTok-focused copy). Only 3 platforms
+// here now, matching the 3 template images that actually exist — Telegram
+// and Facebook are still where every post gets published either way, they
+// just aren't a content FOCUS topic anymore since there's no template art
+// for them.
+const AUTOPOST_PLATFORMS = [
+  {
+    template: 'instagram',
+    focus: 'فالوور و لایک واقعی اینستاگرام',
+    hashtags: ['#فالوور_اینستاگرام', '#افزایش_فالوور', '#پیج_اینستاگرام', '#تبلیغات_اینستاگرام']
+  },
+  {
+    template: 'tiktok',
+    focus: 'لایک و ویو واقعی تیک‌تاک',
+    hashtags: ['#تیک_تاک_افغانستان', '#فالوور_تیک_تاک', '#ویو_تیک_تاک', '#رشد_پیج']
+  },
+  {
+    template: 'youtube',
+    focus: 'ساب‌اسکرایب و ویو واقعی یوتیوب',
+    hashtags: ['#یوتیوب_افغانستان', '#ساب_اسکرایب_یوتیوب', '#افغان_فالوورز', '#سوشال_مدیا_مارکتینگ']
+  }
 ];
 
-// Rotating post ANGLE — combined with AUTOPOST_FOCUS so consecutive days
-// differ in how the post is written, not just which platform it mentions.
-// Previously every day used the exact same prompt structure with only
-// ${focus} swapped in, which reads as "the same template reworded" even
-// though the topic technically rotated.
+// Rotating post ANGLE — independent of the platform rotation above (these
+// are generic style/structure choices, not platform-specific), so
+// consecutive days differ in how the post is written even on a day the
+// platform rotation repeats. Previously every day used the exact same
+// prompt structure with only ${focus} swapped in, which reads as "the same
+// template reworded" even though the topic technically rotated.
 const AUTOPOST_ANGLES = [
   'روی فوریت و پیشنهاد زمان‌دار امروز تمرکز کن',
   'با یک سوال جذاب برای مخاطب شروع کن',
@@ -831,27 +851,13 @@ const AUTOPOST_URGENCY = [
   'فرصت امروز رو از دست نده — همین الان بخر 💥'
 ];
 
-// Curated pool of real Afghan/Farsi SMM + gaming hashtags — the model picks
-// from this fixed list instead of inventing generic ones each time, so
-// hashtags actually match what an Afghan/Persian-speaking audience uses.
-const AUTOPOST_HASHTAG_POOL = [
-  '#فالوور_اینستاگرام', '#افزایش_فالوور', '#پیج_اینستاگرام', '#تبلیغات_اینستاگرام',
-  '#فالوور_واقعی', '#لایک_اینستاگرام', '#رشد_پیج', '#سوشال_مدیا_مارکتینگ',
-  '#تیک_تاک_افغانستان', '#فالوور_تیک_تاک', '#ویو_تیک_تاک',
-  '#کانال_تلگرام', '#ممبر_تلگرام', '#تلگرام_افغانستان',
-  '#یوتیوب_افغانستان', '#ساب_اسکرایب_یوتیوب',
-  '#افغان_فالوورز', '#افغانستان', '#گیم_افغانستان', '#بازی_موبایل', '#پابجی_موبایل'
-];
-
 async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const doy = dayOfYear();
-  const focus = AUTOPOST_FOCUS[doy % AUTOPOST_FOCUS.length];
+  const platform = AUTOPOST_PLATFORMS[doy % AUTOPOST_PLATFORMS.length];
+  const focus = platform.focus;
+  const hashtags = platform.hashtags;
   const angle = AUTOPOST_ANGLES[doy % AUTOPOST_ANGLES.length];
   const urgency = AUTOPOST_URGENCY[doy % AUTOPOST_URGENCY.length];
-  // Picks a rotating 4-tag slice of the pool so the whole set cycles through
-  // over several days instead of the model choosing (or repeating) freely.
-  const hashtagStart = (doy * 4) % AUTOPOST_HASHTAG_POOL.length;
-  const hashtags = [0, 1, 2, 3].map(i => AUTOPOST_HASHTAG_POOL[(hashtagStart + i) % AUTOPOST_HASHTAG_POOL.length]);
 
   const promoPrompt = `یک پست تبلیغاتی کوتاه، پرانرژی و با شخصیت به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
 
@@ -886,11 +892,9 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const postText = groqData?.choices?.[0]?.message?.content?.trim();
   if (!postText) throw new Error('Groq هیچ متنی تولید نکرد: ' + JSON.stringify(groqData));
 
-  // Template rotates by day-of-year, independent of AUTOPOST_FOCUS's own
-  // rotation length (3 templates vs 5 focus topics), so the two cycles drift
-  // relative to each other instead of always pairing the same template with
-  // the same topic.
-  const templateKey = pickTemplate(doy);
+  // Same platform entry the focus/hashtags above came from — guaranteed to
+  // match (see AUTOPOST_PLATFORMS).
+  const templateKey = platform.template;
   const imageBuffer = await renderPostImage(templateKey, postText);
 
   // Dry run: preview only — no Facebook publish, no real Telegram channel
