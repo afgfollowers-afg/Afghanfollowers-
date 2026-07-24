@@ -912,13 +912,26 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   // Dry run: preview only — no Facebook publish, no real Telegram channel
   // post, no smm_last_autopost_date write (so it can never block or count as
   // today's real run). Only DMs the admin chat, clearly labeled.
+  //
+  // Buttons ARE attached here too (previously this call omitted the 5th
+  // tgSendPhoto argument entirely, so dry runs never got a reply_markup at
+  // all — that's why they never appeared on dry-run tests). No matching
+  // smm_autopost_pending record ever gets written for a dry run, so tapping
+  // either button safely round-trips through the exact same handler the
+  // real flow uses and reports "no longer valid" — a full pipeline test
+  // (render -> send -> tap -> callback -> handler) without any publish risk.
   if (dryRun) {
     if (tgCfg.token) {
+      const dryRunId = 'dryrun_' + Date.now();
       await tgSendPhoto(
         tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
         `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
           + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
-          + `متن پست:\n${postText}`
+          + `متن پست:\n${postText}`,
+        { inline_keyboard: [[
+          { text: '✅ تایید و انتشار', callback_data: 'apy|' + dryRunId },
+          { text: '❌ رد کردن', callback_data: 'apn|' + dryRunId }
+        ]] }
       ).catch(() => {});
     }
     return { ok: true, dryRun: true, focus, template: templateKey, post: postText };
