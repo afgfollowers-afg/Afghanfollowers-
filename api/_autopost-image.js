@@ -15,12 +15,40 @@ const TEMPLATES = {
 };
 const TEMPLATE_ORDER = ['instagram', 'tiktok', 'youtube'];
 
-const FONT_PATH = path.join(__dirname, '_assets', 'Vazirmatn-Bold.ttf');
-// Read once per warm function instance, not once per request.
-let fontBase64Cache = null;
-function getFontBase64() {
-  if (!fontBase64Cache) fontBase64Cache = fs.readFileSync(FONT_PATH).toString('base64');
-  return fontBase64Cache;
+// Registers the bundled font via a REAL fontconfig config, not an embedded
+// @font-face data-URI in the SVG. The data-URI approach worked when tested
+// locally (Windows sharp binary) but rendered as tofu boxes once deployed —
+// Vercel's Linux runtime logged `Fontconfig error: Cannot load default
+// config file: No such file: (null)`, meaning there's no fontconfig setup
+// at all in that environment (no system fonts, no /etc/fonts/fonts.conf).
+// librsvg's @font-face support depends on a working fontconfig underneath,
+// so with fontconfig itself broken, the custom font declaration was never
+// honored and every glyph fell back to .notdef. Pointing FONTCONFIG_FILE at
+// a real config (written to /tmp, the only writable dir in the function)
+// that lists our bundled font directory is the documented, reliable fix for
+// custom fonts with sharp/libvips on serverless Linux.
+const FONT_DIR = path.join(__dirname, '_assets');
+const FONTCONFIG_CACHE_DIR = '/tmp/fontconfig-cache';
+const FONTCONFIG_FILE_PATH = '/tmp/afghanfollowers-fonts.conf';
+let fontconfigReady = false;
+function ensureFontconfig() {
+  if (fontconfigReady) return;
+  try {
+    fs.mkdirSync(FONTCONFIG_CACHE_DIR, { recursive: true });
+    const xml = `<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <dir>${FONT_DIR}</dir>
+  <cachedir>${FONTCONFIG_CACHE_DIR}</cachedir>
+</fontconfig>
+`;
+    fs.writeFileSync(FONTCONFIG_FILE_PATH, xml);
+    process.env.FONTCONFIG_FILE = FONTCONFIG_FILE_PATH;
+  } catch (e) {
+    // Best-effort — on a platform where /tmp isn't writable for some reason,
+    // this just falls back to whatever fontconfig would otherwise do.
+  }
+  fontconfigReady = true;
 }
 
 const BOX = { x: 40, y: 242, width: 1000, height: 558 };
@@ -102,7 +130,6 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight) {
   // baseline (SVG <text> y is a baseline, not a top-of-glyph position).
   const startY = BOX.y + BOX.height / 2 - blockHeight / 2 + lineHeight * 0.75;
 
-  const fontBase64 = getFontBase64();
   const strokeWidth = Math.max(2, Math.round(fontSize * 0.06));
   const tspans = lines
     .map((line, i) => `<tspan x="${centerX}" y="${startY + i * lineHeight}">${escapeXml(line)}</tspan>`)
@@ -119,16 +146,11 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight) {
   // between glyphs (especially around Latin words, whose ascender/descender
   // metrics differ from the Farsi lines around them) let it show through
   // without a solid panel underneath.
+  //
+  // font-family here is resolved via fontconfig (see ensureFontconfig()),
+  // not an embedded @font-face — that approach is what produced tofu boxes
+  // on Vercel's Linux runtime.
   return `<svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <style>
-        @font-face {
-          font-family: 'Vazirmatn';
-          src: url(data:font/truetype;base64,${fontBase64}) format('truetype');
-          font-weight: bold;
-        }
-      </style>
-    </defs>
     <rect x="${BOX.x + 16}" y="${BOX.y + 16}" width="${BOX.width - 32}" height="${BOX.height - 32}" rx="20" fill="#0b1220" />
     <text
       font-family="Vazirmatn"
@@ -152,6 +174,7 @@ function pickTemplate(dayIndex) {
 // in the pre-marked placeholder box. `templateKey` must be one of
 // TEMPLATE_ORDER ('instagram' | 'tiktok' | 'youtube').
 async function renderPostImage(templateKey, text) {
+  ensureFontconfig();
   const templatePath = TEMPLATES[templateKey];
   if (!templatePath) throw new Error('Unknown template key: ' + templateKey);
   const templateBuffer = fs.readFileSync(templatePath);
