@@ -33,6 +33,19 @@ module.exports = async (req, res) => {
     return runEmailCampaignJob(req, res);
   }
 
+  // ?job=auto-post — on-demand manual trigger for the daily promo/growth post,
+  // outside the normal 3am cron. No schedule of its own (see vercel.json —
+  // Hobby plan caps cron jobs at 2, already used by the daily sweep + weekly
+  // email-campaign); this exists purely for manual testing/preview.
+  // &dryrun=1 skips both Facebook and the real Telegram channel entirely and
+  // only DMs the admin chat a labeled preview, so it never counts as (or
+  // blocks) the real once-a-day post the 3am cron already handles.
+  if (req.query && req.query.job === 'auto-post') {
+    const isDryRun = req.query.dryrun === '1' || req.query.dryrun === 'true';
+    const result = await runAutoPostJob({ dryRun: isDryRun }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
+  }
+
   // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
@@ -721,7 +734,9 @@ async function runDailyContentJob() {
 
 const AUTOPOST_ADMIN_CHAT_ID = '7993801735';
 
-async function runAutoPostJob() {
+async function runAutoPostJob(opts) {
+  opts = opts || {};
+  const dryRun = !!opts.dryRun;
   // Reuse the Telegram bot already configured in Admin → Settings → Integrations
   // (same smm_tg_bot record used for blog broadcasts) instead of requiring the
   // token/channel to be duplicated as separate Vercel env vars.
@@ -734,13 +749,16 @@ async function runAutoPostJob() {
     // Same reasoning as runDailyContentJob's guard — this endpoint gets hit
     // more than once a day (retries, manual visits, etc.), and without this
     // check each hit fired off a brand new promo post to Facebook/Telegram.
-    if (db.smm_last_autopost_date === today) {
+    // Dry runs never write smm_last_autopost_date (see runAutoPostJobInner),
+    // so they must also never be blocked by it — a preview should always be
+    // available on demand regardless of whether today's real post went out.
+    if (!dryRun && db.smm_last_autopost_date === today) {
       return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
     }
   } catch (e) { /* fall through with empty tgCfg — job still runs, just skips Telegram */ }
 
   try {
-    return await runAutoPostJobInner(tgCfg, today);
+    return await runAutoPostJobInner(tgCfg, today, dryRun);
   } catch (err) {
     if (tgCfg.token) {
       await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
@@ -764,7 +782,7 @@ const AUTOPOST_FOCUS = [
   'لایک و فالوور واقعی صفحه فیسبوک'
 ];
 
-async function runAutoPostJobInner(tgCfg, today) {
+async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const results = { facebook: null, telegram: null };
   const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
 
@@ -796,6 +814,25 @@ async function runAutoPostJobInner(tgCfg, today) {
   const groqData = await groqResp.json();
   const postText = groqData?.choices?.[0]?.message?.content?.trim();
   if (!postText) throw new Error('Groq هیچ متنی تولید نکرد: ' + JSON.stringify(groqData));
+
+  // Dry run: preview only — no Facebook publish, no real Telegram channel
+  // post, no smm_last_autopost_date write (so it can never block or count as
+  // today's real run). Only DMs the admin chat, clearly labeled.
+  if (dryRun) {
+    if (tgCfg.token) {
+      await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID,
+          text: `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
+            + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
+            + `متن پست:\n${postText}`
+        })
+      }).catch(() => {});
+    }
+    return { ok: true, dryRun: true, focus, post: postText };
+  }
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
     const fbResp = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
