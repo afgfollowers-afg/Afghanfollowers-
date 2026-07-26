@@ -1725,11 +1725,13 @@ function rebuildServiceMaps(){
   window.DEBUG_SERVICES.providersFound=Object.keys(new Set(_adminSvcs.map(s=>s.provId))).length;
 
   // FIRST: collect all categories in original service order for 'all' view
+  // Use same catName formula as platSvcs loop so keys always match catSvcsMap
   var allCatsInOrder=[];
   var allCatsSeen={};
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
-      var cat=s.category||'';
+      var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+      var cat=s.category||platKey;
       if(cat && !allCatsSeen[cat]){
         allCatsInOrder.push(cat);
         allCatsSeen[cat]=true;
