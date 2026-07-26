@@ -2170,7 +2170,7 @@ var _platSvgMap={
 
 function renderCategoryList(){
   var q=(document.getElementById('order-search').value||'').toLowerCase();
-  var plat=S.selPlat||Object.keys(platSvcs)[0]||'other';
+  var plat=S.selPlat||'all';
 
   // Get categories for selected platform
   var cats;
