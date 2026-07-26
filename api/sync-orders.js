@@ -70,7 +70,10 @@ module.exports = async (req, res) => {
   let bulkEmailResult = null;
   try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
 
-  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult }));
+  let reengagementResult = null;
+  try { reengagementResult = await runReengagementEmailJob(); } catch (e) { reengagementResult = { ok: false, error: e.message }; }
+
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
 };
 
 // Exposed so api/place-order.js can dispatch a single order on demand
@@ -278,7 +281,7 @@ async function runStatusCheck(req, res) {
       weeklyReengagementEmail: {
         active: !!cfg.active,
         sentToday: reengagementSentToday,
-        note: 'Runs Mondays only via /api/sync-orders?job=email-campaign — sentToday being 0 on other days is expected, not a failure.'
+        note: 'Runs daily via /api/sync-orders?job=email-campaign and the main cron — cooldownDays (default 7) prevents the same user being emailed more than once per week.'
       },
       resendConfigured: !!RESEND_API_KEY
     });
@@ -569,6 +572,78 @@ async function runEmailCampaignJob(req, res) {
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
+}
+
+// Standalone version of the re-engagement job — called from the main daily
+// cron (no req/res) so inactive-user emails fire every day at 3 AM UTC
+// alongside order sync and the bulk campaign, not only at 8 AM via the
+// separate ?job=email-campaign cron. Having both crons still fire is fine:
+// canSendTo()'s per-user cooldown (default 7 days) prevents double-sending.
+async function runReengagementEmailJob() {
+  const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const users = db.smm_users || [];
+  const cfg = db.smm_email_auto_cfg || {};
+
+  if (!cfg.active) return { ok: true, skipped: true, reason: 'Automation disabled' };
+  if (!RESEND_API_KEY) return { ok: false, error: 'RESEND_API_KEY missing' };
+  if (!cfg.from) return { ok: false, error: 'From Email not configured' };
+
+  const inactive = getInactiveUsers(users, cfg);
+  const eligible = inactive.filter(u => canSendTo(u, cfg));
+  const limit = cfg.dailyLimit || 0;
+  const toSend = limit > 0 ? eligible.slice(0, limit) : eligible;
+
+  const subjTpl = cfg.subject || DEFAULT_SUBJECT;
+  const bodyTpl = cfg.bodyHtml || DEFAULT_BODY;
+
+  let sent = 0, failed = 0;
+  const updatedLogs = [];
+  for (const u of toSend) {
+    const last = u.lastVisit || u.joined;
+    const days = Math.floor((Date.now() - new Date(last).getTime()) / (24 * 60 * 60 * 1000));
+    const subject = fillVars(subjTpl, u, days, cfg);
+    const html = fillVars(bodyTpl, u, days, cfg);
+    const payload = {
+      from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+      to: [u.email],
+      subject: subject,
+      html: html
+    };
+    if (cfg.replyTo) payload.reply_to = cfg.replyTo;
+    const result = await sendViaResend(payload);
+    if (result.ok) {
+      sent++;
+      const log = (u.emailLog || []).concat([new Date().toISOString()]);
+      updatedLogs.push({ id: u.id, emailLog: log });
+    } else { failed++; }
+  }
+
+  if (updatedLogs.length) {
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST', headers: dbHeaders(),
+      body: JSON.stringify({ smm_users_email_log: updatedLogs, smm_ts: Date.now() })
+    });
+  }
+
+  // Admin copy: send summary to admin email (dailyPreviewEmail or cfg.from)
+  const adminEmail = cfg.dailyPreviewEmail || cfg.from;
+  if (adminEmail && (sent > 0 || failed > 0)) {
+    try {
+      await sendViaResend({
+        from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+        to: [adminEmail],
+        subject: '[Admin] Re-engagement emails sent: ' + sent + ' sent, ' + failed + ' failed (' + new Date().toISOString().slice(0, 10) + ')',
+        html: '<p dir="rtl" style="font-family:Tahoma,sans-serif">گزارش روزانه ایمیل‌های کاربران غیرفعال:<br>'
+          + '<b>ارسال شد:</b> ' + sent + '<br>'
+          + '<b>خطا:</b> ' + failed + '<br>'
+          + '<b>کل غیرفعال:</b> ' + inactive.length + '<br>'
+          + '<b>واجد شرایط:</b> ' + eligible.length + '</p>'
+      });
+    } catch (e) { /* best-effort — never block the real job */ }
+  }
+
+  return { ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed };
 }
 
 // ── Daily blog content refresh ──
@@ -957,7 +1032,7 @@ async function runBulkEmailCampaignJob() {
     cycleWasReset = true;
   }
 
-  const limit = cfg.dailyLimit > 0 ? cfg.dailyLimit : 200;
+  const limit = cfg.dailyLimit > 0 ? Math.max(cfg.dailyLimit, 100) : 200;
   const batch = recipients.slice(0, limit);
   const siteName = cfg.fromName || 'Afghan Followers';
 
@@ -988,16 +1063,19 @@ async function runBulkEmailCampaignJob() {
   // recipients. Uses the same content real recipients get (with the
   // {{name}}/{{email}} placeholders filled generically, not left raw) but
   // must never block or fail the real batch below if it errors.
-  if (cfg.dailyPreviewEmail) {
+  // Admin copy: use dailyPreviewEmail if set, otherwise fall back to cfg.from
+  // so the admin always receives a copy of what went out today.
+  const previewTarget = cfg.dailyPreviewEmail || cfg.from;
+  if (previewTarget) {
     try {
       const previewHtml = fullHtml
         .replace(/\{\{name\}\}/g, 'دوست عزیز')
-        .replace(/\{\{email\}\}/g, cfg.dailyPreviewEmail)
+        .replace(/\{\{email\}\}/g, previewTarget)
         .replace(/\{\{site_name\}\}/g, siteName)
         .replace(/\{\{panel_link\}\}/g, panelLink);
       const previewPayload = {
         from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
-        to: [cfg.dailyPreviewEmail],
+        to: [previewTarget],
         subject: '[Preview] ' + subject + ' (' + recipients.length + ' recipient(s) today)',
         html: previewHtml
       };
