@@ -2134,12 +2134,12 @@ function pickPlatGrid(el,plat){
   S.selPlat=plat;
   _selCatIdx=0;
   S.selSvcIdx=0;
-  _catOpen=false;
-  setCatOpen(false);
   // Hide service form until category selected
   var form=document.getElementById('order-form-card');
   if(form) form.style.display='none';
   renderCategoryList();
+  // "All" button: open the category list so all categories are immediately visible
+  setCatOpen(plat==='all');
 }
 
 // single source of truth for open/close
