@@ -1738,6 +1738,18 @@ function rebuildServiceMaps(){
     });
     orderCats[plat]=Object.keys(cats);
   });
+  // Apply admin-defined category order (smm_categories) if available
+  var _savedCatOrder=[];
+  try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
+  if(_savedCatOrder.length){
+    Object.keys(orderCats).forEach(function(plat){
+      orderCats[plat].sort(function(a,b){
+        var ai=_savedCatOrder.indexOf(a); var bi=_savedCatOrder.indexOf(b);
+        if(ai<0)ai=9999; if(bi<0)bi=9999;
+        return ai-bi;
+      });
+    });
+  }
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
@@ -4398,6 +4410,10 @@ function pullFromServerOnLoad(){
         changed=true;
       }
       var svcChanged=false;
+      if(d.smm_categories&&Array.isArray(d.smm_categories)){
+        localStorage.setItem('smm_categories',JSON.stringify(d.smm_categories));
+        svcChanged=true;
+      }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
         var localSvc=localStorage.getItem('smm_svc')||'[]';
         var newSvc=JSON.stringify(d.smm_svc);
