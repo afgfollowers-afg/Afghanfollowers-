@@ -2197,7 +2197,9 @@ function renderCategoryList(){
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
-    cats=orderCats.all||Object.keys(catSvcsMap);
+    // Use allCatsInOrder if populated, otherwise fall back to every key in catSvcsMap.
+    // Must check .length because [] is truthy so the || shortcut never fires on an empty array.
+    cats=(orderCats.all&&orderCats.all.length)?orderCats.all:Object.keys(catSvcsMap);
   } else {
     cats=orderCats[plat]||[];
   }
