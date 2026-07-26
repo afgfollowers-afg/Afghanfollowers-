@@ -1707,7 +1707,19 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
-  // DO NOT SORT — preserve smm_svc array order, which is already correct from admin panel
+  // Build provider order from smm_providers (server list of all providers)
+  var _provOrder=[];
+  try{
+    var _provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');
+    _provOrder=_provs.map(function(p){return p.id;});
+  }catch(e){}
+  // Sort by provider position: services from provider[0] first, provider[1] second, etc.
+  // This ensures categories appear in the same order as the provider list
+  _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
+    var aPos=_provOrder.indexOf(a.provId)>=0?_provOrder.indexOf(a.provId):9999;
+    var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
+    return aPos-bPos;
+  });
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
@@ -1730,36 +1742,28 @@ function rebuildServiceMaps(){
     });
   }
 
-// Build orderCats from real services — preserve order by using array instead of object
-  // First: build orderCats.all by iterating services in ORIGINAL order (NOT grouped by platform)
-  // This preserves the admin's category order across all platforms
+// Build orderCats from real services (sorted by provider order above)
+  Object.keys(platSvcs).forEach(function(plat){
+    var cats={};
+    platSvcs[plat].forEach(function(s){
+      var cat=s.catName||plat;
+      if(!cats[cat]) cats[cat]=true;
+    });
+    orderCats[plat]=Object.keys(cats);
+  });
+  // Build 'all' view by collecting categories in provider order
   var allCatsOrdered=[];
   var allCatsSeen={};
-  if(_adminSvcs&&_adminSvcs.length){
-    _adminSvcs.forEach(function(s){
-      // Use admin-defined category if set, otherwise fall back to platform detection
-      var cat=s.category||(detectPlatform(s.name)||detectPlatform(s.platform)||'other');
+  Object.keys(platSvcs).forEach(function(plat){
+    platSvcs[plat].forEach(function(s){
+      var cat=s.catName||plat;
       if(!allCatsSeen[cat]){
         allCatsOrdered.push(cat);
         allCatsSeen[cat]=true;
       }
     });
-  }
-  orderCats.all=allCatsOrdered;
-
-  // Second: build per-platform category lists
-  Object.keys(platSvcs).forEach(function(plat){
-    var catsArr=[];
-    var catsSeen={};
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!catsSeen[cat]){
-        catsArr.push(cat);
-        catsSeen[cat]=true;
-      }
-    });
-    orderCats[plat]=catsArr;
   });
+  orderCats.all=allCatsOrdered;
   // Apply admin-defined category order (smm_categories) if available
   var _savedCatOrder=[];
   try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
