@@ -3,14 +3,6 @@
     { "path": "/api/sync-orders", "schedule": "0 3 * * *" },
     { "path": "/api/sync-orders?job=email-campaign", "schedule": "0 8 * * *" }
   ],
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.afghanfollowers.online" }],
-      "destination": "https://afghanfollowers.online/:path*",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
