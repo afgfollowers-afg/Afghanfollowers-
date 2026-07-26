@@ -1707,6 +1707,11 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
+  // Sort by provId ascending so categories from provider #1 appear before #2, etc.
+  // Stable sort preserves relative order of services within the same provider.
+  _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
+    return (parseInt(a.provId)||0)-(parseInt(b.provId)||0);
+  });
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
