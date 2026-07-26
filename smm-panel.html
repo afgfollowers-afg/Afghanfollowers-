@@ -1743,7 +1743,7 @@ function rebuildServiceMaps(){
     });
   }
 
-// Build orderCats from real services (sorted by provider order above)
+// Build orderCats from real services
   Object.keys(platSvcs).forEach(function(plat){
     var cats={};
     platSvcs[plat].forEach(function(s){
@@ -1752,36 +1752,6 @@ function rebuildServiceMaps(){
     });
     orderCats[plat]=Object.keys(cats);
   });
-  // Build 'all' view by collecting categories in provider order
-  var allCatsOrdered=[];
-  var allCatsSeen={};
-  Object.keys(platSvcs).forEach(function(plat){
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!allCatsSeen[cat]){
-        allCatsOrdered.push(cat);
-        allCatsSeen[cat]=true;
-      }
-    });
-  });
-  orderCats.all=allCatsOrdered;
-  // Apply admin-defined category order (smm_categories) if available
-  var _savedCatOrder=[];
-  try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
-  if(_savedCatOrder.length){
-    // Sort ALL category lists including orderCats.all
-    var sortByAdmin=function(cats){
-      return cats.sort(function(a,b){
-        var ai=_savedCatOrder.indexOf(a); var bi=_savedCatOrder.indexOf(b);
-        if(ai<0)ai=9999; if(bi<0)bi=9999;
-        return ai-bi;
-      });
-    };
-    if(orderCats.all) orderCats.all=sortByAdmin(orderCats.all);
-    Object.keys(orderCats).forEach(function(plat){
-      if(plat!=='all' && orderCats[plat]) orderCats[plat]=sortByAdmin(orderCats[plat]);
-    });
-  }
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
@@ -2197,12 +2167,12 @@ var _platSvgMap={
 
 function renderCategoryList(){
   var q=(document.getElementById('order-search').value||'').toLowerCase();
-  var plat=S.selPlat||'all';
+  var plat=S.selPlat||Object.keys(platSvcs)[0]||'other';
 
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
-    cats=orderCats.all||Object.keys(catSvcsMap);
+    cats=Object.keys(catSvcsMap);
   } else {
     cats=orderCats[plat]||[];
   }
@@ -2410,7 +2380,7 @@ function selectOrderCat(idx,plat){
 
 function renderServiceList(plat){
   // Use new catSvcsMap based system
-  var cats=plat==='all'?(orderCats.all||Object.keys(catSvcsMap)):(orderCats[plat]||[]);
+  var cats=plat==='all'?Object.keys(catSvcsMap):(orderCats[plat]||[]);
   var catName=cats[_selCatIdx]||cats[0]||'';
   var svcs=catSvcsMap[catName]||platSvcs[plat]||[];
   renderServiceList2(svcs);
@@ -4287,7 +4257,7 @@ function renderBrowse(){
 function goOrder(plat,svcId){
   navTo('new-order');
   S.selPlat=plat;
-  var cats=(plat==='all')?(orderCats.all||Object.keys(catSvcsMap)):(orderCats[plat]||[]);
+  var cats=plat==='all'?Object.keys(catSvcsMap):(orderCats[plat]||[]);
   var targetCatIdx=0;
   if(svcId!==undefined){
     for(var i=0;i<cats.length;i++){
