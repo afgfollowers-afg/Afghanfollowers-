@@ -1708,6 +1708,7 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
+  window.DEBUG_SERVICES={totalLoaded:(_adminSvcs||[]).length,first5:(_adminSvcs||[]).slice(0,5).map(s=>({name:s.name,cat:s.category,plat:s.platform||'?'}))};
   // Build provider order from smm_providers (server list of all providers)
   var _provOrder=[];
   try{
@@ -1721,6 +1722,22 @@ function rebuildServiceMaps(){
     var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
     return aPos-bPos;
   });
+  window.DEBUG_SERVICES.providersFound=Object.keys(new Set(_adminSvcs.map(s=>s.provId))).length;
+
+  // FIRST: collect all categories in original service order for 'all' view
+  var allCatsInOrder=[];
+  var allCatsSeen={};
+  if(_adminSvcs&&_adminSvcs.length){
+    _adminSvcs.forEach(function(s){
+      var cat=s.category||'';
+      if(cat && !allCatsSeen[cat]){
+        allCatsInOrder.push(cat);
+        allCatsSeen[cat]=true;
+      }
+    });
+  }
+
+  // THEN: build platSvcs by platform
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
@@ -1752,9 +1769,13 @@ function rebuildServiceMaps(){
     });
     orderCats[plat]=Object.keys(cats);
   });
+  // Use the 'all categories in order' that was built from original service array
+  orderCats.all=allCatsInOrder;
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
+  window.DEBUG_SERVICES.platSvcsKeys=Object.keys(platSvcs);
+  window.DEBUG_SERVICES.orderCats=orderCats;
 
   // Map: category name → services list
   Object.keys(platSvcs).forEach(function(plat){
@@ -1764,6 +1785,8 @@ function rebuildServiceMaps(){
       catSvcsMap[cat].push(s);
     });
   });
+  window.DEBUG_SERVICES.allCatsInMap=Object.keys(catSvcsMap);
+  window.DEBUG_SERVICES.allCatsCount=Object.keys(catSvcsMap).length;
 
   // Flat list used by the Services (browse/search) page — was previously a
   // top-level `const` computed once at script-parse time, before this
@@ -2172,7 +2195,7 @@ function renderCategoryList(){
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
-    cats=Object.keys(catSvcsMap);
+    cats=orderCats.all||Object.keys(catSvcsMap);
   } else {
     cats=orderCats[plat]||[];
   }
