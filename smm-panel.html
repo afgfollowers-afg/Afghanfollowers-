@@ -2408,7 +2408,7 @@ function selectOrderCat(idx,plat){
 
 function renderServiceList(plat){
   // Use new catSvcsMap based system
-  var cats=plat==='all'?Object.keys(catSvcsMap):(orderCats[plat]||[]);
+  var cats=plat==='all'?(orderCats.all||Object.keys(catSvcsMap)):(orderCats[plat]||[]);
   var catName=cats[_selCatIdx]||cats[0]||'';
   var svcs=catSvcsMap[catName]||platSvcs[plat]||[];
   renderServiceList2(svcs);
@@ -4285,7 +4285,7 @@ function renderBrowse(){
 function goOrder(plat,svcId){
   navTo('new-order');
   S.selPlat=plat;
-  var cats=(plat==='all')?Object.keys(catSvcsMap):(orderCats[plat]||[]);
+  var cats=(plat==='all')?(orderCats.all||Object.keys(catSvcsMap)):(orderCats[plat]||[]);
   var targetCatIdx=0;
   if(svcId!==undefined){
     for(var i=0;i<cats.length;i++){
