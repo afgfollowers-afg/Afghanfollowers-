@@ -3,3 +3,6 @@ node_modules/
 .env.local
 .env.fb-check
 .env.tmp
+**daily-site-report.ps1
+**/daily-site-report.ps1
+*.ps1
