@@ -1707,6 +1707,7 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
+  console.log('[DEBUG rebuildServiceMaps] loaded',_adminSvcs.length,'services from localStorage');
   // DO NOT SORT — preserve smm_svc array order, which is already correct from admin panel
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
@@ -1729,6 +1730,7 @@ function rebuildServiceMaps(){
       });
     });
   }
+  console.log('[DEBUG rebuildServiceMaps] platforms found:',Object.keys(platSvcs));
 
 // Build orderCats from real services — preserve order by using array instead of object
   var allCatsOrdered=[]; // All categories in insertion order across all platforms
@@ -1751,6 +1753,7 @@ function rebuildServiceMaps(){
     orderCats[plat]=catsArr;
   });
   orderCats.all=allCatsOrdered;
+  console.log('[DEBUG rebuildServiceMaps] orderCats.all:', orderCats.all);
   // Apply admin-defined category order (smm_categories) if available
   var _savedCatOrder=[];
   try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
@@ -2179,13 +2182,16 @@ var _platSvgMap={
 function renderCategoryList(){
   var q=(document.getElementById('order-search').value||'').toLowerCase();
   var plat=S.selPlat||'all';
+  console.log('[DEBUG renderCategoryList] plat=',plat,'S.selPlat=',S.selPlat,'orderCats keys=',Object.keys(orderCats));
 
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
     cats=orderCats.all||Object.keys(catSvcsMap);
+    console.log('[DEBUG renderCategoryList] using orderCats.all, cats=',cats);
   } else {
     cats=orderCats[plat]||[];
+    console.log('[DEBUG renderCategoryList] using orderCats[',plat,'], cats=',cats);
   }
   if(q){
     cats=Object.keys(catSvcsMap).filter(function(c){
