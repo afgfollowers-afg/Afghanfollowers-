@@ -1731,6 +1731,8 @@ function rebuildServiceMaps(){
   }
 
 // Build orderCats from real services — preserve order by using array instead of object
+  var allCatsOrdered=[]; // All categories in insertion order across all platforms
+  var allCatsSeen={};
   Object.keys(platSvcs).forEach(function(plat){
     var catsArr=[];
     var catsSeen={};
@@ -1739,10 +1741,16 @@ function rebuildServiceMaps(){
       if(!catsSeen[cat]){
         catsArr.push(cat);
         catsSeen[cat]=true;
+        // Also track in allCatsOrdered for 'all' view
+        if(!allCatsSeen[cat]){
+          allCatsOrdered.push(cat);
+          allCatsSeen[cat]=true;
+        }
       }
     });
     orderCats[plat]=catsArr;
   });
+  orderCats.all=allCatsOrdered;
   // Apply admin-defined category order (smm_categories) if available
   var _savedCatOrder=[];
   try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
@@ -2175,7 +2183,7 @@ function renderCategoryList(){
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
-    cats=Object.keys(catSvcsMap);
+    cats=orderCats.all||Object.keys(catSvcsMap);
   } else {
     cats=orderCats[plat]||[];
   }
