@@ -573,7 +573,7 @@ textarea.fi{resize:vertical;min-height:75px;}
     <!-- EMAIL AUTOMATION -->
     <div class="page" id="pg-emailauto">
       <div id="sp-emailauto">
-            <div style="font-size:12px;color:var(--mt);margin-bottom:16px">Automatically sends emails to inactive users every Monday via a server-side cron (Resend API) — works even with this tab closed.</div>
+            <div style="font-size:12px;color:var(--mt);margin-bottom:16px">Automatically sends emails to inactive users every day via a server-side cron (Resend API) — works even with this tab closed.</div>
 
             <div class="stat-grid">
               <div class="stat"><div class="stat-v" id="ea-st-total">0</div><div class="stat-l">Total Users</div></div>
@@ -614,7 +614,7 @@ textarea.fi{resize:vertical;min-height:75px;}
                 <div class="fgrid">
                   <div class="fg"><label class="fl">Inactive Period (days)</label><input type="number" class="fi" id="ea-r-days" value="30" min="1" max="365">
                     <div style="font-size:11px;color:var(--mt);margin-top:4px">Send email if not visited for X days</div></div>
-                  <div class="fg"><label class="fl">Schedule</label><div class="fi" style="display:flex;align-items:center;color:var(--tx)">🕐 Every Monday (server-side)</div>
+                  <div class="fg"><label class="fl">Schedule</label><div class="fi" style="display:flex;align-items:center;color:var(--tx)">🕐 Daily (server-side)</div>
                     <div style="font-size:11px;color:var(--mt);margin-top:4px">Runs automatically on Vercel's cron — no browser tab needs to stay open</div></div>
                   <div class="fg"><label class="fl">Max Emails per User</label><input type="number" class="fi" id="ea-r-max" value="3" min="1" max="10">
                     <div style="font-size:11px;color:var(--mt);margin-top:4px">Stop after sending X emails to same user</div></div>
@@ -6290,7 +6290,7 @@ function eaSaveRules(){
   eaSaveCfgData(c);
   eaPushCfgToServer(c);
   toast('Rules saved!','s');
-  eaAddLog('⚙️ Rules saved: runs weekly (server-side), inactive '+c.days+' days','i');
+  eaAddLog('⚙️ Rules saved: runs daily (server-side), inactive '+c.days+' days','i');
 }
 
 function eaLoadCfgUI(){
@@ -6335,12 +6335,12 @@ function eaToggleAuto(el){
   eaSaveCfgData(c);
   eaPushCfgToServer(c);
   eaSetStatus(on);
-  eaAddLog(on?'▶️ Weekly automation ENABLED — server sends every Monday':'⏹ Weekly automation DISABLED','s');
+  eaAddLog(on?'▶️ Daily automation ENABLED — server sends every day':'⏹ Daily automation DISABLED','s');
 }
 
 function eaSetStatus(on){
   var next=document.getElementById('ea-st-next');
-  if(next) next.textContent=on?'Every Monday':'—';
+  if(next) next.textContent=on?'Daily':'—';
   var tog=document.getElementById('ea-auto-tog');
   if(tog) tog.classList[on?'add':'remove']('on');
 }
