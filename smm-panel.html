@@ -1707,10 +1707,17 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
-  // Sort by provId ascending so categories from provider #1 appear before #2, etc.
-  // Stable sort preserves relative order of services within the same provider.
+  // Build provider order from smm_providers (server list of all providers)
+  var _provOrder=[];
+  try{
+    var _provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');
+    _provOrder=_provs.map(function(p){return p.id;});
+  }catch(e){}
+  // Sort by provider position: services from provider[0] first, provider[1] second, etc.
   _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
-    return (parseInt(a.provId)||0)-(parseInt(b.provId)||0);
+    var aPos=_provOrder.indexOf(a.provId)>=0?_provOrder.indexOf(a.provId):9999;
+    var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
+    return aPos-bPos;
   });
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
