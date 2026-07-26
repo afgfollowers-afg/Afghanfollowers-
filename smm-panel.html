@@ -1739,7 +1739,8 @@ function rebuildServiceMaps(){
   var allCatsSeen={};
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
-      var cat=s.category||detectPlatform(s.name)||'other';
+      // Use admin-defined category if set, otherwise fall back to platform detection
+      var cat=s.category||(detectPlatform(s.name)||detectPlatform(s.platform)||'other');
       if(!allCatsSeen[cat]){
         allCatsOrdered.push(cat);
         allCatsSeen[cat]=true;
