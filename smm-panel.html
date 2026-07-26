@@ -1757,7 +1757,9 @@ function rebuildServiceMaps(){
   // Apply admin-defined category order (smm_categories) if available
   var _savedCatOrder=[];
   try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
+  console.log('[DEBUG rebuildServiceMaps] smm_categories from localStorage:', _savedCatOrder);
   if(_savedCatOrder.length){
+    console.log('[DEBUG rebuildServiceMaps] applying admin category order');
     Object.keys(orderCats).forEach(function(plat){
       orderCats[plat].sort(function(a,b){
         var ai=_savedCatOrder.indexOf(a); var bi=_savedCatOrder.indexOf(b);
