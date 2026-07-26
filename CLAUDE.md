@@ -49,8 +49,8 @@ endpoints multiplex multiple operations behind a query param instead of being sp
 files:
 - `auth.js` dispatches on `?action=login|register|google|admin-login`
 - `sync-orders.js` dispatches on `?job=email-campaign|auto-post`, `?status=1`, `?force=1`, and a
-  bare hit (the daily cron: order-status sync + blog content generation + social auto-post + bulk
-  email + re-engagement email — all independent and separately try/caught)
+  bare hit (the daily cron: order-status sync + blog content generation + social auto-post, all
+  three independent and separately try/caught)
 - `send-reset-email.js` handles both public password-reset requests and admin-triggered bulk/
   transactional email in one function, gated by which body fields are present
 
@@ -70,27 +70,75 @@ frontend page reads/writes through `GET`/`POST /api/db`, never JSONBin directly 
 and `paypal-verify.js`'s own read-after-write verification, which talks to JSONBin directly for
 diagnostic reasons — see its comments).
 
+The record is a flat object of `smm_`-prefixed top-level keys (`smm_users`, `smm_orders`,
+`smm_svc`, `smm_providers`, `smm_tickets`, `smm_pm` (payment methods), `smm_tg_bot`,
+`smm_admin_creds`, `smm_general`, `smm_bonuses`, `smm_coupons`, etc.). The frontend keeps a
+local mirror of the same keys in `localStorage` and periodically pushes/pulls the whole
+relevant array. `POST /api/db` merges incoming arrays into the stored ones by `id` rather than
+overwriting — see `mergeById`/`mergeUsersById` in `db.js` — because multiple browser tabs
+(customer + admin + cron jobs) all push their own possibly-stale full-array snapshots
+concurrently; a plain overwrite would silently drop other writers' data.
+
+**`api/db.js` is the most security-critical file in the repo.** Because the whole `smm_users`/
+`smm_orders` arrays get POSTed by browsers directly, the endpoint does NOT trust client-supplied
+balances, transaction types, or order costs. Read `sanitizeCustomerUserWrites` and
+`sanitizeCustomerOrderWrites` (and their extensive inline comments) before touching write
+handling for users/orders/transactions — they exist specifically to stop a customer token from
+forging its own balance, granting itself a bonus, editing another user's data, or under-pricing
+an order. If you add a new transaction type or a new customer-writable field, it must be
+threaded through these sanitizers, not just accepted at face value.
+
 ### Auth model
 
 `api/_auth.js` implements self-signed HMAC-SHA256 JWT-shaped session tokens (`AUTH_JWT_SECRET`
 env var; no external JWT library). Three roles appear in tokens: a customer (`sub` = user id,
 `role: 'user'`), an admin (`sub` = admin username, `role: 'admin'`), and a synthetic
 server-to-server "service" identity (`sub: 'service'`, `role: 'admin'`, minted by
-`_dbkey.js`'s `dbHeaders()`) used whenever one serverless function calls another internally.
-Passwords are hashed with a salted, 3000-round SHA-256 stretch (`_passhash.js`).
+`_dbkey.js`'s `dbHeaders()`) used whenever one serverless function calls another internally
+(e.g. `place-order.js` → `/api/db`). Passwords are hashed with a salted, 3000-round SHA-256
+stretch (`_passhash.js`) that mirrors client-side hashing logic embedded in the HTML pages byte
+for byte — if you change one side, you must change the other or existing accounts break.
 
-### Email automation (sync-orders.js)
+Separately, `DB_SERVICE_KEY` (sent as the `x-db-key` header) is a coarser gate present on nearly
+every endpoint — it distinguishes "a first-party page/server call" from "the open internet," but
+is a constant baked into public page source, so it is **not** a substitute for the real
+role-based auth check above on anything sensitive (see the SSRF/open-relay history documented in
+`api-proxy.js` and `place-order.js`'s comments for what happens when it's treated as one).
 
-Three email jobs run daily at 3 AM UTC via the main cron:
-- **Bulk campaign** (`runBulkEmailCampaignJob`): sends to uploaded CSV recipient list, min 100/day
-- **Re-engagement** (`runReengagementEmailJob`): sends to inactive users (30+ days), 7-day cooldown per user
-- **Admin preview copy**: always sent to `cfg.dailyPreviewEmail` or `cfg.from` so admin sees what went out
+### Internal server-to-server calls
 
-Toggle in Admin → Email Automation → ⚙️ Automation Rules must be ON (`cfg.active = true`) for
-re-engagement emails to send. Bulk campaign runs regardless of the toggle.
+`api/_dbkey.js`'s `fetchInternal()` must be used (instead of a plain `fetch`) for any serverless
+function calling another one of this project's own `/api/*` routes. It follows redirects
+manually rather than relying on the Fetch default, because a same-origin canonical-domain
+redirect (apex↔www) otherwise silently strips the `Authorization` header per the Fetch spec —
+see the comments in that file for the debugging history.
+
+### External integrations
+
+- **JSONBin.io** — the entire persistence layer (see above).
+- **Telegram** — `api/telegram-bot.js` is a full bot webhook handler (ordering, top-up, PayPal
+  flow, balance, support tickets — mirrors `smm-panel.html`'s own flows for chat-based use).
+  `api/notify-telegram.js` is a separate one-way admin-notification/broadcast sender.
+- **PayPal** — `api/paypal-verify.js` independently re-verifies a captured PayPal order against
+  PayPal's own REST API before crediting a wallet; never trusts a client-reported "payment
+  succeeded." Includes a write-then-read-back verification retry loop to work around JSONBin
+  read-after-write staleness (see its comments).
+- **Resend** — transactional/bulk email (`api/send-reset-email.js`), also used by
+  `sync-orders.js`'s weekly re-engagement campaign job.
+- **Groq** — `api/ai-chat.js`, a scoped customer-support chatbot (Persian-language system prompt
+  restricting it to site-related topics).
+- **Google reCAPTCHA v2** — `api/verify-recaptcha.js`, server-side token verification.
+- **Google Sign-In** — verified server-side in `api/auth.js`'s `handleGoogleLogin` via Google's
+  `tokeninfo` endpoint (never trusts a client-decoded credential).
+- **Facebook Graph API** — optional cross-posting from `notify-telegram.js` and the auto-post
+  job in `sync-orders.js`.
+- **sharp** (`api/_autopost-image.js`) — renders the daily auto-post image by overlaying
+  AI-generated text onto one of three platform template PNGs (`api/_assets/`).
 
 ### Env vars
 
 `JSONBIN_BIN_ID`, `JSONBIN_SVC_BIN_ID`, `JSONBIN_API_KEY`, `DB_SERVICE_KEY`, `AUTH_JWT_SECRET`,
 `RECAPTCHA_SECRET_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `GROQ_API_KEY`, `FB_PAGE_ID`,
-`FB_PAGE_TOKEN`, `TG_BOT_TOKEN`, `FONTCONFIG_FILE`.
+`FB_PAGE_TOKEN`, `TG_BOT_TOKEN` (Telegram bot webhook fallback; the bot's normal token/chat id
+live in `smm_tg_bot` in the DB instead), `FONTCONFIG_FILE` (used by `_autopost-image.js`'s sharp
+font rendering).

@@ -14,8 +14,31 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
+const { renderPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+// Multipart uploads for Telegram sendPhoto / Facebook /photos — both need an
+// actual file part, not a JSON body, so these can't reuse the plain
+// fetch(...,{body:JSON.stringify(...)}) pattern the rest of this file uses.
+async function tgSendPhoto(token, chatId, imageBuffer, caption, replyMarkup) {
+  const form = new FormData();
+  form.append('chat_id', String(chatId));
+  if (caption) form.append('caption', caption);
+  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
+  form.append('photo', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+  return r.json();
+}
+
+async function fbPostPhoto(pageId, pageToken, imageBuffer, caption) {
+  const form = new FormData();
+  form.append('caption', caption);
+  form.append('access_token', pageToken);
+  form.append('source', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
+  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, { method: 'POST', body: form });
+  return r.json();
+}
 
 module.exports = async (req, res) => {
   // ?status=1 — a pure read: report whether today's email jobs (the daily
@@ -31,6 +54,19 @@ module.exports = async (req, res) => {
 
   if (req.query && req.query.job === 'email-campaign') {
     return runEmailCampaignJob(req, res);
+  }
+
+  // ?job=auto-post — on-demand manual trigger for the daily promo/growth post,
+  // outside the normal 3am cron. No schedule of its own (see vercel.json —
+  // Hobby plan caps cron jobs at 2, already used by the daily sweep + weekly
+  // email-campaign); this exists purely for manual testing/preview.
+  // &dryrun=1 skips both Facebook and the real Telegram channel entirely and
+  // only DMs the admin chat a labeled preview, so it never counts as (or
+  // blocks) the real once-a-day post the 3am cron already handles.
+  if (req.query && req.query.job === 'auto-post') {
+    const isDryRun = req.query.dryrun === '1' || req.query.dryrun === 'true';
+    const result = await runAutoPostJob({ dryRun: isDryRun }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
   }
 
   // Order syncing, daily content, and auto-post are three independent jobs
@@ -796,7 +832,9 @@ async function runDailyContentJob() {
 
 const AUTOPOST_ADMIN_CHAT_ID = '7993801735';
 
-async function runAutoPostJob() {
+async function runAutoPostJob(opts) {
+  opts = opts || {};
+  const dryRun = !!opts.dryRun;
   // Reuse the Telegram bot already configured in Admin → Settings → Integrations
   // (same smm_tg_bot record used for blog broadcasts) instead of requiring the
   // token/channel to be duplicated as separate Vercel env vars.
@@ -809,13 +847,16 @@ async function runAutoPostJob() {
     // Same reasoning as runDailyContentJob's guard — this endpoint gets hit
     // more than once a day (retries, manual visits, etc.), and without this
     // check each hit fired off a brand new promo post to Facebook/Telegram.
-    if (db.smm_last_autopost_date === today) {
+    // Dry runs never write smm_last_autopost_date, so they must also never
+    // be blocked by it — a preview should always be available on demand
+    // regardless of whether today's real post went out.
+    if (!dryRun && db.smm_last_autopost_date === today) {
       return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
     }
   } catch (e) { /* fall through with empty tgCfg — job still runs, just skips Telegram */ }
 
   try {
-    return await runAutoPostJobInner(tgCfg, today);
+    return await runAutoPostJobInner(tgCfg, today, dryRun);
   } catch (err) {
     if (tgCfg.token) {
       await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
@@ -828,31 +869,85 @@ async function runAutoPostJob() {
   }
 }
 
-// One entry per platform so the daily promo post rotates evenly across all
-// 5 — this used to skew heavily toward Instagram/TikTok (4 of 6 entries)
-// with Facebook never mentioned at all despite being a broadcast target.
-const AUTOPOST_FOCUS = [
-  'فالوور و لایک واقعی اینستاگرام',
-  'لایک و ویو واقعی تیک‌تاک',
-  'ممبر و بازدید واقعی کانال تلگرام',
-  'ساب‌اسکرایب و ویو واقعی یوتیوب',
-  'لایک و فالوور واقعی صفحه فیسبوک'
+// Single source of truth for the daily platform rotation — template image
+// AND content focus AND hashtags all come from the SAME entry, so they can
+// never drift apart. Previously the template picked from a 3-length array
+// (pickTemplate, dayOfYear % 3) while the content focus picked from an
+// unrelated 5-length array (dayOfYear % 5) and hashtags from a 20-length
+// pool (dayOfYear*4 % 20) — three different cycle lengths meant the
+// template and the text it was captioning agreed only by coincidence (e.g.
+// an Instagram template paired with TikTok-focused copy). Only 3 platforms
+// here now, matching the 3 template images that actually exist — Telegram
+// and Facebook are still where every post gets published either way, they
+// just aren't a content FOCUS topic anymore since there's no template art
+// for them.
+const AUTOPOST_PLATFORMS = [
+  {
+    template: 'instagram',
+    focus: 'فالوور و لایک واقعی اینستاگرام',
+    hashtags: ['#فالوور_اینستاگرام', '#افزایش_فالوور', '#پیج_اینستاگرام', '#تبلیغات_اینستاگرام']
+  },
+  {
+    template: 'tiktok',
+    focus: 'لایک و ویو واقعی تیک‌تاک',
+    hashtags: ['#تیک_تاک_افغانستان', '#فالوور_تیک_تاک', '#ویو_تیک_تاک', '#رشد_پیج']
+  },
+  {
+    template: 'youtube',
+    focus: 'ساب‌اسکرایب و ویو واقعی یوتیوب',
+    hashtags: ['#یوتیوب_افغانستان', '#ساب_اسکرایب_یوتیوب', '#افغان_فالوورز', '#سوشال_مدیا_مارکتینگ']
+  }
 ];
 
-async function runAutoPostJobInner(tgCfg, today) {
-  const results = { facebook: null, telegram: null };
-  const focus = AUTOPOST_FOCUS[dayOfYear() % AUTOPOST_FOCUS.length];
+// Rotating post ANGLE — independent of the platform rotation above (these
+// are generic style/structure choices, not platform-specific), so
+// consecutive days differ in how the post is written even on a day the
+// platform rotation repeats. Previously every day used the exact same
+// prompt structure with only ${focus} swapped in, which reads as "the same
+// template reworded" even though the topic technically rotated.
+const AUTOPOST_ANGLES = [
+  'روی فوریت و پیشنهاد زمان‌دار امروز تمرکز کن',
+  'با یک سوال جذاب برای مخاطب شروع کن',
+  'به یک ادعای اجتماعی اشاره کن (مثلاً تعداد مشتریان راضی یا سفارش‌های موفق)',
+  'روی سرعت واقعی تحویل و کیفیت سرویس تمرکز کن',
+  'با یک نکته یا ترفند کوچک درباره رشد واقعی در شبکه‌های اجتماعی شروع کن'
+];
 
-  const promoPrompt = `یک پست تبلیغاتی کوتاه و جذاب به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
+// Rotating urgency/time-limited appeal — folded naturally into the post
+// text, not tacked on as a separate generic line every day.
+// Pure urgency/CTA wording only — no "تخفیف"/"پیشنهاد ویژه" or any other
+// phrasing implying an active discount or special price, since no such
+// mechanism actually exists. High energy, but never a false claim.
+const AUTOPOST_URGENCY = [
+  'همین امروز شروع کن — چرا صبر کنی؟ 🔥',
+  'وقت محدوده — الان اقدام کن ⏰',
+  'دیرتر نره، همین حالا سفارش بده ⚡',
+  'رشد پیجت رو امروز شروع کن، نه فردا 🎯',
+  'فرصت امروز رو از دست نده — همین الان بخر 💥'
+];
+
+async function runAutoPostJobInner(tgCfg, today, dryRun) {
+  const doy = dayOfYear();
+  const platform = AUTOPOST_PLATFORMS[doy % AUTOPOST_PLATFORMS.length];
+  const focus = platform.focus;
+  const hashtags = platform.hashtags;
+  const angle = AUTOPOST_ANGLES[doy % AUTOPOST_ANGLES.length];
+  const urgency = AUTOPOST_URGENCY[doy % AUTOPOST_URGENCY.length];
+
+  const promoPrompt = `یک پست تبلیغاتی کوتاه، پرانرژی و با شخصیت به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
 
 امروز تمرکز پست را روی این موضوع بگذار: ${focus}
+زاویه نوشتن امروز: ${angle}
+این پیام فوریت/پیشنهاد را به‌طور طبیعی داخل متن بگنجان (نه به شکل جمله جدا و بریده): ${urgency}
 
 قوانین:
 - حداکثر ۶ خط
-- با ایموجی‌های مناسب
+- لحن دوستانه، پرانرژی و با شخصیت — انگار داری با یک دوست حرف می‌زنی، نه یک آگهی رسمی و خشک
+- با ایموجی‌های مناسب (نه بیش از حد)
 - درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس
-- در آخر آدرس سایت afghanfollowers.online و ۳-۴ هشتگ فارسی مرتبط
-- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری (جز خود "AfghanFollowers" و آدرس سایت) داخل جمله‌ها استفاده نکن
+- در پایان دقیقاً همین هشتگ‌ها را بیار: ${hashtags.join(' ')}
+- بعد از هشتگ‌ها آدرس سایت afghanfollowers.online را بنویس
+- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها استفاده نکن؛ تنها استثنا خود کلمه "AfghanFollowers"، آدرس سایت و هشتگ‌های داده‌شده است
 - فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
 
   const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -872,16 +967,38 @@ async function runAutoPostJobInner(tgCfg, today) {
   const postText = groqData?.choices?.[0]?.message?.content?.trim();
   if (!postText) throw new Error('Groq هیچ متنی تولید نکرد: ' + JSON.stringify(groqData));
 
+  // Same platform entry the focus/hashtags above came from — guaranteed to
+  // match (see AUTOPOST_PLATFORMS).
+  const templateKey = platform.template;
+  const imageBuffer = await renderPostImage(templateKey, postText);
+
+  // Dry run: preview only — no Facebook publish, no real Telegram channel
+  // post, no smm_last_autopost_date write (so it can never block or count as
+  // today's real run). Only DMs the admin chat, clearly labeled. No
+  // approval buttons — there's nothing to approve, this is a plain preview.
+  if (dryRun) {
+    if (tgCfg.token) {
+      await tgSendPhoto(
+        tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
+        `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
+          + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
+          + `متن پست:\n${postText}`
+      ).catch(() => {});
+    }
+    return { ok: true, dryRun: true, focus, template: templateKey, post: postText };
+  }
+
+  // Real run: publish directly — no approval gate. A rare AI glitch (stray
+  // non-Farsi characters, foreign-language mixing, an off-topic tangent)
+  // now reaches Facebook and the real Telegram channel unreviewed; the
+  // Farsi-only character filter in _autopost-image.js still protects the
+  // IMAGE overlay specifically, but the caption text below goes out exactly
+  // as Groq wrote it. logSystemError below is a monitoring/audit trail, not
+  // a safety gate — it only records what already happened.
+  const results = { facebook: null, telegram: null };
+
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    const fbResp = await fetch(`https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // Explicit `link` — the AI-generated text only mentions the bare
-      // domain (no https://) so Facebook won't auto-detect it as a URL to
-      // scrape for a preview card; without this param the post had no image.
-      body: JSON.stringify({ message: postText, link: SITE + '/', access_token: process.env.FB_PAGE_TOKEN })
-    });
-    const fbData = await fbResp.json();
+    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, imageBuffer, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
     results.facebook = '⏭ تنظیم نشده';
@@ -889,17 +1006,24 @@ async function runAutoPostJobInner(tgCfg, today) {
 
   const tgChannel = tgCfg.channelId || tgCfg.chatId;
   if (tgCfg.token && tgChannel) {
-    const tgResp = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: tgChannel, text: postText })
-    });
-    const tgData = await tgResp.json();
+    const tgData = await tgSendPhoto(tgCfg.token, tgChannel, imageBuffer, postText);
     results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
   } else {
     results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';
   }
 
+  // Monitoring: surfaces in the admin panel's System Alerts page
+  // (smm_error_log, same mechanism dispatchOneOrder and the email jobs
+  // already use) regardless of outcome, so today's run can be audited
+  // without digging through Telegram history. Best-effort, never throws.
+  const failed = /❌/.test(results.facebook) || /❌/.test(results.telegram);
+  await logSystemError(
+    'autopost',
+    failed ? 'Auto-post run had a failure' : 'Auto-post run completed',
+    { focus, template: templateKey, results, postText }
+  );
+
+  // Notification only — informational, no buttons, nothing to act on.
   if (tgCfg.token) {
     await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
       method: 'POST',
@@ -922,7 +1046,7 @@ async function runAutoPostJobInner(tgCfg, today) {
     }).catch(() => {});
   }
 
-  return { ok: true, focus, results };
+  return { ok: true, focus, template: templateKey, results };
 }
 
 // ── Daily bulk email campaign ──
