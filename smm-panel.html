@@ -1707,18 +1707,7 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
-  // Build provider order from smm_providers (server list of all providers)
-  var _provOrder=[];
-  try{
-    var _provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');
-    _provOrder=_provs.map(function(p){return p.id;});
-  }catch(e){}
-  // Sort by provider position: services from provider[0] first, provider[1] second, etc.
-  _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
-    var aPos=_provOrder.indexOf(a.provId)>=0?_provOrder.indexOf(a.provId):9999;
-    var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
-    return aPos-bPos;
-  });
+  // DO NOT SORT — preserve smm_svc array order, which is already correct from admin panel
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
@@ -1741,14 +1730,18 @@ function rebuildServiceMaps(){
     });
   }
 
-// Build orderCats from real services
+// Build orderCats from real services — preserve order by using array instead of object
   Object.keys(platSvcs).forEach(function(plat){
-    var cats={};
+    var catsArr=[];
+    var catsSeen={};
     platSvcs[plat].forEach(function(s){
       var cat=s.catName||plat;
-      if(!cats[cat]) cats[cat]=true;
+      if(!catsSeen[cat]){
+        catsArr.push(cat);
+        catsSeen[cat]=true;
+      }
     });
-    orderCats[plat]=Object.keys(cats);
+    orderCats[plat]=catsArr;
   });
   // Apply admin-defined category order (smm_categories) if available
   var _savedCatOrder=[];
