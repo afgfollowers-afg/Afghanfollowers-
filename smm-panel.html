@@ -1769,12 +1769,17 @@ function rebuildServiceMaps(){
   console.log('[DEBUG rebuildServiceMaps] smm_categories from localStorage:', _savedCatOrder);
   if(_savedCatOrder.length){
     console.log('[DEBUG rebuildServiceMaps] applying admin category order');
-    Object.keys(orderCats).forEach(function(plat){
-      orderCats[plat].sort(function(a,b){
+    // Sort ALL category lists including orderCats.all
+    var sortByAdmin=function(cats){
+      return cats.sort(function(a,b){
         var ai=_savedCatOrder.indexOf(a); var bi=_savedCatOrder.indexOf(b);
         if(ai<0)ai=9999; if(bi<0)bi=9999;
         return ai-bi;
       });
+    };
+    if(orderCats.all) orderCats.all=sortByAdmin(orderCats.all);
+    Object.keys(orderCats).forEach(function(plat){
+      if(plat!=='all' && orderCats[plat]) orderCats[plat]=sortByAdmin(orderCats[plat]);
     });
   }
   if(!Object.keys(orderCats).length){
