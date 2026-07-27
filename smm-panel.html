@@ -1710,11 +1710,6 @@ function rebuildServiceMaps(){
   var _adminSvcs=getPanelServices();
   window.DEBUG_SERVICES={totalLoaded:(_adminSvcs||[]).length,first5:(_adminSvcs||[]).slice(0,5).map(s=>({name:s.name,cat:s.category,plat:s.platform||'?'}))};
 
-  // Read the admin-set category display order (saved whenever the admin uses
-  // moveCatOrder or Sync to Panel in admin.html and pushed to the server DB).
-  var panelCatOrder=[];
-  try{panelCatOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
-
   // Build platSvcs and catSvcsMap in one pass (storage order, no re-sort).
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
@@ -1761,18 +1756,12 @@ function rebuildServiceMaps(){
     orderCats[plat]=Object.keys(cats);
   });
 
-  // Build the 'all' category list: use smm_panel_cat_order (admin's explicit
-  // arrangement, pushed from admin.html via moveCatOrder / Sync to Panel) as
-  // the primary source, then append any remaining categories in storage order.
+  // Build the 'all' category list from smm_svc storage order (first occurrence
+  // of each category), exactly mirroring how admin's rSvcs() uses
+  // Object.keys(grouped) on the same data. This means customer always sees
+  // the same category ordering as admin without needing a separate key.
   var allCatsInOrder=[];
   var allCatsSeen={};
-  panelCatOrder.forEach(function(cat){
-    if(cat && catSvcsMap[cat] && !allCatsSeen[cat]){
-      allCatsInOrder.push(cat);
-      allCatsSeen[cat]=true;
-    }
-  });
-  // Append any categories from current services not covered by panelCatOrder
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
@@ -1790,7 +1779,6 @@ function rebuildServiceMaps(){
   }
   window.DEBUG_SERVICES.platSvcsKeys=Object.keys(platSvcs);
   window.DEBUG_SERVICES.orderCats=orderCats;
-  window.DEBUG_SERVICES.panelCatOrderLen=panelCatOrder.length;
   window.DEBUG_SERVICES.allCatsInMap=Object.keys(catSvcsMap);
   window.DEBUG_SERVICES.allCatsCount=Object.keys(catSvcsMap).length;
 
@@ -4440,10 +4428,6 @@ function pullFromServerOnLoad(){
       var svcChanged=false;
       if(d.smm_categories&&Array.isArray(d.smm_categories)){
         localStorage.setItem('smm_categories',JSON.stringify(d.smm_categories));
-        svcChanged=true;
-      }
-      if(d.smm_panel_cat_order&&Array.isArray(d.smm_panel_cat_order)){
-        localStorage.setItem('smm_panel_cat_order',JSON.stringify(d.smm_panel_cat_order));
         svcChanged=true;
       }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
