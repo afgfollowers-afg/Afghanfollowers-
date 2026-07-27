@@ -4443,20 +4443,12 @@ function pullFromServerOnLoad(){
         svcChanged=true;
       }
       if(d.smm_panel_cat_order&&Array.isArray(d.smm_panel_cat_order)){
-        var localCatOrd=localStorage.getItem('smm_panel_cat_order')||'[]';
-        var newCatOrd=JSON.stringify(d.smm_panel_cat_order);
-        if(newCatOrd!==localCatOrd){
-          localStorage.setItem('smm_panel_cat_order',newCatOrd);
-          svcChanged=true;
-        }
+        localStorage.setItem('smm_panel_cat_order',JSON.stringify(d.smm_panel_cat_order));
+        svcChanged=true;
       }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
-        var localSvc=localStorage.getItem('smm_svc')||'[]';
-        var newSvc=JSON.stringify(d.smm_svc);
-        if(newSvc!==localSvc){
-          localStorage.setItem('smm_svc',newSvc);
-          svcChanged=true;
-        }
+        localStorage.setItem('smm_svc',JSON.stringify(d.smm_svc));
+        svcChanged=true;
       }
       if(svcChanged){
         rebuildServiceMaps();
