@@ -1676,6 +1676,25 @@ function getPanelServices(){
 }
 
 // ── PLATFORM DETECTION ──
+// Round-robin interleave categories across platforms so "All" tab shows
+// mixed platform categories instead of all-IG then all-FB then all-TK.
+function interleaveByPlatform(cats){
+  var platCats={};
+  var platOrder=[];
+  cats.forEach(function(cat){
+    var plat=detectPlatform(cat)||'other';
+    if(!platCats[plat]){platCats[plat]=[];platOrder.push(plat);}
+    platCats[plat].push(cat);
+  });
+  var result=[];
+  var maxLen=0;
+  platOrder.forEach(function(p){if(platCats[p].length>maxLen)maxLen=platCats[p].length;});
+  for(var i=0;i<maxLen;i++){
+    platOrder.forEach(function(p){if(i<platCats[p].length)result.push(platCats[p][i]);});
+  }
+  return result;
+}
+
 function detectPlatform(str){
   if(!str) return 'other';
   var s=str.toLowerCase();
@@ -1795,7 +1814,7 @@ function rebuildServiceMaps(){
     }
   }
 
-  orderCats.all=allCatsInOrder;
+  orderCats.all=interleaveByPlatform(allCatsInOrder);
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
