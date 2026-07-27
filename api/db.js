@@ -418,7 +418,7 @@ module.exports = async (req, res) => {
         const gz = gzipToBase64(body.smm_svc);
         const w = await writeBin(SVC_BIN_ID, { svc_gz: gz });
         if (!w.ok) return res.status(200).json({ diag: 'PUT_SVC_FAILED', jsonbinStatus: w.status, jsonbinBodyRaw: w.raw, compressedSizeKB: Math.round(gz.length / 1024) });
-        const onlyServices = !body.smm_users && !body.smm_orders && !body.smm_tickets;
+        const onlyServices = !body.smm_users && !body.smm_orders && !body.smm_tickets && !body.smm_panel_cat_order;
         if (onlyServices) {
           return res.status(200).json({ ok: true, services: body.smm_svc.length, compressedSizeKB: Math.round(gz.length / 1024) });
         }
