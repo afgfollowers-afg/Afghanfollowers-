@@ -386,7 +386,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <button class="btn btn-p btn-sm" onclick="om('m-create-cat')">📁 Category</button>
           <button class="btn btn-p btn-sm" onclick="om('m-add-svc')">➕ Add</button>
           <button class="btn btn-g btn-sm" onclick="showQuickImport()">⚡ Import</button>
-          <button class="btn btn-s btn-sm" onclick="syncServicesToPanel(getServices())" style="background:var(--gr);color:#000;font-weight:800">🔄 Sync to Panel</button>
+          <button class="btn btn-s btn-sm" onclick="syncServicesToPanel(getServices(),true)" style="background:var(--gr);color:#000;font-weight:800">🔄 Sync to Panel</button>
           <div style="position:relative">
             <button class="btn btn-g btn-sm" onclick="toggleActionsMenu()">Actions ▾</button>
             <div id="actions-menu" style="display:none;position:absolute;left:0;top:calc(100%+4px);background:var(--s1);border:1px solid var(--bd);border-radius:10px;min-width:180px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden">
@@ -2645,7 +2645,7 @@ function moveCatOrder(catName,dir){
   try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(catOrder));}catch(e){}
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_panel_cat_order:catOrder,smm_ts:Date.now()})}).catch(function(){});
-  saveServices(sorted);syncServicesToPanel(sorted);rSvcs();
+  saveServices(sorted);syncServicesToPanel(sorted,true);rSvcs();
   toast('Category "'+catName+'" moved '+dir,'s');
 }
 
@@ -3618,15 +3618,32 @@ function applyPriceEdit(){
 }
 
 // ── SYNC SERVICES TO USER PANEL ──
-function syncServicesToPanel(svcs){
+// forceRebuild=true: derive category order fresh from current svcs (used by
+// the explicit "🔄 Sync to Panel" button so admin's current view is what
+// customers see). forceRebuild=false (default): preserve the existing
+// smm_panel_cat_order that moveCatOrder() set and only append new categories
+// — imports must not silently overwrite an interleaved order the admin
+// carefully arranged.
+function syncServicesToPanel(svcs,forceRebuild){
   var active=(svcs||[]).filter(function(s){return s.active!==false;});
   localStorage.setItem('smm_panel_services',JSON.stringify(active));
   localStorage.setItem('smm_imported_svcs',JSON.stringify(active));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
-  // Derive and persist the current category display order so the customer
-  // panel 'All' view shows categories in the same order the admin arranged them.
-  var panelCatOrder=[];var _catSeen={};
-  (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!_catSeen[c]){_catSeen[c]=true;panelCatOrder.push(c);}});
+  var panelCatOrder;
+  if(forceRebuild){
+    // Rebuild from scratch — first-occurrence in current svcs = what admin sees now
+    panelCatOrder=[];var _cs={};
+    (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!_cs[c]){_cs[c]=true;panelCatOrder.push(c);}});
+  } else {
+    // Preserve the existing admin-defined order and only append new categories
+    var existingOrder=[];
+    try{existingOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
+    var svcsHave={};
+    (svcs||[]).forEach(function(s){svcsHave[s.category||'Uncategorized']=true;});
+    panelCatOrder=existingOrder.filter(function(c){return svcsHave[c];});
+    var seen={};panelCatOrder.forEach(function(c){seen[c]=true;});
+    (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!seen[c]){seen[c]=true;panelCatOrder.push(c);}});
+  }
   try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(panelCatOrder));}catch(e){}
   // Also write + push the compressed format (smm_svc), since that's what
   // the user panel and the server sync actually read from.

@@ -1756,21 +1756,43 @@ function rebuildServiceMaps(){
     orderCats[plat]=Object.keys(cats);
   });
 
-  // Build the 'all' category list from smm_svc storage order (first occurrence
-  // of each category), exactly mirroring how admin's rSvcs() uses
-  // Object.keys(grouped) on the same data. This means customer always sees
-  // the same category ordering as admin without needing a separate key.
+  // Build the 'all' category list using this priority:
+  // 1. smm_panel_cat_order from server — the admin's EXPLICIT arrangement set
+  //    via moveCatOrder() drag-and-drop.  Only use entries that actually have
+  //    services in catSvcsMap; append any remaining categories at the end.
+  // 2. First-occurrence from smm_svc storage order — fallback when the server
+  //    has not yet sent a panel_cat_order (fresh install, old data, etc.).
   var allCatsInOrder=[];
   var allCatsSeen={};
-  if(_adminSvcs&&_adminSvcs.length){
-    _adminSvcs.forEach(function(s){
-      var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
-      var cat=s.category||platKey;
-      if(cat && !allCatsSeen[cat]){
-        allCatsInOrder.push(cat);
-        allCatsSeen[cat]=true;
+  var _panelOrder=[];
+  try{_panelOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
+
+  if(_panelOrder&&_panelOrder.length){
+    // Use admin-defined order, filtered to categories that actually exist
+    _panelOrder.forEach(function(c){
+      if(catSvcsMap[c]&&!allCatsSeen[c]){
+        allCatsInOrder.push(c);
+        allCatsSeen[c]=true;
       }
     });
+    // Append any categories from smm_svc that admin order doesn't mention
+    // (e.g. newly imported services since the last moveCatOrder)
+    if(_adminSvcs&&_adminSvcs.length){
+      _adminSvcs.forEach(function(s){
+        var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+        var cat=s.category||platKey;
+        if(cat&&!allCatsSeen[cat]){allCatsInOrder.push(cat);allCatsSeen[cat]=true;}
+      });
+    }
+  } else {
+    // Fallback: first-occurrence from smm_svc (mirrors admin's rSvcs() algorithm)
+    if(_adminSvcs&&_adminSvcs.length){
+      _adminSvcs.forEach(function(s){
+        var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+        var cat=s.category||platKey;
+        if(cat&&!allCatsSeen[cat]){allCatsInOrder.push(cat);allCatsSeen[cat]=true;}
+      });
+    }
   }
 
   orderCats.all=allCatsInOrder;
@@ -4432,6 +4454,12 @@ function pullFromServerOnLoad(){
       }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
         localStorage.setItem('smm_svc',JSON.stringify(d.smm_svc));
+        svcChanged=true;
+      }
+      // smm_panel_cat_order is the admin's explicit category display order — always
+      // store it when the server sends it so rebuildServiceMaps() can use it.
+      if(d.smm_panel_cat_order&&Array.isArray(d.smm_panel_cat_order)&&d.smm_panel_cat_order.length){
+        localStorage.setItem('smm_panel_cat_order',JSON.stringify(d.smm_panel_cat_order));
         svcChanged=true;
       }
       if(svcChanged){
