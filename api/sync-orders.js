@@ -90,6 +90,17 @@ module.exports = async (req, res) => {
   const force = !!(req.query && (req.query.force === '1' || req.query.force === 'true')
     && DB_SERVICE_KEY && req.headers['x-db-key'] === DB_SERVICE_KEY);
 
+  // Email jobs run FIRST — the order-sync, content, and auto-post jobs below
+  // can take many seconds (provider API calls per order, Groq, Telegram/FB
+  // uploads), and Vercel's 10-second Hobby-plan function timeout silently
+  // kills any work that hasn't started yet. Emails are the most business-
+  // critical output of this cron and must not be starved by slow I/O below.
+  let bulkEmailResult = null;
+  try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
+
+  let reengagementResult = null;
+  try { reengagementResult = await runReengagementEmailJob(); } catch (e) { reengagementResult = { ok: false, error: e.message }; }
+
   let syncResult;
   try {
     syncResult = await runOrderSyncJob(force);
@@ -102,12 +113,6 @@ module.exports = async (req, res) => {
 
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
-
-  let bulkEmailResult = null;
-  try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
-
-  let reengagementResult = null;
-  try { reengagementResult = await runReengagementEmailJob(); } catch (e) { reengagementResult = { ok: false, error: e.message }; }
 
   return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
 };
@@ -604,7 +609,13 @@ async function runEmailCampaignJob(req, res) {
       });
     }
 
-    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed });
+    // Also run the bulk campaign from this 8AM cron — the 3AM cron runs it
+    // too but bulk email is idempotent (smm_last_bulk_campaign_date guard
+    // prevents double-sending on the same day) and the 8AM slot gives emails
+    // a second guaranteed window in case the 3AM function timed out early.
+    const bulkResult = await runBulkEmailCampaignJob().catch(e => ({ ok: false, error: e.message }));
+
+    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }

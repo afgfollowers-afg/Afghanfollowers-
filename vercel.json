@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/sync-orders.js": { "maxDuration": 60 }
+  },
   "crons": [
     { "path": "/api/sync-orders", "schedule": "0 3 * * *" },
     { "path": "/api/sync-orders?job=email-campaign", "schedule": "0 8 * * *" }
