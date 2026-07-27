@@ -788,6 +788,9 @@ module.exports = async (req, res) => {
       if (body.smm_categories && Array.isArray(body.smm_categories)) {
         current.smm_categories = body.smm_categories;
       }
+      if (body.smm_panel_cat_order && Array.isArray(body.smm_panel_cat_order)) {
+        current.smm_panel_cat_order = body.smm_panel_cat_order;
+      }
       if (body.smm_modules && typeof body.smm_modules === 'object') {
         current.smm_modules = body.smm_modules;
       }

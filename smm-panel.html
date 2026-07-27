@@ -1709,53 +1709,40 @@ function rebuildServiceMaps(){
   orderCats={};
   var _adminSvcs=getPanelServices();
   window.DEBUG_SERVICES={totalLoaded:(_adminSvcs||[]).length,first5:(_adminSvcs||[]).slice(0,5).map(s=>({name:s.name,cat:s.category,plat:s.platform||'?'}))};
-  // Build provider order from smm_providers
-  var _provOrder=[];
-  try{
-    var _provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');
-    _provOrder=_provs.map(function(p){return p.id;});
-  }catch(e){}
-  // Sort: first by provider position (admin's chosen provider ordering), then
-  // by svcId within each provider (the provider's own service numbering).
-  // svcId sort is the key fix: smm_svc is stored platform-sorted from the
-  // admin UI, so without this re-sort the 'All' view groups all Instagram
-  // categories before TikTok before Facebook, instead of interleaving them
-  // the way they appear in the provider's list (e.g. IG, TK, FB, IG, TK…).
-  _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
-    var aPos=_provOrder.indexOf(a.provId)>=0?_provOrder.indexOf(a.provId):9999;
-    var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
-    if(aPos!==bPos) return aPos-bPos;
-    return (parseInt(a.svcId)||parseInt(a.id)||0)-(parseInt(b.svcId)||parseInt(b.id)||0);
-  });
-  window.DEBUG_SERVICES.providersFound=Object.keys(new Set(_adminSvcs.map(s=>s.provId))).length;
 
-  // FIRST: collect all categories in original service order for 'all' view
-  // Use same catName formula as platSvcs loop so keys always match catSvcsMap
-  var allCatsInOrder=[];
-  var allCatsSeen={};
-  if(_adminSvcs&&_adminSvcs.length){
-    _adminSvcs.forEach(function(s){
-      var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
-      var cat=s.category||platKey;
-      if(cat && !allCatsSeen[cat]){
-        allCatsInOrder.push(cat);
-        allCatsSeen[cat]=true;
-      }
-    });
-  }
+  // Read the admin-set category display order (saved whenever the admin uses
+  // moveCatOrder or Sync to Panel in admin.html and pushed to the server DB).
+  var panelCatOrder=[];
+  try{panelCatOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
 
-  // THEN: build platSvcs by platform
+  // Build platSvcs and catSvcsMap in one pass (storage order, no re-sort).
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
         ||detectPlatform(s.category)
         ||detectPlatform(s.platform)
         ||'other';
+      var cat=s.category||platKey;
+      // platSvcs (per-platform buckets for platform-tab views)
       if(!platSvcs[platKey]) platSvcs[platKey]=[];
       platSvcs[platKey].push({
         v:String(s.svcId||s.id),
         name:s.name,
-        catName:s.category||platKey,
+        catName:cat,
+        platKey:platKey,
+        p:parseFloat(s.myRate||s.price||0),
+        min:parseInt(s.min||100),
+        max:parseInt(s.max||50000),
+        time:s.time||'1-24h',
+        provName:s.provName||'',
+        svcId:s.svcId
+      });
+      // catSvcsMap (category → services lookup)
+      if(!catSvcsMap[cat]) catSvcsMap[cat]=[];
+      catSvcsMap[cat].push({
+        v:String(s.svcId||s.id),
+        name:s.name,
+        catName:cat,
         platKey:platKey,
         p:parseFloat(s.myRate||s.price||0),
         min:parseInt(s.min||100),
@@ -1767,39 +1754,46 @@ function rebuildServiceMaps(){
     });
   }
 
-// Build orderCats from real services
+  // Build per-platform category lists from platSvcs
   Object.keys(platSvcs).forEach(function(plat){
     var cats={};
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!cats[cat]) cats[cat]=true;
-    });
+    platSvcs[plat].forEach(function(s){ var cat=s.catName||plat; if(!cats[cat]) cats[cat]=true; });
     orderCats[plat]=Object.keys(cats);
   });
-  // Use the 'all categories in order' that was built from original service array
+
+  // Build the 'all' category list: use smm_panel_cat_order (admin's explicit
+  // arrangement, pushed from admin.html via moveCatOrder / Sync to Panel) as
+  // the primary source, then append any remaining categories in storage order.
+  var allCatsInOrder=[];
+  var allCatsSeen={};
+  panelCatOrder.forEach(function(cat){
+    if(cat && catSvcsMap[cat] && !allCatsSeen[cat]){
+      allCatsInOrder.push(cat);
+      allCatsSeen[cat]=true;
+    }
+  });
+  // Append any categories from current services not covered by panelCatOrder
+  if(_adminSvcs&&_adminSvcs.length){
+    _adminSvcs.forEach(function(s){
+      var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+      var cat=s.category||platKey;
+      if(cat && !allCatsSeen[cat]){
+        allCatsInOrder.push(cat);
+        allCatsSeen[cat]=true;
+      }
+    });
+  }
+
   orderCats.all=allCatsInOrder;
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
   window.DEBUG_SERVICES.platSvcsKeys=Object.keys(platSvcs);
   window.DEBUG_SERVICES.orderCats=orderCats;
-
-  // Map: category name → services list
-  Object.keys(platSvcs).forEach(function(plat){
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!catSvcsMap[cat]) catSvcsMap[cat]=[];
-      catSvcsMap[cat].push(s);
-    });
-  });
+  window.DEBUG_SERVICES.panelCatOrderLen=panelCatOrder.length;
   window.DEBUG_SERVICES.allCatsInMap=Object.keys(catSvcsMap);
   window.DEBUG_SERVICES.allCatsCount=Object.keys(catSvcsMap).length;
 
-  // Flat list used by the Services (browse/search) page — was previously a
-  // top-level `const` computed once at script-parse time, before this
-  // function had ever run, so it permanently captured an empty platSvcs and
-  // the Services tab always showed "No services found" no matter what the
-  // admin configured. Recomputing it here keeps it in sync on every rebuild.
   allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
 } // end rebuildServiceMaps
 
@@ -4447,6 +4441,14 @@ function pullFromServerOnLoad(){
       if(d.smm_categories&&Array.isArray(d.smm_categories)){
         localStorage.setItem('smm_categories',JSON.stringify(d.smm_categories));
         svcChanged=true;
+      }
+      if(d.smm_panel_cat_order&&Array.isArray(d.smm_panel_cat_order)){
+        var localCatOrd=localStorage.getItem('smm_panel_cat_order')||'[]';
+        var newCatOrd=JSON.stringify(d.smm_panel_cat_order);
+        if(newCatOrd!==localCatOrd){
+          localStorage.setItem('smm_panel_cat_order',newCatOrd);
+          svcChanged=true;
+        }
       }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
         var localSvc=localStorage.getItem('smm_svc')||'[]';

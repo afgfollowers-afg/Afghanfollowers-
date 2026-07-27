@@ -2641,6 +2641,10 @@ function moveCatOrder(catName,dir){
   catOrder.forEach(function(cat){
     svcs.filter(function(s){return(s.category||'Uncategorized')===cat;}).forEach(function(s){sorted.push(s);});
   });
+  // Persist category display order so the customer panel uses the same order
+  try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(catOrder));}catch(e){}
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_panel_cat_order:catOrder,smm_ts:Date.now()})}).catch(function(){});
   saveServices(sorted);syncServicesToPanel(sorted);rSvcs();
   toast('Category "'+catName+'" moved '+dir,'s');
 }
@@ -3619,6 +3623,11 @@ function syncServicesToPanel(svcs){
   localStorage.setItem('smm_panel_services',JSON.stringify(active));
   localStorage.setItem('smm_imported_svcs',JSON.stringify(active));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
+  // Derive and persist the current category display order so the customer
+  // panel 'All' view shows categories in the same order the admin arranged them.
+  var panelCatOrder=[];var _catSeen={};
+  (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!_catSeen[c]){_catSeen[c]=true;panelCatOrder.push(c);}});
+  try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(panelCatOrder));}catch(e){}
   // Also write + push the compressed format (smm_svc), since that's what
   // the user panel and the server sync actually read from.
   var compressed=(svcs||[]).map(function(s){
@@ -3633,7 +3642,7 @@ function syncServicesToPanel(svcs){
   });
   try{localStorage.setItem('smm_svc',JSON.stringify(compressed));}catch(e){}
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})})
+    body:JSON.stringify({smm_svc:compressed,smm_panel_cat_order:panelCatOrder,smm_ts:Date.now()})})
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&(d.error||d.diag)){
