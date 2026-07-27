@@ -1709,18 +1709,23 @@ function rebuildServiceMaps(){
   orderCats={};
   var _adminSvcs=getPanelServices();
   window.DEBUG_SERVICES={totalLoaded:(_adminSvcs||[]).length,first5:(_adminSvcs||[]).slice(0,5).map(s=>({name:s.name,cat:s.category,plat:s.platform||'?'}))};
-  // Build provider order from smm_providers (server list of all providers)
+  // Build provider order from smm_providers
   var _provOrder=[];
   try{
     var _provs=JSON.parse(localStorage.getItem('smm_providers')||'[]');
     _provOrder=_provs.map(function(p){return p.id;});
   }catch(e){}
-  // Sort by provider position: services from provider[0] first, provider[1] second, etc.
-  // This ensures categories appear in the same order as the provider list
+  // Sort: first by provider position (admin's chosen provider ordering), then
+  // by svcId within each provider (the provider's own service numbering).
+  // svcId sort is the key fix: smm_svc is stored platform-sorted from the
+  // admin UI, so without this re-sort the 'All' view groups all Instagram
+  // categories before TikTok before Facebook, instead of interleaving them
+  // the way they appear in the provider's list (e.g. IG, TK, FB, IG, TK…).
   _adminSvcs=(_adminSvcs||[]).slice().sort(function(a,b){
     var aPos=_provOrder.indexOf(a.provId)>=0?_provOrder.indexOf(a.provId):9999;
     var bPos=_provOrder.indexOf(b.provId)>=0?_provOrder.indexOf(b.provId):9999;
-    return aPos-bPos;
+    if(aPos!==bPos) return aPos-bPos;
+    return (parseInt(a.svcId)||parseInt(a.id)||0)-(parseInt(b.svcId)||parseInt(b.id)||0);
   });
   window.DEBUG_SERVICES.providersFound=Object.keys(new Set(_adminSvcs.map(s=>s.provId))).length;
 
