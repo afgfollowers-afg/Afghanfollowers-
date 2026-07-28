@@ -291,8 +291,22 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sg">
         <div class="sc c1" style="cursor:pointer" onclick="go('users')"><div class="sc-ico">👥</div><div class="sc-val" id="sc-users">0</div><div class="sc-lbl">Total Users</div><div class="sc-tr" id="sc-users-tr"></div></div>
         <div class="sc c2" style="cursor:pointer" onclick="go('orders')"><div class="sc-ico">📦</div><div class="sc-val" id="sc-orders">0</div><div class="sc-lbl">Total Orders</div><div class="sc-tr" id="sc-orders-tr"></div></div>
-        <div class="sc c3" style="cursor:pointer" onclick="go('payments')" title="Deposits − Admin Credits − Provider Costs"><div class="sc-ico">💰</div><div class="sc-val" id="sc-revenue">$0.00</div><div class="sc-lbl">Net Profit</div><div class="sc-tr" id="sc-revenue-tr"></div></div>
+        <div class="sc c3" style="cursor:pointer" onclick="go('payments')"><div class="sc-ico">💰</div><div class="sc-val" id="sc-revenue">$0.00</div><div class="sc-lbl">Net Profit</div><div class="sc-tr" id="sc-revenue-tr"></div></div>
         <div class="sc c4" style="cursor:pointer" onclick="go('tickets')"><div class="sc-ico">🎫</div><div class="sc-val" id="sc-tickets">0</div><div class="sc-lbl">Open Tickets</div><div class="sc-tr" id="sc-tickets-tr" style="color:var(--rd)"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <div style="font-size:20px">⬇️</div>
+          <div><div style="font-size:18px;font-weight:800;color:#4ade80" id="sc-deposits">$0.00</div><div style="font-size:11px;color:var(--mt)">واریزی مشتریان</div></div>
+        </div>
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <div style="font-size:20px">🎁</div>
+          <div><div style="font-size:18px;font-weight:800;color:#fb923c" id="sc-admincredit">−$0.00</div><div style="font-size:11px;color:var(--mt)">کریدیت ادمین</div></div>
+        </div>
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <div style="font-size:20px">🏭</div>
+          <div><div style="font-size:18px;font-weight:800;color:#f87171" id="sc-provcost">−$0.00</div><div style="font-size:11px;color:var(--mt)">هزینه پروایدر</div></div>
+        </div>
       </div>
       <div class="sec">
         <div class="sec-h"><div class="sec-t">📊 Revenue — Last 7 Days</div><div style="display:flex;gap:6px"><button class="btn btn-g btn-sm">7D</button><button class="btn btn-g btn-sm">30D</button></div></div>
@@ -2042,12 +2056,13 @@ function initDash(){
   var elU=document.getElementById('sc-users'); if(elU) elU.textContent=totalUsers.toLocaleString();
   var elO=document.getElementById('sc-orders'); if(elO) elO.textContent=totalOrders.toLocaleString();
   var elR=document.getElementById('sc-revenue');
-  if(elR){
-    elR.textContent='$'+netProfit.toFixed(2);
-    elR.title='Deposits: $'+totalRealDeposits.toFixed(2)
-      +' − Admin credits: $'+totalAdminCredits.toFixed(2)
-      +' − Provider costs: $'+totalProviderCosts.toFixed(2);
-  }
+  if(elR) elR.textContent='$'+netProfit.toFixed(2);
+  var elDep=document.getElementById('sc-deposits');
+  if(elDep) elDep.textContent='$'+totalRealDeposits.toFixed(2);
+  var elAC=document.getElementById('sc-admincredit');
+  if(elAC) elAC.textContent='−$'+totalAdminCredits.toFixed(2);
+  var elPC=document.getElementById('sc-provcost');
+  if(elPC) elPC.textContent='−$'+totalProviderCosts.toFixed(2);
   var elT=document.getElementById('sc-tickets'); if(elT) elT.textContent=openTickets.toLocaleString();
 
   // Chart — orders per day (last 7 days)
