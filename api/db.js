@@ -418,7 +418,7 @@ module.exports = async (req, res) => {
         const gz = gzipToBase64(body.smm_svc);
         const w = await writeBin(SVC_BIN_ID, { svc_gz: gz });
         if (!w.ok) return res.status(200).json({ diag: 'PUT_SVC_FAILED', jsonbinStatus: w.status, jsonbinBodyRaw: w.raw, compressedSizeKB: Math.round(gz.length / 1024) });
-        const onlyServices = !body.smm_users && !body.smm_orders && !body.smm_tickets;
+        const onlyServices = !body.smm_users && !body.smm_orders && !body.smm_tickets && !body.smm_panel_cat_order;
         if (onlyServices) {
           return res.status(200).json({ ok: true, services: body.smm_svc.length, compressedSizeKB: Math.round(gz.length / 1024) });
         }
@@ -787,6 +787,9 @@ module.exports = async (req, res) => {
       }
       if (body.smm_categories && Array.isArray(body.smm_categories)) {
         current.smm_categories = body.smm_categories;
+      }
+      if (body.smm_panel_cat_order && Array.isArray(body.smm_panel_cat_order)) {
+        current.smm_panel_cat_order = body.smm_panel_cat_order;
       }
       if (body.smm_modules && typeof body.smm_modules === 'object') {
         current.smm_modules = body.smm_modules;

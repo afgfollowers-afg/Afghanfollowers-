@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#7c5cfc">
 <link rel="icon" href="/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AF Panel">
@@ -1675,6 +1676,29 @@ function getPanelServices(){
 }
 
 // ── PLATFORM DETECTION ──
+// Round-robin interleave categories across platforms so "All" tab shows
+// IG cat → TK cat → FB cat → IG cat → TK cat … instead of all-IG then all-TK.
+// Uses catSvcsMap (built before this is called) to find each category's
+// platform from its actual services — more reliable than detectPlatform() on
+// the category name alone, which fails for Farsi names or generic titles.
+function interleaveByPlatform(cats){
+  var platCats={};
+  var platOrder=[];
+  cats.forEach(function(cat){
+    var svcs=catSvcsMap[cat];
+    var plat=(svcs&&svcs.length)?svcs[0].platKey:(detectPlatform(cat)||'other');
+    if(!platCats[plat]){platCats[plat]=[];platOrder.push(plat);}
+    platCats[plat].push(cat);
+  });
+  var result=[];
+  var maxLen=0;
+  platOrder.forEach(function(p){if(platCats[p].length>maxLen)maxLen=platCats[p].length;});
+  for(var i=0;i<maxLen;i++){
+    platOrder.forEach(function(p){if(i<platCats[p].length)result.push(platCats[p][i]);});
+  }
+  return result;
+}
+
 function detectPlatform(str){
   if(!str) return 'other';
   var s=str.toLowerCase();
@@ -1707,18 +1731,36 @@ function rebuildServiceMaps(){
   catSvcsMap={};
   orderCats={};
   var _adminSvcs=getPanelServices();
-  // DO NOT SORT — preserve smm_svc array order, which is already correct from admin panel
+  window.DEBUG_SERVICES={totalLoaded:(_adminSvcs||[]).length,first5:(_adminSvcs||[]).slice(0,5).map(s=>({name:s.name,cat:s.category,plat:s.platform||'?'}))};
+
+  // Build platSvcs and catSvcsMap in one pass (storage order, no re-sort).
   if(_adminSvcs&&_adminSvcs.length){
     _adminSvcs.forEach(function(s){
       var platKey=detectPlatform(s.name)
         ||detectPlatform(s.category)
         ||detectPlatform(s.platform)
         ||'other';
+      var cat=s.category||platKey;
+      // platSvcs (per-platform buckets for platform-tab views)
       if(!platSvcs[platKey]) platSvcs[platKey]=[];
       platSvcs[platKey].push({
         v:String(s.svcId||s.id),
         name:s.name,
-        catName:s.category||platKey,
+        catName:cat,
+        platKey:platKey,
+        p:parseFloat(s.myRate||s.price||0),
+        min:parseInt(s.min||100),
+        max:parseInt(s.max||50000),
+        time:s.time||'1-24h',
+        provName:s.provName||'',
+        svcId:s.svcId
+      });
+      // catSvcsMap (category → services lookup)
+      if(!catSvcsMap[cat]) catSvcsMap[cat]=[];
+      catSvcsMap[cat].push({
+        v:String(s.svcId||s.id),
+        name:s.name,
+        catName:cat,
         platKey:platKey,
         p:parseFloat(s.myRate||s.price||0),
         min:parseInt(s.min||100),
@@ -1730,57 +1772,61 @@ function rebuildServiceMaps(){
     });
   }
 
-// Build orderCats from real services — preserve order by using array instead of object
-  var allCatsOrdered=[]; // All categories in insertion order across all platforms
-  var allCatsSeen={};
+  // Build per-platform category lists from platSvcs
   Object.keys(platSvcs).forEach(function(plat){
-    var catsArr=[];
-    var catsSeen={};
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!catsSeen[cat]){
-        catsArr.push(cat);
-        catsSeen[cat]=true;
-        // Also track in allCatsOrdered for 'all' view
-        if(!allCatsSeen[cat]){
-          allCatsOrdered.push(cat);
-          allCatsSeen[cat]=true;
-        }
+    var cats={};
+    platSvcs[plat].forEach(function(s){ var cat=s.catName||plat; if(!cats[cat]) cats[cat]=true; });
+    orderCats[plat]=Object.keys(cats);
+  });
+
+  // Build the 'all' category list using this priority:
+  // 1. smm_panel_cat_order from server — the admin's EXPLICIT arrangement set
+  //    via moveCatOrder() drag-and-drop.  Only use entries that actually have
+  //    services in catSvcsMap; append any remaining categories at the end.
+  // 2. First-occurrence from smm_svc storage order — fallback when the server
+  //    has not yet sent a panel_cat_order (fresh install, old data, etc.).
+  var allCatsInOrder=[];
+  var allCatsSeen={};
+  var _panelOrder=[];
+  try{_panelOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
+
+  if(_panelOrder&&_panelOrder.length){
+    // Use admin-defined order, filtered to categories that actually exist
+    _panelOrder.forEach(function(c){
+      if(catSvcsMap[c]&&!allCatsSeen[c]){
+        allCatsInOrder.push(c);
+        allCatsSeen[c]=true;
       }
     });
-    orderCats[plat]=catsArr;
-  });
-  orderCats.all=allCatsOrdered;
-  // Apply admin-defined category order (smm_categories) if available
-  var _savedCatOrder=[];
-  try{_savedCatOrder=JSON.parse(localStorage.getItem('smm_categories')||'[]');}catch(e){}
-  if(_savedCatOrder.length){
-    Object.keys(orderCats).forEach(function(plat){
-      orderCats[plat].sort(function(a,b){
-        var ai=_savedCatOrder.indexOf(a); var bi=_savedCatOrder.indexOf(b);
-        if(ai<0)ai=9999; if(bi<0)bi=9999;
-        return ai-bi;
+    // Append any categories from smm_svc that admin order doesn't mention
+    // (e.g. newly imported services since the last moveCatOrder)
+    if(_adminSvcs&&_adminSvcs.length){
+      _adminSvcs.forEach(function(s){
+        var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+        var cat=s.category||platKey;
+        if(cat&&!allCatsSeen[cat]){allCatsInOrder.push(cat);allCatsSeen[cat]=true;}
       });
-    });
+    }
+  } else {
+    // Fallback: first-occurrence from smm_svc (mirrors admin's rSvcs() algorithm)
+    if(_adminSvcs&&_adminSvcs.length){
+      _adminSvcs.forEach(function(s){
+        var platKey=detectPlatform(s.name)||detectPlatform(s.category)||detectPlatform(s.platform)||'other';
+        var cat=s.category||platKey;
+        if(cat&&!allCatsSeen[cat]){allCatsInOrder.push(cat);allCatsSeen[cat]=true;}
+      });
+    }
   }
+
+  orderCats.all=interleaveByPlatform(allCatsInOrder);
   if(!Object.keys(orderCats).length){
     orderCats.general=['No services — Add in Admin → Services'];
   }
+  window.DEBUG_SERVICES.platSvcsKeys=Object.keys(platSvcs);
+  window.DEBUG_SERVICES.orderCats=orderCats;
+  window.DEBUG_SERVICES.allCatsInMap=Object.keys(catSvcsMap);
+  window.DEBUG_SERVICES.allCatsCount=Object.keys(catSvcsMap).length;
 
-  // Map: category name → services list
-  Object.keys(platSvcs).forEach(function(plat){
-    platSvcs[plat].forEach(function(s){
-      var cat=s.catName||plat;
-      if(!catSvcsMap[cat]) catSvcsMap[cat]=[];
-      catSvcsMap[cat].push(s);
-    });
-  });
-
-  // Flat list used by the Services (browse/search) page — was previously a
-  // top-level `const` computed once at script-parse time, before this
-  // function had ever run, so it permanently captured an empty platSvcs and
-  // the Services tab always showed "No services found" no matter what the
-  // admin configured. Recomputing it here keeps it in sync on every rebuild.
   allSvcs=Object.entries(platSvcs).flatMap(([plat,list])=>list.map(s=>Object.assign({},s,{plat})));
 } // end rebuildServiceMaps
 
@@ -2120,12 +2166,12 @@ function pickPlatGrid(el,plat){
   S.selPlat=plat;
   _selCatIdx=0;
   S.selSvcIdx=0;
-  _catOpen=false;
-  setCatOpen(false);
   // Hide service form until category selected
   var form=document.getElementById('order-form-card');
   if(form) form.style.display='none';
   renderCategoryList();
+  // "All" button: open the category list so all categories are immediately visible
+  setCatOpen(plat==='all');
 }
 
 // single source of truth for open/close
@@ -2178,12 +2224,14 @@ var _platSvgMap={
 
 function renderCategoryList(){
   var q=(document.getElementById('order-search').value||'').toLowerCase();
-  var plat=S.selPlat||'all';
+  var plat=S.selPlat||Object.keys(platSvcs)[0]||'other';
 
   // Get categories for selected platform
   var cats;
   if(plat==='all'){
-    cats=orderCats.all||Object.keys(catSvcsMap);
+    // Use allCatsInOrder if populated, otherwise fall back to every key in catSvcsMap.
+    // Must check .length because [] is truthy so the || shortcut never fires on an empty array.
+    cats=(orderCats.all&&orderCats.all.length)?orderCats.all:Object.keys(catSvcsMap);
   } else {
     cats=orderCats[plat]||[];
   }
@@ -4268,7 +4316,7 @@ function renderBrowse(){
 function goOrder(plat,svcId){
   navTo('new-order');
   S.selPlat=plat;
-  var cats=(plat==='all')?Object.keys(catSvcsMap):(orderCats[plat]||[]);
+  var cats=plat==='all'?Object.keys(catSvcsMap):(orderCats[plat]||[]);
   var targetCatIdx=0;
   if(svcId!==undefined){
     for(var i=0;i<cats.length;i++){
@@ -4428,12 +4476,14 @@ function pullFromServerOnLoad(){
         svcChanged=true;
       }
       if(d.smm_svc&&Array.isArray(d.smm_svc)&&d.smm_svc.length){
-        var localSvc=localStorage.getItem('smm_svc')||'[]';
-        var newSvc=JSON.stringify(d.smm_svc);
-        if(newSvc!==localSvc){
-          localStorage.setItem('smm_svc',newSvc);
-          svcChanged=true;
-        }
+        localStorage.setItem('smm_svc',JSON.stringify(d.smm_svc));
+        svcChanged=true;
+      }
+      // smm_panel_cat_order is the admin's explicit category display order — always
+      // store it when the server sends it so rebuildServiceMaps() can use it.
+      if(d.smm_panel_cat_order&&Array.isArray(d.smm_panel_cat_order)&&d.smm_panel_cat_order.length){
+        localStorage.setItem('smm_panel_cat_order',JSON.stringify(d.smm_panel_cat_order));
+        svcChanged=true;
       }
       if(svcChanged){
         rebuildServiceMaps();

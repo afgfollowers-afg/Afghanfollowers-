@@ -90,6 +90,17 @@ module.exports = async (req, res) => {
   const force = !!(req.query && (req.query.force === '1' || req.query.force === 'true')
     && DB_SERVICE_KEY && req.headers['x-db-key'] === DB_SERVICE_KEY);
 
+  // Email jobs run FIRST — the order-sync, content, and auto-post jobs below
+  // can take many seconds (provider API calls per order, Groq, Telegram/FB
+  // uploads), and Vercel's 10-second Hobby-plan function timeout silently
+  // kills any work that hasn't started yet. Emails are the most business-
+  // critical output of this cron and must not be starved by slow I/O below.
+  let bulkEmailResult = null;
+  try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
+
+  let reengagementResult = null;
+  try { reengagementResult = await runReengagementEmailJob(); } catch (e) { reengagementResult = { ok: false, error: e.message }; }
+
   let syncResult;
   try {
     syncResult = await runOrderSyncJob(force);
@@ -102,12 +113,6 @@ module.exports = async (req, res) => {
 
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
-
-  let bulkEmailResult = null;
-  try { bulkEmailResult = await runBulkEmailCampaignJob(); } catch (e) { bulkEmailResult = { ok: false, error: e.message }; }
-
-  let reengagementResult = null;
-  try { reengagementResult = await runReengagementEmailJob(); } catch (e) { reengagementResult = { ok: false, error: e.message }; }
 
   return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
 };
@@ -604,7 +609,13 @@ async function runEmailCampaignJob(req, res) {
       });
     }
 
-    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed });
+    // Also run the bulk campaign from this 8AM cron — the 3AM cron runs it
+    // too but bulk email is idempotent (smm_last_bulk_campaign_date guard
+    // prevents double-sending on the same day) and the 8AM slot gives emails
+    // a second guaranteed window in case the 3AM function timed out early.
+    const bulkResult = await runBulkEmailCampaignJob().catch(e => ({ ok: false, error: e.message }));
+
+    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
@@ -1110,50 +1121,20 @@ async function runBulkEmailCampaignJob() {
   const statuses = listData.statuses || {};
   let recipients = listData.all.filter(r => statuses[r.status] && !sentLog[r.email]);
 
-  // A one-time send stops producing anything the moment the list runs out —
-  // exactly what left this sending 0 new emails/day after its first pass
-  // (794 sent, list exhausted, nothing left to ever send again), even
-  // though the admin can comfortably send ~190/day and wants it to keep
-  // going. Once every recipient has been emailed this cycle, wait a full
-  // week from whenever that exhaustion was FIRST noticed (not from every
-  // subsequent hit), then start the same list over from the top.
-  const CYCLE_RESET_MS = 7 * 24 * 60 * 60 * 1000;
+  // When the list is exhausted (everyone has been emailed this cycle),
+  // reset immediately so the next cron hit starts a fresh cycle — no
+  // waiting period. The smm_last_bulk_campaign_date guard above already
+  // prevents the same run from double-sending on the same calendar day,
+  // so resetting right now is safe: today's send already happened (or
+  // there's nothing left to send today), and tomorrow's cron will pick
+  // up from the top of the clean list.
   let cycleWasReset = false;
   if (!recipients.length) {
-    const cycleAt = db.smm_bulk_campaign_cycle_at || 0;
-    const now = Date.now();
-    if (!cycleAt) {
-      // First time this list has ever been fully exhausted — start the
-      // one-week countdown from now rather than resetting immediately, so
-      // a list that finishes sending today doesn't also get double-emailed
-      // today.
-      await fetchInternal(API_BASE + '/api/db', {
-        method: 'POST', headers: dbHeaders(),
-        body: JSON.stringify({ smm_bulk_campaign_cycle_at: now, smm_ts: Date.now() })
-      });
-      return { ok: true, sent: 0, reason: 'Every recipient has been emailed — the list will restart in 7 days' };
-    }
-    if (now - cycleAt < CYCLE_RESET_MS) {
-      const daysLeft = Math.ceil((CYCLE_RESET_MS - (now - cycleAt)) / 86400000);
-      return { ok: true, sent: 0, reason: 'Every recipient has been emailed — the list restarts in ' + daysLeft + ' day(s)' };
-    }
-    // A full week has passed since the list was last exhausted — start it
-    // over from the top for everyone still on an eligible status. The
-    // final write below only ever MERGES smm_bulk_campaign_sent (see
-    // db.js — two independent writers, the admin's manual "Send Now" and
-    // this cron, must never erase each other's progress), so sending {}
-    // there would silently leave all 794 old entries in place server-side
-    // and this reset would never actually take effect. The explicit
-    // smm_bulk_campaign_sent_clear flag is the one thing that truly wipes
-    // it; do that now, then let the merge below apply just today's batch
-    // on top of the now-genuinely-empty log.
     await fetchInternal(API_BASE + '/api/db', {
       method: 'POST', headers: dbHeaders(),
-      body: JSON.stringify({ smm_bulk_campaign_sent_clear: true, smm_ts: Date.now() })
+      body: JSON.stringify({ smm_bulk_campaign_sent_clear: true, smm_bulk_campaign_cycle_at: 0, smm_ts: Date.now() })
     });
-    sentLog = {};
-    recipients = listData.all.filter(r => statuses[r.status]);
-    cycleWasReset = true;
+    return { ok: true, sent: 0, cycleRestarted: true, reason: 'All recipients emailed — cycle reset, sending resumes tomorrow' };
   }
 
   const limit = cfg.dailyLimit > 0 ? Math.max(cfg.dailyLimit, 100) : 200;
@@ -1208,36 +1189,57 @@ async function runBulkEmailCampaignJob() {
     } catch (e) { /* best-effort — must not block the real send below */ }
   }
 
-  let sent = 0, failed = 0;
-  for (const r of batch) {
-    const personalSubject = subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز');
-    const personalHtml = fullHtml
-      .replace(/\{\{name\}\}/g, r.name || 'دوست عزیز')
-      .replace(/\{\{email\}\}/g, r.email)
-      .replace(/\{\{site_name\}\}/g, siteName)
-      .replace(/\{\{panel_link\}\}/g, panelLink);
-    const payload = {
-      from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+  // Build all personalized payloads first, then send in chunks via the Resend
+  // batch endpoint (/emails/batch, up to 100 per call) so 200 emails cost 2
+  // HTTP calls instead of 200 sequential ones — prevents Vercel's 60s timeout
+  // from killing the job before smm_last_bulk_campaign_date ever gets saved.
+  const fromField = cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from;
+  const ts = new Date().toISOString();
+  const payloads = batch.map(r => {
+    const p = {
+      from: fromField,
       to: [r.email],
-      subject: personalSubject,
-      html: personalHtml
+      subject: subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز'),
+      html: fullHtml
+        .replace(/\{\{name\}\}/g, r.name || 'دوست عزیز')
+        .replace(/\{\{email\}\}/g, r.email)
+        .replace(/\{\{site_name\}\}/g, siteName)
+        .replace(/\{\{panel_link\}\}/g, panelLink)
     };
-    if (cfg.replyTo) payload.reply_to = cfg.replyTo;
-    const result = await sendViaResend(payload);
-    if (result.ok) { sentLog[r.email] = new Date().toISOString(); sent++; }
-    else failed++;
+    if (cfg.replyTo) p.reply_to = cfg.replyTo;
+    return p;
+  });
+
+  let sent = 0, failed = 0;
+  const CHUNK = 100; // Resend batch limit
+  for (let i = 0; i < payloads.length; i += CHUNK) {
+    const chunk = payloads.slice(i, i + CHUNK);
+    try {
+      const resp = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk)
+      });
+      const data = await resp.json();
+      // Resend batch returns { data: [{ id }, ...] } — one entry per email
+      const results = (data && Array.isArray(data.data)) ? data.data : [];
+      chunk.forEach((p, idx) => {
+        const r = batch[i + idx];
+        if (results[idx] && results[idx].id) { sentLog[r.email] = ts; sent++; }
+        else failed++;
+      });
+    } catch (e) {
+      // Count the whole chunk as failed but don't abort — the DB write below
+      // still saves whatever was tracked before this chunk errored.
+      failed += chunk.length;
+    }
   }
 
-  const writeBody = { smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() };
-  // Clear the exhaustion marker on a cycle we just restarted, so the NEXT
-  // time this list runs out, it starts its own fresh 7-day countdown
-  // instead of reusing this one's (already-elapsed) timestamp.
-  if (cycleWasReset) writeBody.smm_bulk_campaign_cycle_at = 0;
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
-    body: JSON.stringify(writeBody)
+    body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })
   });
 
-  return { ok: true, sent, failed, remaining: recipients.length - batch.length, cycleRestarted: cycleWasReset, topic, subject };
+  return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
 }

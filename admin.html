@@ -386,7 +386,7 @@ textarea.fi{resize:vertical;min-height:75px;}
           <button class="btn btn-p btn-sm" onclick="om('m-create-cat')">📁 Category</button>
           <button class="btn btn-p btn-sm" onclick="om('m-add-svc')">➕ Add</button>
           <button class="btn btn-g btn-sm" onclick="showQuickImport()">⚡ Import</button>
-          <button class="btn btn-s btn-sm" onclick="syncServicesToPanel(getServices())" style="background:var(--gr);color:#000;font-weight:800">🔄 Sync to Panel</button>
+          <button class="btn btn-s btn-sm" onclick="syncServicesToPanel(getServices(),true)" style="background:var(--gr);color:#000;font-weight:800">🔄 Sync to Panel</button>
           <div style="position:relative">
             <button class="btn btn-g btn-sm" onclick="toggleActionsMenu()">Actions ▾</button>
             <div id="actions-menu" style="display:none;position:absolute;left:0;top:calc(100%+4px);background:var(--s1);border:1px solid var(--bd);border-radius:10px;min-width:180px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden">
@@ -2641,7 +2641,11 @@ function moveCatOrder(catName,dir){
   catOrder.forEach(function(cat){
     svcs.filter(function(s){return(s.category||'Uncategorized')===cat;}).forEach(function(s){sorted.push(s);});
   });
-  saveServices(sorted);syncServicesToPanel(sorted);rSvcs();
+  // Persist category display order so the customer panel uses the same order
+  try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(catOrder));}catch(e){}
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_panel_cat_order:catOrder,smm_ts:Date.now()})}).catch(function(){});
+  saveServices(sorted);syncServicesToPanel(sorted,true);rSvcs();
   toast('Category "'+catName+'" moved '+dir,'s');
 }
 
@@ -3614,11 +3618,33 @@ function applyPriceEdit(){
 }
 
 // ── SYNC SERVICES TO USER PANEL ──
-function syncServicesToPanel(svcs){
+// forceRebuild=true: derive category order fresh from current svcs (used by
+// the explicit "🔄 Sync to Panel" button so admin's current view is what
+// customers see). forceRebuild=false (default): preserve the existing
+// smm_panel_cat_order that moveCatOrder() set and only append new categories
+// — imports must not silently overwrite an interleaved order the admin
+// carefully arranged.
+function syncServicesToPanel(svcs,forceRebuild){
   var active=(svcs||[]).filter(function(s){return s.active!==false;});
   localStorage.setItem('smm_panel_services',JSON.stringify(active));
   localStorage.setItem('smm_imported_svcs',JSON.stringify(active));
   localStorage.setItem('smm_admin_updated',Date.now().toString());
+  var panelCatOrder;
+  if(forceRebuild){
+    // Rebuild from scratch — first-occurrence in current svcs = what admin sees now
+    panelCatOrder=[];var _cs={};
+    (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!_cs[c]){_cs[c]=true;panelCatOrder.push(c);}});
+  } else {
+    // Preserve the existing admin-defined order and only append new categories
+    var existingOrder=[];
+    try{existingOrder=JSON.parse(localStorage.getItem('smm_panel_cat_order')||'[]');}catch(e){}
+    var svcsHave={};
+    (svcs||[]).forEach(function(s){svcsHave[s.category||'Uncategorized']=true;});
+    panelCatOrder=existingOrder.filter(function(c){return svcsHave[c];});
+    var seen={};panelCatOrder.forEach(function(c){seen[c]=true;});
+    (svcs||[]).forEach(function(s){var c=s.category||'Uncategorized';if(!seen[c]){seen[c]=true;panelCatOrder.push(c);}});
+  }
+  try{localStorage.setItem('smm_panel_cat_order',JSON.stringify(panelCatOrder));}catch(e){}
   // Also write + push the compressed format (smm_svc), since that's what
   // the user panel and the server sync actually read from.
   var compressed=(svcs||[]).map(function(s){
@@ -3633,7 +3659,7 @@ function syncServicesToPanel(svcs){
   });
   try{localStorage.setItem('smm_svc',JSON.stringify(compressed));}catch(e){}
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_svc:compressed,smm_ts:Date.now()})})
+    body:JSON.stringify({smm_svc:compressed,smm_panel_cat_order:panelCatOrder,smm_ts:Date.now()})})
     .then(function(r){return r.json();})
     .then(function(d){
       if(d&&(d.error||d.diag)){
@@ -6619,6 +6645,24 @@ function eaPullBulkStateFromServer(){
       eaRenderBulkStatusChips(byStatus);
       eaAddBulkLog('📋 Loaded '+_eaBulkAll.length+' recipients uploaded from another device','i');
     }
+    // Show cron status so admin knows why emails may not be sending
+    var today=new Date().toISOString().slice(0,10);
+    if(d&&d.smm_last_bulk_campaign_date){
+      if(d.smm_last_bulk_campaign_date===today){
+        eaAddBulkLog('✅ کرون امروز ('+today+') اجرا شد','s');
+      } else {
+        eaAddBulkLog('⚠️ آخرین اجرای کرون: '+d.smm_last_bulk_campaign_date,'w');
+      }
+    } else {
+      eaAddBulkLog('ℹ️ کرون هنوز در این چرخه اجرا نشده','i');
+    }
+    var cycleAt=d&&d.smm_bulk_campaign_cycle_at;
+    if(cycleAt){
+      var daysLeft=Math.ceil((7*24*3600*1000-(Date.now()-cycleAt))/86400000);
+      if(daysLeft>0){
+        eaAddBulkLog('⏳ همه گیرندگان ایمیل گرفتند — چرخه جدید در '+daysLeft+' روز دیگر (برای ریست فوری: Reset Sent Log)','w');
+      }
+    }
     eaUpdateBulkSummary();
   }).catch(function(){});
 }
@@ -6637,17 +6681,18 @@ function eaMarkBulkSent(email){
     body:JSON.stringify({smm_bulk_campaign_sent:delta,smm_ts:Date.now()})}).catch(function(){});
 }
 function eaResetBulkSentLog(){
-  if(!confirm('Clear the "already sent" record for this one-time campaign? This lets you re-send to everyone.')) return;
+  if(!confirm('پاک کردن لاگ ارسال و شروع مجدد کمپین از ابتدا؟')) return;
   localStorage.removeItem(EA_BULK_SENT_KEY);
-  // The server merges smm_bulk_campaign_sent (never overwrites, so the
-  // daily cron's progress can't be erased by a stale browser) — a plain
-  // push here would be a no-op against an already-populated log, silently
-  // undoing this reset the next time the server is pulled. This explicit
-  // clear flag is the one exception, only reached via this confirm()'d
-  // admin action.
+  // Full reset: clear the sent log, the 7-day cycle cooldown timer, and
+  // the "already ran today" date so the cron fires on its very next hit.
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_bulk_campaign_sent_clear:true,smm_ts:Date.now()})}).catch(function(){});
-  eaAddBulkLog('♻️ "Already sent" log cleared','w');
+    body:JSON.stringify({
+      smm_bulk_campaign_sent_clear:true,
+      smm_bulk_campaign_cycle_at:0,
+      smm_last_bulk_campaign_date:'',
+      smm_ts:Date.now()
+    })}).catch(function(){});
+  eaAddBulkLog('♻️ لاگ ارسال و تایمر cooldown پاک شد — کمپین فردا از ابتدا شروع می‌کند','w');
   eaUpdateBulkSummary();
 }
 
