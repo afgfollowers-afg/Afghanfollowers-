@@ -4048,11 +4048,22 @@ function openPayPalModal(amt, clientId, fee){
     showToast('Please log out and log back in before making a payment.','e');
     return;
   }
-  // Read minimum from admin settings
+  // Read minimum and fee from admin settings
   var cfg=getPmCfg('paypal');
   var minPay=parseFloat(cfg.min)||0;
   if(minPay>0&&amt<minPay){
-    showToast('Minimum payment is $'+minPay,'e');return;
+    showToast('Minimum payment is $'+minPay.toFixed(2),'e');return;
+  }
+  var feeFixed=parseFloat(cfg.feeFixed)||0;
+  var feeAmt=parseFloat((amt*((fee||0)/100)+feeFixed).toFixed(2));
+  var receive=parseFloat((amt-feeAmt).toFixed(2));
+  // Guard before PayPal SDK loads — if the amount doesn't cover the fixed fee
+  // the server will reject verification anyway, but by then PayPal has already
+  // captured the money and left the customer in a bad state. Block it here.
+  if(receive<=0){
+    var minNeeded=feeFixed>0?'$'+(feeFixed+(fee>0?parseFloat((feeFixed*fee/100).toFixed(2)):0)).toFixed(2):null;
+    showToast('Amount too small to cover the $'+feeFixed.toFixed(2)+' fixed fee'+(fee>0?' + '+fee+'%':'')+(minNeeded?'. Try at least '+minNeeded:''),'e');
+    return;
   }
   _ppCheckoutInProgress=true;
 
@@ -4060,9 +4071,6 @@ function openPayPalModal(amt, clientId, fee){
   modal.style.display='flex';
   document.getElementById('pp-modal-amt').textContent='$'+amt.toFixed(2)+' USD';
 
-  var feeFixed=parseFloat(cfg.feeFixed)||0;
-  var feeAmt=parseFloat((amt*((fee||0)/100)+feeFixed).toFixed(2));
-  var receive=parseFloat((amt-feeAmt).toFixed(2));
   var feeInfo=feeAmt>0?'<div style="font-size:12px;color:#666;margin-top:8px;text-align:center">'+(fee>0?fee+'% ':'')+(feeFixed>0?'+ $'+feeFixed.toFixed(2)+' ':'')+'fee applied — you receive $'+receive.toFixed(2)+'</div>':'';
 
   document.getElementById('pp-modal-body').innerHTML=
