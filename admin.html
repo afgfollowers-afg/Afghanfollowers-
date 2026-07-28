@@ -2052,8 +2052,10 @@ function initDash(){
     });
   });
   var totalProviderCosts=realOrders.reduce(function(sum,o){
-    var pRate=provRateMap[String(o.svcId||'')]||0;
-    return sum+(pRate*(parseInt(o.qty)||0)/1000);
+    // Use the provCost stamped at order-placement time when available (accurate).
+    // Fall back to current-rate estimate for orders created before this field existed.
+    var c=o.provCost!==undefined?o.provCost:((provRateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000);
+    return sum+c;
   },0);
   var netProfit=(totalRealDeposits+totalAdminCredits)-totalProviderCosts;
 
@@ -2091,7 +2093,7 @@ function initDash(){
     });
     realOrders.forEach(function(o){
       if(!o.date||o.date.slice(0,10)!==ds) return;
-      dayProvCosts+=(provRateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000;
+      dayProvCosts+=o.provCost!==undefined?o.provCost:((provRateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000);
     });
     days7.push(Math.max(0,(dayDeposits+dayAdminCredits)-dayProvCosts));
     lbs.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]);
