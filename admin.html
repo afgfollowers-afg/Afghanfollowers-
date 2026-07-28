@@ -127,6 +127,11 @@ textarea.fi{resize:vertical;min-height:75px;}
 .md-b{padding:18px;}
 .md-f{padding:13px 18px;border-top:1px solid var(--bd);display:flex;gap:8px;justify-content:flex-end;}
 
+/* ── WALLET TABS ── */
+.wlt-tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:14px;gap:0;}
+.wlt-tab{padding:9px 18px;cursor:pointer;font-size:13px;color:var(--mt);background:transparent;border:none;border-bottom:2px solid transparent;transition:all .15s;font-family:inherit;}
+.wlt-tab:hover{color:var(--tx);}
+.wlt-tab.on{color:var(--tx);font-weight:600;border-bottom-color:var(--acc);}
 /* ── SETTINGS ── */
 .set-wrap{display:flex;background:var(--s1);border:1px solid var(--bd);border-radius:12px;}
 .set-menu{width:175px;flex-shrink:0;border-right:1px solid var(--bd);padding:6px 0;}
@@ -826,6 +831,11 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="page" id="pg-wallets">
       <div class="sec">
         <div class="sec-h"><div class="sec-t">💼 User Wallets</div><button class="btn btn-p btn-sm" onclick="om('m-add-bal')">+ Add Balance</button></div>
+        <div class="wlt-tabs">
+          <button class="wlt-tab on" onclick="switchWltTab('all',this)">همه کاربران</button>
+          <button class="wlt-tab" onclick="switchWltTab('credited',this)">🎁 کریدیت ادمین</button>
+          <button class="wlt-tab" onclick="switchWltTab('negative',this)">🔴 موجودی منفی</button>
+        </div>
         <div class="tw" id="wallets-tbl"></div>
       </div>
     </div>
@@ -1983,7 +1993,7 @@ function go(pg,el){
   else if(pg==='emailauto') eaInit();
   else if(pg==='invites') rInviteStatus();
   else if(pg==='payments') rPayReqs(getRealPayments());
-  else if(pg==='wallets') rWallets(getRealUsers());
+  else if(pg==='wallets'){_wltTab='all';document.querySelectorAll('.wlt-tab').forEach(function(b,i){b.classList.toggle('on',i===0);});rWallets(getRealUsers());}
   else if(pg==='withdrawals') rWithdrawals(getRealWithdrawals());
   else if(pg==='tickets') rTickets(getRealTickets());
   else if(pg==='alerts') rAlerts(getRealAlerts());
@@ -4760,6 +4770,121 @@ function rWallets(list){
   h+='</tbody></table>';
   document.getElementById('wallets-tbl').innerHTML=h;
 }
+var _wltTab='all';
+function refreshWlts(list){
+  if(_wltTab==='credited') rWalletsCredited(list);
+  else if(_wltTab==='negative') rWalletsNegative(list);
+  else rWallets(list);
+}
+function switchWltTab(tab,el){
+  _wltTab=tab;
+  document.querySelectorAll('.wlt-tab').forEach(function(b){b.classList.remove('on');});
+  el.classList.add('on');
+  var users=getRealUsers();
+  if(tab==='credited') rWalletsCredited(users);
+  else if(tab==='negative') rWalletsNegative(users);
+  else rWallets(users);
+}
+function rWalletsCredited(list){
+  var rows=[];
+  list.forEach(function(u){
+    var total=(u.transactions||[]).reduce(function(s,t){
+      return s+(t.type==='admin_credit'?parseFloat(t.amount||t.credit||0):0);
+    },0);
+    if(total>0) rows.push({u:u,total:total});
+  });
+  rows.sort(function(a,b){return b.total-a.total;});
+  if(!rows.length){
+    document.getElementById('wallets-tbl').innerHTML='<div class="emp"><div class="emp-i">🎁</div><div class="emp-t">هیچ کاربری کریدیت ادمین دریافت نکرده</div></div>';
+    return;
+  }
+  var h='<table><thead><tr><th>کاربر</th><th>ایمیل</th><th>موجودی فعلی</th><th>کل کریدیت ادمین</th><th>تعداد دریافت</th><th>عملیات</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var u=r.u;
+    var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+    var cnt=(u.transactions||[]).filter(function(t){return t.type==='admin_credit';}).length;
+    h+='<tr>';
+    h+='<td style="cursor:pointer" onclick="showWalletHistory('+u.id+')"><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+escHtmlAdmin((u.fname||wName||'U')[0])+'</div><div style="font-size:13px;font-weight:600">'+escHtmlAdmin(wName)+'</div></div></td>';
+    h+='<td style="font-size:12px;color:var(--mt)">'+escHtmlAdmin(u.email)+'</td>';
+    h+='<td><div class="bc">$'+(parseFloat(u.balance)||0).toFixed(2)+'</div></td>';
+    h+='<td><span style="color:#fb923c;font-weight:700">$'+r.total.toFixed(2)+'</span></td>';
+    h+='<td style="text-align:center;color:var(--mt)">'+cnt+'x</td>';
+    h+='<td><div style="display:flex;gap:5px"><button class="btn btn-s btn-sm" onclick="qAdd('+u.id+')">+ Add</button><button class="btn btn-d btn-sm" onclick="qDed('+u.id+')">- Deduct</button></div></td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('wallets-tbl').innerHTML=h;
+}
+function rWalletsNegative(list){
+  var neg=list.filter(function(u){return (parseFloat(u.balance)||0)<0;});
+  neg.sort(function(a,b){return (parseFloat(a.balance)||0)-(parseFloat(b.balance)||0);});
+  if(!neg.length){
+    document.getElementById('wallets-tbl').innerHTML='<div class="emp"><div class="emp-i">✅</div><div class="emp-t">هیچ کاربری موجودی منفی ندارد</div></div>';
+    return;
+  }
+  var sendAllBtn='<div style="margin-bottom:12px"><button class="btn btn-d" onclick="sendAllNegBalanceReminders()">📧 ارسال ایمیل تذکر به همه ('+neg.length+' نفر)</button></div>';
+  var h=sendAllBtn+'<table><thead><tr><th>کاربر</th><th>ایمیل</th><th>موجودی</th><th>ارسال ایمیل</th></tr></thead><tbody>';
+  neg.forEach(function(u){
+    var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email||('User#'+u.id);
+    h+='<tr>';
+    h+='<td style="cursor:pointer" onclick="showWalletHistory('+u.id+')"><div style="display:flex;align-items:center;gap:9px"><div class="uav">'+escHtmlAdmin((u.fname||wName||'U')[0])+'</div><div style="font-size:13px;font-weight:600">'+escHtmlAdmin(wName)+'</div></div></td>';
+    h+='<td style="font-size:12px;color:var(--mt)">'+escHtmlAdmin(u.email)+'</td>';
+    h+='<td><span style="color:#f87171;font-weight:700">$'+(parseFloat(u.balance)||0).toFixed(2)+'</span></td>';
+    h+='<td><button class="btn btn-d btn-sm" onclick="sendNegBalanceReminder(\''+escHtmlAdmin(u.email)+'\',\''+escHtmlAdmin(wName)+'\','+((parseFloat(u.balance)||0).toFixed(2))+')">📧 ارسال تذکر</button></td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('wallets-tbl').innerHTML=h;
+}
+function _negBalanceEmailHtml(name,balance){
+  return '<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px;background:#fff;border-radius:12px;border:1px solid #eee">'
+    +'<h2 style="color:#ef4444;margin-top:0">⚠️ موجودی حساب شما منفی است</h2>'
+    +'<p>کاربر گرامی <strong>'+name+'</strong>،</p>'
+    +'<p>موجودی حساب شما در Afghan Followers به <strong style="color:#ef4444">'+balance+'$</strong> رسیده است.</p>'
+    +'<p>لطفاً برای جلوگیری از تعلیق سفارش‌ها، حساب خود را شارژ نمایید.</p>'
+    +'<a href="https://afghanfollowers.online/smm-panel.html#wallet" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:8px">شارژ حساب</a>'
+    +'<p style="color:#999;font-size:12px;margin-top:24px">Afghan Followers — afghanfollowers.online</p>'
+    +'</div>';
+}
+function sendNegBalanceReminder(email,name,balance){
+  if(!email){toast('ایمیل کاربر موجود نیست','e');return;}
+  var dbKey=(typeof DB_CLIENT_KEY!=='undefined'?DB_CLIENT_KEY:'');
+  toast('در حال ارسال...','s');
+  fetch('/api/send-reset-email',{method:'POST',headers:{'Content-Type':'application/json','x-db-key':dbKey},
+    body:JSON.stringify({to:email,subject:'⚠️ موجودی منفی — لطفاً حساب خود را شارژ کنید',html:_negBalanceEmailHtml(name,balance)})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.ok) toast('ایمیل تذکر به '+email+' ارسال شد','s');
+    else toast('خطا: '+(d.error||'ارسال ناموفق'),'e');
+  }).catch(function(){toast('خطای شبکه','e');});
+}
+function sendAllNegBalanceReminders(){
+  var neg=getRealUsers().filter(function(u){return (parseFloat(u.balance)||0)<0;});
+  if(!neg.length){toast('کاربری با موجودی منفی وجود ندارد','s');return;}
+  if(!confirm('ارسال ایمیل تذکر به '+neg.length+' کاربر با موجودی منفی؟')) return;
+  var dbKey=(typeof DB_CLIENT_KEY!=='undefined'?DB_CLIENT_KEY:'');
+  var batch=neg.filter(function(u){return u.email;}).map(function(u){
+    var wName=((u.fname||'')+' '+(u.lname||'')).trim()||u.email;
+    var bal=(parseFloat(u.balance)||0).toFixed(2);
+    return {to:u.email,subject:'⚠️ موجودی منفی — لطفاً حساب خود را شارژ کنید',html:_negBalanceEmailHtml(wName,bal)};
+  });
+  toast('در حال ارسال به '+batch.length+' نفر...','s');
+  var sent=0,failed=0;
+  var CHUNK=10;
+  function sendChunk(idx){
+    if(idx>=batch.length){
+      toast('ارسال کامل: '+sent+' موفق، '+failed+' ناموفق','s');
+      return;
+    }
+    var chunk=batch.slice(idx,idx+CHUNK);
+    var promises=chunk.map(function(p){
+      return fetch('/api/send-reset-email',{method:'POST',headers:{'Content-Type':'application/json','x-db-key':dbKey},
+        body:JSON.stringify(p)
+      }).then(function(r){return r.json();}).then(function(d){if(d.ok)sent++;else failed++;}).catch(function(){failed++;});
+    });
+    Promise.all(promises).then(function(){sendChunk(idx+CHUNK);});
+  }
+  sendChunk(0);
+}
 // Bypasses this browser's local smm_users cache entirely — a fresh GET
 // straight from the server, so what's shown here can't be lying due to
 // this admin's own stale local copy (the exact class of bug this session
@@ -4906,7 +5031,7 @@ function qAdd(id){
     localStorage.setItem('smm_users',JSON.stringify(realU));
     pushSmmUsersChecked(realU);
     var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
-    rWallets(realU);
+    refreshWlts(realU);
     toast('$'+a+' added to '+dispName.trim(),'s');
   }
 }
@@ -4921,7 +5046,7 @@ function qDed(id){
     u.transactions.unshift({id:Date.now(),type:'admin_debit',amount:a,desc:'Deducted by admin',date:new Date().toISOString(),status:'approved'});
     localStorage.setItem('smm_users',JSON.stringify(realU));
     pushSmmUsersChecked(realU);
-    rWallets(realU);
+    refreshWlts(realU);
     toast('$'+a+' deducted','w');
   } else toast('Insufficient balance','e');
 }
@@ -4948,7 +5073,7 @@ function addBal(){
     localStorage.setItem('smm_admin_updated',Date.now().toString());
     pushSmmUsersChecked(realU);
     var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
-    rWallets(realU);
+    refreshWlts(realU);
     cm('m-add-bal');
     toast('$'+a+' added to '+dispName.trim(),'s');
     tgSend('💰 <b>Balance Added</b>\nUser: '+dispName.trim()+'\nAmount: $'+a+'\nReason: '+reason+'\nNew Balance: $'+u.balance);
@@ -4974,7 +5099,7 @@ function deductBal(){
   localStorage.setItem('smm_admin_updated',Date.now().toString());
   pushSmmUsersChecked(realU);
   var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);
-  rWallets(realU);
+  refreshWlts(realU);
   cm('m-add-bal');
   toast('$'+a+' deducted from '+dispName.trim(),'w');
   tgSend('💸 <b>Balance Deducted</b>\nUser: '+dispName.trim()+'\nAmount: -$'+a+'\nReason: '+reason+'\nNew Balance: $'+u.balance);
@@ -7692,7 +7817,7 @@ function pullFromServer(){
           if(pgId==='pg-users') rUsers(getRealUsers());
           else if(pgId==='pg-payments') rPayReqs(getRealPayments());
           else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();rStuckOrders();}
-          else if(pgId==='pg-wallets') rWallets(getRealUsers());
+          else if(pgId==='pg-wallets') refreshWlts(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
         }
         updateDashStats();
