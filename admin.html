@@ -306,7 +306,7 @@ textarea.fi{resize:vertical;min-height:75px;}
         </div>
         <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
           <div style="font-size:20px">🎁</div>
-          <div><div style="font-size:18px;font-weight:800;color:#fb923c" id="sc-admincredit">−$0.00</div><div style="font-size:11px;color:var(--mt)">کریدیت ادمین</div></div>
+          <div><div style="font-size:18px;font-weight:800;color:#fb923c" id="sc-admincredit">+$0.00</div><div style="font-size:11px;color:var(--mt)">کریدیت ادمین</div></div>
         </div>
         <div style="background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px">
           <div style="font-size:20px">🏭</div>
@@ -2056,7 +2056,7 @@ function initDash(){
     var pRate=provRateMap[String(o.svcId||'')]||0;
     return sum+(pRate*(parseInt(o.qty)||0)/1000);
   },0);
-  var netProfit=totalRealDeposits-totalAdminCredits-totalProviderCosts;
+  var netProfit=(totalRealDeposits+totalAdminCredits)-totalProviderCosts;
 
   var totalUsers=realUsers.length;
   var totalOrders=realOrders.length;
@@ -2070,7 +2070,7 @@ function initDash(){
   var elDep=document.getElementById('sc-deposits');
   if(elDep) elDep.textContent='$'+totalRealDeposits.toFixed(2);
   var elAC=document.getElementById('sc-admincredit');
-  if(elAC) elAC.textContent='−$'+totalAdminCredits.toFixed(2);
+  if(elAC) elAC.textContent='+$'+totalAdminCredits.toFixed(2);
   var elPC=document.getElementById('sc-provcost');
   if(elPC) elPC.textContent='−$'+totalProviderCosts.toFixed(2);
   var elT=document.getElementById('sc-tickets'); if(elT) elT.textContent=openTickets.toLocaleString();
@@ -2094,7 +2094,7 @@ function initDash(){
       if(!o.date||o.date.slice(0,10)!==ds) return;
       dayProvCosts+=(provRateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000;
     });
-    days7.push(Math.max(0,dayDeposits-dayAdminCredits-dayProvCosts));
+    days7.push(Math.max(0,(dayDeposits+dayAdminCredits)-dayProvCosts));
     lbs.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]);
   }
   var mx=Math.max.apply(null,days7)||1;
