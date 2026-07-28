@@ -2010,8 +2010,9 @@ function om(id){
     var s=document.getElementById('bal-usr');var realU=getRealUsers();
     s.innerHTML=realU.map(function(u){var dispName=(u.fname||'')+' '+(u.lname||'')||u.email||('User#'+u.id);return'<option value="'+u.id+'">'+dispName.trim()+' ($'+(parseFloat(u.balance)||0).toFixed(2)+')</option>';}).join('');
     var ms=document.getElementById('bal-method');
-    var opts='<option value="bonus">🎁 Bonus</option>';
-    opts+=pms.filter(function(p){return p.on;}).map(function(p){return'<option value="'+p.vname+'">'+p.vname+'</option>';}).join('');
+    var opts='<option value="bonus">🎁 Bonus (هدیه رایگان)</option>';
+    opts+='<option value="admin_credit">💝 Admin Credit (کریدیت رایگان)</option>';
+    opts+=pms.filter(function(p){return p.on;}).map(function(p){return'<option value="'+p.vname+'">'+p.vname+' (پرداخت مشتری)</option>';}).join('');
     ms.innerHTML=opts;
   }
   document.getElementById(id).classList.add('open');
@@ -5066,8 +5067,11 @@ function addBal(){
     if(!u.transactions) u.transactions=[];
     if(method==='bonus'){
       u.transactions.unshift({id:Date.now(),type:'bonus',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
+    }else if(method==='admin_credit'){
+      u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,desc:reason,date:new Date().toISOString(),status:'approved'});
     }else{
-      u.transactions.unshift({id:Date.now(),type:'admin_credit',amount:a,method:method,desc:reason,date:new Date().toISOString(),status:'approved'});
+      // real payment method — customer actually paid, record as deposit
+      u.transactions.unshift({id:Date.now(),type:'deposit',amount:a,method:method,desc:reason,date:new Date().toISOString(),status:'approved'});
     }
     localStorage.setItem('smm_users',JSON.stringify(realU));
     localStorage.setItem('smm_admin_updated',Date.now().toString());
