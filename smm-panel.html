@@ -701,6 +701,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <div class="gw-warn" id="dup-order-note" style="display:none;cursor:pointer" onclick="this.style.display='none';_dupNoteDismissed=true;" title="Click to dismiss">⚠️ برای یک لینک، همزمان چند سفارش ثبت نکنید — تا تکمیل شدن سفارش قبلی صبر کنید.<br>Do not submit multiple orders for the same link at the same time — wait for the previous order to finish first.</div>
         <button class="btn btn-primary" onclick="placeOrder()">⚡ Submit Order</button>
         <div id="order-submit-notes" style="margin-top:10px;padding:10px 12px;background:rgba(255,200,0,0.07);border:1px solid rgba(255,200,0,0.22);border-radius:9px;font-size:11.5px;color:var(--text-muted,#888);line-height:1.7"></div>
+        <div id="flag-review-notice" style="margin-top:12px;border:1.5px solid #ef4444;border-radius:11px;overflow:hidden;font-size:12px;line-height:1.75"></div>
       </div>
     </div>
   </div>
@@ -1302,6 +1303,39 @@ var PANEL_T={
       var title='<div style="font-weight:700;font-size:12px;margin-bottom:5px;color:var(--text,#ccc)">'+(isFa?'📋 یادداشت':'📋 Note')+'</div>';
       notesEl.innerHTML=title+notes.map(function(n){return '<div>'+n+'</div>';}).join('');
       if(isFa){notesEl.style.direction='rtl';notesEl.style.textAlign='right';}
+
+      // ── Flag for Review notice ──
+      var frEl=document.getElementById('flag-review-notice');
+      if(frEl){
+        var frTextFa='<div style="padding:12px 14px;background:#7f1d1d22;direction:rtl;text-align:right">'
+          +'<div style="font-weight:800;font-size:13px;color:#ef4444;margin-bottom:8px">🚨 اطلاعیه مهم 🚨</div>'
+          +'<p style="margin:0 0 8px">از تاریخ ۱۸ اوت ۲۰۲۴، به‌روزرسانی اینستاگرام مستلزم <strong>غیرفعال کردن ویژگی Flag for Review</strong> برای دریافت مستقیم فالوور است. اگر این ویژگی فعال بماند، فالوورها به‌صورت درخواست ارسال می‌شوند و باید آن‌ها را دستی تأیید کنید. سایت ما مسئولیتی در قبال مشکلات ناشی از فعال گذاشتن این ویژگی نخواهد داشت.</p>'
+          +'<p style="margin:0 0 8px">🔑 <strong>یادآوری:</strong> غیرفعال کردن این ویژگی ضروری است.<br>⚠️ <strong>اجباری:</strong> فعال گذاشتن آن باعث عدم عملکرد صحیح سرویس خواهد شد.</p>'
+          +'<p style="margin:0 0 6px;font-weight:700">مراحل غیرفعال‌سازی:</p>'
+          +'<p style="margin:0 0 3px">1️⃣ اینستاگرام را باز کنید و به Settings بروید.</p>'
+          +'<p style="margin:0 0 3px">2️⃣ گزینه <strong>Follow and Invite Friends</strong> را انتخاب کنید.</p>'
+          +'<p style="margin:0 0 8px">3️⃣ به گزینه <strong>Flag for Review</strong> بروید و آن را <strong>خاموش کنید</strong>.</p>'
+          +'<p style="margin:0">✨ <em>نکته: تنظیمات خود را دوباره بررسی کنید تا از هرگونه وقفه جلوگیری شود!</em><br>از همکاری شما متشکریم 🙌</p>'
+          +'</div>';
+        var frTextEn='<div style="padding:12px 14px;background:#7f1d1d22">'
+          +'<div style="font-weight:800;font-size:13px;color:#ef4444;margin-bottom:8px">🚨 Important Notice 🚨</div>'
+          +'<p style="margin:0 0 8px">Starting <strong>August 18, 2024</strong>, Instagram\'s update requires you to <strong>disable the Flag for Review feature</strong> to receive followers directly. If this feature remains enabled, followers will be sent as requests and you\'ll need to approve them manually. We will not be responsible for any issues caused by leaving this feature active.</p>'
+          +'<p style="margin:0 0 8px">🔑 <strong>Reminder:</strong> Disabling the feature is critical.<br>⚠️ <strong>Mandatory:</strong> Leaving it enabled will stop the service from working as intended.</p>'
+          +'<p style="margin:0 0 6px;font-weight:700">Steps to Disable the Feature:</p>'
+          +'<p style="margin:0 0 3px">1️⃣ Open Instagram and go to <strong>Settings</strong>.</p>'
+          +'<p style="margin:0 0 3px">2️⃣ Select <strong>Follow and Invite Friends</strong>.</p>'
+          +'<p style="margin:0 0 8px">3️⃣ Scroll to <strong>Flag for Review</strong> and turn it <strong>OFF</strong>.</p>'
+          +'<p style="margin:0">✨ <em>Tip: Double-check your settings to avoid any interruptions!</em><br>Thank you for your cooperation 🙌</p>'
+          +'</div>';
+        var imgHtml='<img src="/icons/flag-for-review.jpg" alt="Flag for Review setting" style="width:100%;display:block;border-bottom:1.5px solid #ef4444">';
+        frEl.innerHTML='<div style="background:#ef44441a;padding:0">'
+          +'<div style="font-size:11px;color:#ef4444;font-weight:700;padding:7px 12px;background:#ef44442a;border-bottom:1px solid #ef444433">'
+          +(isFa?'📷 راهنمای تصویری — تنظیمات اینستاگرام':'📷 Visual Guide — Instagram Settings')
+          +'</div>'
+          +imgHtml
+          +(isFa?frTextFa:frTextEn)
+          +'</div>';
+      }
     }
   }catch(e){}
 })();
