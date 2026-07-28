@@ -815,14 +815,13 @@ textarea.fi{resize:vertical;min-height:75px;}
     </div>
 
     <!-- PAYMENTS -->
-
-    <!-- PAYMENTS -->
     <div class="page" id="pg-payments">
       <div class="sec">
         <div class="sec-h">
           <div class="sec-t">💳 Payment Requests</div>
-          <select class="fi btn-sm" style="font-size:12px" onchange="filterPayReq(this.value)"><option value="all">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+          <select class="fi btn-sm" style="font-size:12px" onchange="_payStatus=this.value;applyPayFilter()"><option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
         </div>
+        <div class="wlt-tabs" id="pay-method-tabs" style="flex-wrap:wrap;gap:0 4px"></div>
         <div class="tw" id="pay-req-tbl"></div>
       </div>
     </div>
@@ -1668,21 +1667,20 @@ function getRealTickets(){
   try{return JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){return [];}
 }
 function getRealPayments(){
-  // Collect all pending deposits from all users
   var payments=[];
   try{
     var users=getRealUsers();
     users.forEach(function(u){
       if(!u.transactions) return;
       u.transactions.forEach(function(t){
-        if(t.type==='deposit'||t.type==='deposit_pending'){
+        if(t.type==='deposit'||t.type==='deposit_pending'||t.type==='admin_credit'){
           payments.push({
             id:t.id,
             userId:u.id,
-            user:(u.fname||u.name||'User')+' '+(u.lname||''),
+            user:((u.fname||u.name||'User')+' '+(u.lname||'')).trim(),
             email:u.email||u.phone||'',
-            method:t.method||'Unknown',
-            amount:t.amount||t.credit||0,
+            method:t.type==='admin_credit'?'admin':(t.method||'unknown'),
+            amount:parseFloat(t.amount||t.credit||0),
             status:t.status||'pending',
             date:t.date?new Date(t.date).toLocaleDateString():'—',
             txid:t.txid||t.ppOrderId||'',
@@ -1992,7 +1990,7 @@ function go(pg,el){
   else if(pg==='blog') rBlog();
   else if(pg==='emailauto') eaInit();
   else if(pg==='invites') rInviteStatus();
-  else if(pg==='payments') rPayReqs(getRealPayments());
+  else if(pg==='payments'){_payTab='all';_payStatus='all';buildPayTabs();applyPayFilter();}
   else if(pg==='wallets'){_wltTab='all';document.querySelectorAll('.wlt-tab').forEach(function(b,i){b.classList.toggle('on',i===0);});rWallets(getRealUsers());}
   else if(pg==='withdrawals') rWithdrawals(getRealWithdrawals());
   else if(pg==='tickets') rTickets(getRealTickets());
@@ -3999,7 +3997,7 @@ function approvePayment(userId,txId){
   u.balance=parseFloat((parseFloat(u.balance)||0)+credit).toFixed(2);
   u.balance=parseFloat(u.balance);
   localStorage.setItem('smm_users',JSON.stringify(users));
-  loadAllRealData();rPayReqs(getRealPayments());
+  loadAllRealData();buildPayTabs();applyPayFilter();
   notifyPanel();
   pushToServer();toast('✅ Approved — $'+credit+' added to '+(u.fname||'user'),'s');
   tgSend('✅ <b>Payment Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+credit+' credited to wallet\nNew Balance: $'+u.balance);
@@ -4014,7 +4012,7 @@ function rejectPayment(userId,txId){
   if(t.status==='approved'){toast('This deposit was already approved — cannot reject it now','w');return;}
   t.status='rejected';
   localStorage.setItem('smm_users',JSON.stringify(users));
-  loadAllRealData();rPayReqs(getRealPayments());
+  loadAllRealData();buildPayTabs();applyPayFilter();
   pushToServer();
   toast('Payment rejected','e');
 }
@@ -4752,7 +4750,41 @@ function rPayReqs(list){
   h+='</tbody></table>';
   document.getElementById('pay-req-tbl').innerHTML=h;
 }
-function filterPayReq(s){rPayReqs(s==='all'?getRealPayments():getRealPayments().filter(function(p){return p.status===s;}));}
+var _payTab='all';
+var _payStatus='all';
+var _payMethodLabels={admin:'💝 ادمین',paypal:'🅿️ PayPal',unknown:'❓ Unknown'};
+function _payMethodLabel(m){
+  if(_payMethodLabels[m]) return _payMethodLabels[m];
+  return '💳 '+m.charAt(0).toUpperCase()+m.slice(1);
+}
+function buildPayTabs(){
+  var all=getRealPayments();
+  var methods={};
+  all.forEach(function(p){methods[p.method]=(methods[p.method]||0)+1;});
+  var order=['paypal','admin'];
+  Object.keys(methods).forEach(function(m){if(order.indexOf(m)<0)order.push(m);});
+  var tabs=document.getElementById('pay-method-tabs');
+  if(!tabs) return;
+  var html='<button class="wlt-tab'+(_payTab==='all'?' on':'')+'" onclick="switchPayTab(\'all\',this)">📋 همه ('+all.length+')</button>';
+  order.forEach(function(m){
+    if(!methods[m]) return;
+    html+='<button class="wlt-tab'+(_payTab===m?' on':'')+'" onclick="switchPayTab(\''+m+'\',this)">'+_payMethodLabel(m)+' ('+methods[m]+')</button>';
+  });
+  tabs.innerHTML=html;
+}
+function switchPayTab(method,el){
+  _payTab=method;
+  applyPayFilter();
+  document.querySelectorAll('#pay-method-tabs .wlt-tab').forEach(function(b){b.classList.remove('on');});
+  el.classList.add('on');
+}
+function applyPayFilter(){
+  var list=getRealPayments();
+  if(_payTab!=='all') list=list.filter(function(p){return p.method===_payTab;});
+  if(_payStatus!=='all') list=list.filter(function(p){return p.status===_payStatus;});
+  rPayReqs(list);
+}
+function filterPayReq(s){_payStatus=s;applyPayFilter();}
 
 // ═══ WALLETS ═══
 function rWallets(list){
@@ -7627,7 +7659,7 @@ function startAdminSync(){
         if(pgId==='pg-dashboard') initDash();
         else if(pgId==='pg-users') rUsers(freshUsers);
         else if(pgId==='pg-orders') rOrders(freshOrders);
-        else if(pgId==='pg-payments') rPayReqs(freshPay);
+        else if(pgId==='pg-payments'){buildPayTabs();applyPayFilter();}
         else if(pgId==='pg-tickets') rTickets(freshTickets);
       }
       // Always update dashboard stats if visible
@@ -7819,7 +7851,7 @@ function pullFromServer(){
         if(activePg){
           var pgId=activePg.id;
           if(pgId==='pg-users') rUsers(getRealUsers());
-          else if(pgId==='pg-payments') rPayReqs(getRealPayments());
+          else if(pgId==='pg-payments'){buildPayTabs();applyPayFilter();}
           else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();rStuckOrders();}
           else if(pgId==='pg-wallets') refreshWlts(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
