@@ -6645,6 +6645,24 @@ function eaPullBulkStateFromServer(){
       eaRenderBulkStatusChips(byStatus);
       eaAddBulkLog('📋 Loaded '+_eaBulkAll.length+' recipients uploaded from another device','i');
     }
+    // Show cron status so admin knows why emails may not be sending
+    var today=new Date().toISOString().slice(0,10);
+    if(d&&d.smm_last_bulk_campaign_date){
+      if(d.smm_last_bulk_campaign_date===today){
+        eaAddBulkLog('✅ کرون امروز ('+today+') اجرا شد','s');
+      } else {
+        eaAddBulkLog('⚠️ آخرین اجرای کرون: '+d.smm_last_bulk_campaign_date,'w');
+      }
+    } else {
+      eaAddBulkLog('ℹ️ کرون هنوز در این چرخه اجرا نشده','i');
+    }
+    var cycleAt=d&&d.smm_bulk_campaign_cycle_at;
+    if(cycleAt){
+      var daysLeft=Math.ceil((7*24*3600*1000-(Date.now()-cycleAt))/86400000);
+      if(daysLeft>0){
+        eaAddBulkLog('⏳ همه گیرندگان ایمیل گرفتند — چرخه جدید در '+daysLeft+' روز دیگر (برای ریست فوری: Reset Sent Log)','w');
+      }
+    }
     eaUpdateBulkSummary();
   }).catch(function(){});
 }
@@ -6663,17 +6681,18 @@ function eaMarkBulkSent(email){
     body:JSON.stringify({smm_bulk_campaign_sent:delta,smm_ts:Date.now()})}).catch(function(){});
 }
 function eaResetBulkSentLog(){
-  if(!confirm('Clear the "already sent" record for this one-time campaign? This lets you re-send to everyone.')) return;
+  if(!confirm('پاک کردن لاگ ارسال و شروع مجدد کمپین از ابتدا؟')) return;
   localStorage.removeItem(EA_BULK_SENT_KEY);
-  // The server merges smm_bulk_campaign_sent (never overwrites, so the
-  // daily cron's progress can't be erased by a stale browser) — a plain
-  // push here would be a no-op against an already-populated log, silently
-  // undoing this reset the next time the server is pulled. This explicit
-  // clear flag is the one exception, only reached via this confirm()'d
-  // admin action.
+  // Full reset: clear the sent log, the 7-day cycle cooldown timer, and
+  // the "already ran today" date so the cron fires on its very next hit.
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_bulk_campaign_sent_clear:true,smm_ts:Date.now()})}).catch(function(){});
-  eaAddBulkLog('♻️ "Already sent" log cleared','w');
+    body:JSON.stringify({
+      smm_bulk_campaign_sent_clear:true,
+      smm_bulk_campaign_cycle_at:0,
+      smm_last_bulk_campaign_date:'',
+      smm_ts:Date.now()
+    })}).catch(function(){});
+  eaAddBulkLog('♻️ لاگ ارسال و تایمر cooldown پاک شد — کمپین فردا از ابتدا شروع می‌کند','w');
   eaUpdateBulkSummary();
 }
 
