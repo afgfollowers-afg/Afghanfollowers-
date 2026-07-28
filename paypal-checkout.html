@@ -127,9 +127,24 @@ body{background:var(--bg);font-family:var(--fn);min-height:100vh;display:flex;al
 var urlP=new URLSearchParams(window.location.search);
 var amount=parseFloat(urlP.get('amount'))||0;
 var pmCfg={};
-try{var d=localStorage.getItem('smm_payment_settings');if(d){var cfg=JSON.parse(d);pmCfg=cfg['paypal']||{};}}catch(e){}
+// Primary: smm_payment_methods is synced from the server to every customer's
+// browser (smm-panel.html pulls it via GET /api/db and caches it locally).
+// clientId is intentionally NOT stripped by the server (only clientSecret is).
+try{
+  var _pms=JSON.parse(localStorage.getItem('smm_payment_methods')||'[]');
+  var _ppm=_pms.find(function(m){return m.method==='paypal';});
+  if(_ppm&&_ppm.clientId) pmCfg=_ppm;
+}catch(e){}
+// Fallback: smm_payment_settings only exists on the admin's own browser.
+// The structure was saved as cfg._visibility.paypal (not cfg.paypal directly).
+if(!pmCfg.clientId){
+  try{
+    var _d=localStorage.getItem('smm_payment_settings');
+    if(_d){var _cfg=JSON.parse(_d);pmCfg=(_cfg._visibility&&_cfg._visibility['paypal'])||_cfg['paypal']||{};}
+  }catch(e){}
+}
 
-var CLIENT_ID=pmCfg.clientId||'sb'; // 'sb' = PayPal sandbox
+var CLIENT_ID=pmCfg.clientId||'sb'; // 'sb' = PayPal sandbox test app (fallback only)
 var FEE=parseFloat(pmCfg.fee)||0;
 var _amount=amount;
 var _mode='standard';

@@ -25,7 +25,7 @@ const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
 // running), this is the fastest way to confirm whether Vercel is truly
 // serving the latest deploy of this specific function or something
 // (a stale build, a caching layer) is still serving an old one.
-const DEPLOY_MARKER = 'pv-2026-07-16-v9-retry-diag';
+const DEPLOY_MARKER = 'pv-2026-07-28-v10-env-diag';
 
 async function readRecord() {
   // The retry-until-verified loop below proved a write JSONBin's own PUT
@@ -108,8 +108,19 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: false, error: 'This payment has already been processed' });
     }
 
-    const apiBase = pm.env === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
-    const token = await getPayPalToken(pm.clientId, pm.clientSecret, apiBase);
+    const isSandbox = pm.env === 'sandbox';
+    const apiBase = isSandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+    // Diagnostic prefix included in every auth-failure message so the admin
+    // can immediately confirm which environment and client ID the server is
+    // using — a live/sandbox mismatch (live credentials against sandbox API
+    // or vice versa) is the most common cause of invalid_client here.
+    const ppDiag = '[env=' + (isSandbox ? 'sandbox' : 'live') + ' clientId=' + pm.clientId.slice(0, 12) + '...]';
+    let token;
+    try {
+      token = await getPayPalToken(pm.clientId, pm.clientSecret, apiBase);
+    } catch (authErr) {
+      return res.status(200).json({ ok: false, error: 'PayPal auth failed ' + ppDiag + ': ' + authErr.message + ' — If you see "invalid_client", the Client ID/Secret in admin → Payment Methods do not match the "' + (isSandbox ? 'Sandbox' : 'Live') + '" environment. Re-enter matching credentials.' });
+    }
 
     const orderResp = await fetch(apiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
       headers: { Authorization: 'Bearer ' + token }
