@@ -1121,50 +1121,20 @@ async function runBulkEmailCampaignJob() {
   const statuses = listData.statuses || {};
   let recipients = listData.all.filter(r => statuses[r.status] && !sentLog[r.email]);
 
-  // A one-time send stops producing anything the moment the list runs out —
-  // exactly what left this sending 0 new emails/day after its first pass
-  // (794 sent, list exhausted, nothing left to ever send again), even
-  // though the admin can comfortably send ~190/day and wants it to keep
-  // going. Once every recipient has been emailed this cycle, wait a full
-  // week from whenever that exhaustion was FIRST noticed (not from every
-  // subsequent hit), then start the same list over from the top.
-  const CYCLE_RESET_MS = 7 * 24 * 60 * 60 * 1000;
+  // When the list is exhausted (everyone has been emailed this cycle),
+  // reset immediately so the next cron hit starts a fresh cycle — no
+  // waiting period. The smm_last_bulk_campaign_date guard above already
+  // prevents the same run from double-sending on the same calendar day,
+  // so resetting right now is safe: today's send already happened (or
+  // there's nothing left to send today), and tomorrow's cron will pick
+  // up from the top of the clean list.
   let cycleWasReset = false;
   if (!recipients.length) {
-    const cycleAt = db.smm_bulk_campaign_cycle_at || 0;
-    const now = Date.now();
-    if (!cycleAt) {
-      // First time this list has ever been fully exhausted — start the
-      // one-week countdown from now rather than resetting immediately, so
-      // a list that finishes sending today doesn't also get double-emailed
-      // today.
-      await fetchInternal(API_BASE + '/api/db', {
-        method: 'POST', headers: dbHeaders(),
-        body: JSON.stringify({ smm_bulk_campaign_cycle_at: now, smm_ts: Date.now() })
-      });
-      return { ok: true, sent: 0, reason: 'Every recipient has been emailed — the list will restart in 7 days' };
-    }
-    if (now - cycleAt < CYCLE_RESET_MS) {
-      const daysLeft = Math.ceil((CYCLE_RESET_MS - (now - cycleAt)) / 86400000);
-      return { ok: true, sent: 0, reason: 'Every recipient has been emailed — the list restarts in ' + daysLeft + ' day(s)' };
-    }
-    // A full week has passed since the list was last exhausted — start it
-    // over from the top for everyone still on an eligible status. The
-    // final write below only ever MERGES smm_bulk_campaign_sent (see
-    // db.js — two independent writers, the admin's manual "Send Now" and
-    // this cron, must never erase each other's progress), so sending {}
-    // there would silently leave all 794 old entries in place server-side
-    // and this reset would never actually take effect. The explicit
-    // smm_bulk_campaign_sent_clear flag is the one thing that truly wipes
-    // it; do that now, then let the merge below apply just today's batch
-    // on top of the now-genuinely-empty log.
     await fetchInternal(API_BASE + '/api/db', {
       method: 'POST', headers: dbHeaders(),
-      body: JSON.stringify({ smm_bulk_campaign_sent_clear: true, smm_ts: Date.now() })
+      body: JSON.stringify({ smm_bulk_campaign_sent_clear: true, smm_bulk_campaign_cycle_at: 0, smm_ts: Date.now() })
     });
-    sentLog = {};
-    recipients = listData.all.filter(r => statuses[r.status]);
-    cycleWasReset = true;
+    return { ok: true, sent: 0, cycleRestarted: true, reason: 'All recipients emailed — cycle reset, sending resumes tomorrow' };
   }
 
   const limit = cfg.dailyLimit > 0 ? Math.max(cfg.dailyLimit, 100) : 200;
@@ -1265,16 +1235,11 @@ async function runBulkEmailCampaignJob() {
     }
   }
 
-  const writeBody = { smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() };
-  // Clear the exhaustion marker on a cycle we just restarted, so the NEXT
-  // time this list runs out, it starts its own fresh 7-day countdown
-  // instead of reusing this one's (already-elapsed) timestamp.
-  if (cycleWasReset) writeBody.smm_bulk_campaign_cycle_at = 0;
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
     headers: dbHeaders(),
-    body: JSON.stringify(writeBody)
+    body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })
   });
 
-  return { ok: true, sent, failed, remaining: recipients.length - batch.length, cycleRestarted: cycleWasReset, topic, subject };
+  return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
 }
