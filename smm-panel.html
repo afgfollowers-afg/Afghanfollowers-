@@ -1677,12 +1677,16 @@ function getPanelServices(){
 
 // ── PLATFORM DETECTION ──
 // Round-robin interleave categories across platforms so "All" tab shows
-// mixed platform categories instead of all-IG then all-FB then all-TK.
+// IG cat → TK cat → FB cat → IG cat → TK cat … instead of all-IG then all-TK.
+// Uses catSvcsMap (built before this is called) to find each category's
+// platform from its actual services — more reliable than detectPlatform() on
+// the category name alone, which fails for Farsi names or generic titles.
 function interleaveByPlatform(cats){
   var platCats={};
   var platOrder=[];
   cats.forEach(function(cat){
-    var plat=detectPlatform(cat)||'other';
+    var svcs=catSvcsMap[cat];
+    var plat=(svcs&&svcs.length)?svcs[0].platKey:(detectPlatform(cat)||'other');
     if(!platCats[plat]){platCats[plat]=[];platOrder.push(plat);}
     platCats[plat].push(cat);
   });
