@@ -1219,24 +1219,50 @@ async function runBulkEmailCampaignJob() {
     } catch (e) { /* best-effort — must not block the real send below */ }
   }
 
-  let sent = 0, failed = 0;
-  for (const r of batch) {
-    const personalSubject = subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز');
-    const personalHtml = fullHtml
-      .replace(/\{\{name\}\}/g, r.name || 'دوست عزیز')
-      .replace(/\{\{email\}\}/g, r.email)
-      .replace(/\{\{site_name\}\}/g, siteName)
-      .replace(/\{\{panel_link\}\}/g, panelLink);
-    const payload = {
-      from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
+  // Build all personalized payloads first, then send in chunks via the Resend
+  // batch endpoint (/emails/batch, up to 100 per call) so 200 emails cost 2
+  // HTTP calls instead of 200 sequential ones — prevents Vercel's 60s timeout
+  // from killing the job before smm_last_bulk_campaign_date ever gets saved.
+  const fromField = cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from;
+  const ts = new Date().toISOString();
+  const payloads = batch.map(r => {
+    const p = {
+      from: fromField,
       to: [r.email],
-      subject: personalSubject,
-      html: personalHtml
+      subject: subject.replace(/\{\{name\}\}/g, r.name || 'دوست عزیز'),
+      html: fullHtml
+        .replace(/\{\{name\}\}/g, r.name || 'دوست عزیز')
+        .replace(/\{\{email\}\}/g, r.email)
+        .replace(/\{\{site_name\}\}/g, siteName)
+        .replace(/\{\{panel_link\}\}/g, panelLink)
     };
-    if (cfg.replyTo) payload.reply_to = cfg.replyTo;
-    const result = await sendViaResend(payload);
-    if (result.ok) { sentLog[r.email] = new Date().toISOString(); sent++; }
-    else failed++;
+    if (cfg.replyTo) p.reply_to = cfg.replyTo;
+    return p;
+  });
+
+  let sent = 0, failed = 0;
+  const CHUNK = 100; // Resend batch limit
+  for (let i = 0; i < payloads.length; i += CHUNK) {
+    const chunk = payloads.slice(i, i + CHUNK);
+    try {
+      const resp = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + RESEND_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk)
+      });
+      const data = await resp.json();
+      // Resend batch returns { data: [{ id }, ...] } — one entry per email
+      const results = (data && Array.isArray(data.data)) ? data.data : [];
+      chunk.forEach((p, idx) => {
+        const r = batch[i + idx];
+        if (results[idx] && results[idx].id) { sentLog[r.email] = ts; sent++; }
+        else failed++;
+      });
+    } catch (e) {
+      // Count the whole chunk as failed but don't abort — the DB write below
+      // still saves whatever was tracked before this chunk errored.
+      failed += chunk.length;
+    }
   }
 
   const writeBody = { smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() };
