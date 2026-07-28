@@ -291,7 +291,7 @@ textarea.fi{resize:vertical;min-height:75px;}
       <div class="sg">
         <div class="sc c1" style="cursor:pointer" onclick="go('users')"><div class="sc-ico">👥</div><div class="sc-val" id="sc-users">0</div><div class="sc-lbl">Total Users</div><div class="sc-tr" id="sc-users-tr"></div></div>
         <div class="sc c2" style="cursor:pointer" onclick="go('orders')"><div class="sc-ico">📦</div><div class="sc-val" id="sc-orders">0</div><div class="sc-lbl">Total Orders</div><div class="sc-tr" id="sc-orders-tr"></div></div>
-        <div class="sc c3" style="cursor:pointer" onclick="go('payments')"><div class="sc-ico">💰</div><div class="sc-val" id="sc-revenue">$0.00</div><div class="sc-lbl">Revenue</div><div class="sc-tr" id="sc-revenue-tr"></div></div>
+        <div class="sc c3" style="cursor:pointer" onclick="go('payments')" title="Deposits − Admin Credits − Provider Costs"><div class="sc-ico">💰</div><div class="sc-val" id="sc-revenue">$0.00</div><div class="sc-lbl">Net Profit</div><div class="sc-tr" id="sc-revenue-tr"></div></div>
         <div class="sc c4" style="cursor:pointer" onclick="go('tickets')"><div class="sc-ico">🎫</div><div class="sc-val" id="sc-tickets">0</div><div class="sc-lbl">Open Tickets</div><div class="sc-tr" id="sc-tickets-tr" style="color:var(--rd)"></div></div>
       </div>
       <div class="sec">
@@ -2005,7 +2005,35 @@ function initDash(){
   try{realOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
   try{realTickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
 
-  var totalRevenue=realOrders.reduce(function(t,o){return t+(parseFloat(o.cost)||0);},0);
+  // Build provRate lookup map from smm_svc (13-field: [id,svcId,name,cat,provName,provId,provRate,myRate,...])
+  var provRateMap={};
+  try{
+    var svcRaw=JSON.parse(localStorage.getItem('smm_svc')||'[]');
+    svcRaw.forEach(function(s){
+      if(!Array.isArray(s)) return;
+      var svcId=String(s[1]||s[0]||'');
+      // 13-field: provRate at index 6; 5-field or fewer: no separate provRate
+      var pRate=s.length>=13?parseFloat(s[6])||0:0;
+      if(svcId) provRateMap[svcId]=pRate;
+    });
+  }catch(e){}
+
+  // Net Profit = real customer deposits (approved) − admin credits − provider costs
+  var totalRealDeposits=0; // money actually received from customers (PayPal etc.)
+  var totalAdminCredits=0; // balance manually given by admin (a business cost)
+  realUsers.forEach(function(u){
+    (u.transactions||[]).forEach(function(t){
+      var amt=parseFloat(t.amount||t.credit||0);
+      if(t.type==='deposit'&&t.status==='approved') totalRealDeposits+=amt;
+      if(t.type==='admin_credit') totalAdminCredits+=amt;
+    });
+  });
+  var totalProviderCosts=realOrders.reduce(function(sum,o){
+    var pRate=provRateMap[String(o.svcId||'')]||0;
+    return sum+(pRate*(parseInt(o.qty)||0)/1000);
+  },0);
+  var netProfit=totalRealDeposits-totalAdminCredits-totalProviderCosts;
+
   var totalUsers=realUsers.length;
   var totalOrders=realOrders.length;
   var openTickets=realTickets.filter(function(t){return t.status!=='closed';}).length;
@@ -2013,7 +2041,13 @@ function initDash(){
   // Update stat cards (by id, not position — avoids mismatched values)
   var elU=document.getElementById('sc-users'); if(elU) elU.textContent=totalUsers.toLocaleString();
   var elO=document.getElementById('sc-orders'); if(elO) elO.textContent=totalOrders.toLocaleString();
-  var elR=document.getElementById('sc-revenue'); if(elR) elR.textContent='$'+totalRevenue.toFixed(2);
+  var elR=document.getElementById('sc-revenue');
+  if(elR){
+    elR.textContent='$'+netProfit.toFixed(2);
+    elR.title='Deposits: $'+totalRealDeposits.toFixed(2)
+      +' − Admin credits: $'+totalAdminCredits.toFixed(2)
+      +' − Provider costs: $'+totalProviderCosts.toFixed(2);
+  }
   var elT=document.getElementById('sc-tickets'); if(elT) elT.textContent=openTickets.toLocaleString();
 
   // Chart — orders per day (last 7 days)
@@ -2021,15 +2055,28 @@ function initDash(){
   for(var d=6;d>=0;d--){
     var dt=new Date(Date.now()-d*86400000);
     var ds=dt.toISOString().slice(0,10);
-    var dayOrders=realOrders.filter(function(o){return o.date&&o.date.slice(0,10)===ds;});
-    days7.push(dayOrders.length);
+    // Daily profit = customer deposits that day − admin credits that day − provider costs that day
+    var dayDeposits=0,dayAdminCredits=0,dayProvCosts=0;
+    realUsers.forEach(function(u){
+      (u.transactions||[]).forEach(function(t){
+        if(!t.date||t.date.slice(0,10)!==ds) return;
+        var amt=parseFloat(t.amount||t.credit||0);
+        if(t.type==='deposit'&&t.status==='approved') dayDeposits+=amt;
+        if(t.type==='admin_credit') dayAdminCredits+=amt;
+      });
+    });
+    realOrders.forEach(function(o){
+      if(!o.date||o.date.slice(0,10)!==ds) return;
+      dayProvCosts+=(provRateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000;
+    });
+    days7.push(Math.max(0,dayDeposits-dayAdminCredits-dayProvCosts));
     lbs.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]);
   }
   var mx=Math.max.apply(null,days7)||1;
   var ch='',cl='';
   for(var i=0;i<days7.length;i++){
     var h=Math.max(4,Math.round((days7[i]/mx)*115));
-    ch+='<div class="ch-col"><div class="ch-bar" style="height:'+h+'px" title="'+days7[i]+' orders"></div></div>';
+    ch+='<div class="ch-col"><div class="ch-bar" style="height:'+h+'px" title="$'+days7[i].toFixed(2)+' profit"></div></div>';
     cl+='<div class="ch-lbl" style="flex:1;text-align:center">'+lbs[i]+'</div>';
   }
   if(document.getElementById('ch')) document.getElementById('ch').innerHTML=ch;
