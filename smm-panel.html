@@ -1299,7 +1299,8 @@ var PANEL_T={
         '🔒 Do not change your account settings while an order is running.',
         '📱 If there is a social media update, speed and drop ratio can change anytime.'
       ];
-      notesEl.innerHTML=notes.map(function(n){return '<div>'+n+'</div>';}).join('');
+      var title='<div style="font-weight:700;font-size:12px;margin-bottom:5px;color:var(--text,#ccc)">'+(isFa?'📋 یادداشت':'📋 Note')+'</div>';
+      notesEl.innerHTML=title+notes.map(function(n){return '<div>'+n+'</div>';}).join('');
       if(isFa){notesEl.style.direction='rtl';notesEl.style.textAlign='right';}
     }
   }catch(e){}
