@@ -2674,6 +2674,16 @@ function placeOrder(){
     }
   }catch(e){}
   
+  // Calculate provider cost at placement time so the dashboard always reflects
+  // the rate that was in effect when the order was placed, not today's rate.
+  var _provRateMap={};
+  try{
+    var _svcRaw=JSON.parse(localStorage.getItem('smm_svc')||'[]');
+    _svcRaw.forEach(function(s){var sid=String(s[1]||s[0]||'');if(sid)_provRateMap[sid]=s.length>=13?parseFloat(s[6])||0:0;});
+  }catch(e){}
+  var _provRate=_provRateMap[String((matchedSvc&&matchedSvc.svcId)||'')]||0;
+  var provCost=parseFloat((_provRate*qty/1000).toFixed(6));
+
   // Save order
   var order={
     id:Date.now(),
@@ -2690,6 +2700,7 @@ function placeOrder(){
     link:link.value.trim(),
     qty:qty,
     cost:cost,
+    provCost:provCost,
     startCount:0,
     remain:qty,
     cancel:canCancelSvc,
@@ -3075,6 +3086,7 @@ function claimFreeLikes(){
     link:link,
     qty:100,
     cost:0,
+    provCost:0,
     startCount:0,
     remain:100,
     cancel:false,
