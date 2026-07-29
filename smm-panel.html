@@ -3890,7 +3890,7 @@ function afSubmitManual(){
     var _uName=((u.fname||u.name||'')+' '+(u.lname||'')).trim()||u.email||'User';
     fetch('/api/notify-telegram',{
       method:'POST',
-      headers:Object.assign({'Content-Type':'application/json'},_dbHeaders()),
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:
         '💰 <b>New Crypto Deposit</b>\n\n'
         +'👤 User: <b>'+_uName+'</b>\n'
