@@ -1171,6 +1171,10 @@ textarea.fi{resize:vertical;min-height:75px;}
           <div style="width:36px;height:36px;background:linear-gradient(135deg,#627eea,#3c56c5);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:13px;flex-shrink:0">Ξ</div>
           <div><div style="font-size:13px;font-weight:700">USDT ERC20</div><div style="font-size:10px;color:var(--mt)">Ethereum Network</div></div>
         </div>
+        <div class="pm-type-card" onclick="selPmType(this,'trx')" data-val="trx" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--s2);border:2px solid var(--bd);border-radius:10px;cursor:pointer;transition:all .2s">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#eb0029,#a80020);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:13px;flex-shrink:0">T</div>
+          <div><div style="font-size:13px;font-weight:700">Tron (TRX)</div><div style="font-size:10px;color:var(--mt)">Tron Network</div></div>
+        </div>
         <div class="pm-type-card" onclick="selPmType(this,'binance')" data-val="binance" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--s2);border:2px solid var(--bd);border-radius:10px;cursor:pointer;transition:all .2s">
           <div style="width:36px;height:36px;background:linear-gradient(135deg,#f0b90b,#d4a017);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🟡</div>
           <div><div style="font-size:13px;font-weight:700">Binance Pay</div><div style="font-size:10px;color:var(--mt)">Binance Personal</div></div>
@@ -1945,6 +1949,8 @@ var pms=(function(){
    pubKey:'',secKey:'',callbackUrl:'https://afghanfollowers.online/payment/stripe'},
   {id:7,method:'perfectmoney',vname:'Perfect Money',cur:'USD',min:5,max:100000,on:false,fee:0,
    account:'',callbackUrl:'https://afghanfollowers.online/payment/perfectmoney'},
+  {id:8,method:'trx',vname:'Tron (TRX)',cur:'USD',min:5,max:1000000,on:false,fee:0,
+   wallet:'TWBPu6uQFczunGZeuUXxZpKt4wsdPPyero',callbackUrl:'https://afghanfollowers.online/payment/trx'},
   ];
 })();
 var bonuses=[
@@ -5409,7 +5415,7 @@ function savePmSettings(settings){
 var PM_KEY='smm_payment_methods';
 
 function rPms(){
-  var icons={paypal:'🅿️',paypal_manual:'🅿️',binance:'🟡',payment_approval:'💵',usdt_trc20:'₮',usdt_erc20:'Ξ',stripe:'💳',perfectmoney:'💎'};
+  var icons={paypal:'🅿️',paypal_manual:'🅿️',binance:'🟡',payment_approval:'💵',usdt_trc20:'₮',usdt_erc20:'Ξ',stripe:'💳',perfectmoney:'💎',trx:'🔴'};
   var h='<table><thead><tr><th>Method</th><th>Visible Name</th><th>Min</th><th>Max</th><th>Fee</th><th>Configured</th><th>Active in Panel</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<pms.length;i++){
     var m=pms[i];
@@ -5434,7 +5440,7 @@ function isCfgd(m){
   if(m.method==='paypal') return !!(m.clientId&&(m.clientSecret||m._has_clientSecret));
   if(m.method==='paypal_manual') return !!(m.email);
   if(m.method==='binance') return !!(m.payId);
-  if(m.method==='usdt_trc20'||m.method==='usdt_erc20') return !!(m.wallet);
+  if(m.method==='usdt_trc20'||m.method==='usdt_erc20'||m.method==='trx') return !!(m.wallet);
   if(m.method==='stripe') return !!(m.pubKey&&(m.secKey||m._has_secKey));
   return !!(m.account||m.instructions);
 }
@@ -5562,9 +5568,9 @@ function getPmEditFields(m){
     f+='<div class="fg"><label class="fl">API Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binkey" value="'+(m.apiKey||'')+'" placeholder="'+(m._has_apiKey&&!m.apiKey?'•••••••• (leave blank to keep current key)':'Binance API Key')+'"></div>';
     f+='<div class="fg"><label class="fl">Secret Key <span style="color:var(--mt);font-weight:400">(optional)</span></label><input type="password" class="fi" id="pme-binsec" value="'+(m.secretKey||'')+'" placeholder="'+(m._has_secretKey&&!m.secretKey?'•••••••• (leave blank to keep current secret)':'Secret Key')+'"></div>';
     f+=qrFieldHtml('pme',m.qrCode);
-  } else if(method==='usdt_trc20'||method==='usdt_erc20'){
-    f+='<div class="fg"><label class="fl">Wallet Address</label><input class="fi" id="pme-wallet" value="'+(m.wallet||'')+'" placeholder="'+(method==='usdt_trc20'?'TRX7NfMpGJzJp...':'0x4e9cE36E442e...')+'"></div>';
-    f+='<div class="fg"><label class="fl">Network</label><input class="fi" value="'+(method==='usdt_trc20'?'TRC20 (Tron)':'ERC20 (Ethereum)')+'" readonly style="color:var(--mt)"></div>';
+  } else if(method==='usdt_trc20'||method==='usdt_erc20'||method==='trx'){
+    f+='<div class="fg"><label class="fl">Wallet Address</label><input class="fi" id="pme-wallet" value="'+(m.wallet||'')+'" placeholder="'+(method==='usdt_trc20'?'TRX7NfMpGJzJp...':method==='trx'?'TWBPu6...':'0x4e9cE36E442e...')+'"></div>';
+    f+='<div class="fg"><label class="fl">Network</label><input class="fi" value="'+(method==='usdt_trc20'?'TRC20 (Tron)':method==='trx'?'Tron (TRX)':'ERC20 (Ethereum)')+'" readonly style="color:var(--mt)"></div>';
   } else if(method==='stripe'){
     f+='<div class="fg"><label class="fl">Publishable Key</label><input class="fi" id="pme-spub" value="'+(m.pubKey||'')+'" placeholder="pk_live_..."></div>';
     f+='<div class="fg"><label class="fl">Secret Key'+(m._has_secKey&&!m.secKey?' <span style="color:var(--gr);font-weight:400">(already set — leave blank to keep it)</span>':'')+'</label><input type="password" class="fi" id="pme-ssec" value="'+(m.secKey||'')+'" placeholder="'+(m._has_secKey&&!m.secKey?'•••••••• (leave blank to keep current key)':'sk_live_...')+'"></div>';
@@ -5676,7 +5682,7 @@ function savePmEdit(){
     el=document.getElementById('pme-binkey');if(el&&el.value.trim())m.apiKey=el.value.trim();
     el=document.getElementById('pme-binsec');if(el&&el.value.trim())m.secretKey=el.value.trim();
     el=document.getElementById('pme-qr-data');if(el)m.qrCode=el.value||'';
-  } else if(method==='usdt_trc20'||method==='usdt_erc20'){
+  } else if(method==='usdt_trc20'||method==='usdt_erc20'||method==='trx'){
     el=document.getElementById('pme-wallet');if(el)m.wallet=el.value.trim();
   } else if(method==='stripe'){
     el=document.getElementById('pme-spub');if(el&&el.value.trim())m.pubKey=el.value.trim();
@@ -5719,7 +5725,7 @@ function pmStep(n){
     ['pmf-paypal','pmf-crypto','pmf-binance','pmf-stripe','pmf-manual'].forEach(function(k){document.getElementById(k).style.display='none';});
     var v=_pmType;
     if(v==='paypal'||v==='perfectmoney')document.getElementById('pmf-paypal').style.display='block';
-    else if(v==='usdt_trc20'||v==='usdt_erc20')document.getElementById('pmf-crypto').style.display='block';
+    else if(v==='usdt_trc20'||v==='usdt_erc20'||v==='trx')document.getElementById('pmf-crypto').style.display='block';
     else if(v==='binance'||v==='binance_auto')document.getElementById('pmf-binance').style.display='block';
     else if(v==='stripe')document.getElementById('pmf-stripe').style.display='block';
     else document.getElementById('pmf-manual').style.display='block';
@@ -5747,7 +5753,7 @@ function addPm(){
   if(_pmType==='paypal'||_pmType==='perfectmoney'){
     el=document.getElementById('pm-cid');if(el)m.clientId=el.value.trim();
     el=document.getElementById('pm-csec');if(el)m.clientSecret=el.value.trim();
-  } else if(_pmType==='usdt_trc20'||_pmType==='usdt_erc20'){
+  } else if(_pmType==='usdt_trc20'||_pmType==='usdt_erc20'||_pmType==='trx'){
     el=document.getElementById('pm-wallet');if(el)m.wallet=el.value.trim();
     el=document.getElementById('pm-net');if(el)m.network=el.value;
   } else if(_pmType==='binance'){

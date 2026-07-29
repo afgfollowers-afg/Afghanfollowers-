@@ -3177,6 +3177,17 @@ var gwMethods={
       '<div class="gw-warn">⚠️ Only send on <strong>Ethereum (ERC20)</strong> network. Gas fees apply.</div></div>';
     }
   },
+  trx:{name:'Tron (TRX)',sub:'Tron Network',bg:'linear-gradient(135deg,#eb0029,#a80020)',
+    instructions:function(){
+      var c=getPmCfg('trx');
+      var wallet=c.wallet||'TWBPu6uQFczunGZeuUXxZpKt4wsdPPyero';
+      return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">📥 Send TRX to this address:</div>'
+        +'<div class="gw-addr-row"><span class="gw-addr">'+wallet+'</span><button class="gw-copy-btn" onclick="copyAddr(\''+wallet+'\')">Copy</button></div>'
+        +'<div class="gw-warn">⚠️ Only send <strong>TRX</strong> on the <strong>Tron network</strong>. Wrong network = funds lost!</div>'
+        +'</div>';
+    }
+  },
   paypal:{name:'PayPal Checkout',sub:'Pay with PayPal or Card',bg:'linear-gradient(135deg,#003087,#009cde)',
     instructions:function(){
       var amt=parseFloat(document.getElementById('gw-amount').value)||0;
@@ -3336,6 +3347,7 @@ const allPayMethodsDef={
   payment_approval:{name:'Cash / Hawala',sub:'Manual Approval',bg:'linear-gradient(135deg,#16a34a,#166534)',badgeColor:'#16a34a',badge:'AFG / IR',icon:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'},
   stripe:{name:'Stripe',sub:'Credit / Debit Card',bg:'linear-gradient(135deg,#635bff,#4f46e5)',badgeColor:'#635bff',badge:'Card',icon:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>'},
   perfectmoney:{name:'Perfect Money',sub:'E-Currency',bg:'linear-gradient(135deg,#c0392b,#922b21)',badgeColor:'#e74c3c',badge:'PM',icon:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>'},
+  trx:{name:'Tron (TRX)',sub:'Tron Network',bg:'linear-gradient(135deg,#eb0029,#a80020)',badgeColor:'#eb0029',badge:'TRX',icon:'<svg width="22" height="22" viewBox="0 0 24 24" fill="white"><polygon points="12,2 22,18 2,18"/><polygon points="12,8 18,18 6,18" fill="#a80020"/></svg>'},
 };
 
 function renderPaymentMethods(){
