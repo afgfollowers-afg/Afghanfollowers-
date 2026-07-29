@@ -792,7 +792,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:22px;font-weight:900;color:#fbbf24;font-variant-numeric:tabular-nums;letter-spacing:1px" id="cpb-timer">30:00</div>
-          <div style="font-size:10px;color:var(--muted)">estimated wait</div>
+          <div style="font-size:10px;color:var(--muted)" id="cpb-wait-label">estimated wait</div>
         </div>
       </div>
       <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7" id="cpb-details"></div>
@@ -804,9 +804,9 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
         <!-- Method selector -->
         <div class="form-group" style="margin-bottom:14px">
-          <label class="form-label">روش پرداخت</label>
+          <label class="form-label" id="af-method-label">Payment Method</label>
           <select id="af-method" class="form-input" onchange="onAfMethodChange()" style="width:100%">
-            <option value="">— انتخاب روش پرداخت —</option>
+            <option value="">— Select Method —</option>
           </select>
         </div>
 
@@ -3528,8 +3528,11 @@ function initAddFunds(){
   if(!methods.length){
     methods=pms_def.map(function(m){return{key:m.key,name:m.name,icon:m.icon,fee:0};});
   }
-  // Build dropdown
-  sel.innerHTML='<option value="">— انتخاب روش پرداخت —</option>';
+  // Build dropdown (language-aware label + placeholder)
+  var fa=_isFa();
+  var lbl=document.getElementById('af-method-label');
+  if(lbl) lbl.textContent=fa?'روش پرداخت':'Payment Method';
+  sel.innerHTML='<option value="">'+(fa?'— انتخاب روش پرداخت —':'— Select Method —')+'</option>';
   methods.forEach(function(m){
     sel.innerHTML+='<option value="'+escHtml(m.key)+'">'+escHtml(m.name)+'</option>';
   });
@@ -3547,6 +3550,8 @@ function getPayIcon(method){
 }
 
 // ── Crypto pending banner (USDT / TRX 30-min processing indicator) ──
+var _NON_LATIN_LANGS={fa:1,da:1,ps:1,ar:1};
+function _isFa(){try{return !!_NON_LATIN_LANGS[localStorage.getItem('smm_auth_lang')];}catch(e){return false;}}
 var _cryptoTimerInterval=null;
 var _CRYPTO_METHODS_SET={usdt_trc20:1,usdt_erc20:1,trx:1};
 var _CRYPTO_METHOD_LABELS={usdt_trc20:'USDT TRC20',usdt_erc20:'USDT ERC20',trx:'Tron (TRX)'};
@@ -3558,7 +3563,7 @@ function checkCryptoPending(){
   try{pending=JSON.parse(localStorage.getItem('smm_crypto_pending')||'null');}catch(e){pending=null;}
   if(!pending){banner.style.display='none';return;}
 
-  // Check current transaction status from fresh localStorage (updated by 30s pull)
+  var fa=_isFa();
   var u=getCurrentUser();
   var tx=u&&u.transactions&&u.transactions.find(function(t){return String(t.id)===String(pending.txId);});
   var methodLabel=_CRYPTO_METHOD_LABELS[pending.method]||pending.method;
@@ -3568,11 +3573,12 @@ function checkCryptoPending(){
     if(_cryptoTimerInterval){clearInterval(_cryptoTimerInterval);_cryptoTimerInterval=null;}
     banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(0,210,160,.1),rgba(22,163,74,.05));border:2px solid rgba(0,210,160,.35);border-radius:14px;padding:16px';
     document.getElementById('cpb-icon').textContent='✅';
-    document.getElementById('cpb-title').textContent='پرداخت تایید شد!';
-    document.getElementById('cpb-sub').textContent='Your balance has been credited';
+    document.getElementById('cpb-title').textContent=fa?'پرداخت تایید شد!':'Payment Approved!';
+    document.getElementById('cpb-sub').textContent=fa?'موجودی شما شارژ شد':'Your balance has been credited';
     var timerEl=document.getElementById('cpb-timer');
     timerEl.style.display='none';
-    document.getElementById('cpb-details').innerHTML='<span style="color:var(--green);font-weight:700">✅ $'+parseFloat(pending.amount||0).toFixed(2)+' '+methodLabel+' credited to your wallet</span>';
+    var wl=document.getElementById('cpb-wait-label');if(wl)wl.style.display='none';
+    document.getElementById('cpb-details').innerHTML='<span style="color:var(--green);font-weight:700">✅ $'+parseFloat(pending.amount||0).toFixed(2)+' '+methodLabel+(fa?' به کیف پول شما اضافه شد':' credited to your wallet')+'</span>';
     updateBalanceUI();afRenderHistory();
     setTimeout(function(){banner.style.display='none';},10000);
     return;
@@ -3583,27 +3589,31 @@ function checkCryptoPending(){
     if(_cryptoTimerInterval){clearInterval(_cryptoTimerInterval);_cryptoTimerInterval=null;}
     banner.style.cssText='display:block;margin-bottom:14px;background:rgba(255,92,125,.07);border:2px solid rgba(255,92,125,.35);border-radius:14px;padding:16px';
     document.getElementById('cpb-icon').textContent='❌';
-    document.getElementById('cpb-title').textContent='Payment Rejected';
-    document.getElementById('cpb-sub').textContent='Contact support for assistance';
+    document.getElementById('cpb-title').textContent=fa?'پرداخت رد شد':'Payment Rejected';
+    document.getElementById('cpb-sub').textContent=fa?'برای کمک با پشتیبانی تماس بگیرید':'Contact support for assistance';
     document.getElementById('cpb-timer').style.display='none';
-    document.getElementById('cpb-details').innerHTML='Your '+escHtml(methodLabel)+' payment was rejected by admin.<br>TX ID: <span style="font-family:monospace;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
+    var wl2=document.getElementById('cpb-wait-label');if(wl2)wl2.style.display='none';
+    document.getElementById('cpb-details').innerHTML=(fa?'پرداخت '+escHtml(methodLabel)+' شما توسط ادمین رد شد':'Your '+escHtml(methodLabel)+' payment was rejected by admin')+'.<br>TX ID: <span style="font-family:monospace;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
     return;
   }
 
   // Still pending — show yellow processing banner with countdown
   var THIRTY_MIN=30*60*1000;
-  var elapsed=Date.now()-pending.startTime;
   banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(245,158,11,.04));border:2px solid rgba(251,191,36,.35);border-radius:14px;padding:16px';
   document.getElementById('cpb-icon').textContent='⏳';
-  document.getElementById('cpb-title').textContent='پرداخت در حال پروسس است';
-  document.getElementById('cpb-sub').textContent='Your '+methodLabel+' payment is being verified by admin';
+  document.getElementById('cpb-title').textContent=fa?'پرداخت در حال پروسس است':'Payment Processing';
+  document.getElementById('cpb-sub').textContent=fa?'پرداخت '+methodLabel+' شما در حال بررسی توسط ادمین است':'Your '+methodLabel+' payment is being verified by admin';
   var timerEl2=document.getElementById('cpb-timer');
-  timerEl2.style.display='';
-  timerEl2.style.color='#fbbf24';
-  document.getElementById('cpb-details').innerHTML=
-    '💳 Method: <strong style="color:var(--white)">'+escHtml(methodLabel)+'</strong> &nbsp;·&nbsp; '
-    +'💵 Amount: <strong style="color:var(--green)">$'+parseFloat(pending.amount||0).toFixed(2)+'</strong><br>'
-    +'🔗 TX ID: <span style="font-family:monospace;word-break:break-all;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
+  timerEl2.style.display='';timerEl2.style.color='#fbbf24';
+  var wl3=document.getElementById('cpb-wait-label');
+  if(wl3){wl3.style.display='';wl3.textContent=fa?'زمان تخمینی':'estimated wait';}
+  document.getElementById('cpb-details').innerHTML=fa
+    ?'💳 روش پرداخت: <strong style="color:var(--white)">'+escHtml(methodLabel)+'</strong> &nbsp;·&nbsp; '
+     +'💵 مبلغ: <strong style="color:var(--green)">$'+parseFloat(pending.amount||0).toFixed(2)+'</strong><br>'
+     +'🔗 شناسه تراکنش: <span style="font-family:monospace;word-break:break-all;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>'
+    :'💳 Method: <strong style="color:var(--white)">'+escHtml(methodLabel)+'</strong> &nbsp;·&nbsp; '
+     +'💵 Amount: <strong style="color:var(--green)">$'+parseFloat(pending.amount||0).toFixed(2)+'</strong><br>'
+     +'🔗 TX ID: <span style="font-family:monospace;word-break:break-all;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
 
   function _tickTimer(){
     var r=Math.max(0,THIRTY_MIN-(Date.now()-pending.startTime));
@@ -3612,7 +3622,7 @@ function checkCryptoPending(){
     if(r===0){
       el.textContent='—';el.style.color='var(--muted)';
       var sub=document.getElementById('cpb-sub');
-      if(sub) sub.textContent='Still processing — contact support if not approved soon';
+      if(sub) sub.textContent=fa?'هنوز در حال پروسس — اگر تایید نشد با پشتیبانی تماس بگیرید':'Still processing — contact support if not approved soon';
     } else {
       var m=Math.floor(r/60000);var s=Math.floor((r%60000)/1000);
       el.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
