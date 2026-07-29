@@ -4008,7 +4008,8 @@ function approvePayment(userId,txId){
   loadAllRealData();buildPayTabs();applyPayFilter();
   notifyPanel();
   pushToServer();toast('✅ Approved — $'+credit+' added to '+(u.fname||'user'),'s');
-  tgSend('✅ <b>Payment Approved</b>\nUser: '+(u.fname||'')+'\nAmount: $'+credit+' credited to wallet\nNew Balance: $'+u.balance);
+  var _mLbl=_payMethodLabels[t.method]||(t.method||'');
+  tgSend('✅ <b>Payment Approved</b>\nUser: <b>'+(u.fname||u.name||'')+' '+(u.lname||'')+'</b>\nMethod: '+_mLbl+'\nAmount: $'+credit+' credited\nNew Balance: $'+u.balance);
 }
 
 function rejectPayment(userId,txId){
@@ -4742,14 +4743,21 @@ document.addEventListener('click',function(e){
 });
 
 // ═══ PAYMENTS ═══
+var _CRYPTO_PM_SET={usdt_trc20:1,usdt_erc20:1,trx:1};
 function rPayReqs(list){
   var bc={pending:'by',approved:'bg',rejected:'br'};
-  var h='<table><thead><tr><th>ID</th><th>User</th><th>Method</th><th>Amount</th><th>Note</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>ID</th><th>User</th><th>Method</th><th>Amount</th><th>TX / Note</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
   for(var i=0;i<list.length;i++){
     var p=list[i];
-    h+='<tr><td style="color:var(--mt);font-size:11px">#'+p.id+'</td><td style="font-weight:600">'+escHtmlAdmin(p.user)+'</td><td>'+escHtmlAdmin(p.method)+'</td>';
+    var isCryptoPm=_CRYPTO_PM_SET[p.method];
+    var noteCell=isCryptoPm&&p.txid
+      ?'<div style="font-family:monospace;font-size:11px;color:var(--ac);word-break:break-all;max-width:180px" title="'+escHtmlAdmin(p.txid)+'">'+escHtmlAdmin(p.txid)+'</div>'
+         +(p.note?'<div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(p.note)+'</div>':'')
+      :'<div style="font-size:12px;color:var(--mt);max-width:160px">'+escHtmlAdmin(p.note||'—')+'</div>';
+    h+='<tr><td style="color:var(--mt);font-size:11px">#'+p.id+'</td><td style="font-weight:600">'+escHtmlAdmin(p.user)+'</td>';
+    h+='<td>'+escHtmlAdmin(_payMethodLabel(p.method))+'</td>';
     h+='<td style="color:var(--gr);font-weight:700">$'+p.amount.toFixed(2)+'</td>';
-    h+='<td style="font-size:12px;color:var(--mt);max-width:160px">'+escHtmlAdmin(p.note)+'</td>';
+    h+='<td>'+noteCell+'</td>';
     h+='<td><span class="b '+(bc[p.status]||'by')+'">'+p.status+'</span></td>';
     h+='<td style="color:var(--mt);font-size:11px">'+p.date+'</td><td><div style="display:flex;gap:5px">';
     if(p.status==='pending'){h+='<button class="btn btn-s btn-sm" onclick="approvePayment(\''+p.userId+'\','+p.id+')">Approve</button><button class="btn btn-d btn-sm" onclick="rejectPayment(\''+p.userId+'\','+p.id+')">Reject</button>';}
@@ -4760,11 +4768,12 @@ function rPayReqs(list){
 }
 var _payTab='all';
 var _payStatus='all';
-var _payMethodLabels={admin:'💝 ادمین',paypal:'🅿️ PayPal',unknown:'❓ Unknown'};
+var _payMethodLabels={admin:'💝 ادمین',paypal:'🅿️ PayPal',unknown:'❓ Unknown',usdt_trc20:'₮ USDT TRC20',usdt_erc20:'Ξ USDT ERC20',trx:'🔴 Tron (TRX)',binance:'🟡 Binance',payment_approval:'💵 Cash/Hawala',stripe:'💳 Stripe',perfectmoney:'💎 PerfectMoney'};
 function _payMethodLabel(m){
   if(_payMethodLabels[m]) return _payMethodLabels[m];
   return '💳 '+m.charAt(0).toUpperCase()+m.slice(1);
 }
+var _CRYPTO_METHODS_ADMIN=['usdt_trc20','usdt_erc20','trx'];
 function buildPayTabs(){
   var all=getRealPayments();
   var methods={};
@@ -4774,8 +4783,17 @@ function buildPayTabs(){
   var tabs=document.getElementById('pay-method-tabs');
   if(!tabs) return;
   var html='<button class="wlt-tab'+(_payTab==='all'?' on':'')+'" onclick="switchPayTab(\'all\',this)">📋 همه ('+all.length+')</button>';
+  // Crypto combined tab
+  var cryptoCount=all.filter(function(p){return _CRYPTO_METHODS_ADMIN.indexOf(p.method)>-1;}).length;
+  if(cryptoCount>0){
+    html+='<button class="wlt-tab'+(_payTab==='_crypto'?' on':'')+'" onclick="switchPayTab(\'_crypto\',this)" style="position:relative">⚡ Crypto ('+cryptoCount+')'
+      +(all.filter(function(p){return _CRYPTO_METHODS_ADMIN.indexOf(p.method)>-1&&p.status==='pending';}).length>0
+        ?'<span style="position:absolute;top:-4px;right:-4px;background:var(--acc);color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center">!</span>':'')
+      +'</button>';
+  }
   order.forEach(function(m){
     if(!methods[m]) return;
+    if(_CRYPTO_METHODS_ADMIN.indexOf(m)>-1) return; // shown under Crypto tab
     html+='<button class="wlt-tab'+(_payTab===m?' on':'')+'" onclick="switchPayTab(\''+m+'\',this)">'+_payMethodLabel(m)+' ('+methods[m]+')</button>';
   });
   tabs.innerHTML=html;
@@ -4788,7 +4806,8 @@ function switchPayTab(method,el){
 }
 function applyPayFilter(){
   var list=getRealPayments();
-  if(_payTab!=='all') list=list.filter(function(p){return p.method===_payTab;});
+  if(_payTab==='_crypto') list=list.filter(function(p){return _CRYPTO_METHODS_ADMIN.indexOf(p.method)>-1;});
+  else if(_payTab!=='all') list=list.filter(function(p){return p.method===_payTab;});
   if(_payStatus!=='all') list=list.filter(function(p){return p.status===_payStatus;});
   rPayReqs(list);
 }
