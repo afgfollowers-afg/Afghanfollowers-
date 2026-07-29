@@ -802,17 +802,13 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div class="card" style="margin-bottom:14px">
       <div class="card-body">
 
-        <!-- Method selector (visual card grid) -->
-        <div style="margin-bottom:14px">
-          <label class="form-label" style="margin-bottom:10px">Payment Method</label>
-          <div id="af-method-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px">
-            <div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;grid-column:1/-1">Loading...</div>
-          </div>
+        <!-- Method selector -->
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">روش پرداخت</label>
+          <select id="af-method" class="form-input" onchange="onAfMethodChange()" style="width:100%">
+            <option value="">— انتخاب روش پرداخت —</option>
+          </select>
         </div>
-        <!-- Hidden select keeps existing JS working -->
-        <select id="af-method" style="display:none" onchange="onAfMethodChange()">
-          <option value="">— Select Method —</option>
-        </select>
 
         <!-- Method info (shown after selection) -->
         <div id="af-method-info" style="display:none;margin-bottom:14px"></div>
@@ -3532,59 +3528,17 @@ function initAddFunds(){
   if(!methods.length){
     methods=pms_def.map(function(m){return{key:m.key,name:m.name,icon:m.icon,fee:0};});
   }
-  // Build hidden select (keeps existing JS working)
-  sel.innerHTML='<option value="">— Select Method —</option>';
+  // Build dropdown
+  sel.innerHTML='<option value="">— انتخاب روش پرداخت —</option>';
   methods.forEach(function(m){
     sel.innerHTML+='<option value="'+escHtml(m.key)+'">'+escHtml(m.name)+'</option>';
   });
-  // Build visual card grid with brand logos
-  var grid=document.getElementById('af-method-grid');
-  if(grid){
-    if(!methods.length){
-      grid.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;grid-column:1/-1">No payment methods enabled. Admin → Settings → Payments</div>';
-    } else {
-      var prevKey=_afMethod; // preserve current selection across rebuilds
-      grid.innerHTML=methods.map(function(m){
-        var def=allPayMethodsDef[m.key]||null;
-        var bg=def?def.bg:'linear-gradient(135deg,var(--surface2),var(--surface))';
-        var icon=def?def.icon:'<span style="font-size:20px">💳</span>';
-        var badge=def?def.badge:m.name.slice(0,4).toUpperCase();
-        var badgeColor=def?def.badgeColor:'var(--muted)';
-        var isSelected=m.key===prevKey;
-        var selStyle=isSelected?'border-color:'+badgeColor+';background:color-mix(in srgb,'+badgeColor+' 12%,transparent);':'';
-        return '<div class="af-pm-card'+(isSelected?' sel':'')+'" id="af-pm-'+m.key.replace(/_/g,'-')+'" onclick="selectAfMethod(\''+escHtml(m.key)+'\')" style="'+selStyle+'" title="'+escHtml(m.name)+'">'
-          +'<div class="af-pm-logo" style="background:'+bg+'">'+icon+'</div>'
-          +'<div class="af-pm-name">'+escHtml(m.name.split(' ').slice(0,2).join(' '))+'</div>'
-          +'<div class="af-pm-badge" style="background:rgba(0,0,0,.25);color:'+badgeColor+'">'+escHtml(badge)+'</div>'
-          +'</div>';
-      }).join('');
-    }
-  }
   var noMsg=document.getElementById('af-no-methods');
   if(noMsg) noMsg.style.display='none';
   afRenderHistory();
   checkCryptoPending();
 }
 
-function selectAfMethod(key){
-  var sel=document.getElementById('af-method');
-  if(sel) sel.value=key;
-  // Update card highlight
-  document.querySelectorAll('.af-pm-card').forEach(function(c){
-    c.classList.remove('sel');
-    c.style.borderColor='';
-    c.style.background='';
-  });
-  var cardEl=document.getElementById('af-pm-'+key.replace(/_/g,'-'));
-  if(cardEl){
-    var def=allPayMethodsDef[key];
-    var accent=def?def.badgeColor:'var(--accent)';
-    cardEl.classList.add('sel');
-    cardEl.style.borderColor=accent;
-    cardEl.style.background='color-mix(in srgb,'+accent+' 12%,transparent)';
-  }
-  onAfMethodChange();
-}
 
 // Method definitions with icons
 function getPayIcon(method){
@@ -3916,8 +3870,6 @@ function afSubmitManual(){
   document.getElementById('af-summary').style.display='none';
   document.getElementById('af-pay-btn').style.display='none';
   document.getElementById('af-proof-card').style.display='none';
-  // Clear method card highlight
-  document.querySelectorAll('.af-pm-card').forEach(function(c){c.classList.remove('sel');c.style.borderColor='';c.style.background='';});
   _afMethod=null;_afAmount=0;
   afRenderHistory();
   if(isCrypto){
