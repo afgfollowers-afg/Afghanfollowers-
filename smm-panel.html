@@ -3681,17 +3681,23 @@ function onAfMethodChange(){
       +'</div>'
       +'<div style="font-size:12px;color:var(--muted)">Open Binance app → Pay → Enter Pay ID above → Enter amount → Confirm</div>'
       +'</div>';
-  } else if(key==='usdt_trc20'||key==='usdt_erc20'){
+  } else if(key==='usdt_trc20'||key==='usdt_erc20'||key==='trx'){
     var wallet=cfg.wallet||'—';
-    var net=key==='usdt_trc20'?'TRC20 (Tron)':'ERC20 (Ethereum)';
-    var warn=key==='usdt_trc20'?'Only send USDT on TRON (TRC20) network!':'Only send USDT on Ethereum (ERC20) network! Gas fees apply.';
-    info='<div style="background:rgba(38,161,123,.08);border:1px solid rgba(38,161,123,.25);border-radius:11px;padding:14px;font-size:13px">'
-      +'<div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:10px">₮ USDT '+net+'</div>'
+    var isTrx=key==='trx';
+    var methodTitle=isTrx?'🔴 Tron (TRX)':(key==='usdt_trc20'?'₮ USDT TRC20':'Ξ USDT ERC20');
+    var accent=isTrx?'#eb0029':(key==='usdt_trc20'?'#26a17b':'#627eea');
+    var net=isTrx?'Tron Network':(key==='usdt_trc20'?'TRC20 (Tron)':'ERC20 (Ethereum)');
+    var warn=isTrx?'Only send <strong>TRX</strong> on the <strong>Tron network</strong>. Wrong network = funds lost!'
+              :(key==='usdt_trc20'?'Only send <strong>USDT</strong> on the <strong>TRON (TRC20)</strong> network. Wrong network = funds lost!'
+                                  :'Only send <strong>USDT</strong> on the <strong>Ethereum (ERC20)</strong> network. Gas fees apply.');
+    info='<div style="background:rgba('+( isTrx?'235,0,41':'38,161,123')+', .08);border:1px solid rgba('+( isTrx?'235,0,41':'38,161,123')+', .25);border-radius:11px;padding:14px;font-size:13px">'
+      +'<div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:10px">'+methodTitle+'</div>'
       +'<div style="color:var(--muted);margin-bottom:6px">Wallet Address</div>'
-      +'<div style="background:rgba(38,161,123,.1);border:1px solid rgba(38,161,123,.3);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-      +'<span style="color:#26a17b;font-size:11px;word-break:break-all;flex:1;margin-right:8px">'+wallet+'</span>'
-      +'<button onclick="copyAddr(\''+wallet+'\')" style="background:#26a17b;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Copy</button>'
+      +'<div style="background:rgba('+( isTrx?'235,0,41':'38,161,123')+', .1);border:1px solid rgba('+( isTrx?'235,0,41':'38,161,123')+', .3);border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<span style="color:'+accent+';font-size:11px;word-break:break-all;flex:1;margin-right:8px">'+wallet+'</span>'
+      +'<button onclick="copyAddr(\''+wallet+'\')" style="background:'+accent+';color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">Copy</button>'
       +'</div>'
+      +'<div style="margin-bottom:8px;font-size:12px;color:var(--muted)">After sending, copy the <strong style="color:var(--white)">TX ID</strong> (transaction hash) from your wallet app and paste it in the field below.</div>'
       +'<div style="background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--red)">⚠️ '+warn+'</div>'
       +'</div>';
   } else if(key==='payment_approval'){
