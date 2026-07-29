@@ -774,6 +774,22 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <button onclick="openWithdrawModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;font-weight:700;padding:9px 14px;border-radius:10px;cursor:pointer;white-space:nowrap">💸 Withdraw</button>
     </div>
 
+    <!-- Crypto payment pending banner (shows after USDT/TRX submission until admin approves) -->
+    <div id="crypto-pending-banner" style="display:none;margin-bottom:14px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(245,158,11,.04));border:2px solid rgba(251,191,36,.35);border-radius:14px;padding:16px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="font-size:28px;flex-shrink:0" id="cpb-icon">⏳</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:800;color:var(--white)" id="cpb-title">پرداخت در حال پروسس است</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px" id="cpb-sub">Your payment is being verified by admin</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:22px;font-weight:900;color:#fbbf24;font-variant-numeric:tabular-nums;letter-spacing:1px" id="cpb-timer">30:00</div>
+          <div style="font-size:10px;color:var(--muted)">estimated wait</div>
+        </div>
+      </div>
+      <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7" id="cpb-details"></div>
+    </div>
+
     <!-- Simple Add Funds Form -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-body">
@@ -3512,12 +3528,89 @@ function initAddFunds(){
   if(methods.length){if(noMsg)noMsg.style.display='none';}
   else{if(noMsg)noMsg.innerHTML='<div style="font-size:32px;margin-bottom:8px">💳</div><div style="font-weight:600;color:var(--text);margin-bottom:4px">No payment methods enabled</div><div style="font-size:12px">Admin → Settings → Payments → enable methods</div>';}
   afRenderHistory();
+  checkCryptoPending();
 }
 
 // Method definitions with icons
 function getPayIcon(method){
-  var icons={paypal:'🅿️',paypal_manual:'🅿️',binance:'🟡',usdt_trc20:'₮',usdt_erc20:'Ξ',stripe:'💳',payment_approval:'💵',perfectmoney:'💎'};
+  var icons={paypal:'🅿️',paypal_manual:'🅿️',binance:'🟡',usdt_trc20:'₮',usdt_erc20:'Ξ',stripe:'💳',payment_approval:'💵',perfectmoney:'💎',trx:'🔴'};
   return icons[method]||'💳';
+}
+
+// ── Crypto pending banner (USDT / TRX 30-min processing indicator) ──
+var _cryptoTimerInterval=null;
+var _CRYPTO_METHODS_SET={usdt_trc20:1,usdt_erc20:1,trx:1};
+var _CRYPTO_METHOD_LABELS={usdt_trc20:'USDT TRC20',usdt_erc20:'USDT ERC20',trx:'Tron (TRX)'};
+
+function checkCryptoPending(){
+  var banner=document.getElementById('crypto-pending-banner');
+  if(!banner) return;
+  var pending;
+  try{pending=JSON.parse(localStorage.getItem('smm_crypto_pending')||'null');}catch(e){pending=null;}
+  if(!pending){banner.style.display='none';return;}
+
+  // Check current transaction status from fresh localStorage (updated by 30s pull)
+  var u=getCurrentUser();
+  var tx=u&&u.transactions&&u.transactions.find(function(t){return String(t.id)===String(pending.txId);});
+  var methodLabel=_CRYPTO_METHOD_LABELS[pending.method]||pending.method;
+
+  if(tx&&tx.status==='approved'){
+    localStorage.removeItem('smm_crypto_pending');
+    if(_cryptoTimerInterval){clearInterval(_cryptoTimerInterval);_cryptoTimerInterval=null;}
+    banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(0,210,160,.1),rgba(22,163,74,.05));border:2px solid rgba(0,210,160,.35);border-radius:14px;padding:16px';
+    document.getElementById('cpb-icon').textContent='✅';
+    document.getElementById('cpb-title').textContent='پرداخت تایید شد!';
+    document.getElementById('cpb-sub').textContent='Your balance has been credited';
+    var timerEl=document.getElementById('cpb-timer');
+    timerEl.style.display='none';
+    document.getElementById('cpb-details').innerHTML='<span style="color:var(--green);font-weight:700">✅ $'+parseFloat(pending.amount||0).toFixed(2)+' '+methodLabel+' credited to your wallet</span>';
+    updateBalanceUI();afRenderHistory();
+    setTimeout(function(){banner.style.display='none';},10000);
+    return;
+  }
+
+  if(tx&&tx.status==='rejected'){
+    localStorage.removeItem('smm_crypto_pending');
+    if(_cryptoTimerInterval){clearInterval(_cryptoTimerInterval);_cryptoTimerInterval=null;}
+    banner.style.cssText='display:block;margin-bottom:14px;background:rgba(255,92,125,.07);border:2px solid rgba(255,92,125,.35);border-radius:14px;padding:16px';
+    document.getElementById('cpb-icon').textContent='❌';
+    document.getElementById('cpb-title').textContent='Payment Rejected';
+    document.getElementById('cpb-sub').textContent='Contact support for assistance';
+    document.getElementById('cpb-timer').style.display='none';
+    document.getElementById('cpb-details').innerHTML='Your '+escHtml(methodLabel)+' payment was rejected by admin.<br>TX ID: <span style="font-family:monospace;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
+    return;
+  }
+
+  // Still pending — show yellow processing banner with countdown
+  var THIRTY_MIN=30*60*1000;
+  var elapsed=Date.now()-pending.startTime;
+  banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(245,158,11,.04));border:2px solid rgba(251,191,36,.35);border-radius:14px;padding:16px';
+  document.getElementById('cpb-icon').textContent='⏳';
+  document.getElementById('cpb-title').textContent='پرداخت در حال پروسس است';
+  document.getElementById('cpb-sub').textContent='Your '+methodLabel+' payment is being verified by admin';
+  var timerEl2=document.getElementById('cpb-timer');
+  timerEl2.style.display='';
+  timerEl2.style.color='#fbbf24';
+  document.getElementById('cpb-details').innerHTML=
+    '💳 Method: <strong style="color:var(--white)">'+escHtml(methodLabel)+'</strong> &nbsp;·&nbsp; '
+    +'💵 Amount: <strong style="color:var(--green)">$'+parseFloat(pending.amount||0).toFixed(2)+'</strong><br>'
+    +'🔗 TX ID: <span style="font-family:monospace;word-break:break-all;color:var(--white)">'+escHtml(pending.txid||'—')+'</span>';
+
+  function _tickTimer(){
+    var r=Math.max(0,THIRTY_MIN-(Date.now()-pending.startTime));
+    var el=document.getElementById('cpb-timer');
+    if(!el){clearInterval(_cryptoTimerInterval);_cryptoTimerInterval=null;return;}
+    if(r===0){
+      el.textContent='—';el.style.color='var(--muted)';
+      var sub=document.getElementById('cpb-sub');
+      if(sub) sub.textContent='Still processing — contact support if not approved soon';
+    } else {
+      var m=Math.floor(r/60000);var s=Math.floor((r%60000)/1000);
+      el.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    }
+  }
+  _tickTimer();
+  if(!_cryptoTimerInterval) _cryptoTimerInterval=setInterval(_tickTimer,1000);
 }
 
 var pms_def=[
@@ -3712,16 +3805,42 @@ function afSubmitManual(){
   // Save pending deposit
   var u=getCurrentUser();
   if(u&&u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
+  var _cryptoMethods=['usdt_trc20','usdt_erc20','trx'];
+  var isCrypto=_cryptoMethods.indexOf(_afMethod)>-1;
+  var txTimestamp=Date.now();
   if(u){
     if(!u.transactions) u.transactions=[];
     u.transactions.unshift({
-      id:Date.now(),type:'deposit_pending',
+      id:txTimestamp,type:'deposit_pending',
       method:_afMethod,amount:_afAmount,
       txid:txid,status:'pending',
       desc:'Manual payment — awaiting admin approval',
       date:new Date().toISOString()
     });
     saveCurrentUser(u);
+  }
+  // Notify admin via Telegram for crypto deposits
+  if(isCrypto&&u){
+    var _mLabel={usdt_trc20:'USDT TRC20',usdt_erc20:'USDT ERC20',trx:'Tron (TRX)'}[_afMethod]||_afMethod;
+    var _uName=((u.fname||u.name||'')+' '+(u.lname||'')).trim()||u.email||'User';
+    fetch('/api/notify-telegram',{
+      method:'POST',
+      headers:Object.assign({'Content-Type':'application/json'},_dbHeaders()),
+      body:JSON.stringify({message:
+        '💰 <b>New Crypto Deposit</b>\n\n'
+        +'👤 User: <b>'+_uName+'</b>\n'
+        +'📧 '+(u.email||u.phone||'—')+'\n'
+        +'💳 Method: <b>'+_mLabel+'</b>\n'
+        +'💵 Amount: <b>$'+parseFloat(_afAmount).toFixed(2)+'</b>\n'
+        +'🔗 TX ID: <code>'+txid+'</code>\n\n'
+        +'→ Admin Panel → Payments → Approve'
+      })
+    }).catch(function(){});
+    // Store for 30-min processing banner
+    localStorage.setItem('smm_crypto_pending',JSON.stringify({
+      txId:txTimestamp,method:_afMethod,
+      amount:_afAmount,txid:txid,startTime:txTimestamp
+    }));
   }
   // Reset form
   document.getElementById('af-method').value='';
@@ -3734,7 +3853,12 @@ function afSubmitManual(){
   document.getElementById('af-proof-card').style.display='none';
   _afMethod=null;_afAmount=0;
   afRenderHistory();
-  showToast('✅ Payment submitted! Admin will verify and add credit.','s');
+  if(isCrypto){
+    checkCryptoPending();
+    showToast('✅ Payment submitted! Processing banner shown above.','s');
+  } else {
+    showToast('✅ Payment submitted! Admin will verify and add credit.','s');
+  }
 }
 
 // Credit types add to the wallet, debit types take from it. admin_credit/
@@ -4657,6 +4781,8 @@ function pullFromServerOnLoad(){
         var tp=document.getElementById('page-tickets');
         if(tp&&tp.style.display!=='none') renderTicketsList();
       }
+      // Check if a pending crypto deposit has been approved/rejected
+      if(localStorage.getItem('smm_crypto_pending')) checkCryptoPending();
     }).catch(function(){});
 }
 pullFromServerOnLoad();
