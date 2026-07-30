@@ -2804,7 +2804,12 @@ function placeOrder(){
   }catch(e){}
   
   // Telegram notify
-  tgPanelSend('📦 <b>New Order</b>\nUser: '+order.user+'\nService: '+svcName+'\nQty: '+qty+'\nCost: $'+cost.toFixed(4));
+  tgPanelSend('📦 <b>New Order</b>\n'
+    +'👤 User: '+order.user+' ('+( order.email||'—')+')\n'
+    +'📋 Service: '+svcName+'\n'
+    +'🔢 Qty: '+qty+'\n'
+    +'💵 Cost: $'+cost.toFixed(4)+'\n'
+    +'💰 Balance after order: $'+parseFloat((me&&me.balance)||0).toFixed(2));
   
   S.orders.unshift(order);
   
