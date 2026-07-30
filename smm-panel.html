@@ -4701,7 +4701,23 @@ function pullFromServerOnLoad(){
       var u=getCurrentUser();
       if(d.smm_users&&Array.isArray(d.smm_users)&&d.smm_users.length){
         var local=[];try{local=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
-        localStorage.setItem('smm_users',JSON.stringify(mergeByIdPreferServer(d.smm_users,local)));
+        var mergedUsers=mergeByIdPreferServer(d.smm_users,local);
+        // The server strips balance+transactions from user records it returns
+        // to unauthenticated or un-recognised callers (no token, expired token,
+        // or AUTH_JWT_SECRET not set). Detect a stripped record by
+        // balance===undefined (a genuine $0 account returns balance:0, not
+        // absent). When stripped, restore financial fields from local cache
+        // so the periodic pull never overwrites a real balance with nothing.
+        var localUMap={};
+        local.forEach(function(lu){ if(lu&&lu.id!==undefined) localUMap[String(lu.id)]=lu; });
+        mergedUsers=mergedUsers.map(function(su){
+          if(su.balance===undefined){
+            var lu=localUMap[String(su.id)];
+            if(lu&&lu.balance!==undefined) return Object.assign({},su,{balance:lu.balance,transactions:lu.transactions||[]});
+          }
+          return su;
+        });
+        localStorage.setItem('smm_users',JSON.stringify(mergedUsers));
         changed=true;
       }
       if(d.smm_orders&&Array.isArray(d.smm_orders)&&d.smm_orders.length){
