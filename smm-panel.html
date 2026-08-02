@@ -4790,6 +4790,20 @@ function pullFromServerOnLoad(){
           localStorage.setItem('smm_general_settings',newGen);
           applyFlSettings(d.smm_general);
         }
+        // Force-reload: admin sets smm_general.forceReloadToken to a new
+        // timestamp in Admin → Settings → "Force Refresh All Customers".
+        // On each 30s pull, if the token changed, silently reload the page
+        // so customers always run the latest deployed JS without manual refresh.
+        var srvTok=d.smm_general.forceReloadToken;
+        if(srvTok){
+          var lcTok=localStorage.getItem('smm_force_reload_token');
+          if(lcTok&&lcTok!==String(srvTok)){
+            localStorage.setItem('smm_force_reload_token',String(srvTok));
+            window.location.reload(true);
+            return;
+          }
+          if(!lcTok) localStorage.setItem('smm_force_reload_token',String(srvTok));
+        }
       }
       var refVisitsChanged=false;
       if(d.smm_ref_visit_counts&&typeof d.smm_ref_visit_counts==='object'){
