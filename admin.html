@@ -940,6 +940,7 @@ textarea.fi{resize:vertical;min-height:75px;}
               <div class="fg"><label class="fl">Total Users (shown on auth page)</label><input type="number" class="fi" value="12847" id="g-totalUsers"></div>
               <div class="fg"><label class="fl">Total Orders (shown on auth page)</label><input type="number" class="fi" value="94312" id="g-totalOrders"></div>
               <div class="fg full"><button class="btn btn-p" onclick="saveGeneral()">💾 Save Changes</button></div>
+              <div class="fg full"><button class="btn" style="background:#f59e0b;color:#000;font-weight:700" onclick="forceRefreshPanel()">🔄 Force Refresh All Customers</button></div>
             </div>
           </div>
 
@@ -5860,6 +5861,16 @@ function saveGeneral(){
   if(cfg['g-currency']) saveCurrencyNow(cfg['g-currency']);
   toast('✅ General settings saved!','s');
   notifyPanel();
+}
+function forceRefreshPanel(){
+  var cfg={};
+  try{cfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
+  cfg.forceReloadToken=String(Date.now());
+  localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
+  localStorage.setItem('smm_general_settings',JSON.stringify(cfg));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
+  toast('🔄 Force refresh sent — all active customer sessions reload within 30s','s');
 }
 // Free Likes friends/visits thresholds live on the User Invite Status page
 // now, but are stored in the same smm_general blob as the rest of General
