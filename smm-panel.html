@@ -2121,8 +2121,26 @@ function submitTicket(){
     body:JSON.stringify({smm_tickets:tickets,smm_ts:Date.now()})
   }).catch(function(){});
   
-  // Notify admin via Telegram
-  tgPanelSend('🎫 <b>New Ticket #'+ticket.id+'</b>\nUser: '+ticket.user+'\nSubject: '+ticket.subject+'\nMessage: '+ticket.message.slice(0,200));
+  // Notify admin via Telegram — if subject is an order ID, attach order details
+  var _tkMsg='🎫 <b>New Ticket #'+ticket.id+'</b>\n'
+    +'👤 User: '+ticket.user+' ('+(ticket.email||'—')+')\n'
+    +'📋 Subject: '+ticket.subject+'\n'
+    +'💬 Message: '+ticket.message.slice(0,200);
+  var _subj=ticket.subject.trim();
+  if(/^\d{10,}$/.test(_subj)){
+    var _tOrders=[];
+    try{_tOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+    var _tOrd=_tOrders.find(function(o){return String(o.id)===_subj;});
+    if(_tOrd){
+      _tkMsg+='\n\n📦 <b>Related Order #'+_tOrd.id+'</b>'
+        +'\n🛍 '+(_tOrd.svcName||_tOrd.service||'—')
+        +'\n🔢 Qty: '+(_tOrd.qty||'—')+' · 💵 $'+parseFloat(_tOrd.cost||0).toFixed(4)
+        +'\n📌 Status: '+(_tOrd.status||'—')
+        +(_tOrd.provOrderId?'\n🔗 Provider ID: '+_tOrd.provOrderId:'')
+        +'\n📅 '+(_tOrd.date?new Date(_tOrd.date).toLocaleString():'—');
+    }
+  }
+  tgPanelSend(_tkMsg);
   
   // Clear form
   subject.value='';msg.value='';
