@@ -4929,6 +4929,23 @@ function tgPanelSend(text){
   }).catch(function(){});
 }
 
+// Notify admin when a logged-in user opens the panel — once per day per browser.
+(function(){
+  try{
+    var KEY='smm_panel_visit_notified_date';
+    var today=new Date().toDateString();
+    if(localStorage.getItem(KEY)===today) return;
+    localStorage.setItem(KEY,today);
+    var u=getCurrentUser();
+    var name=u?((u.fname||u.name||'')+' '+(u.lname||'')).trim()||u.email||'Unknown':'Unknown';
+    var email=u?(u.email||u.phone||'—'):'—';
+    var msg='🟢 <b>کاربر وارد پنل شد</b>\n'
+      +'👤 '+name+' ('+email+')\n'
+      +'📅 '+new Date().toLocaleString();
+    tgPanelSend(msg);
+  }catch(e){}
+})();
+
 
 function refreshOrderStatusesLive(){
   var badge=document.getElementById('orders-refresh-badge');
