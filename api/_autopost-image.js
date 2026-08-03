@@ -97,7 +97,7 @@ function wrapText(text, maxCharsPerLine) {
 
 // Picks the largest font size that fits all wrapped lines inside the box.
 function fitText(text, boxWidth, boxHeight) {
-  const sizes = [64, 56, 48, 42, 36, 32, 28];
+  const sizes = [76, 68, 60, 52, 44, 38, 32, 28];
   for (const fontSize of sizes) {
     const lineHeight = fontSize * 1.52;
     const maxLines = Math.floor(boxHeight / lineHeight);
@@ -134,18 +134,31 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight, templateKey) {
   // Accent divider sits 22px above the card's top edge.
   const divY = BOX.y - 22;
 
-  // Dark vignette stops at BOX bottom so the template's "afghanfollowers.online"
-  // footer (which starts ~y:1010) stays on the original template background.
+  // Top vignette: buries the logo area in darkness so the text card dominates.
+  // Fades to fully transparent 30px above the accent divider so the divider
+  // and card are unaffected.
+  const topVigH = divY - 30; // from y:0 to just before the divider
+
+  // Bottom vignette stops at BOX bottom so the "afghanfollowers.online"
+  // footer stays on the original template background.
   const vigH = BOX.y + BOX.height - 530; // from y:530 to bottom of card
 
   return `<svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg">
   <defs>
 
-    <!-- Dark vignette that darkens the lower portion of the template -->
+    <!-- Top vignette: darkens the logo so it visually recedes -->
+    <linearGradient id="vignetteTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#010306" stop-opacity="0.92"/>
+      <stop offset="38%"  stop-color="#020508" stop-opacity="0.88"/>
+      <stop offset="72%"  stop-color="#04080f" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#04080f" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Bottom vignette that darkens behind the text card -->
     <linearGradient id="vignette" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%"   stop-color="#04080f" stop-opacity="0"/>
-      <stop offset="22%"  stop-color="#04080f" stop-opacity="0.80"/>
-      <stop offset="100%" stop-color="#020508" stop-opacity="0.97"/>
+      <stop offset="22%"  stop-color="#04080f" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#020508" stop-opacity="0.98"/>
     </linearGradient>
 
     <!-- Platform-coloured left→right gradient for divider + corners -->
@@ -158,14 +171,14 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight, templateKey) {
 
     <!-- Card background: deep dark gradient -->
     <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#18213f"/>
+      <stop offset="0%"   stop-color="#1c2645"/>
       <stop offset="100%" stop-color="#0b1028"/>
     </linearGradient>
 
     <!-- Glow behind the card (uses primary platform colour) -->
-    <filter id="cardGlow" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="16" result="blur"/>
-      <feFlood flood-color="${clrs.p}" flood-opacity="0.28" result="color"/>
+    <filter id="cardGlow" x="-12%" y="-12%" width="124%" height="124%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="blur"/>
+      <feFlood flood-color="${clrs.p}" flood-opacity="0.45" result="color"/>
       <feComposite in="color" in2="blur" operator="in" result="shadow"/>
       <feMerge>
         <feMergeNode in="shadow"/>
@@ -173,10 +186,10 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight, templateKey) {
       </feMerge>
     </filter>
 
-    <!-- Subtle white glow behind text for legibility -->
-    <filter id="textGlow" x="-15%" y="-15%" width="130%" height="130%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="blur"/>
-      <feFlood flood-color="#ffffff" flood-opacity="0.12" result="color"/>
+    <!-- White glow behind text for legibility -->
+    <filter id="textGlow" x="-18%" y="-18%" width="136%" height="136%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.20" result="color"/>
       <feComposite in="color" in2="blur" operator="in" result="shadow"/>
       <feMerge>
         <feMergeNode in="shadow"/>
@@ -186,7 +199,11 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight, templateKey) {
 
   </defs>
 
-  <!-- ① Dark vignette over lower half (stops before the footer) -->
+  <!-- ⓪ Top vignette — buries the logo in darkness, making text dominant -->
+  <rect x="0" y="0" width="${canvasWidth}" height="${topVigH}"
+        fill="url(#vignetteTop)"/>
+
+  <!-- ① Bottom vignette over card area (stops before the footer) -->
   <rect x="0" y="530" width="${canvasWidth}" height="${vigH}"
         fill="url(#vignette)"/>
 
@@ -200,8 +217,8 @@ function buildOverlaySvg(text, canvasWidth, canvasHeight, templateKey) {
   <!-- ③ Text card with glow border -->
   <rect x="${BOX.x + 6}" y="${BOX.y + 6}"
         width="${BOX.width - 12}" height="${BOX.height - 12}" rx="22"
-        fill="url(#cardBg)" fill-opacity="0.97"
-        stroke="${clrs.p}" stroke-width="1.5" stroke-opacity="0.50"
+        fill="url(#cardBg)" fill-opacity="0.98"
+        stroke="${clrs.p}" stroke-width="2.5" stroke-opacity="0.85"
         filter="url(#cardGlow)"/>
 
   <!-- ④ Corner bracket accents — L-shaped lines at each corner -->
