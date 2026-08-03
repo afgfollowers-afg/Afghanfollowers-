@@ -114,7 +114,10 @@ module.exports = async (req, res) => {
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
 
-  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
+  let dailyReportResult = null;
+  try { dailyReportResult = await runDailyStatsReportJob(); } catch (e) { dailyReportResult = { ok: false, error: e.message }; }
+
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult, dailyReport: dailyReportResult }));
 };
 
 // Exposed so api/place-order.js can dispatch a single order on demand
@@ -1058,6 +1061,83 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   }
 
   return { ok: true, focus, template: templateKey, results };
+}
+
+// ── Daily Telegram stats report ──
+// Sends a brief panel-performance summary to the admin's Telegram chat every
+// day at 3 AM UTC alongside the order-sync and auto-post jobs. Deduped by
+// smm_last_daily_report_date so a retry/manual hit the same day is a no-op.
+async function runDailyStatsReportJob() {
+  let tgCfg = {};
+  const today = todayKey();
+  let db = {};
+  try {
+    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    db = await dbResp.json();
+    tgCfg = db.smm_tg_bot || {};
+  } catch (e) {
+    return { ok: false, error: 'DB fetch failed: ' + e.message };
+  }
+
+  if (!tgCfg.token || !tgCfg.chatId) {
+    return { ok: true, skipped: true, reason: 'Telegram not configured (smm_tg_bot.token / chatId missing)' };
+  }
+
+  if (db.smm_last_daily_report_date === today) {
+    return { ok: true, skipped: true, reason: 'Already sent today (' + today + ')' };
+  }
+
+  const orders = db.smm_orders || [];
+  const users = db.smm_users || [];
+
+  // Today's data — compare ISO date prefix (YYYY-MM-DD in UTC)
+  const todayOrders = orders.filter(o => o.date && String(o.date).slice(0, 10) === today);
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + (parseFloat(o.cost) || 0), 0);
+  const todayUsers = users.filter(u => u.joined && String(u.joined).slice(0, 10) === today);
+
+  const pendingOrders = orders.filter(o => {
+    const s = (o.status || '').toLowerCase();
+    return s === 'pending' || s === 'processing' || s === 'in_progress';
+  });
+  const completedToday = todayOrders.filter(o => {
+    const s = (o.status || '').toLowerCase();
+    return s === 'completed' || s === 'partial';
+  });
+
+  const totalUsers = users.length;
+  const totalOrders = orders.length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (parseFloat(o.cost) || 0), 0);
+
+  const msg = '📊 <b>گزارش روزانه — ' + today + '</b>\n\n'
+    + '👥 کاربران جدید: <b>' + todayUsers.length + '</b>\n'
+    + '📦 سفارش‌های جدید: <b>' + todayOrders.length + '</b>\n'
+    + '💰 درآمد امروز: <b>$' + todayRevenue.toFixed(2) + '</b>\n'
+    + '✅ تکمیل‌شده امروز: <b>' + completedToday.length + '</b>\n'
+    + '🔄 در انتظار/درحال انجام: <b>' + pendingOrders.length + '</b>\n\n'
+    + '📈 <b>کل آمار پنل</b>\n'
+    + '👤 کل کاربران: ' + totalUsers + '\n'
+    + '📋 کل سفارش‌ها: ' + totalOrders + '\n'
+    + '💵 کل درآمد: $' + totalRevenue.toFixed(2);
+
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
+    });
+    const data = await r.json();
+    if (!data.ok) return { ok: false, error: 'Telegram error: ' + JSON.stringify(data) };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_last_daily_report_date: today, smm_ts: Date.now() })
+  }).catch(() => {});
+
+  return { ok: true, todayOrders: todayOrders.length, todayRevenue, todayUsers: todayUsers.length };
 }
 
 // ── Daily bulk email campaign ──
