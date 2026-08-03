@@ -69,6 +69,14 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
   }
 
+  // ?job=daily-report — on-demand manual trigger for the daily Telegram stats
+  // report. Bypasses the once-per-day dedup guard so the admin can preview
+  // the report any time without waiting for the 10PM cron.
+  if (req.query && req.query.job === 'daily-report') {
+    const result = await runDailyStatsReportJob({ force: true }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
+  }
+
   // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
@@ -1068,7 +1076,8 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
 // Sends a brief panel-performance summary to the admin's Telegram chat every
 // day at 3 AM UTC alongside the order-sync and auto-post jobs. Deduped by
 // smm_last_daily_report_date so a retry/manual hit the same day is a no-op.
-async function runDailyStatsReportJob() {
+async function runDailyStatsReportJob(opts) {
+  opts = opts || {};
   let tgCfg = {};
   const today = todayKey();
   let db = {};
@@ -1084,7 +1093,7 @@ async function runDailyStatsReportJob() {
     return { ok: true, skipped: true, reason: 'Telegram not configured (smm_tg_bot.token / chatId missing)' };
   }
 
-  if (db.smm_last_daily_report_date === today) {
+  if (!opts.force && db.smm_last_daily_report_date === today) {
     return { ok: true, skipped: true, reason: 'Already sent today (' + today + ')' };
   }
 
