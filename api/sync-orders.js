@@ -114,10 +114,7 @@ module.exports = async (req, res) => {
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
 
-  let dailyReportResult = null;
-  try { dailyReportResult = await runDailyStatsReportJob(); } catch (e) { dailyReportResult = { ok: false, error: e.message }; }
-
-  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult, dailyReport: dailyReportResult }));
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
 };
 
 // Exposed so api/place-order.js can dispatch a single order on demand
@@ -612,13 +609,17 @@ async function runEmailCampaignJob(req, res) {
       });
     }
 
-    // Also run the bulk campaign from this 8AM cron — the 3AM cron runs it
+    // Also run the bulk campaign from this 10PM cron — the 3AM cron runs it
     // too but bulk email is idempotent (smm_last_bulk_campaign_date guard
-    // prevents double-sending on the same day) and the 8AM slot gives emails
+    // prevents double-sending on the same day) and this slot gives emails
     // a second guaranteed window in case the 3AM function timed out early.
     const bulkResult = await runBulkEmailCampaignJob().catch(e => ({ ok: false, error: e.message }));
 
-    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult });
+    // Daily Telegram stats report — fires at 22:00 German time (20:00 UTC)
+    // alongside this cron, deduped by smm_last_daily_report_date.
+    const dailyReport = await runDailyStatsReportJob().catch(e => ({ ok: false, error: e.message }));
+
+    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult, dailyReport });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
