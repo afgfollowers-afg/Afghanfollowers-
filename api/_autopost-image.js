@@ -502,34 +502,45 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-// Standalone 240×240 SVG using the real TikTok logo path (SimpleIcons, MIT).
-// The path fits in a 24×24 viewBox; scale(9.5) + center-translate maps it to ~215px
-// inside the 240px canvas. Three layers with ±18px x-offset recreate the brand's
-// cyan/pink fringe effect. Pre-rasterized by Sharp → embedded as PNG so librsvg
-// never touches the complex curves at small size.
+// Standalone 480×480 SVG built from primitives (circle + rect + D-cap path).
+// Rendered by Sharp at 480px then downsampled to 120px — 4× oversample gives
+// clean bicubic anti-aliasing with zero librsvg path-complexity risk.
+// Proportions match TikTok brand: note-head r≈27%, flag h≈20%, stem w≈10%.
+// Three layers (cyan ox=-30, pink ox=+30, white ox=0) produce the fringe effect:
+//   left fringe (x=0→30): cyan only  |  right fringe (flag right - 30px): pink only
 function buildTikTokIconSvg() {
-  // Real TikTok logo silhouette path — SimpleIcons (simpleicons.org), MIT license
-  const p = 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17' +
-    ' 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93' +
-    '-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.1' +
-    '-1.43.02-2.86-.46-4.03-1.26C2.5 22.01.85 20.31.31 18.29c-.03-.42-.05-.85-.04-1.28' +
-    '.34-2.15 1.65-4.18 3.57-5.22 1.27-.73 2.74-1.12 4.22-1.07.02 1.46-.06 2.92-.06 4.38' +
-    '-.75-.23-1.61-.11-2.26.37-.42.28-.76.7-.93 1.18-.17.48-.13 1.01.02 1.49' +
-    '.26.97 1.12 1.76 2.13 1.94.75.15 1.55.02 2.2-.4.51-.31.93-.77 1.2-1.3' +
-    '.19-.37.28-.78.27-1.19l.02-18.17z';
+  const S = 480;
+  // White-layer reference (ox=0)
+  const nCx = 160, nCy = 346, nR = 130;  // note head; right edge = 290
+  const stW  = 48;
+  const stX0 = nCx + nR - stW;           // 242; right = 290 = nCx+nR ✓
+  const capY1 = 38, capY2 = 138;         // flag y-range (h=100, ≈20% of S)
+  const capW  = 160, capRx = 50;         // flag width; rx=h/2=50 → D-shaped right end
+  const stY2  = nCy + 24;               // 370: stem extends 24px past note-head centre
 
-  // scale(9.5): 24→228px; translate centers the ~215×215 shape in 240×240 with ~12px margin
-  // cyan/pink layers shift ±18px horizontally in canvas space
-  const base = 'translate(12,12) scale(9.5)';
-  return `<svg width="240" height="240" xmlns="http://www.w3.org/2000/svg">
+  const layer = (ox, fill) => {
+    const cx = nCx + ox, sx = stX0 + ox;
+    const cr = sx + capW, mx = cr - capRx; // cap right x, curve start x
+    const capD =
+      `M ${sx},${capY1} L ${mx},${capY1}` +
+      ` Q ${cr},${capY1} ${cr},${capY1 + capRx}` +
+      ` Q ${cr},${capY2} ${mx},${capY2} L ${sx},${capY2} Z`;
+    return `<g fill="${fill}">
+    <circle cx="${cx}" cy="${nCy}" r="${nR}"/>
+    <rect x="${sx}" y="${capY2}" width="${stW}" height="${stY2 - capY2}"/>
+    <path d="${capD}"/>
+  </g>`;
+  };
+
+  return `<svg width="${S}" height="${S}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="ic"><rect width="240" height="240" rx="42"/></clipPath>
+    <clipPath id="ic"><rect width="${S}" height="${S}" rx="84"/></clipPath>
   </defs>
-  <rect width="240" height="240" rx="42" fill="#010101"/>
+  <rect width="${S}" height="${S}" rx="84" fill="#010101"/>
   <g clip-path="url(#ic)">
-    <g fill="#00f2ea" transform="translate(-6,12) scale(9.5)"><path d="${p}"/></g>
-    <g fill="#ff0050" transform="translate(30,12) scale(9.5)"><path d="${p}"/></g>
-    <g fill="#ffffff" transform="${base}"><path d="${p}"/></g>
+    ${layer(-30, '#00f2ea')}
+    ${layer(+30, '#ff0050')}
+    ${layer(0,   '#ffffff')}
   </g>
 </svg>`;
 }
@@ -547,15 +558,15 @@ function buildTikTokSvg(text, logoB64, ttIconB64) {
   const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
 
   const logoBoxY = 184;
-  const igIconY  = 356;
-  const h1Y1     = 470;
-  const h1Y2     = 520;
-  const subY1    = 558;
+  const igIconY  = 352;  // icon 120×120 → bottom 472; gap to h1Y1 = 16px
+  const h1Y1     = 488;
+  const h1Y2     = 536;
+  const subY1    = 572;
   const featW    = (CARD.w - 80 - 16) / 2;
   const feat1X   = CARD.x + 40;
   const feat2X   = feat1X + featW + 16;
   const featH    = 78;
-  const featY1   = 614;
+  const featY1   = 628;
   const featY2   = featY1 + featH + 14;
   const accentY  = featY2 + featH + 26;
   const btnY     = accentY + 26;
@@ -660,9 +671,9 @@ function buildTikTokSvg(text, logoB64, ttIconB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok platform icon — pre-rasterized at 240×240 then embedded as PNG for crisp edges -->
+  <!-- TikTok platform icon — pre-rasterized at 480×480 then downsampled to 120×120 -->
   <image href="${ttIconB64}" xlink:href="${ttIconB64}"
-         x="${CX - 45}" y="${igIconY}" width="90" height="90"/>
+         x="${CX - 60}" y="${igIconY}" width="120" height="120"/>
 
   <!-- Heading -->
   <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
@@ -692,7 +703,7 @@ async function renderTikTokPostImage(text) {
   ensureFontconfig();
   const [logoBuffer, iconBuffer] = await Promise.all([
     sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
-    sharp(Buffer.from(buildTikTokIconSvg())).resize(90, 90).png().toBuffer(),
+    sharp(Buffer.from(buildTikTokIconSvg())).resize(120, 120).png().toBuffer(),
   ]);
   const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
   const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
