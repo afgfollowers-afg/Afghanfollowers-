@@ -170,24 +170,10 @@ body[dir="ltr"] .svc-list li:hover{transform:translateX(3px);}
 .cta-band::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.06),transparent);background-size:200% 100%;animation:ctaSheen 6s ease-in-out infinite;pointer-events:none;}
 @keyframes ctaSheen{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes qoTitleFlash{0%,100%{text-shadow:0 0 14px rgba(255,255,255,.95),0 0 32px rgba(255,255,255,.6);}50%{text-shadow:none;}}
-@keyframes qoWrapPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.25);}60%{box-shadow:0 0 0 12px rgba(255,255,255,0);}}
-.qo-red-title{font-size:24px;font-weight:900;color:#fff;text-align:center;margin-bottom:6px;font-family:inherit;animation:qoTitleFlash 1.4s ease-in-out infinite;letter-spacing:.5px;}
+@keyframes qoWrapPulse{0%,100%{box-shadow:0 0 0 0 rgba(200,0,10,.2);}60%{box-shadow:0 0 0 12px rgba(200,0,10,0);}}
+.qo-red-title{display:table;margin:0 auto 12px;background:linear-gradient(135deg,#c0000a,#e8000d,#c0000a);font-size:22px;font-weight:900;color:#fff;padding:7px 28px;border-radius:50px;font-family:inherit;animation:qoTitleFlash 1.4s ease-in-out infinite;letter-spacing:.5px;}
 .qo-wrap-pulse{animation:qoWrapPulse 1.4s ease-in-out infinite;}
-#quick-order{background:linear-gradient(135deg,#c0000a,#e8000d,#c0000a);border-radius:20px;padding:32px 20px;margin:28px 0 40px;}
-#quick-order h2{color:#fff !important;}
-#quick-order .section-sub{color:rgba(255,255,255,.85) !important;}
-#quick-order .section-sub a{color:#ffe066 !important;}
-#quick-order .qo-wrap{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.2);}
-#quick-order .qo-plat{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.2);color:#fff;}
-#quick-order .qo-plat:hover{border-color:rgba(255,255,255,.7);color:#fff;}
-#quick-order .qo-plat.on{background:rgba(0,0,0,.45);border-color:#fff;color:#fff;}
-#quick-order .qo-form-lbl{color:rgba(255,255,255,.8);}
-#quick-order .qo-form-inp{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.25);color:#fff;}
-#quick-order .qo-form-inp::placeholder{color:rgba(255,255,255,.5);}
-#quick-order .qo-pkg-hdr{color:#fff;}
-#quick-order .qo-overview{background:rgba(0,0,0,.25);border-color:rgba(255,255,255,.15);}
-#quick-order .qo-ov-row span:first-child{color:rgba(255,255,255,.7);}
-#quick-order .qo-save-note{color:rgba(255,255,255,.75);}
+#quick-order{border-radius:20px;padding:28px 20px;margin:28px 0 40px;}
 .cta-band h2{margin-bottom:10px;}
 .cta-band.ember{background:radial-gradient(ellipse 480px 240px at 50% 0%,rgba(255,138,92,.16),transparent 70%),linear-gradient(160deg,var(--s1),var(--s2));border-color:var(--bd);}
 .cta-band.ember .eyebrow{color:var(--ember);}
