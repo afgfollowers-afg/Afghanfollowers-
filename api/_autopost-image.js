@@ -502,10 +502,32 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+// Standalone 240×240 SVG for TikTok's d-note icon.
+// Rendered by Sharp at full 240px resolution then downsampled to a clean PNG
+// so librsvg's small-path jaggy rendering never touches it.
+// Three layers (cyan -20px, pink +20px, white 0) create the trademark fringe effect.
+function buildTikTokIconSvg() {
+  return `<svg width="240" height="240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="ic"><rect width="240" height="240" rx="42"/></clipPath>
+  </defs>
+  <rect width="240" height="240" rx="42" fill="#010101"/>
+  <g clip-path="url(#ic)" fill="#00f2ea">
+    <path d="M 116,25 L 175,25 Q 200,25 200,52 Q 200,85 152,82 L 152,185 A 72,72 0 1 1 116,123 Z"/>
+  </g>
+  <g clip-path="url(#ic)" fill="#ff0050">
+    <path d="M 156,25 L 215,25 Q 240,25 240,52 Q 240,85 192,82 L 192,185 A 72,72 0 1 1 156,123 Z"/>
+  </g>
+  <g clip-path="url(#ic)" fill="#ffffff">
+    <path d="M 136,25 L 195,25 Q 220,25 220,52 Q 220,85 172,82 L 172,185 A 72,72 0 1 1 136,123 Z"/>
+  </g>
+</svg>`;
+}
+
 // 1080×1080 TikTok post image — same card layout as the Facebook variant but
 // with TikTok's near-black + cyan + pink colour scheme, a music-note platform
 // icon, and a cyan→pink accent/CTA gradient.
-function buildTikTokSvg(text, logoB64) {
+function buildTikTokSvg(text, logoB64, ttIconB64) {
   const W = 1080, H = 1080;
   const CARD = { x: 140, y: 140, w: 800, h: 800 };
   const CX = W / 2; // 540
@@ -604,15 +626,6 @@ function buildTikTokSvg(text, logoB64) {
       <feComposite in="c" in2="blur" operator="in" result="shadow"/>
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="ttIconGlow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
-      <feFlood flood-color="#00f2ea" flood-opacity="0.85" result="c"/>
-      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
-      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <clipPath id="ttIconClip">
-      <rect x="${CX - 32}" y="${igIconY}" width="64" height="64" rx="12"/>
-    </clipPath>
   </defs>
 
   <rect width="${W}" height="${H}" fill="#07080C"/>
@@ -637,38 +650,9 @@ function buildTikTokSvg(text, logoB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok d-note: 64×64 box, single compound path per layer, r=20 note head -->
-  <!-- Path: cap top → cap right curve → cap bottom → stem down → arc around head → Z up stem left -->
-  <!-- stem-right = note-head cx+r per layer (CX+8 white, CX+2 cyan, CX+14 pink) -->
-  <rect x="${CX - 32}" y="${igIconY}" width="64" height="64" rx="12"
-        fill="#010101" filter="url(#ttIconGlow)"/>
-  <g clip-path="url(#ttIconClip)" fill="#00f2ea">
-    <path d="M ${CX-10},${igIconY+6}
-             L ${CX+14},${igIconY+6}
-             Q ${CX+20},${igIconY+6} ${CX+20},${igIconY+13}
-             Q ${CX+20},${igIconY+21} ${CX+11},${igIconY+23}
-             L ${CX+2},${igIconY+23}
-             L ${CX+2},${igIconY+50}
-             A 20,20 0 1 1 ${CX-10},${igIconY+32} Z"/>
-  </g>
-  <g clip-path="url(#ttIconClip)" fill="#ff0050">
-    <path d="M ${CX+2},${igIconY+6}
-             L ${CX+26},${igIconY+6}
-             Q ${CX+32},${igIconY+6} ${CX+32},${igIconY+13}
-             Q ${CX+32},${igIconY+21} ${CX+23},${igIconY+23}
-             L ${CX+14},${igIconY+23}
-             L ${CX+14},${igIconY+50}
-             A 20,20 0 1 1 ${CX+2},${igIconY+32} Z"/>
-  </g>
-  <g clip-path="url(#ttIconClip)" fill="#ffffff">
-    <path d="M ${CX-4},${igIconY+6}
-             L ${CX+20},${igIconY+6}
-             Q ${CX+26},${igIconY+6} ${CX+26},${igIconY+13}
-             Q ${CX+26},${igIconY+21} ${CX+17},${igIconY+23}
-             L ${CX+8},${igIconY+23}
-             L ${CX+8},${igIconY+50}
-             A 20,20 0 1 1 ${CX-4},${igIconY+32} Z"/>
-  </g>
+  <!-- TikTok platform icon — pre-rasterized at 240×240 then embedded as PNG for crisp edges -->
+  <image href="${ttIconB64}" xlink:href="${ttIconB64}"
+         x="${CX - 45}" y="${igIconY}" width="90" height="90"/>
 
   <!-- Heading -->
   <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
@@ -696,9 +680,13 @@ function buildTikTokSvg(text, logoB64) {
 
 async function renderTikTokPostImage(text) {
   ensureFontconfig();
-  const logoBuffer = await sharp(LOGO_PATH).resize(150, 150).png().toBuffer();
-  const logoB64 = 'data:image/png;base64,' + logoBuffer.toString('base64');
-  const svg = buildTikTokSvg(text, logoB64);
+  const [logoBuffer, iconBuffer] = await Promise.all([
+    sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
+    sharp(Buffer.from(buildTikTokIconSvg())).resize(90, 90).png().toBuffer(),
+  ]);
+  const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
+  const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
+  const svg = buildTikTokSvg(text, logoB64, ttIconB64);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
