@@ -161,27 +161,178 @@ textarea.fi{resize:vertical;min-height:75px;}
 @media(max-width:768px){
   .sb{transform:translateX(-100%);}
   .sb.open{transform:translateX(0);}
-  .main{margin-left:0;}
+  .sb.collapsed{width:220px;}
+  .main{margin-left:0!important;}
   .sg{grid-template-columns:1fr 1fr;}
-  .content{padding:14px;padding-bottom:75px;}
+  .content{padding:12px;padding-bottom:88px;}
   .set-wrap{flex-direction:column;}
   .set-menu{width:100%;border-right:none;border-bottom:1px solid var(--bd);display:flex;overflow-x:auto;padding:0;scrollbar-width:none;}
   .set-menu::-webkit-scrollbar{display:none;}
-  .set-mi{white-space:nowrap;border-left:none;border-bottom:3px solid transparent;padding:10px 13px;font-size:12px;}
+  .set-mi{white-space:nowrap;border-left:none;border-bottom:3px solid transparent;padding:9px 13px;font-size:12px;}
   .set-mi.on{border-bottom-color:var(--acc);background:transparent;border-left:none;}
   .fgrid{grid-template-columns:1fr;}
   .ch-wrap{padding:12px;}
-  table{font-size:12px;}th,td{padding:9px 10px;}
+  table{font-size:12px;}
+  th,td{padding:8px 10px;}
+  .sc-val{font-size:20px;}
+  .ph{font-size:15px;}
+  /* Modal slide up on mobile */
+  .md{border-radius:18px 18px 0 0;max-width:100%;position:fixed;bottom:0;left:0;right:0;max-height:92vh;animation:slideUp .28s cubic-bezier(.32,1.12,.64,1);}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .mo{align-items:flex-end;}
 }
 /* BOTTOM NAV */
-.bnav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--s1);border-top:1px solid var(--bd);z-index:200;justify-content:space-around;padding:6px 0 10px;}
+.bnav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(16,19,28,.96);
+  border-top:1px solid var(--bd);
+  z-index:200;
+  justify-content:space-around;
+  padding:6px 4px max(10px,env(safe-area-inset-bottom));
+  backdrop-filter:blur(16px);
+}
 @media(max-width:768px){.bnav{display:flex;}}
-.bn{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--mt);font-size:10px;font-weight:600;padding:4px 8px;transition:color .15s;}
-.bn svg{width:21px;height:21px;}
+.bn{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  cursor:pointer;color:var(--mt);font-size:10px;font-weight:600;
+  padding:5px 10px;transition:color .15s;position:relative;min-width:44px;
+}
+.bn svg{width:22px;height:22px;}
 .bn.on{color:var(--acc2);}
+.bn.on::before{
+  content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+  width:32px;height:3px;background:var(--acc);border-radius:0 0 3px 3px;
+}
+/* More button */
+.bn-more{position:relative;}
+.bn-more-dot{position:absolute;top:3px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--rd);display:none;}
+.bn-more-dot.show{display:block;}
 /* MOB OVERLAY */
 .mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;}
 .mov.open{display:block;}
+
+/* ══ MOBILE MORE SHEET ══ */
+.mob-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:400;
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:20px 20px 0 0;
+  padding-bottom:max(16px,env(safe-area-inset-bottom));
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.32,1.12,.64,1);
+  max-height:80vh;overflow-y:auto;
+}
+.mob-sheet.open{transform:translateY(0);}
+.mob-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--bd);margin:10px auto 14px;}
+.mob-sheet-title{font-size:13px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.8px;padding:0 16px 10px;}
+.mob-sheet-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 12px;}
+.mob-sheet-item{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:12px 6px;background:var(--s2);border:1px solid var(--bd);
+  border-radius:12px;cursor:pointer;transition:all .15s;
+  font-size:11px;font-weight:600;color:var(--tx);text-align:center;
+}
+.mob-sheet-item:active{background:rgba(124,92,252,.15);border-color:var(--acc);}
+.mob-sheet-item-ico{font-size:22px;}
+.mob-sheet-overlay{position:fixed;inset:0;z-index:399;background:rgba(0,0,0,.5);display:none;}
+.mob-sheet-overlay.open{display:block;}
+
+/* ══ MOBILE FAB ══ */
+.mob-fab{
+  display:none;
+  position:fixed;right:16px;bottom:80px;z-index:150;
+  width:50px;height:50px;border-radius:50%;
+  background:linear-gradient(135deg,var(--acc),#5b21b6);
+  box-shadow:0 6px 20px rgba(124,92,252,.5);
+  align-items:center;justify-content:center;
+  cursor:pointer;border:none;color:#fff;font-size:22px;
+  transition:transform .2s,box-shadow .2s;
+}
+.mob-fab:active{transform:scale(.92);}
+@media(max-width:768px){.mob-fab{display:flex;}}
+
+/* ══ MOBILE FAB MENU ══ */
+.mob-fab-menu{
+  position:fixed;right:14px;bottom:140px;z-index:149;
+  display:flex;flex-direction:column;gap:10px;
+  align-items:flex-end;
+  pointer-events:none;opacity:0;
+  transform:translateY(10px);
+  transition:opacity .2s,transform .2s;
+}
+.mob-fab-menu.open{pointer-events:auto;opacity:1;transform:translateY(0);}
+.mob-fab-item{
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;
+}
+.mob-fab-item-ico{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--s1);border:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;box-shadow:0 4px 12px rgba(0,0,0,.4);
+}
+.mob-fab-item-label{
+  background:var(--s1);border:1px solid var(--bd);
+  border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--tx);
+  box-shadow:0 4px 12px rgba(0,0,0,.4);white-space:nowrap;
+}
+
+/* ══ MOBILE TOPBAR ══ */
+@media(max-width:768px){
+  .topbar{height:52px;padding:0 12px;}
+  .hbg{width:32px;height:32px;}
+  .av{width:32px;height:32px;}
+  .tb-btn{width:32px;height:32px;}
+  /* Show search icon on mobile topbar */
+  .tb-search-mob{
+    display:flex;width:32px;height:32px;border-radius:8px;
+    background:var(--s2);border:1px solid var(--bd);
+    align-items:center;justify-content:center;cursor:pointer;color:var(--mt);
+  }
+}
+.tb-search-mob{display:none;}
+@media(max-width:768px){.tb-search-mob{display:flex;}}
+
+/* ══ MOBILE CARD TABLE (responsive tables) ══ */
+@media(max-width:520px){
+  .tw-mobile-cards table,
+  .tw-mobile-cards thead,
+  .tw-mobile-cards tbody,
+  .tw-mobile-cards th,
+  .tw-mobile-cards td,
+  .tw-mobile-cards tr{display:block;}
+  .tw-mobile-cards thead{display:none;}
+  .tw-mobile-cards tr{
+    margin-bottom:10px;background:var(--s2);border:1px solid var(--bd);
+    border-radius:10px;padding:10px;
+  }
+  .tw-mobile-cards td{
+    padding:4px 0;border:none;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .tw-mobile-cards td::before{
+    content:attr(data-label);
+    font-size:10px;font-weight:700;color:var(--mt);text-transform:uppercase;
+    letter-spacing:.4px;flex-shrink:0;margin-right:8px;
+  }
+}
+
+/* ══ SAFE AREA SUPPORT ══ */
+.content{padding-bottom:calc(80px + env(safe-area-inset-bottom));}
+@media(max-width:768px){
+  .content{padding-bottom:calc(88px + env(safe-area-inset-bottom));}
+}
+
+/* ══ MOBILE STATS SCROLL ══ */
+@media(max-width:480px){
+  .sg{
+    display:flex;overflow-x:auto;gap:10px;
+    padding-bottom:4px;scrollbar-width:none;
+    scroll-snap-type:x mandatory;
+  }
+  .sg::-webkit-scrollbar{display:none;}
+  .sc{min-width:150px;scroll-snap-align:start;flex-shrink:0;}
+}
 
 /* TOAST */
 .toast{position:fixed;bottom:70px;right:16px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:11px 16px;font-size:13px;font-weight:600;z-index:9999;transition:all .3s;transform:translateY(60px);opacity:0;box-shadow:0 8px 30px rgba(0,0,0,.5);pointer-events:none;}
@@ -449,6 +600,9 @@ th{font-size:10px;}
       <span class="tb-search-kbd">Ctrl+K</span>
     </div>
     <div class="tb-r">
+      <div class="tb-search-mob" onclick="openCp()" title="Search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </div>
       <div class="tb-btn" onclick="toggleNotifPanel(event)" style="cursor:pointer;position:relative" title="Notifications">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <div class="tbdot" id="notif-count" style="display:none"></div>
@@ -1311,8 +1465,52 @@ th{font-size:10px;}
   <div class="bn" id="bn-orders" onclick="go('orders',null);syncBn('orders')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Orders</div>
   <div class="bn" id="bn-users" onclick="go('users',null);syncBn('users')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Users</div>
   <div class="bn" id="bn-tickets" onclick="go('tickets',null);syncBn('tickets')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Tickets</div>
-  <div class="bn" id="bn-settings" onclick="go('settings',null);syncBn('settings')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
+  <div class="bn bn-more" id="bn-more" onclick="toggleMobSheet()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+    More
+    <span class="bn-more-dot" id="bn-more-dot"></span>
+  </div>
 </div>
+
+<!-- MOBILE MORE SHEET -->
+<div class="mob-sheet-overlay" id="mob-sheet-overlay" onclick="closeMobSheet()"></div>
+<div class="mob-sheet" id="mob-sheet">
+  <div class="mob-sheet-handle"></div>
+  <div class="mob-sheet-title">All Pages</div>
+  <div class="mob-sheet-grid">
+    <div class="mob-sheet-item" onclick="go('settings',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚙️</span>Settings</div>
+    <div class="mob-sheet-item" onclick="go('services',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚡</span>Services</div>
+    <div class="mob-sheet-item" onclick="go('payments',null);closeMobSheet()"><span class="mob-sheet-item-ico">💳</span>Payments</div>
+    <div class="mob-sheet-item" onclick="go('wallets',null);closeMobSheet()"><span class="mob-sheet-item-ico">👛</span>Wallets</div>
+    <div class="mob-sheet-item" onclick="go('withdrawals',null);closeMobSheet()"><span class="mob-sheet-item-ico">⬆️</span>Withdrawals</div>
+    <div class="mob-sheet-item" onclick="go('announcements',null);closeMobSheet()"><span class="mob-sheet-item-ico">📢</span>Announce</div>
+    <div class="mob-sheet-item" onclick="go('blog',null);closeMobSheet()"><span class="mob-sheet-item-ico">📝</span>Blog</div>
+    <div class="mob-sheet-item" onclick="go('emailauto',null);closeMobSheet()"><span class="mob-sheet-item-ico">📧</span>Email Auto</div>
+    <div class="mob-sheet-item" onclick="go('invites',null);closeMobSheet()"><span class="mob-sheet-item-ico">🎁</span>Invites</div>
+    <div class="mob-sheet-item" onclick="go('alerts',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚠️</span>Alerts</div>
+    <div class="mob-sheet-item" onclick="om('m-add-user');closeMobSheet()"><span class="mob-sheet-item-ico">➕</span>Add User</div>
+    <div class="mob-sheet-item" onclick="om('m-add-bal');closeMobSheet()"><span class="mob-sheet-item-ico">💰</span>Add Balance</div>
+  </div>
+</div>
+
+<!-- MOBILE FAB -->
+<div class="mob-fab-menu" id="mob-fab-menu">
+  <div class="mob-fab-item" onclick="om('m-add-user');closeMobFab()">
+    <span class="mob-fab-item-label">Add User</span>
+    <div class="mob-fab-item-ico">➕</div>
+  </div>
+  <div class="mob-fab-item" onclick="om('m-add-bal');closeMobFab()">
+    <span class="mob-fab-item-label">Add Balance</span>
+    <div class="mob-fab-item-ico">💰</div>
+  </div>
+  <div class="mob-fab-item" onclick="openCp();closeMobFab()">
+    <span class="mob-fab-item-label">Search</span>
+    <div class="mob-fab-item-ico">🔍</div>
+  </div>
+</div>
+<button class="mob-fab" id="mob-fab" onclick="toggleMobFab()" title="Quick actions">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
 
 <!-- MODALS -->
 <!-- Add User -->
@@ -8335,6 +8533,64 @@ setTimeout(pullFromServer,500);
   var isMac=navigator.platform.toUpperCase().indexOf('MAC')>=0;
   var kbd=document.querySelector('.tb-search-kbd');
   if(kbd&&isMac) kbd.textContent='⌘K';
+})();
+
+// ══ MOBILE MORE SHEET ══
+(function(){
+  window.toggleMobSheet=function(){
+    var sheet=document.getElementById('mob-sheet');
+    if(sheet.classList.contains('open')) closeMobSheet();
+    else openMobSheet();
+  };
+  window.openMobSheet=function(){
+    document.getElementById('mob-sheet').classList.add('open');
+    document.getElementById('mob-sheet-overlay').classList.add('open');
+  };
+  window.closeMobSheet=function(){
+    document.getElementById('mob-sheet').classList.remove('open');
+    document.getElementById('mob-sheet-overlay').classList.remove('open');
+  };
+})();
+
+// ══ MOBILE FAB ══
+(function(){
+  var fabOpen=false;
+  window.toggleMobFab=function(){
+    fabOpen=!fabOpen;
+    var menu=document.getElementById('mob-fab-menu');
+    var fab=document.getElementById('mob-fab');
+    if(fabOpen){
+      if(menu) menu.classList.add('open');
+      if(fab) fab.style.transform='rotate(45deg)';
+    } else {
+      closeMobFab();
+    }
+  };
+  window.closeMobFab=function(){
+    fabOpen=false;
+    var menu=document.getElementById('mob-fab-menu');
+    var fab=document.getElementById('mob-fab');
+    if(menu) menu.classList.remove('open');
+    if(fab) fab.style.transform='';
+  };
+})();
+
+// ══ SWIPE GESTURE — sidebar open/close ══
+(function(){
+  var startX=0,startY=0;
+  document.addEventListener('touchstart',function(e){
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-startX;
+    var dy=e.changedTouches[0].clientY-startY;
+    if(Math.abs(dx)<Math.abs(dy)*1.5||Math.abs(dx)<50) return;
+    var sb=document.getElementById('sb');
+    if(!sb) return;
+    if(dx>0&&startX<40&&!sb.classList.contains('open')) toggleSb();
+    else if(dx<0&&sb.classList.contains('open')) toggleSb();
+  },{passive:true});
 })();
 
 </script>
