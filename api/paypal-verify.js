@@ -11,6 +11,7 @@
 
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
+const { dispatchOneOrder } = require('./sync-orders');
 
 const SITE = 'https://afghanfollowers.online';
 const BIN_ID = process.env.JSONBIN_BIN_ID;
@@ -76,6 +77,140 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const orderId = String(body.orderId || '').trim();
+
+    // ── GUEST ORDER PATH (no account / wallet required) ──────────────────────
+    // Guest pays via PayPal → server verifies payment → dispatches order to
+    // provider directly. The expected cost is calculated server-side from the
+    // DB service catalog so the client can't underpay by sending a lower amount.
+    if (body.guest === true) {
+      const gSvcId  = String(body.svcId  || '').trim();
+      const gProvId = String(body.provId || '').trim();
+      const gQty    = parseInt(body.qty, 10) || 0;
+      const gLink   = String(body.link   || '').trim();
+      const gEmail  = String(body.guestEmail || '').trim();
+      const gName   = String(body.guestName  || '').trim().slice(0, 100);
+
+      if (!orderId || !gSvcId || !gProvId || !gQty || !gLink) {
+        return res.status(200).json({ ok: false, error: 'Missing required fields for guest order', deployMarker: DEPLOY_MARKER });
+      }
+
+      // Use fetchInternal→/api/db to get the assembled record (includes smm_svc
+      // from the compressed services bin, which readRecord() can't reach).
+      const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+      const gDb = await dbResp.json();
+
+      const gPms = gDb.smm_pm || [];
+      const gPm  = gPms.find((m) => m.method === 'paypal');
+      if (!gPm || !gPm.clientId || !gPm.clientSecret) {
+        return res.status(200).json({ ok: false, error: 'PayPal not configured', deployMarker: DEPLOY_MARKER });
+      }
+
+      // Idempotency — same PayPal order ID must never produce two dispatches.
+      const gProcessed = gDb.smm_paypal_processed || [];
+      if (gProcessed.indexOf(orderId) !== -1) {
+        return res.status(200).json({ ok: false, error: 'This payment has already been processed', deployMarker: DEPLOY_MARKER });
+      }
+
+      // Verify payment with PayPal API.
+      const gSandbox = gPm.env === 'sandbox';
+      const gApiBase = gSandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+      let gToken;
+      try { gToken = await getPayPalToken(gPm.clientId, gPm.clientSecret, gApiBase); }
+      catch (e) { return res.status(200).json({ ok: false, error: 'PayPal auth failed: ' + e.message, deployMarker: DEPLOY_MARKER }); }
+
+      const gPpResp = await fetch(gApiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
+        headers: { Authorization: 'Bearer ' + gToken }
+      });
+      const gPpOrder = await gPpResp.json();
+      if (!gPpResp.ok || gPpOrder.status !== 'COMPLETED') {
+        return res.status(200).json({ ok: false, error: 'PayPal payment not completed (status: ' + (gPpOrder.status || 'unknown') + ')', deployMarker: DEPLOY_MARKER });
+      }
+      const gUnit = gPpOrder.purchase_units && gPpOrder.purchase_units[0];
+      const gCapt = gUnit && gUnit.payments && gUnit.payments.captures && gUnit.payments.captures[0];
+      if (!gCapt || gCapt.status !== 'COMPLETED') {
+        return res.status(200).json({ ok: false, error: 'Payment capture not completed', deployMarker: DEPLOY_MARKER });
+      }
+      const gPaid = parseFloat(gCapt.amount.value);
+
+      // Look up service from catalog to compute expected cost server-side.
+      // smm_svc compact format: [id, svcId, name, cat, provName, provId, provCost, panelPrice, min, max, active, ...]
+      const gSvcList = gDb.smm_svc || [];
+      const gSvcRow  = gSvcList.find((s) => String(s[1]) === gSvcId && String(s[5]) === gProvId);
+      if (!gSvcRow) {
+        return res.status(200).json({ ok: false, error: 'Service not found in catalog', deployMarker: DEPLOY_MARKER });
+      }
+      const gSvcPrice   = parseFloat(gSvcRow[7]) || 0; // panel price per 1000
+      const gExpected   = parseFloat((gSvcPrice * gQty / 1000).toFixed(4));
+      const gMinQty     = parseInt(gSvcRow[8]) || 100;
+      const gMaxQty     = parseInt(gSvcRow[9]) || 50000;
+      if (gQty < gMinQty || gQty > gMaxQty) {
+        return res.status(200).json({ ok: false, error: 'Quantity ' + gQty + ' is outside allowed range (' + gMinQty + '–' + gMaxQty + ')', deployMarker: DEPLOY_MARKER });
+      }
+      // Allow 1-cent tolerance for floating-point rounding.
+      if (gPaid < gExpected - 0.01) {
+        return res.status(200).json({ ok: false, error: 'Payment $' + gPaid.toFixed(2) + ' is less than service cost $' + gExpected.toFixed(2), deployMarker: DEPLOY_MARKER });
+      }
+
+      // Create the order record and mark PayPal order as processed.
+      const gOrderId = Date.now();
+      const gOrder = {
+        id: gOrderId,
+        userId: 'guest',
+        guestEmail: gEmail || null,
+        guestName: gName || null,
+        svc: gSvcRow[2],
+        svcName: gSvcRow[2],
+        svcId: gSvcId,
+        provId: gProvId,
+        qty: gQty,
+        link: gLink,
+        cost: gExpected,
+        provCost: parseFloat((parseFloat(gSvcRow[6] || 0) * gQty / 1000).toFixed(4)),
+        status: 'pending',
+        date: new Date().toISOString(),
+        paypalOrderId: orderId
+      };
+      gProcessed.push(orderId);
+      if (gProcessed.length > 2000) gProcessed.splice(0, gProcessed.length - 2000);
+
+      // Save order + updated processed list.
+      await fetchInternal(API_BASE + '/api/db', {
+        method: 'POST',
+        headers: dbHeaders(),
+        body: JSON.stringify({ smm_orders: [gOrder], smm_paypal_processed: gProcessed, smm_ts: Date.now() })
+      });
+
+      // Dispatch immediately to the provider.
+      const gDispatch = await dispatchOneOrder(
+        gOrder,
+        { providers: gDb.smm_providers || [], svcList: gSvcList },
+        { force: true }
+      );
+
+      // Best-effort Telegram notification.
+      try {
+        const gCfg = gDb.smm_tg_bot || {};
+        if (gCfg.token && gCfg.chatId) {
+          await fetch(`https://api.telegram.org/bot${gCfg.token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: gCfg.chatId, parse_mode: 'HTML',
+              text: `🛒 <b>Guest Order</b>\nService: ${gOrder.svcName}\nQty: ${gQty.toLocaleString()}\nLink: ${gLink}\nPaid: $${gPaid.toFixed(2)}\nEmail: ${gEmail || 'N/A'}\nTrackingID: ${gOrderId}\nDispatch: ${gDispatch.ok ? '✅ provOrder#' + gDispatch.provOrderId : '❌ ' + gDispatch.error}`
+            })
+          });
+        }
+      } catch (e) { /* best-effort */ }
+
+      return res.status(200).json({
+        ok: true,
+        trackingId: String(gOrderId),
+        provOrderId: gDispatch.provOrderId || null,
+        deployMarker: DEPLOY_MARKER
+      });
+    }
+    // ── END GUEST ORDER PATH ─────────────────────────────────────────────────
+
     // Which wallet gets credited must come from who the caller actually
     // proved they are, not a plain body.userId anyone holding the shared
     // client key could set to any account — previously that meant paying
