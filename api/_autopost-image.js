@@ -516,14 +516,14 @@ function buildTikTokSvg(text, logoB64) {
 
   const logoBoxY = 184;
   const igIconY  = 356;
-  const h1Y1     = 450;
-  const h1Y2     = 500;
-  const subY1    = 538;
+  const h1Y1     = 470;
+  const h1Y2     = 520;
+  const subY1    = 558;
   const featW    = (CARD.w - 80 - 16) / 2;
   const feat1X   = CARD.x + 40;
   const feat2X   = feat1X + featW + 16;
   const featH    = 78;
-  const featY1   = 594;
+  const featY1   = 614;
   const featY2   = featY1 + featH + 14;
   const accentY  = featY2 + featH + 26;
   const btnY     = accentY + 26;
@@ -604,14 +604,14 @@ function buildTikTokSvg(text, logoB64) {
       <feComposite in="c" in2="blur" operator="in" result="shadow"/>
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="ttIconGlow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
-      <feFlood flood-color="#00f2ea" flood-opacity="0.65" result="c"/>
+    <filter id="ttIconGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
+      <feFlood flood-color="#00f2ea" flood-opacity="0.85" result="c"/>
       <feComposite in="c" in2="blur" operator="in" result="shadow"/>
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <clipPath id="ttIconClip">
-      <rect x="${CX - 26}" y="${igIconY}" width="52" height="52" rx="10"/>
+      <rect x="${CX - 32}" y="${igIconY}" width="64" height="64" rx="12"/>
     </clipPath>
   </defs>
 
@@ -637,26 +637,37 @@ function buildTikTokSvg(text, logoB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok "d-note": circle r=16 + stem w=10; cx+r == stem x+w per layer so edges fuse -->
-  <rect x="${CX - 26}" y="${igIconY}" width="52" height="52" rx="10"
+  <!-- TikTok d-note: 64×64 box, single compound path per layer, r=20 note head -->
+  <!-- Path: cap top → cap right curve → cap bottom → stem down → arc around head → Z up stem left -->
+  <!-- stem-right = note-head cx+r per layer (CX+8 white, CX+2 cyan, CX+14 pink) -->
+  <rect x="${CX - 32}" y="${igIconY}" width="64" height="64" rx="12"
         fill="#010101" filter="url(#ttIconGlow)"/>
-  <!-- cyan layer, offset -4px -->
   <g clip-path="url(#ttIconClip)" fill="#00f2ea">
-    <circle cx="${CX - 11}" cy="${igIconY + 42}" r="16"/>
-    <rect x="${CX - 5}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
-    <rect x="${CX - 5}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
+    <path d="M ${CX-10},${igIconY+6}
+             L ${CX+14},${igIconY+6}
+             Q ${CX+20},${igIconY+6} ${CX+20},${igIconY+13}
+             Q ${CX+20},${igIconY+21} ${CX+11},${igIconY+23}
+             L ${CX+2},${igIconY+23}
+             L ${CX+2},${igIconY+50}
+             A 20,20 0 1 1 ${CX-10},${igIconY+32} Z"/>
   </g>
-  <!-- pink layer, offset +4px -->
   <g clip-path="url(#ttIconClip)" fill="#ff0050">
-    <circle cx="${CX - 3}" cy="${igIconY + 42}" r="16"/>
-    <rect x="${CX + 3}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
-    <rect x="${CX + 3}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
+    <path d="M ${CX+2},${igIconY+6}
+             L ${CX+26},${igIconY+6}
+             Q ${CX+32},${igIconY+6} ${CX+32},${igIconY+13}
+             Q ${CX+32},${igIconY+21} ${CX+23},${igIconY+23}
+             L ${CX+14},${igIconY+23}
+             L ${CX+14},${igIconY+50}
+             A 20,20 0 1 1 ${CX+2},${igIconY+32} Z"/>
   </g>
-  <!-- white main layer, offset 0 -->
   <g clip-path="url(#ttIconClip)" fill="#ffffff">
-    <circle cx="${CX - 7}" cy="${igIconY + 42}" r="16"/>
-    <rect x="${CX - 1}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
-    <rect x="${CX - 1}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
+    <path d="M ${CX-4},${igIconY+6}
+             L ${CX+20},${igIconY+6}
+             Q ${CX+26},${igIconY+6} ${CX+26},${igIconY+13}
+             Q ${CX+26},${igIconY+21} ${CX+17},${igIconY+23}
+             L ${CX+8},${igIconY+23}
+             L ${CX+8},${igIconY+50}
+             A 20,20 0 1 1 ${CX-4},${igIconY+32} Z"/>
   </g>
 
   <!-- Heading -->
