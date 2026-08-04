@@ -604,6 +604,12 @@ function buildTikTokSvg(text, logoB64) {
       <feComposite in="c" in2="blur" operator="in" result="shadow"/>
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <filter id="ttIconGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
+      <feFlood flood-color="#00f2ea" flood-opacity="0.65" result="c"/>
+      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
     <clipPath id="ttIconClip">
       <rect x="${CX - 26}" y="${igIconY}" width="52" height="52" rx="10"/>
     </clipPath>
@@ -631,27 +637,26 @@ function buildTikTokSvg(text, logoB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok "d-note" icon: 52×52 box, bold shapes, ±4px dual-color offset -->
-  <!-- black box with subtle cyan glow border -->
+  <!-- TikTok "d-note": circle r=16 + stem w=10; cx+r == stem x+w per layer so edges fuse -->
   <rect x="${CX - 26}" y="${igIconY}" width="52" height="52" rx="10"
-        fill="#010101" stroke="#00f2ea" stroke-opacity="0.30" stroke-width="1.5"/>
-  <!-- cyan shadow layer (offset -4px left) -->
+        fill="#010101" filter="url(#ttIconGlow)"/>
+  <!-- cyan layer, offset -4px -->
   <g clip-path="url(#ttIconClip)" fill="#00f2ea">
-    <circle cx="${CX - 17}" cy="${igIconY + 41}" r="13"/>
-    <rect x="${CX - 8}" y="${igIconY + 5}" width="9" height="38" rx="4"/>
-    <rect x="${CX - 8}" y="${igIconY + 5}" width="24" height="13" rx="6"/>
+    <circle cx="${CX - 11}" cy="${igIconY + 42}" r="16"/>
+    <rect x="${CX - 5}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
+    <rect x="${CX - 5}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
   </g>
-  <!-- pink shadow layer (offset +4px right) -->
+  <!-- pink layer, offset +4px -->
   <g clip-path="url(#ttIconClip)" fill="#ff0050">
-    <circle cx="${CX - 9}" cy="${igIconY + 41}" r="13"/>
-    <rect x="${CX}" y="${igIconY + 5}" width="9" height="38" rx="4"/>
-    <rect x="${CX}" y="${igIconY + 5}" width="24" height="13" rx="6"/>
+    <circle cx="${CX - 3}" cy="${igIconY + 42}" r="16"/>
+    <rect x="${CX + 3}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
+    <rect x="${CX + 3}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
   </g>
-  <!-- white main layer (centered) -->
+  <!-- white main layer, offset 0 -->
   <g clip-path="url(#ttIconClip)" fill="#ffffff">
-    <circle cx="${CX - 13}" cy="${igIconY + 41}" r="13"/>
-    <rect x="${CX - 4}" y="${igIconY + 5}" width="9" height="38" rx="4"/>
-    <rect x="${CX - 4}" y="${igIconY + 5}" width="24" height="13" rx="6"/>
+    <circle cx="${CX - 7}" cy="${igIconY + 42}" r="16"/>
+    <rect x="${CX - 1}" y="${igIconY + 4}" width="10" height="42" rx="5"/>
+    <rect x="${CX - 1}" y="${igIconY + 4}" width="23" height="13" rx="6"/>
   </g>
 
   <!-- Heading -->
