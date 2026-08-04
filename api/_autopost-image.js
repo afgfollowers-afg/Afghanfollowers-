@@ -509,24 +509,24 @@ async function renderFacebookPostImage(text) {
 // icon, and a cyan→pink accent/CTA gradient.
 function buildTikTokSvg(text, logoB64, ttIconB64) {
   const W = 1080, H = 1080;
-  const CARD = { x: 140, y: 140, w: 800, h: 800 };
+  const CARD = { x: 160, y: 160, w: 760, h: 760 };
   const CX = W / 2; // 540
 
   const subtitle = coreTextForImage(text);
   const subLines = wrapText(subtitle, 38).slice(0, 2);
   const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
 
-  const logoBoxY = 184;
-  const igIconY  = 352;  // icon 120×120 → bottom 472; gap to h1Y1 = 16px
-  const h1Y1     = 488;
-  const h1Y2     = 536;
-  const subY1    = 572;
+  const logoBoxY = 204;
+  const igIconY  = 373;  // icon 130×130 → bottom 503
+  const h1Y1     = 525;  // heading moved down for better breathing room
+  const h1Y2     = 573;
+  const subY1    = 607;
   const featW    = (CARD.w - 80 - 16) / 2;
   const feat1X   = CARD.x + 40;
   const feat2X   = feat1X + featW + 16;
-  const featH    = 78;
-  const featY1   = 628;
-  const featY2   = featY1 + featH + 14;
+  const featH    = 70;
+  const featY1   = 653;
+  const featY2   = featY1 + featH + 12;
   const accentY  = featY2 + featH + 26;
   const btnY     = accentY + 26;
   const footerY  = btnY + 52 + 24;
@@ -664,15 +664,31 @@ async function renderTikTokPostImage(text) {
   const [logoBuffer, iconBuffer] = await Promise.all([
     sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
     (async () => {
-      // Load at full resolution, add alpha, then erase dark/black background pixels
-      const { data, info } = await sharp(TT_ICON_PATH)
+      // Two-step removal: first circle-clip (removes white corners of the JPEG),
+      // then erase remaining dark/black pixels (removes the black circle background),
+      // leaving only the white/cyan/pink d-note shape on a transparent canvas.
+      const PRESZ = 520; // oversample for clean edges
+      const circleM = Buffer.from(
+        `<svg width="${PRESZ}" height="${PRESZ}"><circle cx="${PRESZ/2}" cy="${PRESZ/2}" r="${PRESZ/2}" fill="white"/></svg>`
+      );
+      // Step 1: resize large + circle clip
+      const clipped = await sharp(TT_ICON_PATH)
+        .resize(PRESZ, PRESZ)
+        .png()
+        .toBuffer()
+        .then(buf => sharp(buf)
+          .composite([{ input: circleM, blend: 'dest-in' }])
+          .png()
+          .toBuffer()
+        );
+      // Step 2: erase dark pixels (the black circle background)
+      const { data, info } = await sharp(clipped)
         .ensureAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true });
       for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        // Threshold: dark pixels (background) → fully transparent
-        if (r < 90 && g < 90 && b < 90) data[i + 3] = 0;
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a > 0 && r < 90 && g < 90 && b < 90) data[i + 3] = 0;
       }
       return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
         .resize(SZ, SZ)
