@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const LOGO_PATH = path.join(__dirname, '..', 'icons', 'logo-full.png');
+const TT_ICON_PATH = path.join(__dirname, '_assets', 'tiktok-icon.jpg');
 
 const TEMPLATES = {
   instagram: path.join(__dirname, '_assets', 'instagram-template.png'),
@@ -502,48 +503,6 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-// Standalone 480×480 SVG built from primitives (circle + rect + D-cap path).
-// Rendered by Sharp at 480px then downsampled to 120px — 4× oversample gives
-// clean bicubic anti-aliasing with zero librsvg path-complexity risk.
-// Proportions match TikTok brand: note-head r≈27%, flag h≈20%, stem w≈10%.
-// Three layers (cyan ox=-30, pink ox=+30, white ox=0) produce the fringe effect:
-//   left fringe (x=0→30): cyan only  |  right fringe (flag right - 30px): pink only
-function buildTikTokIconSvg() {
-  const S = 480;
-  // White-layer reference (ox=0)
-  const nCx = 160, nCy = 346, nR = 130;  // note head; right edge = 290
-  const stW  = 48;
-  const stX0 = nCx + nR - stW;           // 242; right = 290 = nCx+nR ✓
-  const capY1 = 38, capY2 = 138;         // flag y-range (h=100, ≈20% of S)
-  const capW  = 160, capRx = 50;         // flag width; rx=h/2=50 → D-shaped right end
-  const stY2  = nCy + 24;               // 370: stem extends 24px past note-head centre
-
-  const layer = (ox, fill) => {
-    const cx = nCx + ox, sx = stX0 + ox;
-    const cr = sx + capW, mx = cr - capRx; // cap right x, curve start x
-    const capD =
-      `M ${sx},${capY1} L ${mx},${capY1}` +
-      ` Q ${cr},${capY1} ${cr},${capY1 + capRx}` +
-      ` Q ${cr},${capY2} ${mx},${capY2} L ${sx},${capY2} Z`;
-    return `<g fill="${fill}">
-    <circle cx="${cx}" cy="${nCy}" r="${nR}"/>
-    <rect x="${sx}" y="${capY2}" width="${stW}" height="${stY2 - capY2}"/>
-    <path d="${capD}"/>
-  </g>`;
-  };
-
-  return `<svg width="${S}" height="${S}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <clipPath id="ic"><rect width="${S}" height="${S}" rx="84"/></clipPath>
-  </defs>
-  <rect width="${S}" height="${S}" rx="84" fill="#010101"/>
-  <g clip-path="url(#ic)">
-    ${layer(-30, '#00f2ea')}
-    ${layer(+30, '#ff0050')}
-    ${layer(0,   '#ffffff')}
-  </g>
-</svg>`;
-}
 
 // 1080×1080 TikTok post image — same card layout as the Facebook variant but
 // with TikTok's near-black + cyan + pink colour scheme, a music-note platform
@@ -703,7 +662,7 @@ async function renderTikTokPostImage(text) {
   ensureFontconfig();
   const [logoBuffer, iconBuffer] = await Promise.all([
     sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
-    sharp(Buffer.from(buildTikTokIconSvg())).resize(120, 120).png().toBuffer(),
+    sharp(TT_ICON_PATH).resize(120, 120).png().toBuffer(),
   ]);
   const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
   const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
