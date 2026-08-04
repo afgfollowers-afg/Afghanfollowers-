@@ -285,6 +285,82 @@ footer a{color:var(--acc2);text-decoration:none;}
 </header>
 
 <main>
+
+<!-- ══ QUICK ORDER WIDGET ══ -->
+<section id="quick-order" style="margin:0 0 40px">
+  <div class="eyebrow">سفارش فوری</div>
+  <h2>همین الان سفارش بده — بدون ثبت‌نام</h2>
+  <p class="section-sub" style="margin-bottom:24px">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
+  <div class="qo-wrap reveal">
+    <div class="qo-plat-row" id="qo-plat-row">
+      <div class="qo-plat on" onclick="qoPlatSelect('instagram',this)" data-plat="instagram">
+        <div class="qo-plat-ico" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="22" height="22"><use href="#ico-instagram"/></svg></div>
+        <div class="qo-plat-lbl">اینستاگرام</div>
+      </div>
+      <div class="qo-plat" onclick="qoPlatSelect('tiktok',this)" data-plat="tiktok">
+        <div class="qo-plat-ico" style="background:#010101"><svg width="22" height="22"><use href="#ico-tiktok"/></svg></div>
+        <div class="qo-plat-lbl">تیک‌تاک</div>
+      </div>
+      <div class="qo-plat" onclick="qoPlatSelect('telegram',this)" data-plat="telegram">
+        <div class="qo-plat-ico" style="background:#2AABEE"><svg width="22" height="22"><use href="#ico-telegram"/></svg></div>
+        <div class="qo-plat-lbl">تلگرام</div>
+      </div>
+      <div class="qo-plat" onclick="qoPlatSelect('youtube',this)" data-plat="youtube">
+        <div class="qo-plat-ico" style="background:#FF0000"><svg width="22" height="22"><use href="#ico-youtube"/></svg></div>
+        <div class="qo-plat-lbl">یوتیوب</div>
+      </div>
+    </div>
+    <div id="qo-svc-row" style="margin-bottom:14px;display:none">
+      <label class="qo-form-lbl">نوع سرویس</label>
+      <select id="qo-svc-sel" class="qo-form-inp" style="height:46px;cursor:pointer" onchange="qoSvcChange()">
+        <option value="">-- انتخاب کنید --</option>
+      </select>
+    </div>
+    <div id="qo-inp-row" class="qo-input-row" style="display:none">
+      <div class="qo-at" id="qo-at-lbl">@</div>
+      <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم یا لینک پیج را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+      <button class="qo-go" onclick="qoShowPkgs()" title="ادامه">&#10132;</button>
+    </div>
+    <div id="qo-pkgs-wrap" style="display:none">
+      <div class="qo-pkg-hdr" id="qo-pkg-hdr">انتخاب تعداد</div>
+      <div class="qo-pkg-grid" id="qo-pkg-grid"></div>
+    </div>
+    <div id="qo-overview" class="qo-overview" style="display:none">
+      <div class="qo-ov-row"><span style="color:var(--mt)">سرویس</span><span id="qo-ov-svc" style="font-weight:700;color:var(--tx)"></span></div>
+      <div class="qo-ov-row"><span style="color:var(--mt)">تعداد</span><span id="qo-ov-qty" style="font-weight:700"></span></div>
+      <div class="qo-ov-row"><span style="color:var(--mt)">لینک/یوزرنیم</span><span id="qo-ov-link" style="font-weight:600;direction:ltr;word-break:break-all;max-width:55%"></span></div>
+      <div class="qo-ov-total"><span style="font-weight:800;font-size:15px">مجموع</span><span id="qo-ov-total" style="font-size:18px;font-weight:900;color:var(--gr)"></span></div>
+      <div class="qo-save-note" id="qo-save-note"></div>
+      <button onclick="qoOpenCheckout()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;">پرداخت و ثبت سفارش &#10132;</button>
+    </div>
+  </div>
+</section>
+
+<div id="qo-modal-bg" class="qo-modal-bg" style="display:none" onclick="if(event.target===this)qoCloseCheckout()">
+  <div class="qo-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="font-size:18px;font-weight:800">اطلاعات پرداخت</div>
+      <button onclick="qoCloseCheckout()" style="background:var(--s2);border:1px solid var(--bd);color:var(--mt);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px">&times;</button>
+    </div>
+    <div style="background:var(--s2);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">سرویس</span><span id="qo-m-svc" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">تعداد</span><span id="qo-m-qty" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:8px;padding-top:8px"><span style="font-weight:800">مبلغ</span><span id="qo-m-total" style="font-weight:900;color:var(--gr);font-size:16px"></span></div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label class="qo-form-lbl">نام *</label>
+      <input id="qo-fname" class="qo-form-inp" type="text" placeholder="نام" autocomplete="given-name">
+      <label class="qo-form-lbl">فامیلی *</label>
+      <input id="qo-lname" class="qo-form-inp" type="text" placeholder="فامیلی" autocomplete="family-name">
+      <label class="qo-form-lbl">ایمیل *</label>
+      <input id="qo-email" class="qo-form-inp" type="email" placeholder="example@email.com" autocomplete="email" dir="ltr">
+    </div>
+    <div id="qo-pp-status" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--mt)"></div>
+    <div id="qo-pp-btn-wrap"></div>
+    <p style="text-align:center;font-size:11px;color:var(--mt);margin-top:12px">پرداخت از طریق PayPal — امن و رمزگذاری‌شده</p>
+  </div>
+</div>
+
 <div id="ann-banners"></div>
 
 <div class="hero">
@@ -329,92 +405,6 @@ footer a{color:var(--acc2);text-decoration:none;}
     <div class="chart-foot"><span>شنبه</span><span>سه‌شنبه</span><span>پنج‌شنبه</span><span>امروز</span></div>
   </div>
 </div>
-
-<!-- ══ QUICK ORDER WIDGET ══ -->
-<section id="quick-order" style="margin:32px 0 40px">
-  <div class="eyebrow">سفارش فوری</div>
-  <h2>همین الان سفارش بده — بدون ثبت‌نام</h2>
-  <p class="section-sub" style="margin-bottom:24px">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
-  <div class="qo-wrap reveal">
-    <!-- Platform tabs -->
-    <div class="qo-plat-row" id="qo-plat-row">
-      <div class="qo-plat on" onclick="qoPlatSelect('instagram',this)" data-plat="instagram">
-        <div class="qo-plat-ico" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="22" height="22"><use href="#ico-instagram"/></svg></div>
-        <div class="qo-plat-lbl">اینستاگرام</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('tiktok',this)" data-plat="tiktok">
-        <div class="qo-plat-ico" style="background:#010101"><svg width="22" height="22"><use href="#ico-tiktok"/></svg></div>
-        <div class="qo-plat-lbl">تیک‌تاک</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('telegram',this)" data-plat="telegram">
-        <div class="qo-plat-ico" style="background:#2AABEE"><svg width="22" height="22"><use href="#ico-telegram"/></svg></div>
-        <div class="qo-plat-lbl">تلگرام</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('youtube',this)" data-plat="youtube">
-        <div class="qo-plat-ico" style="background:#FF0000"><svg width="22" height="22"><use href="#ico-youtube"/></svg></div>
-        <div class="qo-plat-lbl">یوتیوب</div>
-      </div>
-    </div>
-
-    <!-- Service selector (shown after platform pick) -->
-    <div id="qo-svc-row" style="margin-bottom:14px;display:none">
-      <label class="qo-form-lbl">نوع سرویس</label>
-      <select id="qo-svc-sel" class="qo-form-inp" style="height:46px;cursor:pointer" onchange="qoSvcChange()">
-        <option value="">-- انتخاب کنید --</option>
-      </select>
-    </div>
-
-    <!-- Username / Link input -->
-    <div id="qo-inp-row" class="qo-input-row" style="display:none">
-      <div class="qo-at" id="qo-at-lbl">@</div>
-      <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم یا لینک پیج را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-      <button class="qo-go" onclick="qoShowPkgs()" title="ادامه">&#10132;</button>
-    </div>
-
-    <!-- Package grid (hidden until username entered) -->
-    <div id="qo-pkgs-wrap" style="display:none">
-      <div class="qo-pkg-hdr" id="qo-pkg-hdr">انتخاب تعداد</div>
-      <div class="qo-pkg-grid" id="qo-pkg-grid"></div>
-    </div>
-
-    <!-- Order overview -->
-    <div id="qo-overview" class="qo-overview" style="display:none">
-      <div class="qo-ov-row"><span style="color:var(--mt)">سرویس</span><span id="qo-ov-svc" style="font-weight:700;color:var(--tx)"></span></div>
-      <div class="qo-ov-row"><span style="color:var(--mt)">تعداد</span><span id="qo-ov-qty" style="font-weight:700"></span></div>
-      <div class="qo-ov-row"><span style="color:var(--mt)">لینک/یوزرنیم</span><span id="qo-ov-link" style="font-weight:600;direction:ltr;word-break:break-all;max-width:55%"></span></div>
-      <div class="qo-ov-total"><span style="font-weight:800;font-size:15px">مجموع</span><span id="qo-ov-total" style="font-size:18px;font-weight:900;color:var(--gr)"></span></div>
-      <div class="qo-save-note" id="qo-save-note"></div>
-      <button onclick="qoOpenCheckout()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;">پرداخت و ثبت سفارش &#10132;</button>
-    </div>
-  </div>
-</section>
-
-<!-- Quick Order Checkout Modal -->
-<div id="qo-modal-bg" class="qo-modal-bg" style="display:none" onclick="if(event.target===this)qoCloseCheckout()">
-  <div class="qo-modal">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:18px;font-weight:800">اطلاعات پرداخت</div>
-      <button onclick="qoCloseCheckout()" style="background:var(--s2);border:1px solid var(--bd);color:var(--mt);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px">&times;</button>
-    </div>
-    <div style="background:var(--s2);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">سرویس</span><span id="qo-m-svc" style="font-weight:700"></span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">تعداد</span><span id="qo-m-qty" style="font-weight:700"></span></div>
-      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:8px;padding-top:8px"><span style="font-weight:800">مبلغ</span><span id="qo-m-total" style="font-weight:900;color:var(--gr);font-size:16px"></span></div>
-    </div>
-    <div style="margin-bottom:16px">
-      <label class="qo-form-lbl">نام *</label>
-      <input id="qo-fname" class="qo-form-inp" type="text" placeholder="نام" autocomplete="given-name">
-      <label class="qo-form-lbl">فامیلی *</label>
-      <input id="qo-lname" class="qo-form-inp" type="text" placeholder="فامیلی" autocomplete="family-name">
-      <label class="qo-form-lbl">ایمیل *</label>
-      <input id="qo-email" class="qo-form-inp" type="email" placeholder="example@email.com" autocomplete="email" dir="ltr">
-    </div>
-    <div id="qo-pp-status" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--mt)"></div>
-    <div id="qo-pp-btn-wrap"></div>
-    <p style="text-align:center;font-size:11px;color:var(--mt);margin-top:12px">پرداخت از طریق PayPal — امن و رمزگذاری‌شده</p>
-  </div>
-</div>
-
 <div class="stats">
   <div class="stat"><b>+12,800</b><span>کاربر راضی</span><div class="tick"></div></div>
   <div class="stat"><b>+94,000</b><span>سفارش انجام‌شده</span><div class="tick"></div></div>
