@@ -3161,7 +3161,8 @@ function rSvcs(){
           +'<div class="svc-opts-menu" style="display:none;position:absolute;right:0;top:calc(100%+2px);background:var(--s1);border:1px solid var(--bd);border-radius:9px;min-width:150px;z-index:100;box-shadow:0 8px 20px rgba(0,0,0,.4);overflow:hidden">'
             +'<div class="act-item" onclick="editSvc(\''+s.id+'\')">✏️ Edit</div>'
             +'<div class="act-item" onclick="togSvc(\''+s.id+'\')">👁 '+(active?'Disable':'Enable')+'</div>'
-            +'<div class="act-item" onclick="togQoSvc(\''+s.id+'\')">'+(isQoDis?'✅ نمایش در سایت':'💤 پنهان در سایت')+'</div>'
+            +'<div class="act-item" style="'+(isQoDis?'':'color:var(--gr);font-weight:700')+'" onclick="setQoVisible(\''+s.id+'\')">✅ نمایش در سایت</div>'
+            +'<div class="act-item" style="'+(isQoDis?'color:var(--rd);font-weight:700':'')+'" onclick="setQoHidden(\''+s.id+'\')">💤 پنهان در سایت</div>'
             +'<div class="act-item" onclick="moveSvc(\''+s.id+'\')">📂 Move to Category</div>'
             +'<div class="act-item" onclick="pickSvcLogo(\''+s.id+'\')">🎨 Change Logo</div>'
             +'<div class="act-item" onclick="moveSvcOrder(\''+s.id+'\',\'top\')">⏫ Move to Top</div>'
@@ -3491,17 +3492,21 @@ function togSvc(id){
 function getQoDisabled(){
   try{var g=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');return Array.isArray(g.qo_disabled)?g.qo_disabled:[];}catch(e){return[];}
 }
-function togQoSvc(id){
+function _saveQoDisabled(dis){
   var cfg={};try{cfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
-  var dis=Array.isArray(cfg.qo_disabled)?cfg.qo_disabled.slice():[];
-  var idx=dis.indexOf(String(id));
-  if(idx>-1){dis.splice(idx,1);}else{dis.push(String(id));}
   cfg.qo_disabled=dis;
   localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json','x-db-key':DB_CLIENT_KEY,'Authorization':'Bearer '+getToken()},
     body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
-  rSvcs();
-  toast(idx>-1?'سرویس در سفارش فوری سایت نمایش داده می‌شود':'سرویس از سفارش فوری سایت پنهان شد','s');
+}
+function setQoVisible(id){
+  var dis=getQoDisabled().filter(function(x){return x!==String(id);});
+  _saveQoDisabled(dis);rSvcs();toast('سرویس در سفارش فوری سایت نمایش داده می‌شود','s');
+}
+function setQoHidden(id){
+  var dis=getQoDisabled();
+  if(dis.indexOf(String(id))<0){dis=dis.concat([String(id)]);}
+  _saveQoDisabled(dis);rSvcs();toast('سرویس از سفارش فوری سایت پنهان شد','s');
 }
 function delSvc(id){
   if(!confirm('Delete this service?'))return;
