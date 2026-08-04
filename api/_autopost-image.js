@@ -502,39 +502,35 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-// Standalone 240×240 SVG for TikTok's d-note icon built from primitive shapes
-// (circle + rects + Q-rounded cap path) so librsvg renders every edge perfectly.
-// Three offset layers (cyan -15px, pink +15px, white 0) recreate the fringe effect.
+// Standalone 240×240 SVG using the real TikTok logo path (SimpleIcons, MIT).
+// The path fits in a 24×24 viewBox; scale(9.5) + center-translate maps it to ~215px
+// inside the 240px canvas. Three layers with ±18px x-offset recreate the brand's
+// cyan/pink fringe effect. Pre-rasterized by Sharp → embedded as PNG so librsvg
+// never touches the complex curves at small size.
 function buildTikTokIconSvg() {
-  // White-layer reference geometry (ox=0)
-  const nCy = 168, nR = 62, nCx0 = 90;   // note-head: right edge = 90+62 = 152
-  const stW = 26, stX0 = nCx0 + nR - stW; // stem left=126, right=152
-  const capY = 18, capH = 46, capRx = 23, capW = 88;
-  const stY = capY + capH;                  // 64: stem starts where cap ends
-  const stH = nCy - stY + 20;              // 124: stem overlaps into circle
+  // Real TikTok logo silhouette path — SimpleIcons (simpleicons.org), MIT license
+  const p = 'M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17' +
+    ' 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93' +
+    '-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.1' +
+    '-1.43.02-2.86-.46-4.03-1.26C2.5 22.01.85 20.31.31 18.29c-.03-.42-.05-.85-.04-1.28' +
+    '.34-2.15 1.65-4.18 3.57-5.22 1.27-.73 2.74-1.12 4.22-1.07.02 1.46-.06 2.92-.06 4.38' +
+    '-.75-.23-1.61-.11-2.26.37-.42.28-.76.7-.93 1.18-.17.48-.13 1.01.02 1.49' +
+    '.26.97 1.12 1.76 2.13 1.94.75.15 1.55.02 2.2-.4.51-.31.93-.77 1.2-1.3' +
+    '.19-.37.28-.78.27-1.19l.02-18.17z';
 
-  const layer = (ox, fill) => {
-    const cx = nCx0 + ox, sx = stX0 + ox;
-    const r = sx + capW, mx = r - capRx;
-    const t = capY, b = capY + capH;
-    // cap path: square left corners, rounded right end
-    const capPath = `M ${sx},${t} L ${mx},${t} Q ${r},${t} ${r},${t + capRx}` +
-                    ` Q ${r},${b} ${mx},${b} L ${sx},${b} Z`;
-    return `<g fill="${fill}" clip-path="url(#ic)">
-    <circle cx="${cx}" cy="${nCy}" r="${nR}"/>
-    <rect x="${sx}" y="${stY}" width="${stW}" height="${stH}"/>
-    <path d="${capPath}"/>
-  </g>`;
-  };
-
+  // scale(9.5): 24→228px; translate centers the ~215×215 shape in 240×240 with ~12px margin
+  // cyan/pink layers shift ±18px horizontally in canvas space
+  const base = 'translate(12,12) scale(9.5)';
   return `<svg width="240" height="240" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <clipPath id="ic"><rect width="240" height="240" rx="42"/></clipPath>
   </defs>
   <rect width="240" height="240" rx="42" fill="#010101"/>
-  ${layer(-15, '#00f2ea')}
-  ${layer(+15, '#ff0050')}
-  ${layer(0,   '#ffffff')}
+  <g clip-path="url(#ic)">
+    <g fill="#00f2ea" transform="translate(-6,12) scale(9.5)"><path d="${p}"/></g>
+    <g fill="#ff0050" transform="translate(30,12) scale(9.5)"><path d="${p}"/></g>
+    <g fill="#ffffff" transform="${base}"><path d="${p}"/></g>
+  </g>
 </svg>`;
 }
 
