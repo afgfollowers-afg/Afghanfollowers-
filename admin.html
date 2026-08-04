@@ -219,11 +219,17 @@ textarea.fi{resize:vertical;min-height:75px;}
   border-radius:20px 20px 0 0;
   padding-bottom:max(16px,env(safe-area-inset-bottom));
   transform:translateY(100%);
-  transition:transform .3s cubic-bezier(.32,1.12,.64,1);
-  max-height:92vh;display:flex;flex-direction:column;overflow:hidden;
+  transition:transform .3s cubic-bezier(.32,1.12,.64,1), height .25s cubic-bezier(.32,1.12,.64,1);
+  height:62vh;max-height:96vh;display:flex;flex-direction:column;overflow:hidden;
 }
 .mob-sheet.open{transform:translateY(0);}
-.mob-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--bd);margin:10px auto 8px;flex-shrink:0;}
+.mob-sheet.dragging{transition:none;}
+.mob-sheet-handle{
+  width:48px;height:5px;border-radius:3px;background:var(--bd);
+  margin:10px auto 8px;flex-shrink:0;cursor:grab;
+  transition:background .15s,width .15s;
+}
+.mob-sheet-handle:active{cursor:grabbing;background:var(--acc);width:60px;}
 /* Tab bar */
 .mbs-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);flex-shrink:0;}
 .mbs-tab{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--mt);cursor:pointer;transition:color .15s;position:relative;}
@@ -8611,13 +8617,29 @@ setTimeout(pullFromServer,500);
 
 // ══ MOBILE MORE SHEET ══
 (function(){
+  var SNAP_HALF=0.62;   // default snap point (62vh)
+  var SNAP_FULL=0.92;   // expanded snap point (92vh)
+  var SNAP_CLOSE=0.22;  // drag below this → close
+
+  function setSheetH(h, animate){
+    var sheet=document.getElementById('mob-sheet');
+    if(!sheet) return;
+    if(!animate) sheet.classList.add('dragging');
+    else sheet.classList.remove('dragging');
+    sheet.style.height=Math.round(h)+'px';
+  }
+
   window.toggleMobSheet=function(){
     var sheet=document.getElementById('mob-sheet');
     if(sheet.classList.contains('open')) closeMobSheet();
     else openMobSheet();
   };
   window.openMobSheet=function(){
-    document.getElementById('mob-sheet').classList.add('open');
+    var sheet=document.getElementById('mob-sheet');
+    // Reset to half snap on open
+    sheet.classList.remove('dragging');
+    sheet.style.height=Math.round(window.innerHeight*SNAP_HALF)+'px';
+    sheet.classList.add('open');
     document.getElementById('mob-sheet-overlay').classList.add('open');
     // Render active pane data on open
     var activeTab=document.querySelector('.mbs-tab.on');
@@ -8628,9 +8650,56 @@ setTimeout(pullFromServer,500);
     }
   };
   window.closeMobSheet=function(){
-    document.getElementById('mob-sheet').classList.remove('open');
+    var sheet=document.getElementById('mob-sheet');
+    sheet.classList.remove('open','dragging');
     document.getElementById('mob-sheet-overlay').classList.remove('open');
+    // Reset height after transition so next open starts at half
+    setTimeout(function(){sheet.style.height='';},320);
   };
+
+  // ── Drag to resize ──
+  var dragStartY=0, dragStartH=0, isDrag=false;
+
+  document.addEventListener('DOMContentLoaded',function(){
+    var handle=document.querySelector('.mob-sheet-handle');
+    if(!handle) return;
+
+    handle.addEventListener('touchstart',function(e){
+      var sheet=document.getElementById('mob-sheet');
+      if(!sheet.classList.contains('open')) return;
+      isDrag=true;
+      dragStartY=e.touches[0].clientY;
+      dragStartH=sheet.getBoundingClientRect().height;
+      sheet.classList.add('dragging');
+    },{passive:true});
+
+    document.addEventListener('touchmove',function(e){
+      if(!isDrag) return;
+      var sheet=document.getElementById('mob-sheet');
+      var dy=dragStartY-e.touches[0].clientY; // positive=drag up
+      var newH=Math.min(Math.max(dragStartH+dy,80),window.innerHeight*0.96);
+      sheet.style.height=newH+'px';
+    },{passive:true});
+
+    document.addEventListener('touchend',function(e){
+      if(!isDrag) return;
+      isDrag=false;
+      var sheet=document.getElementById('mob-sheet');
+      sheet.classList.remove('dragging');
+      var currentH=sheet.getBoundingClientRect().height;
+      var vh=window.innerHeight;
+      if(currentH<vh*SNAP_CLOSE){
+        // Close
+        closeMobSheet();
+      } else if(currentH<vh*0.77){
+        // Snap to half
+        sheet.style.height=Math.round(vh*SNAP_HALF)+'px';
+      } else {
+        // Snap to full
+        sheet.style.height=Math.round(vh*SNAP_FULL)+'px';
+      }
+    },{passive:true});
+  });
 
   // Tab switching
   window.mbsTab=function(name, el){
