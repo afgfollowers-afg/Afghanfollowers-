@@ -169,6 +169,10 @@ body[dir="ltr"] .svc-list li:hover{transform:translateX(3px);}
 .cta-band{text-align:center;background:linear-gradient(135deg,rgba(124,92,252,.15),rgba(0,210,160,.1));border:1px solid rgba(124,92,252,.25);border-radius:18px;padding:40px 24px;position:relative;overflow:hidden;}
 .cta-band::before{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent,rgba(255,255,255,.06),transparent);background-size:200% 100%;animation:ctaSheen 6s ease-in-out infinite;pointer-events:none;}
 @keyframes ctaSheen{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes qoTitleFlash{0%,100%{color:#ff2020;text-shadow:0 0 10px rgba(255,32,32,.9),0 0 28px rgba(255,32,32,.6),0 0 50px rgba(255,32,32,.3);}50%{color:#ff7070;text-shadow:0 0 4px rgba(255,32,32,.3);}}
+@keyframes qoWrapPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,32,32,.3);}60%{box-shadow:0 0 0 10px rgba(255,32,32,0);}}
+.qo-red-title{font-size:22px;font-weight:900;color:#ff2020;text-align:center;margin-bottom:6px;font-family:inherit;animation:qoTitleFlash 1.4s ease-in-out infinite;letter-spacing:.5px;}
+.qo-wrap-pulse{animation:qoWrapPulse 1.4s ease-in-out infinite;}
 .cta-band h2{margin-bottom:10px;}
 .cta-band.ember{background:radial-gradient(ellipse 480px 240px at 50% 0%,rgba(255,138,92,.16),transparent 70%),linear-gradient(160deg,var(--s1),var(--s2));border-color:var(--bd);}
 .cta-band.ember .eyebrow{color:var(--ember);}
@@ -286,12 +290,14 @@ footer a{color:var(--acc2);text-decoration:none;}
 
 <main>
 
+<div id="ann-banners"></div>
+
 <!-- ══ QUICK ORDER WIDGET ══ -->
-<section id="quick-order" style="margin:0 0 40px">
-  <div class="eyebrow">سفارش فوری</div>
-  <h2>همین الان سفارش بده — بدون ثبت‌نام</h2>
+<section id="quick-order" style="margin:28px 0 40px">
+  <div class="qo-red-title">⚡ سفارش فوری</div>
+  <h2 style="text-align:center;margin-bottom:8px">همین الان سفارش بده — بدون ثبت‌نام</h2>
   <p class="section-sub" style="margin-bottom:24px">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
-  <div class="qo-wrap reveal">
+  <div class="qo-wrap qo-wrap-pulse reveal">
     <div class="qo-plat-row" id="qo-plat-row">
       <div class="qo-plat on" onclick="qoPlatSelect('instagram',this)" data-plat="instagram">
         <div class="qo-plat-ico" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="22" height="22"><use href="#ico-instagram"/></svg></div>
@@ -360,8 +366,6 @@ footer a{color:var(--acc2);text-decoration:none;}
     <p style="text-align:center;font-size:11px;color:var(--mt);margin-top:12px">پرداخت از طریق PayPal — امن و رمزگذاری‌شده</p>
   </div>
 </div>
-
-<div id="ann-banners"></div>
 
 <div class="hero">
   <div>
