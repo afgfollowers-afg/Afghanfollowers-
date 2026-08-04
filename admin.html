@@ -232,9 +232,44 @@ textarea.fi{resize:vertical;min-height:75px;}
 .mob-sheet-handle:active{cursor:grabbing;background:var(--acc);width:60px;}
 /* Tab bar */
 .mbs-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);flex-shrink:0;}
-.mbs-tab{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--mt);cursor:pointer;transition:color .15s;position:relative;}
+.mbs-tab{flex:1;padding:9px 3px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);cursor:pointer;transition:color .15s;position:relative;}
 .mbs-tab.on{color:var(--acc2);}
-.mbs-tab.on::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--acc);border-radius:2px 2px 0 0;}
+.mbs-tab.on::after{content:'';position:absolute;bottom:0;left:15%;right:15%;height:2px;background:var(--acc);border-radius:2px 2px 0 0;}
+/* P&L sub-tabs */
+.mbs-pl-subtabs{display:flex;gap:6px;padding:10px 12px;background:var(--s2);border-bottom:1px solid var(--bd);flex-shrink:0;}
+.mbs-pl-subtab{flex:1;padding:7px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);cursor:pointer;border-radius:8px;border:1px solid transparent;transition:all .15s;}
+.mbs-pl-subtab.on{background:rgba(124,92,252,.18);color:var(--acc2);border-color:rgba(124,92,252,.3);}
+/* P&L summary row */
+.mbs-pl-sumrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 12px 6px;}
+.mbs-pl-sc{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 8px;text-align:center;}
+.mbs-pl-sc-lbl{font-size:9px;color:var(--mt);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+.mbs-pl-sc-val{font-size:16px;font-weight:900;}
+.mbs-pl-sc-val.pos{color:var(--gr);}
+.mbs-pl-sc-val.neg{color:var(--rd);}
+.mbs-pl-sc-val.neu{color:var(--yw);}
+/* P&L rows */
+.mbs-pl-row{padding:11px 14px;border-bottom:1px solid rgba(35,42,61,.6);}
+.mbs-pl-row:last-child{border-bottom:none;}
+.mbs-pl-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.mbs-pl-row-label{font-size:13px;font-weight:700;color:var(--tx);}
+.mbs-pl-row-profit{font-size:14px;font-weight:900;}
+.mbs-pl-row-profit.pos{color:var(--gr);}
+.mbs-pl-row-profit.neg{color:var(--rd);}
+.mbs-pl-row-meta{display:flex;gap:14px;font-size:11px;color:var(--mt);margin-bottom:5px;}
+.mbs-pl-bar-wrap{height:3px;background:rgba(35,42,61,.8);border-radius:2px;overflow:hidden;}
+.mbs-pl-bar-rev{height:100%;background:rgba(124,92,252,.5);border-radius:2px;}
+.mbs-pl-bar-profit{height:100%;background:var(--gr);border-radius:2px;}
+.mbs-pl-bar-neg{background:var(--rd);}
+/* User rows */
+.mbs-pl-urow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(35,42,61,.5);}
+.mbs-pl-urow:last-child{border-bottom:none;}
+.mbs-pl-uav{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--gr));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;}
+.mbs-pl-uinfo{flex:1;min-width:0;}
+.mbs-pl-uname{font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mbs-pl-umeta{font-size:10px;color:var(--mt);}
+.mbs-pl-uprof{text-align:right;flex-shrink:0;}
+.mbs-pl-uprof-val{font-size:13px;font-weight:900;}
+.mbs-pl-uprof-pct{font-size:10px;color:var(--mt);}
 /* Panes */
 .mbs-pane{display:none;overflow-y:auto;flex:1;}
 .mbs-pane.on{display:block;}
@@ -1519,7 +1554,8 @@ th{font-size:10px;}
   <!-- Tab bar -->
   <div class="mbs-tabs">
     <div class="mbs-tab on" id="mbs-tab-pages" onclick="mbsTab('pages',this)">📱 Pages</div>
-    <div class="mbs-tab" id="mbs-tab-reports" onclick="mbsTab('reports',this)">📊 Reports</div>
+    <div class="mbs-tab" id="mbs-tab-reports" onclick="mbsTab('reports',this)">📊 Stats</div>
+    <div class="mbs-tab" id="mbs-tab-pl" onclick="mbsTab('pl',this)">💹 P&amp;L</div>
     <div class="mbs-tab" id="mbs-tab-providers" onclick="mbsTab('providers',this)">🔌 Providers</div>
   </div>
 
@@ -1561,6 +1597,17 @@ th{font-size:10px;}
         <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--mt)">Total Users</span><span style="font-weight:700" id="mbsr-users">—</span></div>
       </div>
     </div>
+  </div>
+
+  <!-- P&L pane -->
+  <div class="mbs-pane" id="mbs-pl" style="display:flex;flex-direction:column;overflow:hidden;">
+    <div class="mbs-pl-subtabs">
+      <div class="mbs-pl-subtab on" id="mbspl-tab-monthly" onclick="mbsPlTab('monthly',this)">📅 ماهانه</div>
+      <div class="mbs-pl-subtab" id="mbspl-tab-weekly" onclick="mbsPlTab('weekly',this)">📆 هفتگی</div>
+      <div class="mbs-pl-subtab" id="mbspl-tab-users" onclick="mbsPlTab('users',this)">👥 یوزر</div>
+    </div>
+    <div id="mbs-pl-summary" class="mbs-pl-sumrow"></div>
+    <div id="mbs-pl-list" style="overflow-y:auto;flex:1;"></div>
   </div>
 
   <!-- PROVIDERS pane -->
@@ -8704,12 +8751,16 @@ setTimeout(pullFromServer,500);
   // Tab switching
   window.mbsTab=function(name, el){
     document.querySelectorAll('.mbs-tab').forEach(function(t){t.classList.remove('on');});
-    document.querySelectorAll('.mbs-pane').forEach(function(p){p.classList.remove('on');});
+    document.querySelectorAll('.mbs-pane').forEach(function(p){p.classList.remove('on');p.style.display='';});
     el.classList.add('on');
     var pane=document.getElementById('mbs-'+name);
-    if(pane) pane.classList.add('on');
+    if(pane){
+      if(name==='pl'){pane.style.display='flex';}
+      else{pane.classList.add('on');}
+    }
     if(name==='reports') renderMbsReports();
     else if(name==='providers') renderMbsProviders();
+    else if(name==='pl'){pane.classList.add('on');renderMbsPL('monthly');}
   };
 
   // ── Reports tab ──
@@ -8874,6 +8925,165 @@ setTimeout(pullFromServer,500);
       });
     }
     next();
+  };
+})();
+
+// ══ MOBILE P&L ENGINE ══
+(function(){
+  // Build provRateMap from smm_svc (same logic as initDash)
+  function buildProvRateMap(){
+    var map={};
+    try{
+      var raw=JSON.parse(localStorage.getItem('smm_svc')||'[]');
+      raw.forEach(function(s){
+        if(!Array.isArray(s)) return;
+        var sid=String(s[1]||s[0]||'');
+        var pr=s.length>=13?parseFloat(s[6])||0:0;
+        if(sid) map[sid]=pr;
+      });
+    }catch(e){}
+    return map;
+  }
+
+  // Per-order profit: o.cost (revenue) − o.provCost (or estimate from map)
+  function orderProfit(o, rateMap){
+    var rev=parseFloat(o.cost)||0;
+    var cost=o.provCost!==undefined?parseFloat(o.provCost):((rateMap[String(o.svcId||'')]||0)*(parseInt(o.qty)||0)/1000);
+    return {rev:rev, cost:cost, profit:rev-cost};
+  }
+
+  // Summary cards HTML
+  function sumCards(totRev, totCost, totProfit){
+    function fmt(v){return'$'+Math.abs(v).toFixed(2);}
+    var pc=totProfit>=0?'pos':'neg';
+    return '<div class="mbs-pl-sc"><div class="mbs-pl-sc-lbl">💳 Revenue</div><div class="mbs-pl-sc-val neu">'+fmt(totRev)+'</div></div>'
+      +'<div class="mbs-pl-sc"><div class="mbs-pl-sc-lbl">🔌 Cost</div><div class="mbs-pl-sc-val neg">'+fmt(totCost)+'</div></div>'
+      +'<div class="mbs-pl-sc"><div class="mbs-pl-sc-lbl">💰 Profit</div><div class="mbs-pl-sc-val '+pc+'">'+(totProfit<0?'-':'')+fmt(totProfit)+'</div></div>';
+  }
+
+  // Single period row HTML
+  function periodRow(label, rev, cost, profit, maxRev){
+    var pct=maxRev>0?Math.round((rev/maxRev)*100):0;
+    var ppct=rev>0?Math.round((profit/rev)*100):0;
+    var pc=profit>=0?'pos':'neg';
+    var barCls=profit<0?' mbs-pl-bar-neg':'';
+    return '<div class="mbs-pl-row">'
+      +'<div class="mbs-pl-row-top"><span class="mbs-pl-row-label">'+label+'</span><span class="mbs-pl-row-profit '+pc+'">'+(profit<0?'−':'+')+' $'+Math.abs(profit).toFixed(2)+'</span></div>'
+      +'<div class="mbs-pl-row-meta"><span>Rev: <b style="color:var(--tx)">$'+rev.toFixed(2)+'</b></span><span>Cost: <b style="color:var(--rd)">$'+cost.toFixed(2)+'</b></span><span>Margin: <b style="color:'+(ppct>=0?'var(--gr)':'var(--rd)')+'">'+ppct+'%</b></span></div>'
+      +'<div class="mbs-pl-bar-wrap"><div class="mbs-pl-bar-rev" style="width:'+pct+'%"></div></div>'
+      +'</div>';
+  }
+
+  function renderMonthly(orders, rateMap){
+    var months={};
+    var now=new Date();
+    // Pre-create last 6 months (including current)
+    for(var m=5;m>=0;m--){
+      var d=new Date(now.getFullYear(),now.getMonth()-m,1);
+      var key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      months[key]={label:d.toLocaleString('default',{month:'short',year:'numeric'}),rev:0,cost:0,profit:0};
+    }
+    orders.forEach(function(o){
+      if(!o.date) return;
+      var mk=o.date.slice(0,7);
+      if(!months[mk]) return;
+      var p=orderProfit(o,rateMap);
+      months[mk].rev+=p.rev; months[mk].cost+=p.cost; months[mk].profit+=p.profit;
+    });
+    var keys=Object.keys(months).reverse(); // newest first
+    var totRev=0,totCost=0,totProfit=0,maxRev=0;
+    keys.forEach(function(k){totRev+=months[k].rev;totCost+=months[k].cost;totProfit+=months[k].profit;if(months[k].rev>maxRev)maxRev=months[k].rev;});
+    document.getElementById('mbs-pl-summary').innerHTML=sumCards(totRev,totCost,totProfit);
+    var html='';
+    keys.forEach(function(k){var r=months[k];html+=periodRow(r.label,r.rev,r.cost,r.profit,maxRev);});
+    document.getElementById('mbs-pl-list').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--mt)">No orders yet</div>';
+  }
+
+  function renderWeekly(orders, rateMap){
+    var weeks={};
+    var now=new Date();
+    // Pre-create last 8 weeks
+    for(var w=7;w>=0;w--){
+      var start=new Date(now); start.setDate(start.getDate()-start.getDay()-w*7);
+      var end=new Date(start); end.setDate(end.getDate()+6);
+      var key=start.toISOString().slice(0,10);
+      var lbl=start.toLocaleDateString('default',{month:'short',day:'numeric'})+' – '+end.toLocaleDateString('default',{month:'short',day:'numeric'});
+      weeks[key]={label:lbl,start:start,end:end,rev:0,cost:0,profit:0};
+    }
+    var wKeys=Object.keys(weeks);
+    orders.forEach(function(o){
+      if(!o.date) return;
+      var od=new Date(o.date);
+      // Find which week bucket
+      for(var i=0;i<wKeys.length;i++){
+        var wk=weeks[wKeys[i]];
+        if(od>=wk.start&&od<=wk.end){
+          var p=orderProfit(o,rateMap);
+          wk.rev+=p.rev; wk.cost+=p.cost; wk.profit+=p.profit;
+          break;
+        }
+      }
+    });
+    var sortedKeys=wKeys.slice().reverse(); // newest first
+    var totRev=0,totCost=0,totProfit=0,maxRev=0;
+    sortedKeys.forEach(function(k){totRev+=weeks[k].rev;totCost+=weeks[k].cost;totProfit+=weeks[k].profit;if(weeks[k].rev>maxRev)maxRev=weeks[k].rev;});
+    document.getElementById('mbs-pl-summary').innerHTML=sumCards(totRev,totCost,totProfit);
+    var html='';
+    sortedKeys.forEach(function(k){var r=weeks[k];html+=periodRow(r.label,r.rev,r.cost,r.profit,maxRev);});
+    document.getElementById('mbs-pl-list').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--mt)">No orders yet</div>';
+  }
+
+  function renderByUser(orders, rateMap, users){
+    var umap={};
+    // Build display name map
+    var nameMap={};
+    users.forEach(function(u){
+      var n=(u.fname||'')+(u.lname?' '+u.lname:'');
+      nameMap[String(u.id)]=(n.trim()||u.email||u.phone||'User#'+u.id);
+    });
+    orders.forEach(function(o){
+      var uid=String(o.userId||o.uid||'');
+      var uname=nameMap[uid]||o.user||o.email||uid||'Unknown';
+      if(!umap[uname]) umap[uname]={name:uname,rev:0,cost:0,profit:0,orders:0};
+      var p=orderProfit(o,rateMap);
+      umap[uname].rev+=p.rev; umap[uname].cost+=p.cost; umap[uname].profit+=p.profit; umap[uname].orders++;
+    });
+    var rows=Object.values(umap).sort(function(a,b){return b.profit-a.profit;});
+    var totRev=rows.reduce(function(s,r){return s+r.rev;},0);
+    var totCost=rows.reduce(function(s,r){return s+r.cost;},0);
+    var totProfit=totRev-totCost;
+    document.getElementById('mbs-pl-summary').innerHTML=sumCards(totRev,totCost,totProfit);
+    var html='';
+    rows.forEach(function(r){
+      var av=(r.name||'?')[0].toUpperCase();
+      var pc=r.profit>=0?'pos':'neg';
+      var ppct=r.rev>0?Math.round((r.profit/r.rev)*100):0;
+      html+='<div class="mbs-pl-urow">'
+        +'<div class="mbs-pl-uav">'+escHtmlAdmin(av)+'</div>'
+        +'<div class="mbs-pl-uinfo"><div class="mbs-pl-uname">'+escHtmlAdmin(r.name)+'</div>'
+        +'<div class="mbs-pl-umeta">'+r.orders+' orders · Rev $'+r.rev.toFixed(2)+' · Cost $'+r.cost.toFixed(2)+'</div></div>'
+        +'<div class="mbs-pl-uprof"><div class="mbs-pl-uprof-val '+pc+'">'+(r.profit<0?'−':'+')+' $'+Math.abs(r.profit).toFixed(2)+'</div>'
+        +'<div class="mbs-pl-uprof-pct">'+ppct+'% margin</div></div>'
+        +'</div>';
+    });
+    document.getElementById('mbs-pl-list').innerHTML=html||'<div style="padding:20px;text-align:center;color:var(--mt)">No orders yet</div>';
+  }
+
+  var _plView='monthly';
+  window.renderMbsPL=function(view){
+    _plView=view||_plView;
+    var orders=getRealOrders();
+    var users=getRealUsers();
+    var rateMap=buildProvRateMap();
+    if(_plView==='monthly') renderMonthly(orders,rateMap);
+    else if(_plView==='weekly') renderWeekly(orders,rateMap);
+    else if(_plView==='users') renderByUser(orders,rateMap,users);
+  };
+
+  window.mbsPlTab=function(view,el){
+    document.querySelectorAll('.mbs-pl-subtab').forEach(function(t){t.classList.remove('on');});
+    el.classList.add('on');
+    renderMbsPL(view);
   };
 })();
 
