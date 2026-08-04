@@ -282,57 +282,60 @@ async function renderPostImage(templateKey, text) {
     .toBuffer();
 }
 
-// Returns SVG markup for 12 scattered social-media outline icons
-// (Instagram, YouTube, Telegram, Facebook, TikTok/music-note) placed around
-// the canvas at varying scales, rotations and opacities. librsvg can't render
-// emoji, so these are pure geometric path icons instead.
-function fbSocialIcons() {
-  const icons = [
-    // [cx, cy, type, scale, rotDeg, opacity]
-    [60,   60,   'ig', 1.2,  18,  0.11],
-    [1020, 60,   'yt', 1.1, -15,  0.10],
-    [60,   1020, 'fb', 1.0,  22,  0.09],
-    [1020, 1020, 'tg', 1.0, -18,  0.09],
-    [540,  62,   'tt', 0.95,  5,  0.09],
-    [62,   540,  'yt', 0.90,  15, 0.08],
-    [1018, 540,  'ig', 0.90, -12, 0.08],
-    [540,  1018, 'fb', 0.90,  -5, 0.08],
-    [215,  200,  'tg', 0.65, -10, 0.05],
-    [865,  200,  'tt', 0.65,  12, 0.05],
-    [215,  880,  'ig', 0.60, -14, 0.04],
-    [865,  880,  'yt', 0.60,   8, 0.04],
+// Reusable SVG shape primitives (centered at 0,0) used by both the Facebook
+// and TikTok reaction-icon backgrounds. Pure SVG geometry — no emoji.
+const REACT_HEART = 'M0,10 C0,10 -16,4 -16,-4 C-16,-12 -8,-14 0,-8 C8,-14 16,-12 16,-4 C16,4 0,10 0,10Z';
+const REACT_STAR  = '0,-14 3.53,-4.85 13.31,-4.33 5.71,1.85 8.23,11.33 0,6 -8.23,11.33 -5.71,1.85 -13.31,-4.33 -3.53,-4.85';
+const REACT_FLAME = 'M0,16 C-10,10 -13,2 -9,-8 C-7,-3 -3,1 0,4 C0,-4 4,-12 7,-16 C10,-8 11,0 8,8 C12,4 13,-2 11,-9 C15,-4 14,6 9,12 C7,16 3,17 0,16Z';
+
+// Returns scattered reaction shapes: hearts ❤️, stars ⭐, flames 🔥,
+// and 😍-style smiley faces with heart eyes.
+function reactionIcons() {
+  // [cx, cy, type, fill, scale, rotDeg, opacity]
+  const items = [
+    [85,   142, 'heart', '#FF3366', 1.30, -12, 0.13],
+    [540,  70,  'heart', '#FF4477', 1.00,   8, 0.10],
+    [990,  878, 'heart', '#FF3366', 1.20,  18, 0.11],
+    [920,  500, 'heart', '#FF6699', 0.80,  22, 0.08],
+    [200,  820, 'heart', '#FF3366', 0.75, -22, 0.07],
+    [748,  980, 'heart', '#FF4477', 0.70,  10, 0.07],
+
+    [960,  142, 'star',  '#FFD700', 1.20, -10, 0.12],
+    [120,  958, 'star',  '#FFD700', 1.00,  20, 0.10],
+    [820,  66,  'star',  '#FFC040', 0.75,   5, 0.09],
+    [340, 1010, 'star',  '#FFD700', 0.70,  -8, 0.08],
+
+    [62,   380, 'flame', '#FF6B00', 1.10,   5, 0.10],
+    [1010, 620, 'flame', '#FF7722', 1.00,  -5, 0.09],
+    [680,  970, 'flame', '#FF6B00', 0.80,   0, 0.08],
+    [180,  280, 'flame', '#FF7722', 0.65,   8, 0.06],
   ];
-  return icons.map(([cx, cy, type, scale, rot, opacity]) => {
-    const t = `translate(${cx},${cy}) rotate(${rot}) scale(${scale})`;
+
+  const simple = items.map(([cx, cy, type, fill, scale, rot, opacity]) => {
+    const t  = `translate(${cx},${cy}) rotate(${rot}) scale(${scale})`;
     const op = `opacity="${opacity}"`;
-    switch (type) {
-      case 'ig': return `<g transform="${t}" ${op}>
-        <rect x="-18" y="-18" width="36" height="36" rx="9" fill="none" stroke="#E1306C" stroke-width="3"/>
-        <circle cx="0" cy="0" r="9.5" fill="none" stroke="#E1306C" stroke-width="2.5"/>
-        <circle cx="9" cy="-9" r="3.2" fill="#E1306C"/>
-      </g>`;
-      case 'yt': return `<g transform="${t}" ${op}>
-        <rect x="-26" y="-18" width="52" height="36" rx="9" fill="none" stroke="#FF3333" stroke-width="3"/>
-        <polygon points="-8,-11 -8,11 14,0" fill="#FF3333"/>
-      </g>`;
-      case 'tg': return `<g transform="${t}" ${op}>
-        <path d="M-16,-1 L16,-13 L9,16 L2,8 L-3,14 L-5,5 Z"
-              fill="none" stroke="#2CA5E0" stroke-linejoin="round" stroke-width="2.5"/>
-        <line x1="2" y1="8" x2="9" y2="-6" stroke="#2CA5E0" stroke-width="2"/>
-      </g>`;
-      case 'fb': return `<g transform="${t}" ${op}>
-        <circle cx="0" cy="0" r="17" fill="none" stroke="#1877F2" stroke-width="3"/>
-        <path d="M3,-8 L1,-8 C-1,-8 -2,-7 -2,-5 L-2,-2 L-5,-2 L-5,2 L-2,2 L-2,10 L2,10 L2,2 L5.5,2 L6,-2 L2,-2 L2,-4.5 C2,-5.2 2.5,-5.5 3.5,-5.5 L6,-5.5 Z"
-              fill="#1877F2"/>
-      </g>`;
-      case 'tt': return `<g transform="${t}" ${op}>
-        <circle cx="-9" cy="9" r="9" fill="none" stroke="#ffffff" stroke-width="2.5"/>
-        <line x1="0" y1="9" x2="0" y2="-12" stroke="#ffffff" stroke-width="2.5"/>
-        <line x1="0" y1="-12" x2="13" y2="-7" stroke="#ffffff" stroke-width="2.5"/>
-      </g>`;
-      default: return '';
-    }
+    if (type === 'heart') return `<path transform="${t}" ${op} d="${REACT_HEART}" fill="${fill}"/>`;
+    if (type === 'star')  return `<polygon transform="${t}" ${op} points="${REACT_STAR}" fill="${fill}"/>`;
+    if (type === 'flame') return `<path transform="${t}" ${op} d="${REACT_FLAME}" fill="${fill}"/>`;
+    return '';
   }).join('\n  ');
+
+  // 😍 smiley with heart eyes (face circle + two tiny hearts + smile arc)
+  const smileys = [
+    [1000, 200, 1.10, -10, 0.09],
+    [80,   870, 1.00,  15, 0.08],
+    [600, 1010, 0.80,  -5, 0.07],
+  ].map(([cx, cy, scale, rot, op]) => {
+    const t = `translate(${cx},${cy}) rotate(${rot}) scale(${scale})`;
+    return `<g transform="${t}" opacity="${op}">
+      <circle cx="0" cy="0" r="16" fill="#FFE566"/>
+      <path transform="translate(-6,-5) scale(0.48)" d="${REACT_HEART}" fill="#FF3366"/>
+      <path transform="translate(6,-5) scale(0.48)" d="${REACT_HEART}" fill="#FF3366"/>
+      <path d="M-8,6 C-4,11 4,11 8,6" fill="none" stroke="#CC8800" stroke-width="2.5" stroke-linecap="round"/>
+    </g>`;
+  }).join('\n  ');
+
+  return simple + '\n  ' + smileys;
 }
 
 // Builds a 1080×1080 SVG for the daily Facebook auto-post.
@@ -448,7 +451,7 @@ function buildFacebookSvg(text, logoB64) {
   <rect width="${W}" height="${H}" fill="url(#fbCenterGlow)"/>
   <rect width="${W}" height="${H}" fill="url(#fbDots)" mask="url(#fbDotMask)"/>
 
-  ${fbSocialIcons()}
+  ${reactionIcons()}
 
   <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
         fill="#ffffff" fill-opacity="0.05"
@@ -499,4 +502,178 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-module.exports = { renderPostImage, renderFacebookPostImage, pickTemplate, TEMPLATE_ORDER };
+// 1080×1080 TikTok post image — same card layout as the Facebook variant but
+// with TikTok's near-black + cyan + pink colour scheme, a music-note platform
+// icon, and a cyan→pink accent/CTA gradient.
+function buildTikTokSvg(text, logoB64) {
+  const W = 1080, H = 1080;
+  const CARD = { x: 140, y: 140, w: 800, h: 800 };
+  const CX = W / 2; // 540
+
+  const subtitle = coreTextForImage(text);
+  const subLines = wrapText(subtitle, 38).slice(0, 2);
+  const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
+
+  const logoBoxY = 184;
+  const igIconY  = 356;
+  const h1Y1     = 450;
+  const h1Y2     = 500;
+  const subY1    = 538;
+  const featW    = (CARD.w - 80 - 16) / 2;
+  const feat1X   = CARD.x + 40;
+  const feat2X   = feat1X + featW + 16;
+  const featH    = 78;
+  const featY1   = 594;
+  const featY2   = featY1 + featH + 14;
+  const accentY  = featY2 + featH + 26;
+  const btnY     = accentY + 26;
+  const footerY  = btnY + 52 + 24;
+
+  const featCards = features.map((label, i) => {
+    const row = Math.floor(i / 2), col = i % 2;
+    const fx = col === 0 ? feat1X : feat2X;
+    const fy = row === 0 ? featY1 : featY2;
+    return `<rect x="${fx}" y="${fy}" width="${featW}" height="${featH}" rx="16"
+    fill="#ffffff" fill-opacity="0.05" stroke="#00f2ea" stroke-opacity="0.18" stroke-width="1"/>
+  <text x="${fx + featW / 2}" y="${fy + featH / 2 + 7}" font-family="Vazirmatn" font-weight="700"
+    font-size="17" fill="#ffffff" text-anchor="middle" direction="rtl">${escapeXml(label)}</text>`;
+  }).join('\n  ');
+
+  const subBlock = subLines.length ? `<text font-family="Vazirmatn" font-size="19" fill="#88cccc"
+    text-anchor="middle" direction="rtl">${
+    subLines.map((l, i) => `<tspan x="${CX}" y="${subY1 + i * 28}">${escapeXml(l)}</tspan>`).join('')
+  }</text>` : '';
+
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <radialGradient id="ttOrbCyan" cx="82%" cy="12%" r="45%">
+      <stop offset="0%" stop-color="#00f2ea" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#00f2ea" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ttOrbPink" cx="16%" cy="90%" r="35%">
+      <stop offset="0%" stop-color="#ff0050" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ttOrbPurp" cx="12%" cy="50%" r="32%">
+      <stop offset="0%" stop-color="#4010a0" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#4010a0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ttCenterGlow" cx="50%" cy="50%" r="42%">
+      <stop offset="0%" stop-color="#004444" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#004444" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="ttDots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="14" cy="14" r="1.2" fill="#00f2ea" fill-opacity="0.18"/>
+    </pattern>
+    <radialGradient id="ttDotMaskGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="white" stop-opacity="1"/>
+      <stop offset="70%" stop-color="white" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="ttDotMask">
+      <rect width="${W}" height="${H}" fill="url(#ttDotMaskGrad)"/>
+    </mask>
+    <linearGradient id="ttLogoBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d0d0d"/>
+      <stop offset="100%" stop-color="#060606"/>
+    </linearGradient>
+    <linearGradient id="ttAccent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#00f2ea" stop-opacity="0"/>
+      <stop offset="30%"  stop-color="#00f2ea"/>
+      <stop offset="70%"  stop-color="#ff0050"/>
+      <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ttBtn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#00d4cc"/>
+      <stop offset="100%" stop-color="#ff0050"/>
+    </linearGradient>
+    <linearGradient id="ttCardShine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.07"/>
+      <stop offset="45%"  stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="ttCardGlow" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"/>
+      <feFlood flood-color="#00f2ea" flood-opacity="0.20" result="c"/>
+      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="ttLogoGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
+      <feFlood flood-color="#00f2ea" flood-opacity="0.55" result="c"/>
+      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="${W}" height="${H}" fill="#07080C"/>
+  <rect width="${W}" height="${H}" fill="url(#ttOrbCyan)"/>
+  <rect width="${W}" height="${H}" fill="url(#ttOrbPink)"/>
+  <rect width="${W}" height="${H}" fill="url(#ttOrbPurp)"/>
+  <rect width="${W}" height="${H}" fill="url(#ttCenterGlow)"/>
+  <rect width="${W}" height="${H}" fill="url(#ttDots)" mask="url(#ttDotMask)"/>
+
+  ${reactionIcons()}
+
+  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
+        fill="#ffffff" fill-opacity="0.04"
+        stroke="#00f2ea" stroke-opacity="0.14" stroke-width="1.5"
+        filter="url(#ttCardGlow)"/>
+  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
+        fill="url(#ttCardShine)"/>
+
+  <!-- Logo box (dark with cyan glow) -->
+  <rect x="${CX - 75}" y="${logoBoxY}" width="150" height="150" rx="40"
+        fill="url(#ttLogoBg)" filter="url(#ttLogoGlow)"/>
+  <image href="${logoB64}" xlink:href="${logoB64}"
+         x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
+
+  <!-- TikTok music-note icon (dual cyan+pink shadow, white main) -->
+  <rect x="${CX - 18}" y="${igIconY}" width="36" height="36" rx="7" fill="#010101"/>
+  <ellipse cx="${CX - 9}" cy="${igIconY + 27}" rx="7.5" ry="5.5" fill="#00f2ea" fill-opacity="0.70"/>
+  <line x1="${CX - 1}" y1="${igIconY + 27}" x2="${CX - 1}" y2="${igIconY + 7}"
+        stroke="#00f2ea" stroke-width="2.5" stroke-opacity="0.70"/>
+  <ellipse cx="${CX - 5}" cy="${igIconY + 27}" rx="7.5" ry="5.5" fill="#ff0050" fill-opacity="0.70"/>
+  <line x1="${CX + 3}" y1="${igIconY + 27}" x2="${CX + 3}" y2="${igIconY + 7}"
+        stroke="#ff0050" stroke-width="2.5" stroke-opacity="0.70"/>
+  <ellipse cx="${CX - 7}" cy="${igIconY + 27}" rx="7.5" ry="5.5"
+           transform="rotate(-8 ${CX - 7} ${igIconY + 27})" fill="#ffffff"/>
+  <line x1="${CX + 1}" y1="${igIconY + 27}" x2="${CX + 1}" y2="${igIconY + 7}"
+        stroke="#ffffff" stroke-width="3"/>
+  <line x1="${CX + 1}" y1="${igIconY + 7}" x2="${CX + 13}" y2="${igIconY + 11}"
+        stroke="#ffffff" stroke-width="2.5"/>
+  <circle cx="${CX + 13}" cy="${igIconY + 11}" r="2.5" fill="#ffffff"/>
+
+  <!-- Heading -->
+  <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
+        fill="#ffffff" text-anchor="middle" direction="rtl">محتوای وایرال در تیک‌تاک</text>
+  <text x="${CX}" y="${h1Y2}" font-family="Vazirmatn" font-weight="700" font-size="30"
+        fill="#00f2ea" text-anchor="middle">با AfghanFollower</text>
+
+  ${subBlock}
+
+  ${featCards}
+
+  <rect x="${CARD.x + 80}" y="${accentY}" width="${CARD.w - 160}" height="2.5" rx="1.25"
+        fill="url(#ttAccent)"/>
+
+  <rect x="${CX - 155}" y="${btnY}" width="310" height="52" rx="26" fill="url(#ttBtn)"/>
+  <text x="${CX}" y="${btnY + 34}" font-family="Vazirmatn" font-weight="700" font-size="19"
+        fill="#ffffff" text-anchor="middle" direction="rtl">همین حالا شروع کنید</text>
+
+  <text x="${CX}" y="${footerY}" font-family="Vazirmatn" font-size="15"
+        fill="#00f2ea" fill-opacity="0.75" text-anchor="middle">
+    afghanfollowers.online
+  </text>
+</svg>`;
+}
+
+async function renderTikTokPostImage(text) {
+  ensureFontconfig();
+  const logoBuffer = await sharp(LOGO_PATH).resize(150, 150).png().toBuffer();
+  const logoB64 = 'data:image/png;base64,' + logoBuffer.toString('base64');
+  const svg = buildTikTokSvg(text, logoB64);
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+module.exports = { renderPostImage, renderFacebookPostImage, renderTikTokPostImage, pickTemplate, TEMPLATE_ORDER };
