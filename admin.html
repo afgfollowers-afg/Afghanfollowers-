@@ -220,12 +220,20 @@ textarea.fi{resize:vertical;min-height:75px;}
   padding-bottom:max(16px,env(safe-area-inset-bottom));
   transform:translateY(100%);
   transition:transform .3s cubic-bezier(.32,1.12,.64,1);
-  max-height:80vh;overflow-y:auto;
+  max-height:92vh;display:flex;flex-direction:column;overflow:hidden;
 }
 .mob-sheet.open{transform:translateY(0);}
-.mob-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--bd);margin:10px auto 14px;}
-.mob-sheet-title{font-size:13px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:.8px;padding:0 16px 10px;}
-.mob-sheet-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 12px;}
+.mob-sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--bd);margin:10px auto 8px;flex-shrink:0;}
+/* Tab bar */
+.mbs-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);flex-shrink:0;}
+.mbs-tab{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--mt);cursor:pointer;transition:color .15s;position:relative;}
+.mbs-tab.on{color:var(--acc2);}
+.mbs-tab.on::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--acc);border-radius:2px 2px 0 0;}
+/* Panes */
+.mbs-pane{display:none;overflow-y:auto;flex:1;}
+.mbs-pane.on{display:block;}
+/* Pages grid */
+.mob-sheet-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px;}
 .mob-sheet-item{
   display:flex;flex-direction:column;align-items:center;gap:5px;
   padding:12px 6px;background:var(--s2);border:1px solid var(--bd);
@@ -234,6 +242,32 @@ textarea.fi{resize:vertical;min-height:75px;}
 }
 .mob-sheet-item:active{background:rgba(124,92,252,.15);border-color:var(--acc);}
 .mob-sheet-item-ico{font-size:22px;}
+/* Report stats */
+.mbs-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 12px 8px;}
+.mbs-stat{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 12px;}
+.mbs-stat-lbl{font-size:11px;color:var(--mt);font-weight:600;margin-bottom:4px;}
+.mbs-stat-val{font-size:20px;font-weight:900;color:var(--wh);}
+.mbs-stat-val.green{color:var(--gr);}
+.mbs-stat-val.red{color:var(--rd);}
+.mbs-stat-val.yellow{color:var(--yw);}
+.mbs-chart{display:flex;align-items:flex-end;gap:4px;height:70px;padding:0 12px 6px;}
+.mbs-bar{flex:1;background:rgba(124,92,252,.4);border-radius:3px 3px 0 0;min-height:3px;position:relative;}
+.mbs-bar.today{background:var(--acc);}
+.mbs-chart-lbl{display:flex;gap:4px;padding:0 12px 12px;}
+.mbs-chart-lbl span{flex:1;text-align:center;font-size:9px;color:var(--mt);}
+/* Provider balance cards */
+.mbs-prov-card{display:flex;align-items:center;gap:12px;padding:14px 14px;border-bottom:1px solid rgba(35,42,61,.5);}
+.mbs-prov-card:last-child{border-bottom:none;}
+.mbs-prov-ico{width:38px;height:38px;border-radius:10px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.mbs-prov-info{flex:1;min-width:0;}
+.mbs-prov-name{font-size:13px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mbs-prov-url{font-size:10px;color:var(--mt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mbs-prov-bal{font-size:15px;font-weight:900;flex-shrink:0;}
+.mbs-prov-bal.ok{color:var(--gr);}
+.mbs-prov-bal.warn{color:var(--rd);}
+.mbs-prov-bal.unknown{color:var(--mt);}
+.mbs-prov-chk{width:30px;height:30px;border-radius:8px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mt);font-size:13px;flex-shrink:0;}
+.mbs-refresh-bar{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;gap:8px;align-items:center;}
 .mob-sheet-overlay{position:fixed;inset:0;z-index:399;background:rgba(0,0,0,.5);display:none;}
 .mob-sheet-overlay.open{display:block;}
 
@@ -1476,20 +1510,60 @@ th{font-size:10px;}
 <div class="mob-sheet-overlay" id="mob-sheet-overlay" onclick="closeMobSheet()"></div>
 <div class="mob-sheet" id="mob-sheet">
   <div class="mob-sheet-handle"></div>
-  <div class="mob-sheet-title">All Pages</div>
-  <div class="mob-sheet-grid">
-    <div class="mob-sheet-item" onclick="go('settings',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚙️</span>Settings</div>
-    <div class="mob-sheet-item" onclick="go('services',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚡</span>Services</div>
-    <div class="mob-sheet-item" onclick="go('payments',null);closeMobSheet()"><span class="mob-sheet-item-ico">💳</span>Payments</div>
-    <div class="mob-sheet-item" onclick="go('wallets',null);closeMobSheet()"><span class="mob-sheet-item-ico">👛</span>Wallets</div>
-    <div class="mob-sheet-item" onclick="go('withdrawals',null);closeMobSheet()"><span class="mob-sheet-item-ico">⬆️</span>Withdrawals</div>
-    <div class="mob-sheet-item" onclick="go('announcements',null);closeMobSheet()"><span class="mob-sheet-item-ico">📢</span>Announce</div>
-    <div class="mob-sheet-item" onclick="go('blog',null);closeMobSheet()"><span class="mob-sheet-item-ico">📝</span>Blog</div>
-    <div class="mob-sheet-item" onclick="go('emailauto',null);closeMobSheet()"><span class="mob-sheet-item-ico">📧</span>Email Auto</div>
-    <div class="mob-sheet-item" onclick="go('invites',null);closeMobSheet()"><span class="mob-sheet-item-ico">🎁</span>Invites</div>
-    <div class="mob-sheet-item" onclick="go('alerts',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚠️</span>Alerts</div>
-    <div class="mob-sheet-item" onclick="om('m-add-user');closeMobSheet()"><span class="mob-sheet-item-ico">➕</span>Add User</div>
-    <div class="mob-sheet-item" onclick="om('m-add-bal');closeMobSheet()"><span class="mob-sheet-item-ico">💰</span>Add Balance</div>
+  <!-- Tab bar -->
+  <div class="mbs-tabs">
+    <div class="mbs-tab on" id="mbs-tab-pages" onclick="mbsTab('pages',this)">📱 Pages</div>
+    <div class="mbs-tab" id="mbs-tab-reports" onclick="mbsTab('reports',this)">📊 Reports</div>
+    <div class="mbs-tab" id="mbs-tab-providers" onclick="mbsTab('providers',this)">🔌 Providers</div>
+  </div>
+
+  <!-- PAGES pane -->
+  <div class="mbs-pane on" id="mbs-pages">
+    <div class="mob-sheet-grid">
+      <div class="mob-sheet-item" onclick="go('settings',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚙️</span>Settings</div>
+      <div class="mob-sheet-item" onclick="go('services',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚡</span>Services</div>
+      <div class="mob-sheet-item" onclick="go('payments',null);closeMobSheet()"><span class="mob-sheet-item-ico">💳</span>Payments</div>
+      <div class="mob-sheet-item" onclick="go('wallets',null);closeMobSheet()"><span class="mob-sheet-item-ico">👛</span>Wallets</div>
+      <div class="mob-sheet-item" onclick="go('withdrawals',null);closeMobSheet()"><span class="mob-sheet-item-ico">⬆️</span>Withdrawals</div>
+      <div class="mob-sheet-item" onclick="go('announcements',null);closeMobSheet()"><span class="mob-sheet-item-ico">📢</span>Announce</div>
+      <div class="mob-sheet-item" onclick="go('blog',null);closeMobSheet()"><span class="mob-sheet-item-ico">📝</span>Blog</div>
+      <div class="mob-sheet-item" onclick="go('emailauto',null);closeMobSheet()"><span class="mob-sheet-item-ico">📧</span>Email Auto</div>
+      <div class="mob-sheet-item" onclick="go('invites',null);closeMobSheet()"><span class="mob-sheet-item-ico">🎁</span>Invites</div>
+      <div class="mob-sheet-item" onclick="go('alerts',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚠️</span>Alerts</div>
+      <div class="mob-sheet-item" onclick="om('m-add-user');closeMobSheet()"><span class="mob-sheet-item-ico">➕</span>Add User</div>
+      <div class="mob-sheet-item" onclick="om('m-add-bal');closeMobSheet()"><span class="mob-sheet-item-ico">💰</span>Add Balance</div>
+    </div>
+  </div>
+
+  <!-- REPORTS pane -->
+  <div class="mbs-pane" id="mbs-reports">
+    <div class="mbs-stat-grid">
+      <div class="mbs-stat"><div class="mbs-stat-lbl">💰 Net Profit</div><div class="mbs-stat-val green" id="mbsr-profit">—</div></div>
+      <div class="mbs-stat"><div class="mbs-stat-lbl">💳 Deposits</div><div class="mbs-stat-val" id="mbsr-deposits">—</div></div>
+      <div class="mbs-stat"><div class="mbs-stat-lbl">🔌 Provider Cost</div><div class="mbs-stat-val red" id="mbsr-provcost">—</div></div>
+      <div class="mbs-stat"><div class="mbs-stat-lbl">🎁 Admin Credits</div><div class="mbs-stat-val yellow" id="mbsr-credits">—</div></div>
+    </div>
+    <div style="padding:4px 12px 6px;font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px">7-Day Profit Trend</div>
+    <div class="mbs-chart" id="mbsr-chart"></div>
+    <div class="mbs-chart-lbl" id="mbsr-chart-lbl"></div>
+    <div style="padding:0 12px 8px">
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--mt);margin-bottom:8px">📦 ORDERS SUMMARY</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="color:var(--mt)">Total Orders</span><span style="font-weight:700" id="mbsr-orders">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="color:var(--mt)">Completed</span><span style="font-weight:700;color:var(--gr)" id="mbsr-completed">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="color:var(--mt)">Pending</span><span style="font-weight:700;color:var(--yw)" id="mbsr-pending">—</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--mt)">Total Users</span><span style="font-weight:700" id="mbsr-users">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROVIDERS pane -->
+  <div class="mbs-pane" id="mbs-providers">
+    <div class="mbs-refresh-bar">
+      <button class="btn btn-g btn-sm" style="flex:1" onclick="mbsCheckAllProvBals()">↻ Refresh All Balances</button>
+      <div id="mbs-prov-status" style="font-size:11px;color:var(--mt)"></div>
+    </div>
+    <div id="mbs-prov-list"></div>
   </div>
 </div>
 
@@ -8545,10 +8619,192 @@ setTimeout(pullFromServer,500);
   window.openMobSheet=function(){
     document.getElementById('mob-sheet').classList.add('open');
     document.getElementById('mob-sheet-overlay').classList.add('open');
+    // Render active pane data on open
+    var activeTab=document.querySelector('.mbs-tab.on');
+    if(activeTab){
+      var id=activeTab.id.replace('mbs-tab-','');
+      if(id==='reports') renderMbsReports();
+      else if(id==='providers') renderMbsProviders();
+    }
   };
   window.closeMobSheet=function(){
     document.getElementById('mob-sheet').classList.remove('open');
     document.getElementById('mob-sheet-overlay').classList.remove('open');
+  };
+
+  // Tab switching
+  window.mbsTab=function(name, el){
+    document.querySelectorAll('.mbs-tab').forEach(function(t){t.classList.remove('on');});
+    document.querySelectorAll('.mbs-pane').forEach(function(p){p.classList.remove('on');});
+    el.classList.add('on');
+    var pane=document.getElementById('mbs-'+name);
+    if(pane) pane.classList.add('on');
+    if(name==='reports') renderMbsReports();
+    else if(name==='providers') renderMbsProviders();
+  };
+
+  // ── Reports tab ──
+  window.renderMbsReports=function(){
+    var realUsers=getRealUsers();
+    var realOrders=getRealOrders();
+    var totalRealDeposits=0,totalAdminCredits=0,totalProviderCosts=0;
+    var totalOrders=realOrders.length;
+    var completedOrders=0,pendingOrders=0;
+    realUsers.forEach(function(u){
+      (u.transactions||[]).forEach(function(t){
+        var amt=parseFloat(t.amount||t.credit||0);
+        if(t.type==='deposit'&&t.status==='approved') totalRealDeposits+=amt;
+        if(t.type==='admin_credit') totalAdminCredits+=amt;
+      });
+    });
+    realOrders.forEach(function(o){
+      totalProviderCosts+=parseFloat(o.provCost)||0;
+      if(o.status==='completed') completedOrders++;
+      if(o.status==='pending'||o.status==='processing') pendingOrders++;
+    });
+    var netProfit=totalRealDeposits-totalProviderCosts;
+    function fmt(v){return'$'+Math.abs(v).toFixed(2);}
+    var ep=document.getElementById('mbsr-profit');
+    var ed=document.getElementById('mbsr-deposits');
+    var ec=document.getElementById('mbsr-provcost');
+    var ecr=document.getElementById('mbsr-credits');
+    var eo=document.getElementById('mbsr-orders');
+    var ecomp=document.getElementById('mbsr-completed');
+    var epend=document.getElementById('mbsr-pending');
+    var eu=document.getElementById('mbsr-users');
+    if(ep){ep.textContent=(netProfit<0?'-':'')+fmt(netProfit);ep.className='mbs-stat-val '+(netProfit>=0?'green':'red');}
+    if(ed) ed.textContent=fmt(totalRealDeposits);
+    if(ec) ec.textContent=fmt(totalProviderCosts);
+    if(ecr) ecr.textContent=fmt(totalAdminCredits);
+    if(eo) eo.textContent=totalOrders;
+    if(ecomp) ecomp.textContent=completedOrders;
+    if(epend) epend.textContent=pendingOrders;
+    if(eu) eu.textContent=realUsers.length;
+    // 7-day chart
+    var days=[],lbs=[];
+    var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    for(var i=6;i>=0;i--){
+      var dt=new Date(Date.now()-i*86400000);
+      var ds=dt.toISOString().slice(0,10);
+      var dd=0,da=0,dp=0;
+      realUsers.forEach(function(u){
+        (u.transactions||[]).forEach(function(t){
+          if(!t.date||t.date.slice(0,10)!==ds) return;
+          var a=parseFloat(t.amount||t.credit||0);
+          if(t.type==='deposit'&&t.status==='approved') dd+=a;
+          if(t.type==='admin_credit') da+=a;
+        });
+      });
+      realOrders.forEach(function(o){
+        if(o.date&&o.date.slice(0,10)===ds) dp+=parseFloat(o.provCost)||0;
+      });
+      days.push(Math.max(0,(dd+da)-dp));
+      lbs.push(DAYS[dt.getDay()]);
+    }
+    var mx=Math.max.apply(null,days)||1;
+    var ch='',cl='';
+    for(var j=0;j<days.length;j++){
+      var hh=Math.max(3,Math.round((days[j]/mx)*60));
+      ch+='<div class="mbs-bar'+(j===6?' today':'')+'" style="height:'+hh+'px" title="$'+days[j].toFixed(2)+'"></div>';
+      cl+='<span>'+lbs[j]+'</span>';
+    }
+    var ec2=document.getElementById('mbsr-chart'); if(ec2) ec2.innerHTML=ch;
+    var el2=document.getElementById('mbsr-chart-lbl'); if(el2) el2.innerHTML=cl;
+  };
+
+  // ── Providers tab ──
+  window.renderMbsProviders=function(){
+    var list=document.getElementById('mbs-prov-list');
+    if(!list) return;
+    if(!provs||!provs.length){
+      list.innerHTML='<div style="padding:24px;text-align:center;color:var(--mt)">No providers added yet</div>';
+      return;
+    }
+    var html='';
+    provs.forEach(function(p){
+      var bal=p.balance;
+      var balClass=bal===null||bal===undefined?'unknown':(parseFloat(bal)<5?'warn':'ok');
+      var balTxt=bal!==null&&bal!==undefined?'$'+parseFloat(bal).toFixed(2):'—';
+      var domain='';
+      try{domain=new URL(p.url).hostname.replace('www.','');}catch(e){domain=p.url||'Unknown';}
+      html+='<div class="mbs-prov-card" id="mbspc-'+p.id+'">'
+        +'<div class="mbs-prov-ico">🔌</div>'
+        +'<div class="mbs-prov-info"><div class="mbs-prov-name">'+escHtmlAdmin(p.name||domain)+'</div><div class="mbs-prov-url">'+escHtmlAdmin(domain)+'</div></div>'
+        +'<div class="mbs-prov-bal '+balClass+'" id="mbsbal-'+p.id+'">'+balTxt+(balClass==='warn'?'<br><span style="font-size:9px;font-weight:700">⚠️ LOW</span>':'')+'</div>'
+        +'<div class="mbs-prov-chk" onclick="mbsCheckOneProv(\''+p.id+'\')" title="Refresh balance">↻</div>'
+        +'</div>';
+    });
+    list.innerHTML=html;
+  };
+
+  // Check one provider balance
+  window.mbsCheckOneProv=function(id){
+    var p=provs.find(function(x){return String(x.id)===String(id);});
+    if(!p) return;
+    var balEl=document.getElementById('mbsbal-'+id);
+    if(balEl){balEl.textContent='…';balEl.className='mbs-prov-bal unknown';}
+    callProviderAPI(p.url,p.key,'balance',null,p.id).then(function(d){
+      if(d.balance!==undefined){
+        var bal=parseFloat(d.balance);
+        p.balance=bal.toFixed(2);
+        saveProvs();
+        var cls=bal<5?'warn':'ok';
+        if(balEl){
+          balEl.className='mbs-prov-bal '+cls;
+          balEl.innerHTML='$'+bal.toFixed(2)+(cls==='warn'?'<br><span style="font-size:9px;font-weight:700">⚠️ LOW</span>':'');
+        }
+        if(bal<5){
+          tgSend('⚠️ <b>Provider Low Balance</b>\nProvider: <b>'+escHtmlAdmin(p.name||p.url)+'</b>\nBalance: <b>$'+bal.toFixed(2)+'</b>\nAction: Top up immediately!');
+        }
+      } else if(balEl){balEl.textContent='Error';balEl.className='mbs-prov-bal warn';}
+    }).catch(function(){if(balEl){balEl.textContent='Error';balEl.className='mbs-prov-bal warn';}});
+  };
+
+  // Check ALL providers sequentially and alert for any < $5
+  window.mbsCheckAllProvBals=function(){
+    if(!provs||!provs.length) return;
+    var statusEl=document.getElementById('mbs-prov-status');
+    if(statusEl) statusEl.textContent='Checking…';
+    renderMbsProviders();
+    var i=0;
+    var lowProvs=[];
+    function next(){
+      if(i>=provs.length){
+        if(statusEl) statusEl.textContent='Done ✓';
+        if(lowProvs.length){
+          var msg='⚠️ <b>Low Provider Balances Alert</b>\n';
+          lowProvs.forEach(function(x){msg+='• <b>'+x.name+'</b>: $'+x.bal+'\n';});
+          msg+='Please top up to avoid service interruption!';
+          tgSend(msg);
+          toast('⚠️ '+lowProvs.length+' provider(s) with balance < $5 — Telegram sent','e');
+        } else {
+          toast('All provider balances OK ✓','s');
+        }
+        return;
+      }
+      var p=provs[i++];
+      if(statusEl) statusEl.textContent=(i)+'/'+provs.length;
+      var balEl=document.getElementById('mbsbal-'+p.id);
+      if(balEl){balEl.textContent='…';balEl.className='mbs-prov-bal unknown';}
+      callProviderAPI(p.url,p.key,'balance',null,p.id).then(function(d){
+        if(d.balance!==undefined){
+          var bal=parseFloat(d.balance);
+          p.balance=bal.toFixed(2);
+          saveProvs();
+          var cls=bal<5?'warn':'ok';
+          if(balEl){
+            balEl.className='mbs-prov-bal '+cls;
+            balEl.innerHTML='$'+bal.toFixed(2)+(cls==='warn'?'<br><span style="font-size:9px;font-weight:700">⚠️ LOW</span>':'');
+          }
+          if(bal<5) lowProvs.push({name:p.name||p.url,bal:bal.toFixed(2)});
+        } else if(balEl){balEl.textContent='Error';balEl.className='mbs-prov-bal warn';}
+        setTimeout(next,300);
+      }).catch(function(){
+        if(balEl){balEl.textContent='Error';balEl.className='mbs-prov-bal warn';}
+        setTimeout(next,300);
+      });
+    }
+    next();
   };
 })();
 
