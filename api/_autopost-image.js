@@ -661,20 +661,24 @@ function buildTikTokSvg(text, logoB64, ttIconB64) {
 async function renderTikTokPostImage(text) {
   ensureFontconfig();
   const SZ = 130;
-  const circleMask = Buffer.from(
-    `<svg width="${SZ}" height="${SZ}"><circle cx="${SZ/2}" cy="${SZ/2}" r="${SZ/2}" fill="white"/></svg>`
-  );
   const [logoBuffer, iconBuffer] = await Promise.all([
     sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
-    sharp(TT_ICON_PATH)
-      .resize(SZ, SZ)
-      .png()
-      .toBuffer()
-      .then(buf => sharp(buf)
-        .composite([{ input: circleMask, blend: 'dest-in' }])
+    (async () => {
+      // Load at full resolution, add alpha, then erase dark/black background pixels
+      const { data, info } = await sharp(TT_ICON_PATH)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        // Threshold: dark pixels (background) → fully transparent
+        if (r < 90 && g < 90 && b < 90) data[i + 3] = 0;
+      }
+      return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+        .resize(SZ, SZ)
         .png()
-        .toBuffer()
-      ),
+        .toBuffer();
+    })(),
   ]);
   const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
   const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
