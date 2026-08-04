@@ -282,10 +282,63 @@ async function renderPostImage(templateKey, text) {
     .toBuffer();
 }
 
+// Returns SVG markup for 12 scattered social-media outline icons
+// (Instagram, YouTube, Telegram, Facebook, TikTok/music-note) placed around
+// the canvas at varying scales, rotations and opacities. librsvg can't render
+// emoji, so these are pure geometric path icons instead.
+function fbSocialIcons() {
+  const icons = [
+    // [cx, cy, type, scale, rotDeg, opacity]
+    [60,   60,   'ig', 1.2,  18,  0.11],
+    [1020, 60,   'yt', 1.1, -15,  0.10],
+    [60,   1020, 'fb', 1.0,  22,  0.09],
+    [1020, 1020, 'tg', 1.0, -18,  0.09],
+    [540,  62,   'tt', 0.95,  5,  0.09],
+    [62,   540,  'yt', 0.90,  15, 0.08],
+    [1018, 540,  'ig', 0.90, -12, 0.08],
+    [540,  1018, 'fb', 0.90,  -5, 0.08],
+    [215,  200,  'tg', 0.65, -10, 0.05],
+    [865,  200,  'tt', 0.65,  12, 0.05],
+    [215,  880,  'ig', 0.60, -14, 0.04],
+    [865,  880,  'yt', 0.60,   8, 0.04],
+  ];
+  return icons.map(([cx, cy, type, scale, rot, opacity]) => {
+    const t = `translate(${cx},${cy}) rotate(${rot}) scale(${scale})`;
+    const op = `opacity="${opacity}"`;
+    switch (type) {
+      case 'ig': return `<g transform="${t}" ${op}>
+        <rect x="-18" y="-18" width="36" height="36" rx="9" fill="none" stroke="#E1306C" stroke-width="3"/>
+        <circle cx="0" cy="0" r="9.5" fill="none" stroke="#E1306C" stroke-width="2.5"/>
+        <circle cx="9" cy="-9" r="3.2" fill="#E1306C"/>
+      </g>`;
+      case 'yt': return `<g transform="${t}" ${op}>
+        <rect x="-26" y="-18" width="52" height="36" rx="9" fill="none" stroke="#FF3333" stroke-width="3"/>
+        <polygon points="-8,-11 -8,11 14,0" fill="#FF3333"/>
+      </g>`;
+      case 'tg': return `<g transform="${t}" ${op}>
+        <path d="M-16,-1 L16,-13 L9,16 L2,8 L-3,14 L-5,5 Z"
+              fill="none" stroke="#2CA5E0" stroke-linejoin="round" stroke-width="2.5"/>
+        <line x1="2" y1="8" x2="9" y2="-6" stroke="#2CA5E0" stroke-width="2"/>
+      </g>`;
+      case 'fb': return `<g transform="${t}" ${op}>
+        <circle cx="0" cy="0" r="17" fill="none" stroke="#1877F2" stroke-width="3"/>
+        <path d="M3,-8 L1,-8 C-1,-8 -2,-7 -2,-5 L-2,-2 L-5,-2 L-5,2 L-2,2 L-2,10 L2,10 L2,2 L5.5,2 L6,-2 L2,-2 L2,-4.5 C2,-5.2 2.5,-5.5 3.5,-5.5 L6,-5.5 Z"
+              fill="#1877F2"/>
+      </g>`;
+      case 'tt': return `<g transform="${t}" ${op}>
+        <circle cx="-9" cy="9" r="9" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+        <line x1="0" y1="9" x2="0" y2="-12" stroke="#ffffff" stroke-width="2.5"/>
+        <line x1="0" y1="-12" x2="13" y2="-7" stroke="#ffffff" stroke-width="2.5"/>
+      </g>`;
+      default: return '';
+    }
+  }).join('\n  ');
+}
+
 // Builds a 1080×1080 SVG for the daily Facebook auto-post.
-// Fixed layout: dark #040B28 background, radial-gradient orbs, dot grid,
-// centred glass card, logo box, Instagram camera icon, fixed heading, 4 fixed
-// feature labels (no emoji — librsvg can't render them) and CTA button.
+// Fixed layout: dark navy background, radial-gradient orbs, dot grid,
+// scattered social-media outline icons, centred glass card, logo box,
+// Instagram camera icon, fixed heading, 4 feature labels and CTA button.
 // Only the subtitle (cleaned Farsi text from the AI-generated post) changes.
 function buildFacebookSvg(text, logoB64) {
   const W = 1080, H = 1080;
@@ -329,20 +382,29 @@ function buildFacebookSvg(text, logoB64) {
   return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <defs>
     <radialGradient id="fbOrbBlue" cx="82%" cy="12%" r="45%">
-      <stop offset="0%" stop-color="#0B3D91" stop-opacity="0.55"/>
+      <stop offset="0%" stop-color="#1450c8" stop-opacity="0.72"/>
       <stop offset="100%" stop-color="#0B3D91" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="fbOrbOrg" cx="16%" cy="90%" r="32%">
-      <stop offset="0%" stop-color="#FF9F1A" stop-opacity="0.14"/>
+    <radialGradient id="fbOrbOrg" cx="16%" cy="90%" r="35%">
+      <stop offset="0%" stop-color="#FF9F1A" stop-opacity="0.28"/>
       <stop offset="100%" stop-color="#FF9F1A" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="fbOrbPurp" cx="12%" cy="50%" r="32%">
-      <stop offset="0%" stop-color="#5028b4" stop-opacity="0.18"/>
+    <radialGradient id="fbOrbPurp" cx="12%" cy="50%" r="35%">
+      <stop offset="0%" stop-color="#6030d8" stop-opacity="0.30"/>
       <stop offset="100%" stop-color="#5028b4" stop-opacity="0"/>
     </radialGradient>
-    <pattern id="fbDots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
-      <circle cx="16" cy="16" r="1" fill="#3355aa" fill-opacity="0.25"/>
+    <radialGradient id="fbCenterGlow" cx="50%" cy="50%" r="42%">
+      <stop offset="0%" stop-color="#1a3a8a" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#0B3D91" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="fbDots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="14" cy="14" r="1.3" fill="#4466cc" fill-opacity="0.38"/>
     </pattern>
+    <linearGradient id="fbCardShine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.09"/>
+      <stop offset="45%"  stop-color="#ffffff" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
     <radialGradient id="fbDotMaskGrad" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="white" stop-opacity="1"/>
       <stop offset="70%" stop-color="white" stop-opacity="0.4"/>
@@ -379,16 +441,21 @@ function buildFacebookSvg(text, logoB64) {
     </filter>
   </defs>
 
-  <rect width="${W}" height="${H}" fill="#040B28"/>
+  <rect width="${W}" height="${H}" fill="#060E2C"/>
   <rect width="${W}" height="${H}" fill="url(#fbOrbBlue)"/>
   <rect width="${W}" height="${H}" fill="url(#fbOrbOrg)"/>
   <rect width="${W}" height="${H}" fill="url(#fbOrbPurp)"/>
+  <rect width="${W}" height="${H}" fill="url(#fbCenterGlow)"/>
   <rect width="${W}" height="${H}" fill="url(#fbDots)" mask="url(#fbDotMask)"/>
+
+  ${fbSocialIcons()}
 
   <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
         fill="#ffffff" fill-opacity="0.05"
         stroke="#ffffff" stroke-opacity="0.10" stroke-width="1.5"
         filter="url(#fbCardGlow)"/>
+  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
+        fill="url(#fbCardShine)"/>
 
   <rect x="${CX - 75}" y="${logoBoxY}" width="150" height="150" rx="40"
         fill="url(#fbLogoBg)" filter="url(#fbLogoGlow)"/>
