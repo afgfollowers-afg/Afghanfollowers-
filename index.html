@@ -746,10 +746,24 @@ function qoBuildSvcSel(){
   });
 
   if(availTypes.length===0){
-    // No services yet — show input anyway with first-match fallback
-    svcRow.style.display='none';
-    inpRow.style.display='flex';
-    qoUpdateAtLbl();
+    // Try any active service for this platform regardless of type keyword
+    var _allPlatSvcs=qoFilterSvcs(_qoPlat,null);
+    if(_allPlatSvcs.length>0){
+      _allPlatSvcs.sort(function(a,b){return (a[7]||0)-(b[7]||0);});
+      _qoSvcRow=_allPlatSvcs[0];
+      svcRow.style.display='none';
+      inpRow.style.display='flex';
+      qoUpdateAtLbl();
+    } else {
+      // No services at all for this platform — show message in the grid element
+      svcRow.style.display='none';
+      inpRow.style.display='none';
+      var _noSvcHdr=document.getElementById('qo-pkg-hdr');
+      var _noSvcGrid=document.getElementById('qo-pkg-grid');
+      if(_noSvcHdr) _noSvcHdr.textContent='';
+      if(_noSvcGrid) _noSvcGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">در حال حاضر سرویسی برای این پلتفرم موجود نیست.<br><a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">پشتیبانی تلگرام</a> با ما در تماس باشید.</div>';
+      pkgsWrap.style.display='block';
+    }
     return;
   }
 
@@ -784,6 +798,9 @@ function qoSvcChange(){
   _qoSvcRow=svcs[0];
   inpRow.style.display='flex';
   qoUpdateAtLbl();
+  // Auto-refresh price packages if a link was already entered
+  var _autoLink=(document.getElementById('qo-link-inp').value||'').trim();
+  if(_autoLink) qoShowPkgs();
 }
 
 function qoUpdateAtLbl(){
@@ -820,10 +837,12 @@ function qoShowPkgs(){
   if(!link){linkEl.focus();linkEl.style.borderColor='#f87171';setTimeout(function(){linkEl.style.borderColor='';},1500);return;}
 
   if(!_qoSvcRow){
-    // no service selected — show fallback message
-    var svcSel=document.getElementById('qo-svc-sel');
-    if(svcSel) svcSel.style.borderColor='#f87171';
-    setTimeout(function(){if(svcSel)svcSel.style.borderColor='';},1500);
+    var _fbHdr=document.getElementById('qo-pkg-hdr');
+    var _fbGrid=document.getElementById('qo-pkg-grid');
+    var _fbWrap=document.getElementById('qo-pkgs-wrap');
+    if(_fbHdr) _fbHdr.textContent='';
+    if(_fbGrid) _fbGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">سرویسی یافت نشد. لطفاً نوع دیگری انتخاب کنید یا با <a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">پشتیبانی</a> تماس بگیرید.</div>';
+    if(_fbWrap) _fbWrap.style.display='block';
     return;
   }
 
@@ -922,7 +941,11 @@ function qoLoadPayPalSdk(){
   var pm=qoGetPmList();
   var pp=pm.find(function(m){return m.method==='paypal'&&m.active;});
   if(!pp||!pp.clientId){
-    qoPpStatus('پرداخت PayPal در حال حاضر در دسترس نیست.');
+    document.getElementById('qo-pp-btn-wrap').innerHTML=''
+      +'<div style="text-align:center;padding:16px 4px">'
+      +'<p style="color:var(--mt);font-size:13px;margin-bottom:14px">در حال حاضر پرداخت آنلاین فعال نیست.<br>برای ثبت سفارش با پشتیبانی تماس بگیرید:</p>'
+      +'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#2AABEE;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">📱 پشتیبانی تلگرام</a>'
+      +'</div>';
     return;
   }
   var clientId=pp.clientId;
