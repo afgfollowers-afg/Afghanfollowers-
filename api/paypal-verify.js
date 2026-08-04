@@ -88,6 +88,7 @@ module.exports = async (req, res) => {
       const gQty    = parseInt(body.qty, 10) || 0;
       const gLink   = String(body.link   || '').trim();
       const gEmail  = String(body.guestEmail || '').trim();
+      const gName   = String(body.guestName  || '').trim().slice(0, 100);
 
       if (!orderId || !gSvcId || !gProvId || !gQty || !gLink) {
         return res.status(200).json({ ok: false, error: 'Missing required fields for guest order', deployMarker: DEPLOY_MARKER });
@@ -156,6 +157,7 @@ module.exports = async (req, res) => {
         id: gOrderId,
         userId: 'guest',
         guestEmail: gEmail || null,
+        guestName: gName || null,
         svc: gSvcRow[2],
         svcName: gSvcRow[2],
         svcId: gSvcId,

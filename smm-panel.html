@@ -397,6 +397,21 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .bn-item svg{width:22px;height:22px;}
 .bn-label{font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .bn-dot{position:absolute;top:2px;right:10px;width:7px;height:7px;background:var(--accent);border-radius:50%;border:2px solid var(--surface);}
+/* QUICK BUY */
+.qb-plat-btn{text-align:center;padding:10px 4px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font-fa);color:var(--muted);transition:all .18s;}
+.qb-plat-btn:hover{border-color:var(--accent2);}
+.qb-plat-btn.qb-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent2);}
+.qb-type-chip{padding:8px 14px;border-radius:20px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font-fa);color:var(--muted);transition:all .18s;}
+.qb-type-chip:hover{border-color:var(--accent2);}
+.qb-type-chip.qb-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent2);}
+.qb-pkg{position:relative;padding:14px 6px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;text-align:center;transition:all .18s;overflow:hidden;}
+.qb-pkg:hover{border-color:var(--accent2);}
+.qb-pkg.qb-on{border-color:var(--accent);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 18%,transparent),color-mix(in srgb,var(--green) 8%,transparent));}
+.qb-pkg.qb-pop{border-color:rgba(251,191,36,.5);}
+.qb-pkg.qb-pop.qb-on{border-color:var(--accent);}
+.qb-pop-lbl{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;font-size:8px;font-weight:800;padding:2px 0;text-align:center;}
+.qb-qty{font-size:18px;font-weight:900;color:var(--white);margin-top:4px;}
+.qb-price{font-size:12px;font-weight:800;color:var(--green);margin-top:3px;}
 
 /* ══════════════════════════════
    MISC
@@ -485,6 +500,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div class="dnav-item active" onclick="navTo('new-order')">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
       <span id="t-dn-neworder">New Order</span>
+    </div>
+    <div class="dnav-item" onclick="navTo('quick-buy')">
+      <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <span style="font-family:var(--font-fa)">⚡ خرید سریع</span>
     </div>
     <div class="dnav-item" onclick="navTo('services')">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
@@ -710,6 +729,81 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <button class="btn btn-primary" onclick="placeOrder()">⚡ Submit Order</button>
         <div id="order-submit-notes" style="margin-top:10px;padding:10px 12px;background:rgba(255,200,0,0.07);border:1px solid rgba(255,200,0,0.22);border-radius:9px;font-size:11.5px;color:var(--text-muted,#888);line-height:1.7"></div>
         <div id="flag-review-notice" style="margin-top:12px;border:1.5px solid #ef4444;border-radius:11px;overflow:hidden;font-size:12px;line-height:1.75"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── QUICK BUY PAGE ── -->
+  <div class="page" id="page-quick-buy">
+    <div style="margin-bottom:16px">
+      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">⚡ خرید سریع</div>
+      <div style="font-size:13px;color:var(--muted)">پلتفرم ← سرویس ← تعداد ← لینک ← پرداخت از کیف‌پول</div>
+    </div>
+
+    <!-- Platform tabs -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-body" style="padding:12px 10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">پلتفرم</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="qb-plat-grid">
+          <div class="qb-plat-btn qb-on" onclick="qbPlat('instagram',this)">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f09433,#dc2743,#bc1888);display:flex;align-items:center;justify-content:center;margin:0 auto 5px"><svg width="18" height="18"><use href="#ico-ig"/></svg></div>
+            <div>اینستاگرام</div>
+          </div>
+          <div class="qb-plat-btn" onclick="qbPlat('tiktok',this)">
+            <div style="width:36px;height:36px;border-radius:10px;background:#010101;display:flex;align-items:center;justify-content:center;margin:0 auto 5px"><svg width="18" height="18"><use href="#ico-tt"/></svg></div>
+            <div>تیک‌تاک</div>
+          </div>
+          <div class="qb-plat-btn" onclick="qbPlat('telegram',this)">
+            <div style="width:36px;height:36px;border-radius:10px;background:#2AABEE;display:flex;align-items:center;justify-content:center;margin:0 auto 5px"><svg width="18" height="18"><use href="#ico-tg"/></svg></div>
+            <div>تلگرام</div>
+          </div>
+          <div class="qb-plat-btn" onclick="qbPlat('youtube',this)">
+            <div style="width:36px;height:36px;border-radius:10px;background:#FF0000;display:flex;align-items:center;justify-content:center;margin:0 auto 5px"><svg width="18" height="18"><use href="#ico-yt"/></svg></div>
+            <div>یوتیوب</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service type -->
+    <div class="card" id="qb-type-card" style="margin-bottom:12px;display:none">
+      <div class="card-body" style="padding:12px 10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">نوع سرویس</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="qb-type-row"></div>
+      </div>
+    </div>
+
+    <!-- Package grid -->
+    <div class="card" id="qb-pkg-card" style="margin-bottom:12px;display:none">
+      <div class="card-body" style="padding:12px 10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px" id="qb-pkg-hdr">تعداد</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="qb-pkg-grid"></div>
+      </div>
+    </div>
+
+    <!-- Link + Order -->
+    <div class="card" id="qb-order-card" style="display:none">
+      <div class="card-body">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:3px">سرویس انتخابی</div>
+            <div style="font-size:14px;font-weight:700;color:var(--white)" id="qb-sel-svc">—</div>
+          </div>
+          <div style="text-align:left">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:3px">هزینه</div>
+            <div style="font-size:18px;font-weight:900;color:var(--green)" id="qb-sel-cost">—</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-family:var(--font-fa)">لینک / یوزرنیم</label>
+          <input type="text" class="form-input" id="qb-link" placeholder="https://instagram.com/username" dir="ltr" autocomplete="off" autocorrect="off" autocapitalize="off">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+          <div style="font-size:12px;color:var(--muted);font-family:var(--font-fa)">موجودی کیف‌پول</div>
+          <div style="font-size:14px;font-weight:800;color:var(--accent2)" id="qb-bal-disp">$0.00</div>
+        </div>
+        <button class="btn btn-primary" style="font-family:var(--font-fa);font-size:15px" onclick="qbPlaceOrder()">⚡ ثبت سفارش</button>
+        <div id="qb-msg" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;font-family:var(--font-fa)"></div>
       </div>
     </div>
   </div>
@@ -1116,6 +1210,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
   <div class="bn-item active" id="bn-new-order" onclick="navTo('new-order')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
     <span class="bn-label" id="t-bn-neworder">New Order</span>
+  </div>
+  <div class="bn-item" id="bn-quick-buy" onclick="navTo('quick-buy')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span class="bn-label" style="font-family:var(--font-fa)">خرید سریع</span>
   </div>
   <div class="bn-item" id="bn-add-funds" onclick="navTo('add-funds')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -2246,9 +2344,241 @@ function navTo(page){
     refreshOrderStatusesLive();
   }
   if(page==='tickets'){loadTgBotLink();renderTicketsList();}
+  if(page==='quick-buy'){qbInit();}
 }
 function openDrawer(){document.getElementById('drawer').classList.add('open');document.getElementById('overlay').classList.add('open');}
 function closeDrawer(){document.getElementById('drawer').classList.remove('open');document.getElementById('overlay').classList.remove('open');}
+
+// ════════════════════════════════════════
+// QUICK BUY
+// ════════════════════════════════════════
+var QB_PKGS=[100,250,500,1000,2000,5000,10000,20000,50000];
+var QB_POPULAR=1000;
+var QB_PLAT_KEYS={
+  instagram:['instagram','اینستاگرام'],
+  tiktok:['tiktok','تیک‌تاک','tik tok'],
+  telegram:['telegram','تلگرام'],
+  youtube:['youtube','یوتیوب']
+};
+var QB_TYPES=[
+  {key:'followers',label:'فالوور',keys:['follower','فالوور']},
+  {key:'likes',label:'لایک',keys:['like','لایک']},
+  {key:'views',label:'ویو / بازدید',keys:['view','ویو','بازدید','watch']},
+  {key:'members',label:'ممبر',keys:['member','ممبر']},
+  {key:'comments',label:'کامنت',keys:['comment','کامنت']}
+];
+var _qbPlat='instagram';
+var _qbTypeKey='';
+var _qbSvcRow=null;
+var _qbQty=0;
+var _qbCost=0;
+
+function qbGetSvcList(){try{return JSON.parse(localStorage.getItem('smm_svc')||'[]');}catch(e){return[];}}
+function qbFmt(n){if(n>=1000000)return(n/1000000).toFixed(n%1000000===0?0:1)+'M';if(n>=1000)return(n/1000).toFixed(n%1000===0?0:1)+'K';return String(n);}
+
+function qbFilterSvcs(plat,typeKey){
+  var list=qbGetSvcList();
+  var pk=QB_PLAT_KEYS[plat]||[];
+  var tk=typeKey?(QB_TYPES.find(function(t){return t.key===typeKey;})||{}).keys||[]:null;
+  return list.filter(function(s){
+    if(!s[10]) return false;
+    var nl=(s[2]||'').toLowerCase();
+    var cl=(s[3]||'').toLowerCase();
+    var mp=pk.some(function(k){return nl.indexOf(k)>-1||cl.indexOf(k)>-1;});
+    if(!mp) return false;
+    if(tk){var mt=tk.some(function(k){return nl.indexOf(k)>-1;});if(!mt)return false;}
+    return true;
+  });
+}
+
+function qbInit(){
+  _qbTypeKey='';_qbSvcRow=null;_qbQty=0;_qbCost=0;
+  // reset plat highlight
+  document.querySelectorAll('#qb-plat-grid .qb-plat-btn').forEach(function(b){b.classList.remove('qb-on');});
+  var first=document.querySelector('#qb-plat-grid .qb-plat-btn');
+  if(first){first.classList.add('qb-on');}
+  _qbPlat='instagram';
+  qbBuildTypes();
+  document.getElementById('qb-order-card').style.display='none';
+  qbUpdateBalDisplay();
+}
+
+function qbPlat(plat,el){
+  _qbPlat=plat;_qbTypeKey='';_qbSvcRow=null;_qbQty=0;_qbCost=0;
+  document.querySelectorAll('#qb-plat-grid .qb-plat-btn').forEach(function(b){b.classList.remove('qb-on');});
+  el.classList.add('qb-on');
+  document.getElementById('qb-order-card').style.display='none';
+  qbBuildTypes();
+}
+
+function qbBuildTypes(){
+  var card=document.getElementById('qb-type-card');
+  var row=document.getElementById('qb-type-row');
+  var pkgCard=document.getElementById('qb-pkg-card');
+  row.innerHTML='';
+  pkgCard.style.display='none';
+  var avail=QB_TYPES.filter(function(t){return qbFilterSvcs(_qbPlat,t.key).length>0;});
+  if(!avail.length){card.style.display='none';return;}
+  card.style.display='block';
+  avail.forEach(function(t){
+    var div=document.createElement('div');
+    div.className='qb-type-chip';
+    div.textContent=t.label;
+    div.onclick=function(){qbType(t.key,div);};
+    row.appendChild(div);
+  });
+}
+
+function qbType(key,el){
+  _qbTypeKey=key;_qbSvcRow=null;_qbQty=0;_qbCost=0;
+  document.querySelectorAll('#qb-type-row .qb-type-chip').forEach(function(c){c.classList.remove('qb-on');});
+  el.classList.add('qb-on');
+  document.getElementById('qb-order-card').style.display='none';
+  qbBuildPkgs();
+}
+
+function qbBuildPkgs(){
+  var svcs=qbFilterSvcs(_qbPlat,_qbTypeKey);
+  if(!svcs.length){document.getElementById('qb-pkg-card').style.display='none';return;}
+  svcs.sort(function(a,b){return (a[7]||0)-(b[7]||0);});
+  var svc=svcs[0];
+  _qbSvcRow=svc;
+  var minQ=Number(svc[8])||100;
+  var maxQ=Number(svc[9])||50000;
+  var priceK=Number(svc[7])||0;
+
+  var grid=document.getElementById('qb-pkg-grid');
+  var hdr=document.getElementById('qb-pkg-hdr');
+  hdr.textContent='تعداد — '+(svc[2]||'');
+  grid.innerHTML='';
+  var shown=0;
+  QB_PKGS.forEach(function(qty){
+    if(qty<minQ||qty>maxQ) return;
+    var cost=priceK*qty/1000;
+    var isPop=(qty===QB_POPULAR);
+    var div=document.createElement('div');
+    div.className='qb-pkg'+(isPop?' qb-pop':'');
+    div.innerHTML=(isPop?'<div class="qb-pop-lbl">محبوب</div>':'')
+      +'<div class="qb-qty">'+(isPop?'<span style="font-size:11px;display:block">🔥</span>':'')+qbFmt(qty)+'</div>'
+      +'<div class="qb-price">$'+cost.toFixed(2)+'</div>';
+    div.onclick=function(){qbSelPkg(qty,cost,svc,div);};
+    grid.appendChild(div);
+    shown++;
+  });
+  document.getElementById('qb-pkg-card').style.display=shown>0?'block':'none';
+}
+
+function qbSelPkg(qty,cost,svcRow,el){
+  _qbQty=qty;_qbCost=cost;_qbSvcRow=svcRow;
+  document.querySelectorAll('#qb-pkg-grid .qb-pkg').forEach(function(p){p.classList.remove('qb-on');});
+  el.classList.add('qb-on');
+  var card=document.getElementById('qb-order-card');
+  document.getElementById('qb-sel-svc').textContent=(svcRow[2]||'سرویس')+' — '+qbFmt(qty)+' عدد';
+  document.getElementById('qb-sel-cost').textContent='$'+cost.toFixed(2);
+  qbUpdateBalDisplay();
+  document.getElementById('qb-msg').style.display='none';
+  var lnk=document.getElementById('qb-link');
+  if(lnk) lnk.value='';
+  card.style.display='block';
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function qbUpdateBalDisplay(){
+  var u=getCurrentUser();
+  var el=document.getElementById('qb-bal-disp');
+  if(el&&u) el.textContent='$'+parseFloat(u.balance||0).toFixed(2);
+}
+
+function qbMsg(txt,ok){
+  var el=document.getElementById('qb-msg');
+  el.textContent=txt;
+  el.style.display='block';
+  el.style.background=ok?'rgba(0,210,160,.1)':'rgba(255,92,125,.1)';
+  el.style.border='1px solid '+(ok?'rgba(0,210,160,.3)':'rgba(255,92,125,.3)');
+  el.style.color=ok?'var(--green)':'var(--red)';
+}
+
+function qbPlaceOrder(){
+  var u=getCurrentUser();
+  if(!u){showToast('لطفاً وارد شوید','e');return;}
+  if(!_qbSvcRow||!_qbQty){qbMsg('لطفاً ابتدا یک پکیج انتخاب کنید','');return;}
+  var lnkEl=document.getElementById('qb-link');
+  var link=(lnkEl&&lnkEl.value||'').trim();
+  if(!link){lnkEl&&lnkEl.focus();qbMsg('لینک یا یوزرنیم را وارد کنید','');return;}
+
+  var cost=_qbCost;
+  var bal=parseFloat(u.balance||0);
+  if(cost>bal){qbMsg('موجودی کافی نیست ($'+bal.toFixed(2)+' دارید). ابتدا شارژ کنید.','');return;}
+
+  // Check for active duplicate
+  var allOrds=[];try{allOrds=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var svcName=_qbSvcRow[2]||'';
+  var dup=allOrds.find(function(o){
+    return o.link===link&&(o.service===svcName||o.svcName===svcName)
+      &&['completed','cancelled','canceled','refunded','failed','partial'].indexOf(o.status)===-1;
+  });
+  if(dup){qbMsg('یک سفارش فعال برای این لینک وجود دارد. منتظر تکمیل آن باشید.','');return;}
+
+  // Deduct balance
+  var allUsers=[];try{allUsers=JSON.parse(localStorage.getItem('smm_users')||'[]');}catch(e){}
+  var me=allUsers.find(function(x){return String(x.id)===String(u.id);});
+  if(me){
+    me.balance=Math.max(0,Math.round((parseFloat(me.balance||0)-cost)*10000)/10000);
+    me.orders=(parseInt(me.orders)||0)+1;
+    if(!me.transactions)me.transactions=[];
+    me.transactions.unshift({id:Date.now(),type:'spend',amount:cost,desc:'سفارش: '+svcName,date:new Date().toISOString(),status:'approved'});
+    localStorage.setItem('smm_users',JSON.stringify(allUsers));
+    _currentUser=me;
+  }
+
+  // Compute provider cost
+  var provRate=parseFloat(_qbSvcRow[6])||0;
+  var provCost=parseFloat((provRate*_qbQty/1000).toFixed(6));
+
+  var order={
+    id:Date.now(),userId:u.id,
+    user:(u.fname||u.name||'')+(u.lname?' '+u.lname:''),
+    email:u.email||'',
+    platform:_qbPlat,plat:_qbPlat,
+    service:svcName,svc:svcName,svcName:svcName,
+    svcId:String(_qbSvcRow[1]||''),provId:String(_qbSvcRow[5]||''),
+    link:link,qty:_qbQty,cost:cost,provCost:provCost,
+    startCount:0,remain:_qbQty,
+    cancel:_qbSvcRow[11]===1||_qbSvcRow[11]===true,
+    refill:_qbSvcRow[12]===1||_qbSvcRow[12]===true,
+    status:'processing',dispatchAttemptedAt:Date.now(),
+    date:new Date().toISOString()
+  };
+  allOrds.unshift(order);
+  localStorage.setItem('smm_orders',JSON.stringify(allOrds));
+  localStorage.setItem('smm_admin_updated',Date.now().toString());
+
+  qbMsg('✅ سفارش #'+order.id+' ثبت شد! در حال ارسال...','ok');
+  qbUpdateBalDisplay();
+  showToast('سفارش ثبت شد! ✅','s');
+
+  // Push to server first, then chain the provider dispatch
+  var dbPush=fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_users:allUsers,smm_orders:allOrds,smm_ts:Date.now()})
+  }).catch(function(){});
+
+  if(_qbSvcRow[1]&&_qbSvcRow[5]){
+    dbPush.then(function(){
+      return fetch('/api/place-order',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({orderId:order.id})
+      });
+    }).then(function(r){return r.json();}).then(function(res){
+      if(res&&res.ok&&res.order){
+        var ords=[];try{ords=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+        var o=ords.find(function(x){return x.id===order.id;});
+        if(o){o.provOrderId=res.order;o.status='processing';localStorage.setItem('smm_orders',JSON.stringify(ords));}
+        qbMsg('✅ سفارش ارسال شد — کد: #'+order.id,'ok');
+      } else if(res&&res.error){
+        qbMsg('⚠️ '+res.error,'');
+      }
+    }).catch(function(){});
+  }
+}
 
 // PLATFORM GRID
 function pickPlatGrid(el,plat){
