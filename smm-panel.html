@@ -465,6 +465,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .gw-warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--yellow);margin-top:10px;line-height:1.6;}
 .wa-fab{position:fixed;bottom:76px;right:16px;width:52px;height:52px;background:linear-gradient(135deg,#25D366,#1da84f);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:150;box-shadow:0 4px 16px rgba(37,211,102,.5);transition:transform .2s;}
 .wa-fab:hover{transform:scale(1.1);}
+@keyframes qoFabPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,30,30,.6),0 4px 18px rgba(255,30,30,.5);}60%{box-shadow:0 0 0 10px rgba(255,30,30,0),0 4px 18px rgba(255,30,30,.3);}}
+@keyframes qoFabShine{0%,100%{background-position:200% center;}50%{background-position:0% center;}}
+.qo-fab{position:fixed;bottom:136px;right:12px;z-index:151;display:flex;align-items:center;gap:6px;padding:10px 14px;border-radius:24px;background:linear-gradient(90deg,#ff1e1e,#e60000,#ff1e1e);background-size:200%;cursor:pointer;animation:qoFabPulse 1.6s ease-in-out infinite,qoFabShine 2.5s linear infinite;font-family:var(--font-fa);font-size:13px;font-weight:900;color:#fff;white-space:nowrap;border:none;outline:none;letter-spacing:.3px;}
+.qo-fab svg{flex-shrink:0;}
 
 @media(min-width:640px){
   .main-content{padding:24px;}
@@ -1274,6 +1278,12 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
   </div>
 </div>
+
+<!-- Quick Order FAB -->
+<button class="qo-fab" onclick="qoFabClick()" title="سفارش فوری">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+  سفارش فوری
+</button>
 
 <!-- WhatsApp FAB -->
 <div class="wa-fab" title="WhatsApp Support" onclick="openWhatsApp()" style="cursor:pointer">
@@ -2124,6 +2134,15 @@ function loadSupportFABs(){
   // Telegram - ALWAYS show (fallback to @Afgfollowers_bot)
   var tgFab=document.getElementById('tg-fab');
   if(tgFab) tgFab.style.display='flex';
+}
+
+function qoFabClick(){
+  var isNewOrder=document.getElementById('page-new-order').classList.contains('active');
+  if(!isNewOrder) navTo('new-order');
+  setTimeout(function(){
+    var wrap=document.getElementById('qb-inline-wrap');
+    if(wrap) wrap.scrollIntoView({behavior:'smooth',block:'start'});
+  }, isNewOrder?0:320);
 }
 
 function openWhatsApp(){
