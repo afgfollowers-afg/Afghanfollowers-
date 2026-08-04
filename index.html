@@ -662,19 +662,19 @@ var QO_POPULAR_QTY=1000;
 
 // Platform → keywords to match against service name/category
 var QO_PLAT_KEYS={
-  instagram:['instagram','اینستاگرام'],
-  tiktok:['tiktok','تیک‌تاک','tik tok'],
-  telegram:['telegram','تلگرام'],
-  youtube:['youtube','یوتیوب','youtube']
+  instagram:['instagram','اینستاگرام','insta','ig ','| ig','ig|'],
+  tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],
+  telegram:['telegram','تلگرام','tg ','| tg'],
+  youtube:['youtube','یوتیوب','yt ','| yt']
 };
-// Service type → keywords in name
+// Service type → keywords in name or category
 var QO_SVC_TYPES=[
-  {key:'followers',label:'فالوور',keys:['follower','فالوور']},
-  {key:'likes',label:'لایک',keys:['like','لایک']},
-  {key:'views',label:'ویو / بازدید',keys:['view','ویو','بازدید','watch']},
-  {key:'members',label:'ممبر',keys:['member','ممبر']},
+  {key:'followers',label:'فالوور',keys:['follower','فالوور','دنبال کننده','subscribers','subscriber']},
+  {key:'likes',label:'لایک',keys:['like','لایک','heart']},
+  {key:'views',label:'ویو / بازدید',keys:['view','ویو','بازدید','watch','impression','play','video']},
+  {key:'members',label:'ممبر',keys:['member','ممبر','join']},
   {key:'comments',label:'کامنت',keys:['comment','کامنت']},
-  {key:'shares',label:'اشتراک‌گذاری',keys:['share','اشتراک']}
+  {key:'shares',label:'اشتراک‌گذاری',keys:['share','اشتراک','repost','retweet']}
 ];
 
 var _qoPlat='instagram';
@@ -706,7 +706,9 @@ function qoFilterSvcs(plat,typeKey){
     var matchPlat=platKeys.some(function(k){return nameLow.indexOf(k)>-1||catLow.indexOf(k)>-1;});
     if(!matchPlat) return false;
     if(typeKws){
-      var matchType=typeKws.some(function(k){return nameLow.indexOf(k)>-1;});
+      // check both name and category so services like "Instagram | Followers HQ"
+      // with cat="Followers" still match the 'followers' type key
+      var matchType=typeKws.some(function(k){return nameLow.indexOf(k)>-1||catLow.indexOf(k)>-1;});
       if(!matchType) return false;
     }
     return true;
@@ -879,7 +881,28 @@ function qoShowPkgs(){
   });
 
   if(shown===0){
-    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:12px">سرویسی برای این تعداد یافت نشد</div>';
+    // No standard qty falls in range — generate dynamic packages from service range
+    var dynQtys=[];
+    var step=Math.pow(10,Math.floor(Math.log10(minQty)));
+    var cur=Math.ceil(minQty/step)*step;
+    if(cur<minQty) cur+=step;
+    while(cur<=maxQty&&dynQtys.length<6){dynQtys.push(cur);cur*=2;}
+    if(!dynQtys.length) dynQtys=[minQty];
+    dynQtys.forEach(function(qty){
+      if(qty<minQty||qty>maxQty) return;
+      var panelPrice=priceK*qty/1000;
+      var guestPrice=panelPrice*GUEST_MARKUP;
+      var isPopular=false;
+      var div=document.createElement('div');
+      div.className='qo-pkg';
+      div.dataset.qty=qty;
+      div.onclick=function(){qoSelPkg(qty,guestPrice,panelPrice,svcRow);};
+      div.innerHTML='<div class="qo-pkg-qty">'+qoFmtNum(qty)+'</div>'
+        +'<div class="qo-pkg-orig">'+qoFmtPrice(panelPrice)+'</div>'
+        +'<div class="qo-pkg-price">'+qoFmtPrice(guestPrice)+'</div>';
+      grid.appendChild(div);
+      shown++;
+    });
   }
 
   pkgsWrap.style.display='block';
@@ -939,7 +962,7 @@ function qoCloseCheckout(){
 
 function qoLoadPayPalSdk(){
   var pm=qoGetPmList();
-  var pp=pm.find(function(m){return m.method==='paypal'&&m.active;});
+  var pp=pm.find(function(m){return m.method==='paypal'&&m.on!==false;});
   if(!pp||!pp.clientId){
     document.getElementById('qo-pp-btn-wrap').innerHTML=''
       +'<div style="text-align:center;padding:16px 4px">'
@@ -949,7 +972,7 @@ function qoLoadPayPalSdk(){
     return;
   }
   var clientId=pp.clientId;
-  var currency=pp.currency||'USD';
+  var currency=pp.cur||pp.currency||'USD';
   var sdkUrl='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(clientId)+'&currency='+encodeURIComponent(currency)+'&intent=capture&disable-funding=credit,card';
 
   if(_qoPpLoaded&&_qoPpSdkUrl===sdkUrl){
@@ -976,7 +999,8 @@ function qoRenderPayPalBtn(){
   var wrap=document.getElementById('qo-pp-btn-wrap');
   wrap.innerHTML='';
   var guestPrice=Number(_qoSvcRow[7])*_qoQty/1000*GUEST_MARKUP;
-  var currency=(qoGetPmList().find(function(m){return m.method==='paypal';}) || {}).currency||'USD';
+  var _ppEntry=(qoGetPmList().find(function(m){return m.method==='paypal';})||{});
+  var currency=_ppEntry.cur||_ppEntry.currency||'USD';
 
   paypal.Buttons({
     style:{layout:'vertical',color:'gold',shape:'rect',label:'pay'},
