@@ -630,9 +630,9 @@ function buildTikTokSvg(text, logoB64, ttIconB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok platform icon — pre-rasterized at 480×480 then downsampled to 120×120 -->
+  <!-- TikTok platform icon — real brand logo, circle-clipped -->
   <image href="${ttIconB64}" xlink:href="${ttIconB64}"
-         x="${CX - 60}" y="${igIconY}" width="120" height="120"/>
+         x="${CX - 65}" y="${igIconY}" width="130" height="130"/>
 
   <!-- Heading -->
   <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
@@ -660,9 +660,21 @@ function buildTikTokSvg(text, logoB64, ttIconB64) {
 
 async function renderTikTokPostImage(text) {
   ensureFontconfig();
+  const SZ = 130;
+  const circleMask = Buffer.from(
+    `<svg width="${SZ}" height="${SZ}"><circle cx="${SZ/2}" cy="${SZ/2}" r="${SZ/2}" fill="white"/></svg>`
+  );
   const [logoBuffer, iconBuffer] = await Promise.all([
     sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
-    sharp(TT_ICON_PATH).resize(120, 120).png().toBuffer(),
+    sharp(TT_ICON_PATH)
+      .resize(SZ, SZ)
+      .png()
+      .toBuffer()
+      .then(buf => sharp(buf)
+        .composite([{ input: circleMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer()
+      ),
   ]);
   const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
   const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
