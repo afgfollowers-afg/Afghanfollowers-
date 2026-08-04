@@ -3128,17 +3128,19 @@ function rSvcs(){
       +'<th>Options</th>'
       +'</tr></thead><tbody>';
 
+    var _qoDis=getQoDisabled();
     glist.forEach(function(s){
       var sPlat=getPlatFromStr(s.name)||getPlatFromStr(s.category)||'other';
       var logo=s.logo||platIco[sPlat]||'⭐';
       var isNew=s.importedAt&&(Date.now()-new Date(s.importedAt).getTime())<3*24*3600000;
       var active=s.active!==false;
+      var isQoDis=_qoDis.indexOf(String(s.id))>-1;
       html+='<tr style="background:'+(active?'':'rgba(255,92,125,.03)')+'opacity:'+(active?'1':'.6')+'">'
         +'<td><input type="checkbox" class="svc-cb" data-id="'+s.id+'" onchange="updateBulkBar()"></td>'
         +'<td><div onclick="pickSvcLogo(this.dataset.id)" data-id="'+s.id+'" style="width:32px;height:32px;border-radius:8px;background:#7c5cfc;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer" title="Change logo">'+logo+'</div></td>'
         +'<td style="color:var(--mt);font-size:11px">#'+(s.svcId||String(s.id).slice(-5))+'</td>'
         +'<td style="max-width:220px">'
-          +'<div style="font-weight:600;font-size:12px;line-height:1.4">'+s.name+(isNew?' <span style="background:#00d2a0;color:#000;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>':'')+'</div>'
+          +'<div style="font-weight:600;font-size:12px;line-height:1.4">'+s.name+(isNew?' <span style="background:#00d2a0;color:#000;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>':'')+(isQoDis?' <span style="background:rgba(255,92,125,.2);color:var(--rd);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">💤سایت</span>':'')+'</div>'
           +(s.provName?'<div style="font-size:10px;color:var(--mt)">'+s.provName+'</div>':'')
         +'</td>'
         +(function(){
@@ -3159,6 +3161,7 @@ function rSvcs(){
           +'<div class="svc-opts-menu" style="display:none;position:absolute;right:0;top:calc(100%+2px);background:var(--s1);border:1px solid var(--bd);border-radius:9px;min-width:150px;z-index:100;box-shadow:0 8px 20px rgba(0,0,0,.4);overflow:hidden">'
             +'<div class="act-item" onclick="editSvc(\''+s.id+'\')">✏️ Edit</div>'
             +'<div class="act-item" onclick="togSvc(\''+s.id+'\')">👁 '+(active?'Disable':'Enable')+'</div>'
+            +'<div class="act-item" onclick="togQoSvc(\''+s.id+'\')">'+(isQoDis?'✅ نمایش در سایت':'💤 پنهان در سایت')+'</div>'
             +'<div class="act-item" onclick="moveSvc(\''+s.id+'\')">📂 Move to Category</div>'
             +'<div class="act-item" onclick="pickSvcLogo(\''+s.id+'\')">🎨 Change Logo</div>'
             +'<div class="act-item" onclick="moveSvcOrder(\''+s.id+'\',\'top\')">⏫ Move to Top</div>'
@@ -3484,6 +3487,21 @@ function togSvc(id){
   var svcs=getServices();
   var s=svcs.find(function(x){return String(x.id)===String(id);});
   if(s){s.active=!s.active;saveServices(svcs);syncServicesToPanel(svcs);rSvcs();toast(s.name+(s.active?' enabled':' disabled'),'s');}
+}
+function getQoDisabled(){
+  try{var g=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');return Array.isArray(g.qo_disabled)?g.qo_disabled:[];}catch(e){return[];}
+}
+function togQoSvc(id){
+  var cfg={};try{cfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
+  var dis=Array.isArray(cfg.qo_disabled)?cfg.qo_disabled.slice():[];
+  var idx=dis.indexOf(String(id));
+  if(idx>-1){dis.splice(idx,1);}else{dis.push(String(id));}
+  cfg.qo_disabled=dis;
+  localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json','x-db-key':DB_CLIENT_KEY,'Authorization':'Bearer '+getToken()},
+    body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
+  rSvcs();
+  toast(idx>-1?'سرویس در سفارش فوری سایت نمایش داده می‌شود':'سرویس از سفارش فوری سایت پنهان شد','s');
 }
 function delSvc(id){
   if(!confirm('Delete this service?'))return;

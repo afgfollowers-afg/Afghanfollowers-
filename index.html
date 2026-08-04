@@ -598,12 +598,15 @@ fetch('/api/db').then(function(r){return r.json();}).then(function(d){
     localStorage.setItem('smm_announcements',JSON.stringify(d.smm_announcements));
     renderAnnouncements();
   }
-  // cache services + payment methods for quick-order widget
+  // cache services + payment methods + general settings for quick-order widget
   if(d&&Array.isArray(d.smm_svc)){
     localStorage.setItem('smm_svc',JSON.stringify(d.smm_svc));
   }
   if(d&&Array.isArray(d.smm_pm)){
     localStorage.setItem('smm_pm',JSON.stringify(d.smm_pm));
+  }
+  if(d&&d.smm_general&&typeof d.smm_general==='object'){
+    localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
   }
   qoInit();
 }).catch(function(){qoInit();});
@@ -697,16 +700,21 @@ var _qoPpSdkUrl='';
 function qoGetSvcList(){
   try{return JSON.parse(localStorage.getItem('smm_svc')||'[]');}catch(e){return[];}
 }
+function qoGetDisabled(){
+  try{var g=JSON.parse(localStorage.getItem('smm_general_settings')||'{}');return Array.isArray(g.qo_disabled)?g.qo_disabled:[];}catch(e){return[];}
+}
 function qoGetPmList(){
   try{return JSON.parse(localStorage.getItem('smm_pm')||'[]');}catch(e){return[];}
 }
 
 function qoFilterSvcs(plat,typeKey){
   var list=qoGetSvcList();
+  var disabled=qoGetDisabled();
   var platKeys=QO_PLAT_KEYS[plat]||[];
   var typeKws=typeKey?(QO_SVC_TYPES.find(function(t){return t.key===typeKey;})||{}).keys||[]:null;
   return list.filter(function(s){
     if(!s[10]) return false; // inactive
+    if(disabled.indexOf(String(s[0]))>-1) return false; // hidden by admin
     var nameLow=(s[2]||'').toLowerCase();
     var catLow=(s[3]||'').toLowerCase();
     var matchPlat=platKeys.some(function(k){return nameLow.indexOf(k)>-1||catLow.indexOf(k)>-1;});
