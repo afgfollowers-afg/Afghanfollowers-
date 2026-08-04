@@ -502,25 +502,39 @@ async function renderFacebookPostImage(text) {
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-// Standalone 240×240 SVG for TikTok's d-note icon.
-// Rendered by Sharp at full 240px resolution then downsampled to a clean PNG
-// so librsvg's small-path jaggy rendering never touches it.
-// Three layers (cyan -20px, pink +20px, white 0) create the trademark fringe effect.
+// Standalone 240×240 SVG for TikTok's d-note icon built from primitive shapes
+// (circle + rects + Q-rounded cap path) so librsvg renders every edge perfectly.
+// Three offset layers (cyan -15px, pink +15px, white 0) recreate the fringe effect.
 function buildTikTokIconSvg() {
+  // White-layer reference geometry (ox=0)
+  const nCy = 168, nR = 62, nCx0 = 90;   // note-head: right edge = 90+62 = 152
+  const stW = 26, stX0 = nCx0 + nR - stW; // stem left=126, right=152
+  const capY = 18, capH = 46, capRx = 23, capW = 88;
+  const stY = capY + capH;                  // 64: stem starts where cap ends
+  const stH = nCy - stY + 20;              // 124: stem overlaps into circle
+
+  const layer = (ox, fill) => {
+    const cx = nCx0 + ox, sx = stX0 + ox;
+    const r = sx + capW, mx = r - capRx;
+    const t = capY, b = capY + capH;
+    // cap path: square left corners, rounded right end
+    const capPath = `M ${sx},${t} L ${mx},${t} Q ${r},${t} ${r},${t + capRx}` +
+                    ` Q ${r},${b} ${mx},${b} L ${sx},${b} Z`;
+    return `<g fill="${fill}" clip-path="url(#ic)">
+    <circle cx="${cx}" cy="${nCy}" r="${nR}"/>
+    <rect x="${sx}" y="${stY}" width="${stW}" height="${stH}"/>
+    <path d="${capPath}"/>
+  </g>`;
+  };
+
   return `<svg width="240" height="240" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <clipPath id="ic"><rect width="240" height="240" rx="42"/></clipPath>
   </defs>
   <rect width="240" height="240" rx="42" fill="#010101"/>
-  <g clip-path="url(#ic)" fill="#00f2ea">
-    <path d="M 116,25 L 175,25 Q 200,25 200,52 Q 200,85 152,82 L 152,185 A 72,72 0 1 1 116,123 Z"/>
-  </g>
-  <g clip-path="url(#ic)" fill="#ff0050">
-    <path d="M 156,25 L 215,25 Q 240,25 240,52 Q 240,85 192,82 L 192,185 A 72,72 0 1 1 156,123 Z"/>
-  </g>
-  <g clip-path="url(#ic)" fill="#ffffff">
-    <path d="M 136,25 L 195,25 Q 220,25 220,52 Q 220,85 172,82 L 172,185 A 72,72 0 1 1 136,123 Z"/>
-  </g>
+  ${layer(-15, '#00f2ea')}
+  ${layer(+15, '#ff0050')}
+  ${layer(0,   '#ffffff')}
 </svg>`;
 }
 
