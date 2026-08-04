@@ -509,24 +509,24 @@ async function renderFacebookPostImage(text) {
 // icon, and a cyan→pink accent/CTA gradient.
 function buildTikTokSvg(text, logoB64, ttIconB64) {
   const W = 1080, H = 1080;
-  const CARD = { x: 160, y: 160, w: 760, h: 760 };
+  const CARD = { x: 120, y: 120, w: 840, h: 840 };  // bigger card = less dark border visible
   const CX = W / 2; // 540
 
   const subtitle = coreTextForImage(text);
   const subLines = wrapText(subtitle, 38).slice(0, 2);
   const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
 
-  const logoBoxY = 204;
-  const igIconY  = 373;  // icon 130×130 → bottom 503
-  const h1Y1     = 525;  // heading moved down for better breathing room
-  const h1Y2     = 573;
-  const subY1    = 607;
+  const logoBoxY = 168;
+  const igIconY  = 338;  // icon 130×130 → bottom 468
+  const h1Y1     = 540;  // 72px gap below icon — heading well clear of logo
+  const h1Y2     = 588;
+  const subY1    = 622;
   const featW    = (CARD.w - 80 - 16) / 2;
   const feat1X   = CARD.x + 40;
   const feat2X   = feat1X + featW + 16;
-  const featH    = 70;
-  const featY1   = 653;
-  const featY2   = featY1 + featH + 12;
+  const featH    = 72;
+  const featY1   = 660;
+  const featY2   = featY1 + featH + 14;
   const accentY  = featY2 + featH + 26;
   const btnY     = accentY + 26;
   const footerY  = btnY + 52 + 24;
