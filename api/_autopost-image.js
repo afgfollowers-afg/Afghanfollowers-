@@ -604,6 +604,9 @@ function buildTikTokSvg(text, logoB64) {
       <feComposite in="c" in2="blur" operator="in" result="shadow"/>
       <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <clipPath id="ttIconClip">
+      <rect x="${CX - 18}" y="${igIconY}" width="36" height="36" rx="7"/>
+    </clipPath>
   </defs>
 
   <rect width="${W}" height="${H}" fill="#07080C"/>
@@ -628,21 +631,29 @@ function buildTikTokSvg(text, logoB64) {
   <image href="${logoB64}" xlink:href="${logoB64}"
          x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
 
-  <!-- TikTok music-note icon (dual cyan+pink shadow, white main) -->
+  <!-- TikTok "d-note" icon: note-head circle + vertical stem + top cap, 3 offset layers -->
   <rect x="${CX - 18}" y="${igIconY}" width="36" height="36" rx="7" fill="#010101"/>
-  <ellipse cx="${CX - 9}" cy="${igIconY + 27}" rx="7.5" ry="5.5" fill="#00f2ea" fill-opacity="0.70"/>
-  <line x1="${CX - 1}" y1="${igIconY + 27}" x2="${CX - 1}" y2="${igIconY + 7}"
-        stroke="#00f2ea" stroke-width="2.5" stroke-opacity="0.70"/>
-  <ellipse cx="${CX - 5}" cy="${igIconY + 27}" rx="7.5" ry="5.5" fill="#ff0050" fill-opacity="0.70"/>
-  <line x1="${CX + 3}" y1="${igIconY + 27}" x2="${CX + 3}" y2="${igIconY + 7}"
-        stroke="#ff0050" stroke-width="2.5" stroke-opacity="0.70"/>
-  <ellipse cx="${CX - 7}" cy="${igIconY + 27}" rx="7.5" ry="5.5"
-           transform="rotate(-8 ${CX - 7} ${igIconY + 27})" fill="#ffffff"/>
-  <line x1="${CX + 1}" y1="${igIconY + 27}" x2="${CX + 1}" y2="${igIconY + 7}"
-        stroke="#ffffff" stroke-width="3"/>
-  <line x1="${CX + 1}" y1="${igIconY + 7}" x2="${CX + 13}" y2="${igIconY + 11}"
-        stroke="#ffffff" stroke-width="2.5"/>
-  <circle cx="${CX + 13}" cy="${igIconY + 11}" r="2.5" fill="#ffffff"/>
+  <!-- cyan shadow (shifted -2px left) -->
+  <g clip-path="url(#ttIconClip)" fill="#00f2ea">
+    <ellipse cx="${CX - 10}" cy="${igIconY + 26}" rx="9" ry="7"
+             transform="rotate(-12 ${CX - 10} ${igIconY + 26})"/>
+    <rect x="${CX - 3}" y="${igIconY + 3}" width="6" height="25" rx="3"/>
+    <rect x="${CX - 3}" y="${igIconY + 3}" width="14" height="9" rx="4"/>
+  </g>
+  <!-- pink shadow (shifted +2px right) -->
+  <g clip-path="url(#ttIconClip)" fill="#ff0050">
+    <ellipse cx="${CX - 6}" cy="${igIconY + 26}" rx="9" ry="7"
+             transform="rotate(-12 ${CX - 6} ${igIconY + 26})"/>
+    <rect x="${CX + 1}" y="${igIconY + 3}" width="6" height="25" rx="3"/>
+    <rect x="${CX + 1}" y="${igIconY + 3}" width="14" height="9" rx="4"/>
+  </g>
+  <!-- white main layer (centered) -->
+  <g clip-path="url(#ttIconClip)" fill="#ffffff">
+    <ellipse cx="${CX - 8}" cy="${igIconY + 26}" rx="9" ry="7"
+             transform="rotate(-12 ${CX - 8} ${igIconY + 26})"/>
+    <rect x="${CX - 1}" y="${igIconY + 3}" width="6" height="25" rx="3"/>
+    <rect x="${CX - 1}" y="${igIconY + 3}" width="14" height="9" rx="4"/>
+  </g>
 
   <!-- Heading -->
   <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
