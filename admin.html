@@ -223,6 +223,180 @@ textarea.fi{resize:vertical;min-height:75px;}
 .a-w{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yw);}
 .a-i{background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);}
 #sp-emailauto code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
+
+/* ══ COMMAND PALETTE ══ */
+.cp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9998;display:none;align-items:flex-start;justify-content:center;padding-top:80px;backdrop-filter:blur(4px);}
+.cp-overlay.open{display:flex;}
+.cp-box{background:var(--s1);border:1px solid var(--bd);border-radius:16px;width:100%;max-width:560px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.8);animation:cpIn .16s ease;}
+@keyframes cpIn{from{opacity:0;transform:scale(.96) translateY(-12px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.cp-search{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bd);}
+.cp-search svg{flex-shrink:0;color:var(--mt);}
+.cp-inp{flex:1;background:none;border:none;outline:none;color:var(--tx);font-size:15px;font-family:var(--fn);font-weight:500;}
+.cp-inp::placeholder{color:var(--mt);}
+.cp-kbd{font-size:10px;font-weight:700;color:var(--mt);background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:2px 7px;}
+.cp-results{max-height:380px;overflow-y:auto;}
+.cp-section{font-size:10px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:1px;padding:10px 14px 4px;}
+.cp-item{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .12s;}
+.cp-item:hover,.cp-item.active{background:rgba(124,92,252,.15);}
+.cp-item-ico{width:32px;height:32px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;}
+.cp-item-txt{flex:1;}
+.cp-item-name{font-size:13px;font-weight:600;color:var(--tx);}
+.cp-item-hint{font-size:11px;color:var(--mt);}
+.cp-item-key{font-size:10px;color:var(--mt);background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:1px 6px;}
+.cp-footer{padding:10px 14px;border-top:1px solid var(--bd);display:flex;gap:12px;align-items:center;}
+.cp-footer-tip{font-size:11px;color:var(--mt);display:flex;align-items:center;gap:5px;}
+.cp-footer-tip .cp-kbd{font-size:9px;}
+
+/* ══ SIDEBAR COLLAPSE ══ */
+.sb{width:220px;transition:width .25s cubic-bezier(.4,0,.2,1),transform .3s;}
+.sb.collapsed{width:58px;}
+.sb.collapsed .sb-logo-txt,.sb.collapsed .ni-label,.sb.collapsed .sb-sec{display:none;}
+.sb.collapsed .sb-logo{justify-content:center;padding:14px 0;}
+.sb.collapsed .ni{justify-content:center;padding:10px 0;}
+.sb.collapsed .ni .nbg{display:none;}
+.sb.collapsed .ni-ico{margin:0;}
+.main{transition:margin-left .25s cubic-bezier(.4,0,.2,1);}
+.sb.collapsed ~ .main{margin-left:58px;}
+.sb-collapse-btn{width:100%;padding:10px 14px;display:flex;align-items:center;gap:10px;background:none;border:none;border-top:1px solid var(--bd);color:var(--mt);cursor:pointer;font-family:var(--fn);font-size:12px;font-weight:600;transition:color .15s;}
+.sb-collapse-btn:hover{color:var(--tx);}
+.sb-collapse-btn svg{flex-shrink:0;transition:transform .25s;}
+.sb.collapsed .sb-collapse-btn{justify-content:center;padding:10px 0;}
+.sb.collapsed .sb-collapse-btn svg{transform:rotate(180deg);}
+.sb.collapsed .sb-collapse-btn span{display:none;}
+/* Tooltip for collapsed sidebar */
+.sb.collapsed .ni{position:relative;}
+.sb.collapsed .ni::after{content:attr(data-label);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:var(--s1);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:200;box-shadow:0 6px 20px rgba(0,0,0,.4);}
+.sb.collapsed .ni:hover::after{opacity:1;}
+
+/* ══ TOPBAR SEARCH ══ */
+.tb-search{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:7px 12px;cursor:pointer;transition:border-color .15s;color:var(--mt);font-size:13px;font-weight:500;}
+.tb-search:hover{border-color:var(--acc);}
+.tb-search svg{flex-shrink:0;}
+.tb-search-placeholder{color:var(--mt);}
+.tb-search-kbd{font-size:10px;background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:2px 6px;color:var(--mt);}
+@media(max-width:900px){.tb-search-placeholder,.tb-search-kbd{display:none;}}
+@media(max-width:768px){.tb-search{display:none;}}
+
+/* ══ QUICK ACTIONS BAR ══ */
+.qa-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:12px;align-items:center;}
+.qa-bar-label{font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;}
+.qa-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;font-size:12px;font-weight:600;color:var(--tx);cursor:pointer;transition:all .15s;}
+.qa-chip:hover{border-color:var(--acc);color:var(--acc2);transform:translateY(-1px);}
+
+/* ══ SETTINGS MENU ICONS ══ */
+.set-mi{display:flex;align-items:center;gap:8px;}
+.set-mi-ico{font-size:14px;flex-shrink:0;}
+
+/* ══ IMPROVED SIDEBAR ══ */
+.sb-logo{position:relative;}
+.sb-logo-badge{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--gr);box-shadow:0 0 0 2px var(--s1);}
+
+/* ══ PAGE HEADER ══ */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.page-title{font-size:20px;font-weight:900;color:var(--wh);display:flex;align-items:center;gap:8px;}
+.page-subtitle{font-size:12px;color:var(--mt);margin-top:3px;}
+.page-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ══ ENHANCED STATS CARD ══ */
+.sc-ring{position:absolute;top:-30px;right:-20px;width:90px;height:90px;border-radius:50%;opacity:.06;}
+.sc.c1 .sc-ring{background:var(--acc);}
+.sc.c2 .sc-ring{background:var(--gr);}
+.sc.c3 .sc-ring{background:var(--yw);}
+.sc.c4 .sc-ring{background:var(--rd);}
+.sc-ico-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
+.sc.c1 .sc-ico-wrap{background:rgba(124,92,252,.15);}
+.sc.c2 .sc-ico-wrap{background:rgba(0,210,160,.15);}
+.sc.c3 .sc-ico-wrap{background:rgba(251,191,36,.15);}
+.sc.c4 .sc-ico-wrap{background:rgba(255,92,125,.15);}
+
+/* ══ BREADCRUMB ══ */
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mt);margin-bottom:12px;}
+.breadcrumb span{cursor:pointer;}
+.breadcrumb span:hover{color:var(--tx);}
+.breadcrumb-sep{color:var(--bd);}
+.breadcrumb .active{color:var(--tx);font-weight:600;}
+
+/* ══ SKELETON LOADING ══ */
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skeleton{background:linear-gradient(90deg,var(--s2) 25%,var(--s3) 50%,var(--s2) 75%);background-size:800px;animation:shimmer 1.5s infinite;}
+.skel-line{height:14px;border-radius:6px;margin-bottom:8px;}
+.skel-line.w60{width:60%;}
+.skel-line.w80{width:80%;}
+
+/* ══ NOTIFICATION BADGE PULSE ══ */
+@keyframes notif-pulse{0%{box-shadow:0 0 0 0 rgba(255,92,125,.7)}70%{box-shadow:0 0 0 6px rgba(255,92,125,0)}100%{box-shadow:0 0 0 0 rgba(255,92,125,0)}}
+.tbdot.pulse-anim{animation:notif-pulse 2s infinite;}
+
+/* ══ IMPROVED RESPONSIVE ══ */
+@media(max-width:640px){
+  .sg{grid-template-columns:1fr 1fr;}
+  .qa-bar{display:none;}
+  .tb-search{display:none;}
+}
+@media(min-width:769px){
+  .sb.collapsed ~ .main{margin-left:58px;}
+}
+
+/* ══ PRINT ══ */
+@media print{
+  .sb,.topbar,.bnav,.mov,.toast,.cp-overlay{display:none!important;}
+  .main{margin-left:0!important;}
+  .content{padding:0!important;}
+  table{border:1px solid #ccc;}
+  th,td{border:1px solid #eee;color:#000;}
+}
+
+/* ══ DARK MODE ENHANCEMENTS ══ */
+.sec:hover{border-color:rgba(124,92,252,.3);}
+.sc:hover{box-shadow:0 8px 24px rgba(124,92,252,.15);}
+.btn-p:hover{box-shadow:0 6px 18px rgba(124,92,252,.5);}
+
+/* ══ STATUS BAR ══ */
+.status-bar{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mt);margin-left:auto;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--gr);}
+
+/* ══ MOBILE SEARCH OVERLAY ══ */
+@media(max-width:768px){
+  .cp-overlay{padding-top:16px;align-items:flex-start;}
+  .cp-box{border-radius:12px;}
+}
+
+/* ══ SIDEBAR NAV ITEM IMPROVEMENTS ══ */
+.ni-label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ══ ENHANCED TOPBAR ══ */
+.topbar{background:rgba(16,19,28,.9);backdrop-filter:blur(12px);}
+
+/* ══ SIDEBAR SCROLLBAR TRACK ══ */
+.sb-nav::-webkit-scrollbar-track{background:transparent;}
+
+/* ══ ENHANCED ANIMATIONS ══ */
+.page.on{animation:pageIn .2s ease;}
+@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ IMPROVED SECTION HEADERS ══ */
+.sec-t svg{opacity:.7;}
+
+/* ══ BADGE IMPROVEMENTS ══ */
+.nbg{animation:none;min-width:18px;text-align:center;}
+
+/* ══ BETTER TABLE ══ */
+tr:hover td{background:rgba(124,92,252,.05);}
+th{font-size:10px;}
+
+/* ══ TOPBAR TITLE ══ */
+.ph{letter-spacing:-.3px;}
+
+/* ══ SETTINGS SECTION TITLE ══ */
+.set-body>*:first-child .fg:first-child .fl{margin-top:0;}
+
+/* ══ COMPACT SET MENU ══ */
+.set-menu{padding:8px 0;}
+.set-mi{font-size:12px;padding:9px 14px;}
+
+/* ══ QA BAR RESPONSIVE ══ */
+@media(max-width:768px){.qa-bar{padding:10px 12px;gap:6px;margin-bottom:12px;}}
+@media(max-width:480px){.qa-bar .qa-chip:nth-child(n+6){display:none;}}
 </style>
 </head>
 <body>
@@ -230,30 +404,35 @@ textarea.fi{resize:vertical;min-height:75px;}
 <!-- SIDEBAR -->
 <div class="sb" id="sb">
   <div class="sb-logo">
-    <img class="sb-logo-ico" src="/icons/nav-badge.png" alt="Afghan Followers">
+    <img class="sb-logo-ico" src="/icons/nav-badge.png" alt="SMM Admin">
     <div class="sb-logo-txt">SMM Admin</div>
+    <div class="sb-logo-badge"></div>
   </div>
   <div class="sb-nav">
     <div class="sb-sec">Main</div>
-    <div class="ni on" onclick="go('dashboard',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
-    <div class="ni" onclick="go('users',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users<span class="nbg" id="nb-u">8</span></div>
-    <div class="ni" onclick="go('orders',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Orders</div>
-    <div class="ni" onclick="go('services',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Services</div>
-    <div class="ni" onclick="go('announcements',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
-    <div class="ni" onclick="go('blog',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Blog</div>
-    <div class="ni" onclick="go('emailauto',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>Email Automation</div>
-    <div class="ni" onclick="go('invites',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>User Invites</div>
+    <div class="ni on" data-label="Dashboard" onclick="go('dashboard',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span class="ni-label">Dashboard</span></div>
+    <div class="ni" data-label="Users" onclick="go('users',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="ni-label">Users</span><span class="nbg" id="nb-u">8</span></div>
+    <div class="ni" data-label="Orders" onclick="go('orders',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span class="ni-label">Orders</span></div>
+    <div class="ni" data-label="Services" onclick="go('services',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg><span class="ni-label">Services</span></div>
+    <div class="ni" data-label="Announcements" onclick="go('announcements',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="ni-label">Announcements</span></div>
+    <div class="ni" data-label="Blog" onclick="go('blog',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="ni-label">Blog</span></div>
+    <div class="ni" data-label="Email Auto" onclick="go('emailauto',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg><span class="ni-label">Email Automation</span></div>
+    <div class="ni" data-label="Invites" onclick="go('invites',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg><span class="ni-label">User Invites</span></div>
     <div class="sb-sec">Finance</div>
-    <div class="ni" onclick="go('payments',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Payments</div>
-    <div class="ni" onclick="go('wallets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>Wallets</div>
-    <div class="ni" onclick="go('withdrawals',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>Withdrawals<span class="nbg" id="nb-wd" style="display:none">0</span></div>
+    <div class="ni" data-label="Payments" onclick="go('payments',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span class="ni-label">Payments</span></div>
+    <div class="ni" data-label="Wallets" onclick="go('wallets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg><span class="ni-label">Wallets</span></div>
+    <div class="ni" data-label="Withdrawals" onclick="go('withdrawals',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg><span class="ni-label">Withdrawals</span><span class="nbg" id="nb-wd" style="display:none">0</span></div>
     <div class="sb-sec">Support</div>
-    <div class="ni" onclick="go('tickets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Tickets<span class="nbg" id="nb-t">5</span></div>
+    <div class="ni" data-label="Tickets" onclick="go('tickets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="ni-label">Tickets</span><span class="nbg" id="nb-t">5</span></div>
     <div class="sb-sec">System</div>
-    <div class="ni" onclick="go('alerts',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>System Alerts<span class="nbg" id="nb-al" style="display:none">0</span></div>
+    <div class="ni" data-label="Alerts" onclick="go('alerts',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="ni-label">System Alerts</span><span class="nbg" id="nb-al" style="display:none">0</span></div>
     <div class="sb-sec">Config</div>
-    <div class="ni" onclick="go('settings',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
+    <div class="ni" data-label="Settings" onclick="go('settings',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="ni-label">Settings</span></div>
   </div>
+  <button class="sb-collapse-btn" id="sb-collapse-btn" onclick="toggleSbCollapse()" title="Collapse sidebar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    <span>Collapse</span>
+  </button>
 </div>
 
 <!-- MAIN -->
@@ -262,6 +441,12 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="tb-l">
       <div class="hbg" onclick="toggleSb()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
       <div class="ph" id="ph">Dashboard</div>
+    </div>
+    <!-- Global Search -->
+    <div class="tb-search" onclick="openCp()" title="Quick search (Ctrl+K)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span class="tb-search-placeholder">Quick search...</span>
+      <span class="tb-search-kbd">Ctrl+K</span>
     </div>
     <div class="tb-r">
       <div class="tb-btn" onclick="toggleNotifPanel(event)" style="cursor:pointer;position:relative" title="Notifications">
@@ -293,6 +478,19 @@ textarea.fi{resize:vertical;min-height:75px;}
 
     <!-- DASHBOARD -->
     <div class="page on" id="pg-dashboard">
+      <!-- Quick Actions Bar -->
+      <div class="qa-bar">
+        <span class="qa-bar-label">Quick</span>
+        <div class="qa-chip" onclick="om('m-add-user')">➕ Add User</div>
+        <div class="qa-chip" onclick="om('m-add-bal')">💰 Add Balance</div>
+        <div class="qa-chip" onclick="go('services',document.querySelector('.ni[data-label=Services]'))">⚡ Services</div>
+        <div class="qa-chip" onclick="go('payments',document.querySelector('.ni[data-label=Payments]'))">💳 Payments</div>
+        <div class="qa-chip" onclick="go('tickets',document.querySelector('.ni[data-label=Tickets]'))">🎫 Tickets</div>
+        <div class="qa-chip" onclick="go('settings',document.querySelector('.ni[data-label=Settings]'))">⚙️ Settings</div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <div class="status-bar"><div class="status-dot pulse"></div> Live</div>
+        </div>
+      </div>
       <div class="sg">
         <div class="sc c1" style="cursor:pointer" onclick="go('users')"><div class="sc-ico">👥</div><div class="sc-val" id="sc-users">0</div><div class="sc-lbl">Total Users</div><div class="sc-tr" id="sc-users-tr"></div></div>
         <div class="sc c2" style="cursor:pointer" onclick="go('orders')"><div class="sc-ico">📦</div><div class="sc-val" id="sc-orders">0</div><div class="sc-lbl">Total Orders</div><div class="sc-tr" id="sc-orders-tr"></div></div>
@@ -884,16 +1082,16 @@ textarea.fi{resize:vertical;min-height:75px;}
     <div class="page" id="pg-settings">
       <div class="set-wrap">
         <div class="set-menu" id="set-menu">
-          <div class="set-mi on" onclick="setSec('general',this)">General</div>
-          <div class="set-mi" onclick="setSec('providers',this)">Providers</div>
-          <div class="set-mi" onclick="setSec('payments',this)">Payments</div>
-          <div class="set-mi" onclick="setSec('modules',this)">Modules</div>
-          <div class="set-mi" onclick="setSec('integrations',this)">Integrations</div>
-          <div class="set-mi" onclick="setSec('bonuses',this)">Bonuses</div>
-          <div class="set-mi" onclick="setSec('coupons',this)">Coupons</div>
-          <div class="set-mi" onclick="setSec('email',this)">Email Notification</div>
-          <div class="set-mi" onclick="setSec('signup',this)">Signup Form</div>
-          <div class="set-mi" onclick="setSec('security',this)">🔐 Security</div>
+          <div class="set-mi on" onclick="setSec('general',this)"><span class="set-mi-ico">🌐</span>General</div>
+          <div class="set-mi" onclick="setSec('providers',this)"><span class="set-mi-ico">🔌</span>Providers</div>
+          <div class="set-mi" onclick="setSec('payments',this)"><span class="set-mi-ico">💳</span>Payments</div>
+          <div class="set-mi" onclick="setSec('modules',this)"><span class="set-mi-ico">🧩</span>Modules</div>
+          <div class="set-mi" onclick="setSec('integrations',this)"><span class="set-mi-ico">⚡</span>Integrations</div>
+          <div class="set-mi" onclick="setSec('bonuses',this)"><span class="set-mi-ico">🎁</span>Bonuses</div>
+          <div class="set-mi" onclick="setSec('coupons',this)"><span class="set-mi-ico">🏷️</span>Coupons</div>
+          <div class="set-mi" onclick="setSec('email',this)"><span class="set-mi-ico">📧</span>Email Notify</div>
+          <div class="set-mi" onclick="setSec('signup',this)"><span class="set-mi-ico">📋</span>Signup Form</div>
+          <div class="set-mi" onclick="setSec('security',this)"><span class="set-mi-ico">🔐</span>Security</div>
         </div>
         <div class="set-body">
 
@@ -1497,6 +1695,23 @@ textarea.fi{resize:vertical;min-height:75px;}
     <button class="btn btn-p" onclick="savePmEdit()">💾 Save Settings</button>
   </div>
 </div></div>
+
+<!-- ══ COMMAND PALETTE ══ -->
+<div class="cp-overlay" id="cp-overlay" onclick="if(event.target===this)closeCp()">
+  <div class="cp-box" id="cp-box">
+    <div class="cp-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="cp-inp" id="cp-inp" placeholder="Search pages, actions..." autocomplete="off" oninput="cpFilter(this.value)" onkeydown="cpKeydown(event)">
+      <span class="cp-kbd">ESC</span>
+    </div>
+    <div class="cp-results" id="cp-results"></div>
+    <div class="cp-footer">
+      <span class="cp-footer-tip"><span class="cp-kbd">↑↓</span> Navigate</span>
+      <span class="cp-footer-tip"><span class="cp-kbd">↵</span> Select</span>
+      <span class="cp-footer-tip"><span class="cp-kbd">ESC</span> Close</span>
+    </div>
+  </div>
+</div>
 
 <!-- ══ ADMIN LOGIN SCREEN ══ -->
 <div id="admin-login-screen" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px">
@@ -7924,6 +8139,203 @@ function pushToServer(){
 }
 setInterval(pullFromServer,30000);
 setTimeout(pullFromServer,500);
+
+// ══════════════════════════════════════════
+// ══ SIDEBAR COLLAPSE ══════════════════════
+// ══════════════════════════════════════════
+(function(){
+  var SB_KEY='smm_sb_collapsed';
+  function applySbState(collapsed){
+    var sb=document.getElementById('sb');
+    var main=document.querySelector('.main');
+    if(!sb) return;
+    if(collapsed){
+      sb.classList.add('collapsed');
+      if(main) main.style.marginLeft='58px';
+    } else {
+      sb.classList.remove('collapsed');
+      if(main) main.style.marginLeft='';
+    }
+  }
+  window.toggleSbCollapse=function(){
+    var sb=document.getElementById('sb');
+    var collapsed=sb.classList.contains('collapsed');
+    applySbState(!collapsed);
+    try{localStorage.setItem(SB_KEY,!collapsed?'1':'0');}catch(e){}
+  };
+  // Restore state on load
+  try{
+    var saved=localStorage.getItem(SB_KEY);
+    if(saved==='1') applySbState(true);
+  }catch(e){}
+  // Keep existing mobile toggle working
+  var origToggle=window.toggleSb;
+  window.toggleSb=function(){
+    if(window.innerWidth<=768){origToggle&&origToggle();}
+    else{window.toggleSbCollapse();}
+  };
+})();
+
+// ══════════════════════════════════════════
+// ══ COMMAND PALETTE ═══════════════════════
+// ══════════════════════════════════════════
+(function(){
+  var CP_ITEMS=[
+    // Pages
+    {type:'page',ico:'📊',name:'Dashboard',hint:'Overview & stats',page:'dashboard',key:'D'},
+    {type:'page',ico:'👥',name:'Users',hint:'Manage users',page:'users',key:'U'},
+    {type:'page',ico:'📦',name:'Orders',hint:'View all orders',page:'orders',key:'O'},
+    {type:'page',ico:'⚡',name:'Services',hint:'Manage services & categories',page:'services',key:'S'},
+    {type:'page',ico:'📢',name:'Announcements',hint:'Site announcements',page:'announcements'},
+    {type:'page',ico:'📝',name:'Blog',hint:'Blog posts',page:'blog'},
+    {type:'page',ico:'📧',name:'Email Automation',hint:'Automated email campaigns',page:'emailauto'},
+    {type:'page',ico:'🎁',name:'User Invites',hint:'Free Likes referral program',page:'invites'},
+    {type:'page',ico:'💳',name:'Payments',hint:'Payment requests',page:'payments',key:'P'},
+    {type:'page',ico:'💼',name:'Wallets',hint:'User balances',page:'wallets'},
+    {type:'page',ico:'⬆️',name:'Withdrawals',hint:'Withdrawal requests',page:'withdrawals'},
+    {type:'page',ico:'🎫',name:'Tickets',hint:'Support tickets',page:'tickets',key:'T'},
+    {type:'page',ico:'⚠️',name:'Alerts',hint:'System alerts',page:'alerts'},
+    {type:'page',ico:'⚙️',name:'Settings',hint:'Panel configuration',page:'settings'},
+    // Actions
+    {type:'action',ico:'➕',name:'Add User',hint:'Create a new user account',action:function(){om('m-add-user');}},
+    {type:'action',ico:'💰',name:'Add Balance',hint:'Credit or deduct user balance',action:function(){om('m-add-bal');}},
+    {type:'action',ico:'🔄',name:'Sync Data',hint:'Pull latest data from server',action:function(){forceSync&&forceSync();}},
+    {type:'action',ico:'🔁',name:'Retry Orders',hint:'Re-sync pending orders',action:function(){retrySyncNow&&retrySyncNow();}},
+    // Settings sections
+    {type:'setting',ico:'🌐',name:'General Settings',hint:'Website name, URL, currency',page:'settings',section:'general'},
+    {type:'setting',ico:'🔌',name:'Providers',hint:'API provider configuration',page:'settings',section:'providers'},
+    {type:'setting',ico:'💳',name:'Payment Methods',hint:'Configure payment options',page:'settings',section:'payments'},
+    {type:'setting',ico:'🧩',name:'Modules',hint:'Enable / disable panel features',page:'settings',section:'modules'},
+    {type:'setting',ico:'⚡',name:'Integrations',hint:'Telegram, PayPal, reCAPTCHA',page:'settings',section:'integrations'},
+    {type:'setting',ico:'🎁',name:'Bonus Rules',hint:'Deposit bonus rules',page:'settings',section:'bonuses'},
+    {type:'setting',ico:'🏷️',name:'Coupons',hint:'Discount coupons',page:'settings',section:'coupons'},
+    {type:'setting',ico:'🔐',name:'Security Settings',hint:'Change admin credentials',page:'settings',section:'security'},
+  ];
+
+  var _cpIdx=-1;
+  var _cpFiltered=CP_ITEMS;
+
+  window.openCp=function(){
+    var ov=document.getElementById('cp-overlay');
+    if(!ov) return;
+    ov.classList.add('open');
+    var inp=document.getElementById('cp-inp');
+    if(inp){inp.value='';inp.focus();}
+    _cpIdx=-1;
+    renderCp(CP_ITEMS);
+  };
+  window.closeCp=function(){
+    var ov=document.getElementById('cp-overlay');
+    if(ov) ov.classList.remove('open');
+    _cpIdx=-1;
+  };
+  window.cpFilter=function(q){
+    q=(q||'').toLowerCase().trim();
+    if(!q){_cpFiltered=CP_ITEMS;}
+    else{
+      _cpFiltered=CP_ITEMS.filter(function(it){
+        return (it.name+it.hint+(it.page||'')+(it.section||'')).toLowerCase().indexOf(q)>-1;
+      });
+    }
+    _cpIdx=-1;
+    renderCp(_cpFiltered);
+  };
+  window.cpKeydown=function(e){
+    var items=document.querySelectorAll('.cp-item');
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      _cpIdx=Math.min(_cpIdx+1,items.length-1);
+      highlightCp(items);
+    } else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      _cpIdx=Math.max(_cpIdx-1,0);
+      highlightCp(items);
+    } else if(e.key==='Enter'){
+      e.preventDefault();
+      if(_cpIdx>=0&&items[_cpIdx]) items[_cpIdx].click();
+      else if(_cpFiltered.length>0) execCpItem(_cpFiltered[0]);
+    } else if(e.key==='Escape'){
+      closeCp();
+    }
+  };
+  function highlightCp(items){
+    items.forEach(function(it,i){it.classList.toggle('active',i===_cpIdx);});
+    if(items[_cpIdx]) items[_cpIdx].scrollIntoView({block:'nearest'});
+  }
+  function execCpItem(it){
+    closeCp();
+    if(it.action){it.action();}
+    else if(it.page){
+      var nav=document.querySelector('.ni[data-label="'+it.name+'"]')||
+              document.querySelector('.ni[onclick*="\''+it.page+'\'"]');
+      go(it.page,nav);
+      if(it.section){
+        var secId=it.section;
+        setTimeout(function(){
+          if(setSec){
+            var secEl=document.querySelector('#pg-settings .set-mi[onclick*="\''+secId+'\'"]')||document.querySelector('#pg-settings .set-mi');
+            setSec(secId,secEl);
+          }
+        },200);
+      }
+    }
+  }
+  function renderCp(items){
+    var el=document.getElementById('cp-results');
+    if(!el) return;
+    if(!items.length){
+      el.innerHTML='<div style="padding:24px;text-align:center;color:var(--mt);font-size:13px">No results found</div>';
+      return;
+    }
+    var pages=items.filter(function(i){return i.type==='page';});
+    var actions=items.filter(function(i){return i.type==='action';});
+    var settings=items.filter(function(i){return i.type==='setting';});
+    var html='';
+    function section(label,arr){
+      if(!arr.length) return '';
+      var s='<div class="cp-section">'+label+'</div>';
+      arr.forEach(function(it){
+        s+='<div class="cp-item" onclick="execCpItemById(\''+it.name+'\')">'+
+          '<div class="cp-item-ico">'+it.ico+'</div>'+
+          '<div class="cp-item-txt">'+
+            '<div class="cp-item-name">'+it.name+(it.key?'</div><span class="cp-item-key">'+it.key+'</span>':'</div>')+
+            '<div class="cp-item-hint">'+it.hint+'</div>'+
+          '</div>'+
+          '</div>';
+      });
+      return s;
+    }
+    el.innerHTML=section('Pages',pages)+section('Actions',actions)+section('Settings',settings);
+  }
+  window.execCpItemById=function(name){
+    var it=CP_ITEMS.find(function(i){return i.name===name;});
+    if(it) execCpItem(it);
+  };
+
+  // Keyboard shortcut Ctrl+K / Cmd+K
+  document.addEventListener('keydown',function(e){
+    if((e.ctrlKey||e.metaKey)&&e.key==='k'){
+      e.preventDefault();
+      var ov=document.getElementById('cp-overlay');
+      if(ov&&ov.classList.contains('open')) closeCp();
+      else openCp();
+    }
+    if(e.key==='Escape'){
+      var ov=document.getElementById('cp-overlay');
+      if(ov&&ov.classList.contains('open')){e.preventDefault();closeCp();}
+    }
+  });
+
+  // Initial render
+  setTimeout(function(){renderCp(CP_ITEMS);},100);
+})();
+
+// ══ TOPBAR SEARCH shortcut hint update ══
+(function(){
+  var isMac=navigator.platform.toUpperCase().indexOf('MAC')>=0;
+  var kbd=document.querySelector('.tb-search-kbd');
+  if(kbd&&isMac) kbd.textContent='⌘K';
+})();
 
 </script>
 </body>
