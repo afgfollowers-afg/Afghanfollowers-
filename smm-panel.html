@@ -412,6 +412,13 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .qb-pop-lbl{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;font-size:8px;font-weight:800;padding:2px 0;text-align:center;}
 .qb-qty{font-size:18px;font-weight:900;color:var(--white);margin-top:4px;}
 .qb-price{font-size:12px;font-weight:800;color:var(--green);margin-top:3px;}
+.qb-svc-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:border-color .2s,background .2s;}
+.qb-svc-item:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);}
+.qb-svc-item.qb-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);}
+.qb-svc-name{font-size:12px;font-weight:700;color:var(--white);line-height:1.4;}
+.qb-svc-new{font-size:9px;font-weight:800;background:var(--green);color:#000;border-radius:4px;padding:1px 5px;margin-right:5px;vertical-align:middle;}
+.qb-svc-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.qb-svc-rate{font-size:13px;font-weight:800;color:var(--green);white-space:nowrap;}
 
 /* ══════════════════════════════
    MISC
@@ -623,6 +630,13 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <div class="card-body" style="padding:10px">
           <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">نوع سرویس</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px" id="qb-type-row"></div>
+        </div>
+      </div>
+      <!-- Service selection (newest first) -->
+      <div class="card" id="qb-svc-card" style="margin-bottom:10px;display:none">
+        <div class="card-body" style="padding:10px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">انتخاب سرویس</div>
+          <div id="qb-svc-list" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
       </div>
       <!-- Package grid -->
@@ -2385,12 +2399,13 @@ function qbFilterSvcs(plat,typeKey){
 
 function qbInit(){
   _qbTypeKey='';_qbSvcRow=null;_qbQty=0;_qbCost=0;
-  // reset plat highlight
   document.querySelectorAll('#qb-plat-grid .qb-plat-btn').forEach(function(b){b.classList.remove('qb-on');});
   var first=document.querySelector('#qb-plat-grid .qb-plat-btn');
   if(first){first.classList.add('qb-on');}
   _qbPlat='instagram';
   qbBuildTypes();
+  document.getElementById('qb-svc-card').style.display='none';
+  document.getElementById('qb-pkg-card').style.display='none';
   document.getElementById('qb-order-card').style.display='none';
   qbUpdateBalDisplay();
 }
@@ -2399,6 +2414,8 @@ function qbPlat(plat,el){
   _qbPlat=plat;_qbTypeKey='';_qbSvcRow=null;_qbQty=0;_qbCost=0;
   document.querySelectorAll('#qb-plat-grid .qb-plat-btn').forEach(function(b){b.classList.remove('qb-on');});
   el.classList.add('qb-on');
+  document.getElementById('qb-svc-card').style.display='none';
+  document.getElementById('qb-pkg-card').style.display='none';
   document.getElementById('qb-order-card').style.display='none';
   qbBuildTypes();
 }
@@ -2425,16 +2442,48 @@ function qbType(key,el){
   _qbTypeKey=key;_qbSvcRow=null;_qbQty=0;_qbCost=0;
   document.querySelectorAll('#qb-type-row .qb-type-chip').forEach(function(c){c.classList.remove('qb-on');});
   el.classList.add('qb-on');
+  document.getElementById('qb-pkg-card').style.display='none';
   document.getElementById('qb-order-card').style.display='none';
-  qbBuildPkgs();
+  qbBuildSvcs();
 }
 
-function qbBuildPkgs(){
+function qbBuildSvcs(){
   var svcs=qbFilterSvcs(_qbPlat,_qbTypeKey);
-  if(!svcs.length){document.getElementById('qb-pkg-card').style.display='none';return;}
-  svcs.sort(function(a,b){return (a[7]||0)-(b[7]||0);});
-  var svc=svcs[0];
-  _qbSvcRow=svc;
+  var card=document.getElementById('qb-svc-card');
+  var list=document.getElementById('qb-svc-list');
+  if(!svcs.length){card.style.display='none';return;}
+  // Sort by id descending (newest first), show up to 6
+  svcs.sort(function(a,b){return (Number(b[0])||0)-(Number(a[0])||0);});
+  var top=svcs.slice(0,6);
+  var newestId=Number(top[0][0])||0;
+  list.innerHTML='';
+  top.forEach(function(s,i){
+    var priceK=Number(s[7])||0;
+    var isNew=(i===0||(newestId-Number(s[0]||0))<3);
+    var div=document.createElement('div');
+    div.className='qb-svc-item';
+    div.innerHTML='<div style="flex:1;min-width:0">'
+      +(isNew?'<span class="qb-svc-new">جدید</span>':'')
+      +'<div class="qb-svc-name">'+((s[2]||'').slice(0,60))+'</div>'
+      +'<div class="qb-svc-meta">Min: '+qbFmt(Number(s[8])||100)+' — Max: '+qbFmt(Number(s[9])||50000)+'</div>'
+      +'</div>'
+      +'<div class="qb-svc-rate">$'+priceK.toFixed(2)+'<span style="font-size:9px;color:var(--muted)">/1K</span></div>';
+    div.onclick=function(){qbPickSvc(s,div);};
+    list.appendChild(div);
+  });
+  card.style.display='block';
+}
+
+function qbPickSvc(svcRow,el){
+  _qbSvcRow=svcRow;_qbQty=0;_qbCost=0;
+  document.querySelectorAll('#qb-svc-list .qb-svc-item').forEach(function(d){d.classList.remove('qb-on');});
+  el.classList.add('qb-on');
+  document.getElementById('qb-order-card').style.display='none';
+  qbBuildPkgs(svcRow);
+}
+
+function qbBuildPkgs(svc){
+  if(!svc){document.getElementById('qb-pkg-card').style.display='none';return;}
   var minQ=Number(svc[8])||100;
   var maxQ=Number(svc[9])||50000;
   var priceK=Number(svc[7])||0;
