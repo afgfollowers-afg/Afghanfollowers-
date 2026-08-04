@@ -412,6 +412,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
 .qb-pop-lbl{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;font-size:8px;font-weight:800;padding:2px 0;text-align:center;}
 .qb-qty{font-size:18px;font-weight:900;color:var(--white);margin-top:4px;}
 .qb-price{font-size:12px;font-weight:800;color:var(--green);margin-top:3px;}
+@keyframes qbFlash{0%,100%{color:#ff2d2d;text-shadow:0 0 8px rgba(255,45,45,.9),0 0 20px rgba(255,45,45,.5);}50%{color:#ff7070;text-shadow:0 0 4px rgba(255,45,45,.4);}}
+@keyframes qbPulseWrap{0%,100%{box-shadow:0 0 0 0 rgba(255,45,45,.35);}60%{box-shadow:0 0 0 8px rgba(255,45,45,0);}}
+.qb-flash-title{font-size:17px;font-weight:900;font-family:var(--font-fa);color:#ff2d2d;margin-bottom:10px;animation:qbFlash 1.4s ease-in-out infinite;letter-spacing:.5px;}
+.qb-inline-pulse{animation:qbPulseWrap 1.4s ease-in-out infinite;border-radius:14px;}
 .qb-svc-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:2px solid var(--border);cursor:pointer;transition:border-color .2s,background .2s;}
 .qb-svc-item:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);}
 .qb-svc-item.qb-on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);}
@@ -597,13 +601,12 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
   <!-- ── NEW ORDER PAGE ── -->
   <div class="page active" id="page-new-order">
-    <div id="ann-banners"></div>
 
-    <!-- ── QUICK BUY (inline, below announcements) ── -->
+    <!-- ── QUICK BUY (top of page) ── -->
     <div id="qb-inline-wrap" style="margin-bottom:16px">
-      <div style="font-size:15px;font-weight:800;color:var(--white);margin-bottom:10px;font-family:var(--font-fa)">⚡ خرید سریع</div>
+      <div class="qb-flash-title">⚡ سفارش فوری</div>
       <!-- Platform tabs -->
-      <div class="card" style="margin-bottom:10px">
+      <div class="card qb-inline-pulse" style="margin-bottom:10px">
         <div class="card-body" style="padding:10px">
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="qb-plat-grid">
             <div class="qb-plat-btn qb-on" onclick="qbPlat('instagram',this)">
@@ -672,6 +675,8 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
       </div>
     </div>
+
+    <div id="ann-banners"></div>
 
     <div style="margin-bottom:16px">
       <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px" id="t-ph-neworder">New Order</div>
