@@ -6,6 +6,8 @@ const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
+const LOGO_PATH = path.join(__dirname, '..', 'icons', 'logo-full.png');
+
 const TEMPLATES = {
   instagram: path.join(__dirname, '_assets', 'instagram-template.png'),
   tiktok: path.join(__dirname, '_assets', 'tiktok-template.png'),
@@ -280,4 +282,154 @@ async function renderPostImage(templateKey, text) {
     .toBuffer();
 }
 
-module.exports = { renderPostImage, pickTemplate, TEMPLATE_ORDER };
+// Builds a 1080×1080 SVG for the daily Facebook auto-post.
+// Fixed layout: dark #040B28 background, radial-gradient orbs, dot grid,
+// centred glass card, logo box, Instagram camera icon, fixed heading, 4 fixed
+// feature labels (no emoji — librsvg can't render them) and CTA button.
+// Only the subtitle (cleaned Farsi text from the AI-generated post) changes.
+function buildFacebookSvg(text, logoB64) {
+  const W = 1080, H = 1080;
+  const CARD = { x: 140, y: 140, w: 800, h: 800 };
+  const CX = W / 2; // 540
+
+  const subtitle = coreTextForImage(text);
+  const subLines = wrapText(subtitle, 38).slice(0, 2);
+  const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
+
+  const logoBoxY = 184;
+  const igIconY  = 356;
+  const h1Y1     = 414;
+  const h1Y2     = 464;
+  const subY1    = 500;
+  const featW    = (CARD.w - 80 - 16) / 2; // 352
+  const feat1X   = CARD.x + 40; // 180
+  const feat2X   = feat1X + featW + 16; // 548
+  const featH    = 78;
+  const featY1   = 556;
+  const featY2   = featY1 + featH + 14; // 648
+  const accentY  = featY2 + featH + 26; // 752
+  const btnY     = accentY + 26; // 778
+  const footerY  = btnY + 52 + 24; // 854
+
+  const featCards = features.map((label, i) => {
+    const row = Math.floor(i / 2), col = i % 2;
+    const fx = col === 0 ? feat1X : feat2X;
+    const fy = row === 0 ? featY1 : featY2;
+    return `<rect x="${fx}" y="${fy}" width="${featW}" height="${featH}" rx="16"
+    fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1"/>
+  <text x="${fx + featW / 2}" y="${fy + featH / 2 + 7}" font-family="Vazirmatn" font-weight="700"
+    font-size="17" fill="#ffffff" text-anchor="middle" direction="rtl">${escapeXml(label)}</text>`;
+  }).join('\n  ');
+
+  const subBlock = subLines.length ? `<text font-family="Vazirmatn" font-size="19" fill="#9ab0cc"
+    text-anchor="middle" direction="rtl">${
+    subLines.map((l, i) => `<tspan x="${CX}" y="${subY1 + i * 28}">${escapeXml(l)}</tspan>`).join('')
+  }</text>` : '';
+
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <radialGradient id="fbOrbBlue" cx="82%" cy="12%" r="45%">
+      <stop offset="0%" stop-color="#0B3D91" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0B3D91" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fbOrbOrg" cx="16%" cy="90%" r="32%">
+      <stop offset="0%" stop-color="#FF9F1A" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#FF9F1A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fbOrbPurp" cx="12%" cy="50%" r="32%">
+      <stop offset="0%" stop-color="#5028b4" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#5028b4" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="fbDots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="16" cy="16" r="1" fill="#3355aa" fill-opacity="0.25"/>
+    </pattern>
+    <radialGradient id="fbDotMaskGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="white" stop-opacity="1"/>
+      <stop offset="70%" stop-color="white" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="fbDotMask">
+      <rect width="${W}" height="${H}" fill="url(#fbDotMaskGrad)"/>
+    </mask>
+    <linearGradient id="fbLogoBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0B3D91"/>
+      <stop offset="100%" stop-color="#132A63"/>
+    </linearGradient>
+    <linearGradient id="fbAccent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF9F1A" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#FF9F1A"/>
+      <stop offset="70%" stop-color="#e07800"/>
+      <stop offset="100%" stop-color="#e07800" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fbBtn" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FF9F1A"/>
+      <stop offset="100%" stop-color="#e07800"/>
+    </linearGradient>
+    <filter id="fbCardGlow" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"/>
+      <feFlood flood-color="#0B3D91" flood-opacity="0.28" result="c"/>
+      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="fbLogoGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
+      <feFlood flood-color="#1155cc" flood-opacity="0.65" result="c"/>
+      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="${W}" height="${H}" fill="#040B28"/>
+  <rect width="${W}" height="${H}" fill="url(#fbOrbBlue)"/>
+  <rect width="${W}" height="${H}" fill="url(#fbOrbOrg)"/>
+  <rect width="${W}" height="${H}" fill="url(#fbOrbPurp)"/>
+  <rect width="${W}" height="${H}" fill="url(#fbDots)" mask="url(#fbDotMask)"/>
+
+  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
+        fill="#ffffff" fill-opacity="0.05"
+        stroke="#ffffff" stroke-opacity="0.10" stroke-width="1.5"
+        filter="url(#fbCardGlow)"/>
+
+  <rect x="${CX - 75}" y="${logoBoxY}" width="150" height="150" rx="40"
+        fill="url(#fbLogoBg)" filter="url(#fbLogoGlow)"/>
+  <image href="${logoB64}" xlink:href="${logoB64}"
+         x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
+
+  <rect x="${CX - 18}" y="${igIconY}" width="36" height="36" rx="8" fill="#E1306C" fill-opacity="0.85"/>
+  <rect x="${CX - 14}" y="${igIconY + 4}" width="28" height="28" rx="5"
+        fill="none" stroke="#ffffff" stroke-width="2.2"/>
+  <circle cx="${CX}" cy="${igIconY + 18}" r="7" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="${CX + 11}" cy="${igIconY + 7}" r="2.2" fill="#ffffff"/>
+
+  <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
+        fill="#ffffff" text-anchor="middle" direction="rtl">رشد واقعی اینستاگرام</text>
+  <text x="${CX}" y="${h1Y2}" font-family="Vazirmatn" font-weight="700" font-size="30"
+        fill="#FF9F1A" text-anchor="middle">با AfghanFollower</text>
+
+  ${subBlock}
+
+  ${featCards}
+
+  <rect x="${CARD.x + 80}" y="${accentY}" width="${CARD.w - 160}" height="2.5" rx="1.25"
+        fill="url(#fbAccent)"/>
+
+  <rect x="${CX - 155}" y="${btnY}" width="310" height="52" rx="26" fill="url(#fbBtn)"/>
+  <text x="${CX}" y="${btnY + 34}" font-family="Vazirmatn" font-weight="700" font-size="19"
+        fill="#040B28" text-anchor="middle" direction="rtl">همین حالا شروع کنید</text>
+
+  <text x="${CX}" y="${footerY}" font-family="Vazirmatn" font-size="15"
+        fill="#FF9F1A" fill-opacity="0.75" text-anchor="middle">
+    afghanfollowers.online
+  </text>
+</svg>`;
+}
+
+async function renderFacebookPostImage(text) {
+  ensureFontconfig();
+  const logoBuffer = await sharp(LOGO_PATH).resize(150, 150).png().toBuffer();
+  const logoB64 = 'data:image/png;base64,' + logoBuffer.toString('base64');
+  const svg = buildFacebookSvg(text, logoB64);
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+module.exports = { renderPostImage, renderFacebookPostImage, pickTemplate, TEMPLATE_ORDER };

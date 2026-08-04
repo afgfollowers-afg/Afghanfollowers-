@@ -14,7 +14,7 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
-const { renderPostImage } = require('./_autopost-image');
+const { renderPostImage, renderFacebookPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -1021,7 +1021,9 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const results = { facebook: null, telegram: null };
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, imageBuffer, postText);
+    let fbBuf = imageBuffer;
+    try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to platform template */ }
+    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, fbBuf, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
     results.facebook = '⏭ تنظیم نشده';
