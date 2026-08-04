@@ -298,14 +298,14 @@ function buildFacebookSvg(text, logoB64) {
 
   const logoBoxY = 184;
   const igIconY  = 356;
-  const h1Y1     = 414;
-  const h1Y2     = 464;
-  const subY1    = 500;
+  const h1Y1     = 450;
+  const h1Y2     = 500;
+  const subY1    = 538;
   const featW    = (CARD.w - 80 - 16) / 2; // 352
   const feat1X   = CARD.x + 40; // 180
   const feat2X   = feat1X + featW + 16; // 548
   const featH    = 78;
-  const featY1   = 556;
+  const featY1   = 594;
   const featY2   = featY1 + featH + 14; // 648
   const accentY  = featY2 + featH + 26; // 752
   const btnY     = accentY + 26; // 778
