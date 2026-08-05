@@ -3085,7 +3085,7 @@ function rSvcs(){
 
   // Compute QO winners — the actual cheapest active non-disabled service per platform+type
   var _qoDis=getQoDisabled();
-  var _QOP={instagram:['instagram','اینستاگرام','insta ','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt']};
+  var _QOP={instagram:['instagram','اینستاگرام','insta ','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt'],facebook:['facebook','فیسبوک','fb ','| fb','fb|']};
   var _QOST=[{key:'followers',keys:['follower','فالوور','دنبال کننده','subscribers','subscriber']},{key:'likes',keys:['like','لایک','heart']},{key:'views',keys:['view','ویو','بازدید','watch','impression','play','video']},{key:'members',keys:['member','ممبر','join']},{key:'comments',keys:['comment','کامنت']},{key:'shares',keys:['share','اشتراک','repost','retweet']}];
   var _winnerMap={};
   all.filter(function(s){return s.active!==false&&_qoDis.indexOf(String(s.id))<0;}).forEach(function(s){
@@ -3522,7 +3522,7 @@ function setQoVisible(id){
   var hiddenCount=0;
   if(target){
     // Same keyword tables as index.html quick-order — must stay in sync
-    var _QOP={instagram:['instagram','اینستاگرام','insta ','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt']};
+    var _QOP={instagram:['instagram','اینستاگرام','insta ','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt'],facebook:['facebook','فیسبوک','fb ','| fb','fb|']};
     var _QOST=[{key:'followers',keys:['follower','فالوور','دنبال کننده','subscribers','subscriber']},{key:'likes',keys:['like','لایک','heart']},{key:'views',keys:['view','ویو','بازدید','watch','impression','play','video']},{key:'members',keys:['member','ممبر','join']},{key:'comments',keys:['comment','کامنت']},{key:'shares',keys:['share','اشتراک','repost','retweet']}];
     var n=(target.name||'').toLowerCase(),c=(target.category||'').toLowerCase();
     var tPlat=Object.keys(_QOP).find(function(p){return _QOP[p].some(function(k){return n.indexOf(k)>-1||c.indexOf(k)>-1;});});

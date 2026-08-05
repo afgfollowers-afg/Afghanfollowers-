@@ -232,18 +232,26 @@ footer a{color:var(--acc2);text-decoration:none;}
 
 /* ── QUICK ORDER WIDGET ── */
 .qo-wrap{background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:24px;overflow:hidden;}
-.qo-plat-row{display:flex;gap:8px;margin-bottom:20px;}
-.qo-plat{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:14px;border:2px solid var(--bd);background:var(--s2);cursor:pointer;transition:all .18s;font-size:12px;font-weight:600;color:var(--mt);min-width:0;}
-.qo-plat:hover{border-color:var(--acc2);color:var(--tx);}
-.qo-plat.on{border-color:var(--acc);background:rgba(124,92,252,.1);color:var(--acc2);}
-.qo-plat-ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.qo-plat-lbl{font-size:11px;text-align:center;}
+.qo-plat-sel-wrap{position:relative;margin-bottom:16px;}
+.qo-plat-sel-wrap::after{content:'▾';position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mt);pointer-events:none;font-size:14px;line-height:1;}
+.qo-plat-sel{width:100%;height:48px;background:var(--s2);border:2px solid var(--bd);border-radius:12px;padding:0 40px 0 14px;color:var(--tx);font-size:15px;font-family:'Vazirmatn','Inter',sans-serif;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .18s;direction:rtl;}
+.qo-plat-sel:focus{border-color:var(--acc);}
 .qo-input-row{display:flex;align-items:stretch;border-radius:12px;overflow:hidden;border:2px solid var(--bd);transition:border-color .18s;}
 .qo-input-row:focus-within{border-color:var(--acc);}
 .qo-at{width:38px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--mt);flex-shrink:0;}
 .qo-inp{flex:1;height:46px;background:var(--s2);border:none;padding:0 12px;color:var(--tx);font-size:14px;font-family:'Vazirmatn','Inter',sans-serif;outline:none;direction:ltr;}
-.qo-go{width:52px;background:linear-gradient(135deg,var(--acc),#5b21b6);border:none;color:#fff;font-size:22px;cursor:pointer;flex-shrink:0;transition:opacity .18s;display:flex;align-items:center;justify-content:center;}
+.qo-go{padding:0 18px;background:linear-gradient(135deg,var(--acc),#5b21b6);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;transition:opacity .18s;display:flex;align-items:center;justify-content:center;white-space:nowrap;gap:5px;}
 .qo-go:hover{opacity:.85;}
+.qo-user-preview{background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin-top:10px;display:flex;align-items:center;gap:12px;animation:fadeIn .25s ease;}
+.qo-user-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--bd);}
+.qo-user-info{flex:1;min-width:0;}
+.qo-user-handle{font-size:14px;font-weight:700;color:var(--tx);direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qo-user-stats{font-size:12px;color:var(--mt);margin-top:3px;}
+.qo-user-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;}
+.qo-user-badge.ok{background:rgba(0,210,160,.12);color:var(--gr);border:1px solid rgba(0,210,160,.25);}
+.qo-user-badge.err{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.25);}
+.qo-user-badge.chk{background:rgba(124,92,252,.1);color:var(--acc2);border:1px solid rgba(124,92,252,.25);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .qo-pkg-hdr{font-size:13px;font-weight:700;color:var(--mt);margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--bd);}
 .qo-pkg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .qo-pkg{position:relative;padding:14px 8px;border-radius:12px;border:2px solid var(--bd);background:var(--s2);cursor:pointer;text-align:center;transition:all .18s;overflow:hidden;}
@@ -265,7 +273,7 @@ footer a{color:var(--acc2);text-decoration:none;}
 .qo-form-inp{width:100%;height:42px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:0 12px;color:var(--tx);font-family:'Vazirmatn','Inter',sans-serif;font-size:14px;outline:none;margin-bottom:12px;transition:border-color .15s;}
 .qo-form-inp:focus{border-color:var(--acc);}
 .qo-discount-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.25);padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:var(--gr);}
-@media(max-width:600px){.qo-plat-lbl{display:none;}.qo-pkg-qty{font-size:16px;}.qo-pkg{padding:12px 6px;}}
+@media(max-width:600px){.qo-pkg-qty{font-size:16px;}.qo-pkg{padding:12px 6px;}.qo-go{padding:0 12px;font-size:13px;}}
 @media(max-width:400px){.qo-pkg-grid{grid-template-columns:repeat(3,1fr);gap:5px;}}
 </style>
 </head>
@@ -299,23 +307,14 @@ footer a{color:var(--acc2);text-decoration:none;}
   <h2 style="text-align:center;margin-bottom:8px">همین الان سفارش بده — بدون ثبت‌نام</h2>
   <p class="section-sub" style="margin-bottom:24px">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
   <div class="qo-wrap qo-wrap-pulse reveal">
-    <div class="qo-plat-row" id="qo-plat-row">
-      <div class="qo-plat on" onclick="qoPlatSelect('instagram',this)" data-plat="instagram">
-        <div class="qo-plat-ico" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="22" height="22"><use href="#ico-instagram"/></svg></div>
-        <div class="qo-plat-lbl">اینستاگرام</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('tiktok',this)" data-plat="tiktok">
-        <div class="qo-plat-ico" style="background:#010101"><svg width="22" height="22"><use href="#ico-tiktok"/></svg></div>
-        <div class="qo-plat-lbl">تیک‌تاک</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('telegram',this)" data-plat="telegram">
-        <div class="qo-plat-ico" style="background:#2AABEE"><svg width="22" height="22"><use href="#ico-telegram"/></svg></div>
-        <div class="qo-plat-lbl">تلگرام</div>
-      </div>
-      <div class="qo-plat" onclick="qoPlatSelect('youtube',this)" data-plat="youtube">
-        <div class="qo-plat-ico" style="background:#FF0000"><svg width="22" height="22"><use href="#ico-youtube"/></svg></div>
-        <div class="qo-plat-lbl">یوتیوب</div>
-      </div>
+    <div class="qo-plat-sel-wrap">
+      <select id="qo-plat-sel" class="qo-plat-sel" onchange="qoPlatFromSel(this.value)">
+        <option value="instagram">📸 اینستاگرام</option>
+        <option value="tiktok">🎵 تیک‌تاک</option>
+        <option value="telegram">✈️ تلگرام</option>
+        <option value="youtube">▶️ یوتیوب</option>
+        <option value="facebook">👤 فیسبوک</option>
+      </select>
     </div>
     <div id="qo-svc-row" style="margin-bottom:14px;display:none">
       <label class="qo-form-lbl">نوع سرویس</label>
@@ -325,9 +324,10 @@ footer a{color:var(--acc2);text-decoration:none;}
     </div>
     <div id="qo-inp-row" class="qo-input-row" style="display:none">
       <div class="qo-at" id="qo-at-lbl">@</div>
-      <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم یا لینک پیج را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-      <button class="qo-go" onclick="qoShowPkgs()" title="ادامه">&#10132;</button>
+      <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="qoUserInputChanged()" onblur="qoUserBlur()">
+      <button class="qo-go" onclick="qoShowPkgs()" title="ادامه">ادامه &#10132;</button>
     </div>
+    <div id="qo-user-preview" class="qo-user-preview" style="display:none"></div>
     <div id="qo-pkgs-wrap" style="display:none">
       <div class="qo-pkg-hdr" id="qo-pkg-hdr">انتخاب تعداد</div>
       <div class="qo-pkg-grid" id="qo-pkg-grid"></div>
@@ -665,7 +665,8 @@ var QO_PLAT_KEYS={
   instagram:['instagram','اینستاگرام','insta ','ig ','| ig','ig|'],
   tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],
   telegram:['telegram','تلگرام','tg ','| tg'],
-  youtube:['youtube','یوتیوب','yt ','| yt']
+  youtube:['youtube','یوتیوب','yt ','| yt'],
+  facebook:['facebook','فیسبوک','fb ','| fb','fb|']
 };
 // Service type → keywords in name or category
 var QO_SVC_TYPES=[
@@ -716,16 +717,22 @@ function qoFilterSvcs(plat,typeKey){
 }
 
 function qoInit(){
-  // try restore plat from state
-  qoPlatSelect(_qoPlat, document.querySelector('.qo-plat[data-plat="'+_qoPlat+'"]'));
+  var sel=document.getElementById('qo-plat-sel');
+  if(sel) sel.value=_qoPlat;
+  qoPlatSelect(_qoPlat);
 }
 
-function qoPlatSelect(plat,el){
+function qoPlatFromSel(plat){
+  qoPlatSelect(plat);
+}
+
+function qoPlatSelect(plat){
   _qoPlat=plat;
   _qoSvcRow=null;
   _qoQty=0;
-  document.querySelectorAll('.qo-plat').forEach(function(t){t.classList.remove('on');});
-  if(el) el.classList.add('on');
+  var sel=document.getElementById('qo-plat-sel');
+  if(sel) sel.value=plat;
+  qoHideUserPreview();
   qoBuildSvcSel();
 }
 
@@ -791,6 +798,7 @@ function qoSvcChange(){
   overview.style.display='none';
   _qoSvcRow=null;
   _qoQty=0;
+  qoHideUserPreview();
   if(!sel.value){inpRow.style.display='none';return;}
   // find best service for plat+type
   var svcs=qoFilterSvcs(_qoPlat,sel.value);
@@ -815,11 +823,136 @@ function qoUpdateAtLbl(){
     lbl.textContent='@';
     inp.placeholder='یوزرنیم کانال یا گروه (بدون @)';
     inp.style.direction='ltr';
+  } else if(_qoPlat==='facebook'){
+    lbl.textContent='@';
+    inp.placeholder='یوزرنیم یا لینک پیج فیسبوک';
+    inp.style.direction='ltr';
   } else {
     lbl.textContent='@';
     inp.placeholder='یوزرنیم را وارد کنید (بدون @)';
     inp.style.direction='ltr';
   }
+  qoHideUserPreview();
+}
+
+// ── Username validation ──
+var _qoValidateTimer=null;
+var _qoLastValidated='';
+
+var _QO_PLAT_REGEXES={
+  instagram:/^[a-z0-9._]{1,30}$/i,
+  tiktok:/^[a-z0-9._]{2,24}$/i,
+  telegram:/^[a-z0-9_]{5,32}$/i,
+  youtube:/^.{3,100}$/,
+  facebook:/^[a-z0-9.]{5,60}$/i
+};
+
+var _QO_PLAT_PROFILE_URLS={
+  instagram:'https://www.instagram.com/',
+  tiktok:'https://www.tiktok.com/@',
+  telegram:'https://t.me/',
+  youtube:'https://www.youtube.com/@',
+  facebook:'https://www.facebook.com/'
+};
+
+var _QO_PLAT_EMOJIS={
+  instagram:'📸',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'👤'
+};
+
+function qoHideUserPreview(){
+  var p=document.getElementById('qo-user-preview');
+  if(p){p.style.display='none';p.innerHTML='';}
+  _qoLastValidated='';
+}
+
+function qoShowUserPreviewLoading(){
+  var p=document.getElementById('qo-user-preview');
+  if(!p) return;
+  p.innerHTML='<span style="color:var(--mt);font-size:13px">در حال بررسی...</span>';
+  p.style.display='flex';
+}
+
+function qoShowUserPreviewResult(data,username){
+  var p=document.getElementById('qo-user-preview');
+  if(!p) return;
+  if(!data||!data.ok){
+    var errMsg=data&&data.error?data.error:'فرمت نادرست';
+    p.innerHTML='<span class="qo-user-badge err">✕ '+escHtml(errMsg)+'</span>';
+    p.style.display='flex';
+    return;
+  }
+
+  var profileUrl=(_QO_PLAT_PROFILE_URLS[_qoPlat]||'')+encodeURIComponent(username);
+  var emojiPl=_QO_PLAT_EMOJIS[_qoPlat]||'';
+
+  if(data.followers!=null){
+    // Full profile data returned (Instagram)
+    var avatarHtml=data.avatar
+      ?'<img class="qo-user-avatar" src="'+escHtml(data.avatar)+'" onerror="this.style.display=\'none\'">'
+      :'<div class="qo-user-avatar" style="display:flex;align-items:center;justify-content:center;font-size:22px">'+emojiPl+'</div>';
+    var stats='';
+    if(data.followers!=null) stats+='فالوور: '+qoFmtNum(data.followers)+'  ';
+    if(data.following!=null) stats+='دنبال‌شده: '+qoFmtNum(data.following)+'  ';
+    if(data.posts!=null) stats+='پست: '+qoFmtNum(data.posts);
+    var badges='';
+    if(data.verified) badges+=' ✔️';
+    if(data.private) badges+=' 🔒';
+    p.innerHTML=avatarHtml
+      +'<div class="qo-user-info">'
+        +'<div class="qo-user-handle">@'+escHtml(data.username||username)+badges+'</div>'
+        +(data.fullName?'<div style="font-size:12px;color:var(--mt)">'+escHtml(data.fullName)+'</div>':'')
+        +(stats?'<div class="qo-user-stats">'+escHtml(stats.trim())+'</div>':'')
+        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none">مشاهده پروفایل ↗</a>'
+      +'</div>';
+    p.style.display='flex';
+  } else {
+    // Format-only validation
+    p.innerHTML='<div style="display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:22px">'+emojiPl+'</span>'
+      +'<div class="qo-user-info">'
+        +'<div class="qo-user-handle">@'+escHtml(username)+'</div>'
+        +'<div style="margin-top:4px"><span class="qo-user-badge ok">✓ یوزرنیم معتبر</span></div>'
+        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none;margin-top:4px;display:inline-block">مشاهده پروفایل ↗</a>'
+      +'</div>'
+    +'</div>';
+    p.style.display='flex';
+  }
+}
+
+function qoUserInputChanged(){
+  if(_qoValidateTimer) clearTimeout(_qoValidateTimer);
+  var inp=document.getElementById('qo-link-inp');
+  var val=(inp&&inp.value||'').trim().replace(/^@/,'');
+  if(!val){qoHideUserPreview();return;}
+  _qoValidateTimer=setTimeout(function(){qoDoValidate(val);},700);
+}
+
+function qoUserBlur(){
+  if(_qoValidateTimer) clearTimeout(_qoValidateTimer);
+  var inp=document.getElementById('qo-link-inp');
+  var val=(inp&&inp.value||'').trim().replace(/^@/,'');
+  if(!val||val===_qoLastValidated) return;
+  qoDoValidate(val);
+}
+
+function qoDoValidate(username){
+  _qoLastValidated=username;
+  var regex=_QO_PLAT_REGEXES[_qoPlat];
+  if(regex&&!regex.test(username)){
+    qoShowUserPreviewResult({ok:false,error:'فرمت یوزرنیم نادرست است'},username);
+    return;
+  }
+  qoShowUserPreviewLoading();
+  fetch('/api/auth?action=profile-check',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({platform:_qoPlat,username:username})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(_qoLastValidated===username) qoShowUserPreviewResult(d,username);
+  }).catch(function(){
+    // If API call fails, just show format-valid state
+    if(_qoLastValidated===username) qoShowUserPreviewResult({ok:true},username);
+  });
 }
 
 function qoFmtNum(n){

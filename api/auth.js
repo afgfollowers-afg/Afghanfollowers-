@@ -21,16 +21,13 @@ const { rateLimit } = require('./_ratelimit');
 
 const SITE = 'https://afghanfollowers.online';
 
-// Per-IP attempt caps for each action — none of this existed before, so
-// login/register/admin-login could all be brute-forced with no throttling
-// at all. admin-login gets the tightest window since a compromised admin
-// account is the highest-impact outcome; register is capped mainly to stop
-// mass fake-account creation rather than credential guessing.
+// Per-IP attempt caps for each action.
 const RATE_LIMITS = {
   login: [10, 5 * 60 * 1000],
   register: [5, 15 * 60 * 1000],
   google: [10, 5 * 60 * 1000],
-  'admin-login': [5, 15 * 60 * 1000]
+  'admin-login': [5, 15 * 60 * 1000],
+  'profile-check': [30, 5 * 60 * 1000]
 };
 
 async function handleLogin(body) {
@@ -224,16 +221,78 @@ async function handleAdminLogin(body) {
   return { ok: true, token, username: creds.username };
 }
 
+async function handleProfileCheck(body) {
+  const platform = String(body.platform || '').toLowerCase();
+  const username = String(body.username || '').trim().replace(/^@/, '');
+
+  if (!username) return { ok: false, error: 'یوزرنیم وارد نشده' };
+
+  // Platform-specific format validation
+  const fmts = {
+    instagram: /^[a-z0-9._]{1,30}$/i,
+    tiktok: /^[a-z0-9._]{2,24}$/i,
+    telegram: /^[a-z0-9_]{5,32}$/i,
+    youtube: /^.{3,100}$/,
+    facebook: /^[a-z0-9.]{5,60}$/i
+  };
+  const rx = fmts[platform];
+  if (rx && !rx.test(username)) return { ok: false, error: 'فرمت یوزرنیم نادرست است' };
+
+  // For Instagram, try to fetch public profile data
+  if (platform === 'instagram') {
+    try {
+      const r = await fetch(`https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+          'Accept': '*/*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'x-ig-app-id': '936619743392459',
+          'x-asbd-id': '198387',
+          'Referer': 'https://www.instagram.com/'
+        },
+        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const u = data && data.data && data.data.user;
+        if (u) {
+          return {
+            ok: true,
+            username: u.username,
+            fullName: u.full_name || null,
+            avatar: u.profile_pic_url_hd || u.profile_pic_url || null,
+            followers: u.edge_followed_by ? u.edge_followed_by.count : null,
+            following: u.edge_follow ? u.edge_follow.count : null,
+            posts: u.edge_owner_to_timeline_media ? u.edge_owner_to_timeline_media.count : null,
+            verified: u.is_verified || false,
+            private: u.is_private || false
+          };
+        }
+      }
+    } catch (e) {
+      // Instagram blocked or network error — fall through to format-only response
+    }
+  }
+
+  // All other platforms (or Instagram fallback): format validated, no extra data
+  return { ok: true, username, platform, formatOnly: true };
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', SITE);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Content-Type', 'application/json');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  if (!AUTH_CONFIGURED) return res.status(500).json({ ok: false, error: 'Auth not configured. Set AUTH_JWT_SECRET.' });
 
   const action = (req.query && req.query.action) || '';
+
+  // profile-check is a lightweight public GET/POST — skip the auth-required gate
+  if (action !== 'profile-check' && !AUTH_CONFIGURED) {
+    return res.status(500).json({ ok: false, error: 'Auth not configured. Set AUTH_JWT_SECRET.' });
+  }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
+
   const limit = RATE_LIMITS[action];
   if (limit && !rateLimit(req, 'auth:' + action, limit[0], limit[1])) {
     return res.status(429).json({ ok: false, error: 'Too many attempts. Please try again later.' });
@@ -245,6 +304,7 @@ module.exports = async (req, res) => {
     else if (action === 'register') result = await handleRegister(body);
     else if (action === 'google') result = await handleGoogleLogin(body);
     else if (action === 'admin-login') result = await handleAdminLogin(body);
+    else if (action === 'profile-check') result = await handleProfileCheck(body);
     else return res.status(200).json({ ok: false, error: 'Unknown action' });
     return res.status(200).json(result);
   } catch (e) {
