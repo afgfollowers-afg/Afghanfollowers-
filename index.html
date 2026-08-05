@@ -275,6 +275,16 @@ footer a{color:var(--acc2);text-decoration:none;}
 .qo-discount-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.25);padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:var(--gr);}
 @media(max-width:600px){.qo-pkg-qty{font-size:16px;}.qo-pkg{padding:12px 6px;}}
 @media(max-width:400px){.qo-pkg-grid{grid-template-columns:repeat(3,1fr);gap:5px;}}
+/* ── Bilingual EN/FA ── */
+html[lang="en"] body{direction:ltr;}
+html[lang="en"] .hero{text-align:left;}
+html[lang="en"] .ann-feed{text-align:left;}
+html[lang="en"] .ann-feed-arrow{margin-right:0;margin-left:auto;}
+html[lang="en"] .qo-plat-sel{direction:ltr;padding:0 14px 0 40px;}
+html[lang="en"] .qo-plat-sel-wrap::after{left:auto;right:14px;}
+html[lang="en"] .svc-list li:hover{transform:translateX(3px);}
+html[lang="en"] .sub{margin-left:0;}
+#lang-toggle{padding:8px 14px;font-weight:800;letter-spacing:.06em;}
 </style>
 </head>
 <body>
@@ -291,9 +301,10 @@ footer a{color:var(--acc2);text-decoration:none;}
 <header>
   <div class="logo"><img class="logo-ic" src="/icons/nav-badge.png" alt="Afghan Followers"> Afghan Followers</div>
   <nav class="nav-cta">
-    <a class="btn btn-g" href="/blog.html">📝 وبلاگ</a>
-    <a class="btn btn-g" href="/auth.html">ورود</a>
-    <a class="btn btn-p" href="/auth.html">ثبت‌نام رایگان</a>
+    <button id="lang-toggle" class="btn btn-g" onclick="toggleLang()">EN</button>
+    <a class="btn btn-g" href="/blog.html" data-i18n="nav_blog">📝 وبلاگ</a>
+    <a class="btn btn-g" href="/auth.html" data-i18n="nav_login">ورود</a>
+    <a class="btn btn-p" href="/auth.html" data-i18n="nav_register">ثبت‌نام رایگان</a>
   </nav>
 </header>
 
@@ -303,9 +314,9 @@ footer a{color:var(--acc2);text-decoration:none;}
 
 <!-- ══ QUICK ORDER WIDGET ══ -->
 <section id="quick-order">
-  <div class="qo-red-title">⚡ سفارش فوری</div>
-  <h2 style="text-align:center;margin-bottom:8px">همین الان سفارش بده — بدون ثبت‌نام</h2>
-  <p class="section-sub" style="margin-bottom:24px">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
+  <div class="qo-red-title" data-i18n="qo_title">⚡ سفارش فوری</div>
+  <h2 style="text-align:center;margin-bottom:8px" data-i18n="qo_h2">همین الان سفارش بده — بدون ثبت‌نام</h2>
+  <p class="section-sub" style="margin-bottom:24px" data-i18n="qo_sub">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
   <div class="qo-wrap qo-wrap-pulse reveal">
     <div class="qo-plat-sel-wrap">
       <select id="qo-plat-sel" class="qo-plat-sel" onchange="qoPlatFromSel(this.value)">
@@ -317,9 +328,9 @@ footer a{color:var(--acc2);text-decoration:none;}
       </select>
     </div>
     <div id="qo-svc-row" style="margin-bottom:14px;display:none">
-      <label class="qo-form-lbl">نوع سرویس</label>
+      <label class="qo-form-lbl" data-i18n="qo_svc_lbl">نوع سرویس</label>
       <select id="qo-svc-sel" class="qo-form-inp" style="height:46px;cursor:pointer" onchange="qoSvcChange()">
-        <option value="">-- انتخاب کنید --</option>
+        <option value="" data-i18n="qo_svc_default">-- انتخاب کنید --</option>
       </select>
     </div>
     <div id="qo-inp-row" class="qo-input-row" style="display:none">
@@ -327,18 +338,18 @@ footer a{color:var(--acc2);text-decoration:none;}
       <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="qoUserInputChanged()" onblur="qoUserBlur()">
     </div>
     <div id="qo-user-preview" class="qo-user-preview" style="display:none"></div>
-    <button id="qo-go-btn" class="qo-go" onclick="qoShowPkgs()" style="display:none">ادامه &#10132;</button>
+    <button id="qo-go-btn" class="qo-go" onclick="qoShowPkgs()" style="display:none" data-i18n="qo_go">ادامه &#10132;</button>
     <div id="qo-pkgs-wrap" style="display:none">
       <div class="qo-pkg-hdr" id="qo-pkg-hdr">انتخاب تعداد</div>
       <div class="qo-pkg-grid" id="qo-pkg-grid"></div>
     </div>
     <div id="qo-overview" class="qo-overview" style="display:none">
-      <div class="qo-ov-row"><span style="color:var(--mt)">سرویس</span><span id="qo-ov-svc" style="font-weight:700;color:var(--tx)"></span></div>
-      <div class="qo-ov-row"><span style="color:var(--mt)">تعداد</span><span id="qo-ov-qty" style="font-weight:700"></span></div>
-      <div class="qo-ov-row"><span style="color:var(--mt)">لینک/یوزرنیم</span><span id="qo-ov-link" style="font-weight:600;direction:ltr;word-break:break-all;max-width:55%"></span></div>
-      <div class="qo-ov-total"><span style="font-weight:800;font-size:15px">مجموع</span><span id="qo-ov-total" style="font-size:18px;font-weight:900;color:var(--gr)"></span></div>
+      <div class="qo-ov-row"><span style="color:var(--mt)" data-i18n="qo_ov_svc_lbl">سرویس</span><span id="qo-ov-svc" style="font-weight:700;color:var(--tx)"></span></div>
+      <div class="qo-ov-row"><span style="color:var(--mt)" data-i18n="qo_ov_qty_lbl">تعداد</span><span id="qo-ov-qty" style="font-weight:700"></span></div>
+      <div class="qo-ov-row"><span style="color:var(--mt)" data-i18n="qo_ov_link_lbl">لینک/یوزرنیم</span><span id="qo-ov-link" style="font-weight:600;direction:ltr;word-break:break-all;max-width:55%"></span></div>
+      <div class="qo-ov-total"><span style="font-weight:800;font-size:15px" data-i18n="qo_ov_total_lbl">مجموع</span><span id="qo-ov-total" style="font-size:18px;font-weight:900;color:var(--gr)"></span></div>
       <div class="qo-save-note" id="qo-save-note"></div>
-      <button onclick="qoOpenCheckout()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;">پرداخت و ثبت سفارش &#10132;</button>
+      <button onclick="qoOpenCheckout()" style="width:100%;margin-top:14px;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;" data-i18n="qo_checkout_btn">پرداخت و ثبت سفارش &#10132;</button>
     </div>
   </div>
 </section>
@@ -346,25 +357,25 @@ footer a{color:var(--acc2);text-decoration:none;}
 <div id="qo-modal-bg" class="qo-modal-bg" style="display:none" onclick="if(event.target===this)qoCloseCheckout()">
   <div class="qo-modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <div style="font-size:18px;font-weight:800">اطلاعات پرداخت</div>
+      <div style="font-size:18px;font-weight:800" data-i18n="qo_modal_title">اطلاعات پرداخت</div>
       <button onclick="qoCloseCheckout()" style="background:var(--s2);border:1px solid var(--bd);color:var(--mt);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px">&times;</button>
     </div>
     <div style="background:var(--s2);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">سرویس</span><span id="qo-m-svc" style="font-weight:700"></span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)">تعداد</span><span id="qo-m-qty" style="font-weight:700"></span></div>
-      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:8px;padding-top:8px"><span style="font-weight:800">مبلغ</span><span id="qo-m-total" style="font-weight:900;color:var(--gr);font-size:16px"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)" data-i18n="qo_m_svc_lbl">سرویس</span><span id="qo-m-svc" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--mt)" data-i18n="qo_m_qty_lbl">تعداد</span><span id="qo-m-qty" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--bd);margin-top:8px;padding-top:8px"><span style="font-weight:800" data-i18n="qo_m_total_lbl">مبلغ</span><span id="qo-m-total" style="font-weight:900;color:var(--gr);font-size:16px"></span></div>
     </div>
     <div style="margin-bottom:16px">
-      <label class="qo-form-lbl">نام *</label>
+      <label class="qo-form-lbl" data-i18n="qo_fname_lbl">نام *</label>
       <input id="qo-fname" class="qo-form-inp" type="text" placeholder="نام" autocomplete="given-name">
-      <label class="qo-form-lbl">فامیلی *</label>
+      <label class="qo-form-lbl" data-i18n="qo_lname_lbl">فامیلی *</label>
       <input id="qo-lname" class="qo-form-inp" type="text" placeholder="فامیلی" autocomplete="family-name">
-      <label class="qo-form-lbl">ایمیل *</label>
+      <label class="qo-form-lbl" data-i18n="qo_email_lbl">ایمیل *</label>
       <input id="qo-email" class="qo-form-inp" type="email" placeholder="example@email.com" autocomplete="email" dir="ltr">
     </div>
     <div id="qo-pp-status" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--mt)"></div>
     <div id="qo-pp-btn-wrap"></div>
-    <p style="text-align:center;font-size:11px;color:var(--mt);margin-top:12px">پرداخت از طریق PayPal — امن و رمزگذاری‌شده</p>
+    <p style="text-align:center;font-size:11px;color:var(--mt);margin-top:12px" data-i18n="qo_secure">پرداخت از طریق PayPal — امن و رمزگذاری‌شده</p>
   </div>
 </div>
 
@@ -372,29 +383,29 @@ footer a{color:var(--acc2);text-decoration:none;}
   <div>
     <div class="live-chip">
       <span class="pulse-dot"></span>
-      پشتیبانی تلگرام هم‌اکنون آنلاین است
+      <span data-i18n="live_chip">پشتیبانی تلگرام هم‌اکنون آنلاین است</span>
     </div>
-    <div class="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
-    <h1>رشدی که <span>می‌توانی ببینی</span></h1>
-    <p class="sub">افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی 24 ساعته.</p>
+    <div class="badge" data-i18n="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
+    <h1 data-i18n="h1">رشدی که <span>می‌توانی ببینی</span></h1>
+    <p class="sub" data-i18n="sub">افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی 24 ساعته.</p>
     <div class="hero-cta">
-      <a class="btn btn-p" href="/auth.html">🎉 همین حالا ثبت‌نام کنید</a>
-      <a class="btn btn-g" href="/auth.html">مشاهده قیمت‌ها و ورود</a>
+      <a class="btn btn-p" href="/auth.html" data-i18n="cta_register">🎉 همین حالا ثبت‌نام کنید</a>
+      <a class="btn btn-g" href="/auth.html" data-i18n="cta_panel">مشاهده قیمت‌ها و ورود</a>
     </div>
     <ul class="trust-row">
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg> بدون نیاز به رمز عبور</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg> گارانتی جبران ریزش</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg> تحویل از چند دقیقه</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg><span data-i18n="trust_1"> بدون نیاز به رمز عبور</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg><span data-i18n="trust_2"> گارانتی جبران ریزش</span></li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="trust_3"> تحویل از چند دقیقه</span></li>
     </ul>
   </div>
 
   <div class="chart-card">
     <div class="chart-head">
       <div>
-        <div class="chart-title">نمودار نمونه — رشد فالوور</div>
+        <div class="chart-title" data-i18n="chart_title">نمودار نمونه — رشد فالوور</div>
         <div class="chart-metric">+4,820 <small>▲ 31٪</small></div>
       </div>
-      <div class="chart-sample">نمونه</div>
+      <div class="chart-sample" data-i18n="chart_sample">نمونه</div>
     </div>
     <svg class="chart-svg" viewBox="0 0 392 150" preserveAspectRatio="none" role="img" aria-label="نمودار نمونه‌ی رشد فالوور رو به بالا">
       <defs>
@@ -407,105 +418,105 @@ footer a{color:var(--acc2);text-decoration:none;}
       <path class="chart-line" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26"/>
       <circle class="chart-dot" r="4.5" fill="#e2e8f0"/>
     </svg>
-    <div class="chart-foot"><span>شنبه</span><span>سه‌شنبه</span><span>پنج‌شنبه</span><span>امروز</span></div>
+    <div class="chart-foot"><span data-i18n="chart_d1">شنبه</span><span data-i18n="chart_d2">سه‌شنبه</span><span data-i18n="chart_d3">پنج‌شنبه</span><span data-i18n="chart_d4">امروز</span></div>
   </div>
 </div>
 <div class="stats">
-  <div class="stat"><b>+12,800</b><span>کاربر راضی</span><div class="tick"></div></div>
-  <div class="stat"><b>+94,000</b><span>سفارش انجام‌شده</span><div class="tick"></div></div>
-  <div class="stat"><b>+250</b><span>سرویس</span><div class="tick"></div></div>
-  <div class="stat"><b>24/7</b><span>پشتیبانی</span><div class="tick"></div></div>
+  <div class="stat"><b>+12,800</b><span data-i18n="stat_1">کاربر راضی</span><div class="tick"></div></div>
+  <div class="stat"><b>+94,000</b><span data-i18n="stat_2">سفارش انجام‌شده</span><div class="tick"></div></div>
+  <div class="stat"><b>+250</b><span data-i18n="stat_3">سرویس</span><div class="tick"></div></div>
+  <div class="stat"><b>24/7</b><span data-i18n="stat_4">پشتیبانی</span><div class="tick"></div></div>
 </div>
 
 
 <section class="cta-band reveal" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(124,92,252,.12));border-color:rgba(0,210,160,.3)">
   <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
-  <h2>🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
-  <p class="sub" style="margin-bottom:20px;margin-inline:auto">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
-  <a class="btn btn-p" href="/auth.html">ثبت‌نام رایگان</a>
+  <h2 data-i18n="ref_h2">🎁 دوستانت را دعوت کن و لایک رایگان بگیر</h2>
+  <p class="sub" style="margin-bottom:20px;margin-inline:auto" data-i18n="ref_sub">اینستاگرام یا تیک‌تاک — کاملاً رایگان</p>
+  <a class="btn btn-p" href="/auth.html" data-i18n="ref_btn">ثبت‌نام رایگان</a>
 </section>
 
 <section>
-  <div class="eyebrow">پلتفرم‌ها</div>
-  <h2>جایی که مخاطبت آنجاست</h2>
-  <div class="section-sub">یک پنل، همه‌ی شبکه‌های اجتماعی — Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
+  <div class="eyebrow" data-i18n="plat_eyebrow">پلتفرم‌ها</div>
+  <h2 data-i18n="plat_h2">جایی که مخاطبت آنجاست</h2>
+  <div class="section-sub" data-i18n="plat_sub">یک پنل، همه‌ی شبکه‌های اجتماعی — Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch</div>
   <div class="chain">
     <div class="chain-line"></div>
     <div class="platforms">
-      <div class="plat reveal"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span>اینستاگرام</div>
-      <div class="plat reveal"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span>تیک‌تاک</div>
-      <div class="plat reveal"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span>تلگرام</div>
-      <div class="plat reveal"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span>یوتیوب</div>
-      <div class="plat reveal"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span>فیسبوک</div>
-      <div class="plat reveal"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span>ایکس (توییتر)</div>
+      <div class="plat reveal"><span class="ic" style="background:linear-gradient(135deg,#f09433,#dc2743,#bc1888)"><svg width="20" height="20"><use href="#ico-instagram"/></svg></span><span data-i18n="plat_ig">اینستاگرام</span></div>
+      <div class="plat reveal"><span class="ic" style="background:#010101"><svg width="20" height="20"><use href="#ico-tiktok"/></svg></span><span data-i18n="plat_tt">تیک‌تاک</span></div>
+      <div class="plat reveal"><span class="ic" style="background:#2AABEE"><svg width="20" height="20"><use href="#ico-telegram"/></svg></span><span data-i18n="plat_tg">تلگرام</span></div>
+      <div class="plat reveal"><span class="ic" style="background:#FF0000"><svg width="20" height="20"><use href="#ico-youtube"/></svg></span><span data-i18n="plat_yt">یوتیوب</span></div>
+      <div class="plat reveal"><span class="ic" style="background:#1877F2"><svg width="20" height="20"><use href="#ico-facebook"/></svg></span><span data-i18n="plat_fb">فیسبوک</span></div>
+      <div class="plat reveal"><span class="ic" style="background:#000"><svg width="20" height="20"><use href="#ico-x"/></svg></span><span data-i18n="plat_x">ایکس (توییتر)</span></div>
     </div>
   </div>
 </section>
 
 <section>
-  <h2>محبوب‌ترین سرویس‌ها</h2>
-  <div class="section-sub">قیمت‌ها و جزئیات کامل هر سرویس پس از ورود به پنل نمایش داده می‌شود</div>
+  <h2 data-i18n="svc_h2">محبوب‌ترین سرویس‌ها</h2>
+  <div class="section-sub" data-i18n="svc_sub">قیمت‌ها و جزئیات کامل هر سرویس پس از ورود به پنل نمایش داده می‌شود</div>
   <ul class="svc-list">
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور اینستاگرام (Instagram Followers)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید لایک اینستاگرام (Instagram Likes)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور تیک‌تاک (TikTok Followers)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو تیک‌تاک (TikTok Views)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ممبر تلگرام (Telegram Members)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید ویو یوتیوب (YouTube Views)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید سابسکرایبر یوتیوب (YouTube Subscribers)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور فیسبوک (Facebook Followers)</li>
-    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> خرید فالوور ایکس/توییتر (X / Twitter Followers)</li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_1"> خرید فالوور اینستاگرام (Instagram Followers)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_2"> خرید لایک اینستاگرام (Instagram Likes)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_3"> خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_4"> خرید فالوور تیک‌تاک (TikTok Followers)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_5"> خرید ویو تیک‌تاک (TikTok Views)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_6"> خرید ممبر تلگرام (Telegram Members)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_7"> خرید ویو یوتیوب (YouTube Views)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_8"> خرید سابسکرایبر یوتیوب (YouTube Subscribers)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_9"> خرید فالوور فیسبوک (Facebook Followers)</span></li>
+    <li class="reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="svc_li_10"> خرید فالوور ایکس/توییتر (X / Twitter Followers)</span></li>
   </ul>
 </section>
 
 <section>
-  <div class="eyebrow">اعتماد</div>
-  <h2>چرا کاربران به ما اعتماد می‌کنند</h2>
-  <div class="section-sub">در بازاری که نسبت به پرداخت آنلاین حساس است، شفافیت مهم‌ترین چیزی است که ارائه می‌کنیم.</div>
+  <div class="eyebrow" data-i18n="trust_eyebrow">اعتماد</div>
+  <h2 data-i18n="trust_h2">چرا کاربران به ما اعتماد می‌کنند</h2>
+  <div class="section-sub" data-i18n="trust_section_sub">در بازاری که نسبت به پرداخت آنلاین حساس است، شفافیت مهم‌ترین چیزی است که ارائه می‌کنیم.</div>
   <div class="trust-grid">
     <div class="trust-card reveal">
-      <div class="trust-num">+12,800 <small>کاربر</small></div>
-      <div class="trust-label">کاربر راضی که تاکنون از پنل استفاده کرده‌اند</div>
+      <div class="trust-num">+12,800 <small data-i18n="trust_n1_small">کاربر</small></div>
+      <div class="trust-label" data-i18n="trust_n1_label">کاربر راضی که تاکنون از پنل استفاده کرده‌اند</div>
     </div>
     <div class="trust-card reveal">
-      <div class="trust-num">+94,000 <small>سفارش</small></div>
-      <div class="trust-label">سفارش با موفقیت انجام‌شده تا امروز</div>
+      <div class="trust-num">+94,000 <small data-i18n="trust_n2_small">سفارش</small></div>
+      <div class="trust-label" data-i18n="trust_n2_label">سفارش با موفقیت انجام‌شده تا امروز</div>
     </div>
     <div class="trust-card reveal">
-      <div class="trust-num">24/7 <small>پشتیبانی</small></div>
-      <div class="trust-label">پاسخ‌گویی تلگرام و واتساپ در تمام ساعات</div>
+      <div class="trust-num">24/7 <small data-i18n="trust_n3_small">پشتیبانی</small></div>
+      <div class="trust-label" data-i18n="trust_n3_label">پاسخ‌گویی تلگرام و واتساپ در تمام ساعات</div>
     </div>
   </div>
   <div class="trust-badges">
-    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg> بدون نیاز به رمز عبور</span>
-    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg> گارانتی جبران ریزش</span>
-    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg> پرداخت امن</span>
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg><span data-i18n="trust_b1"> بدون نیاز به رمز عبور</span></span>
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg><span data-i18n="trust_b2"> گارانتی جبران ریزش</span></span>
+    <span class="tbadge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="10" width="18" height="10" rx="2"/><path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg><span data-i18n="trust_b3"> پرداخت امن</span></span>
   </div>
 </section>
 
 <section>
-  <h2>چرا افغان فالوورز؟</h2>
+  <h2 data-i18n="why_h2">چرا افغان فالوورز؟</h2>
   <div class="grid3">
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><h3>تحویل سریع</h3><p>شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg></span><h3>امن و بدون نیاز به رمز عبور</h3><p>فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><h3>ارزان‌ترین قیمت</h3><p>قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg></span><h3>گارانتی Refill</h3><p>بسیاری از سرویس‌ها گارانتی جبران ریزش (30 تا 365 روزه یا مادام‌العمر) دارند.</p></div>
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7v4a3 3 0 0 0 3 3h1v-7H6v-.5a6 6 0 0 1 12 0v.5h-3v7h1a3 3 0 0 0 3-3v-4a7 7 0 0 0-7-7z"/><path d="M9 19v1a3 3 0 0 0 6 0v-1"/></svg></span><h3>پشتیبانی 24 ساعته</h3><p>پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
-    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M8 15c1 1.5 2.5 2 4 2s3-.5 4-2"/></svg></span><h3>پنل هوشمند</h3><p>ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><h3 data-i18n="why_1_h">تحویل سریع</h3><p data-i18n="why_1_p">شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg></span><h3 data-i18n="why_2_h">امن و بدون نیاز به رمز عبور</h3><p data-i18n="why_2_p">فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><h3 data-i18n="why_3_h">ارزان‌ترین قیمت</h3><p data-i18n="why_3_p">قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg></span><h3 data-i18n="why_4_h">گارانتی Refill</h3><p data-i18n="why_4_p">بسیاری از سرویس‌ها گارانتی جبران ریزش (30 تا 365 روزه یا مادام‌العمر) دارند.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7v4a3 3 0 0 0 3 3h1v-7H6v-.5a6 6 0 0 1 12 0v.5h-3v7h1a3 3 0 0 0 3-3v-4a7 7 0 0 0-7-7z"/><path d="M9 19v1a3 3 0 0 0 6 0v-1"/></svg></span><h3 data-i18n="why_5_h">پشتیبانی 24 ساعته</h3><p data-i18n="why_5_p">پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.</p></div>
+    <div class="card reveal"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9h.01M15 9h.01M8 15c1 1.5 2.5 2 4 2s3-.5 4-2"/></svg></span><h3 data-i18n="why_6_h">پنل هوشمند</h3><p data-i18n="why_6_p">ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.</p></div>
   </div>
 </section>
 
 <section class="cta-band ember reveal">
-  <div class="eyebrow">شروع کنید</div>
-  <h2>رشد بعدی، همین امروز شروع می‌شود</h2>
-  <p class="sub" style="margin-bottom:20px;margin-inline:auto">در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.</p>
-  <a class="btn btn-ember" href="/auth.html">🚀 ثبت‌نام رایگان / ورود</a>
+  <div class="eyebrow" data-i18n="final_eyebrow">شروع کنید</div>
+  <h2 data-i18n="final_h2">رشد بعدی، همین امروز شروع می‌شود</h2>
+  <p class="sub" style="margin-bottom:20px;margin-inline:auto" data-i18n="final_sub">در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.</p>
+  <a class="btn btn-ember" href="/auth.html" data-i18n="final_btn">🚀 ثبت‌نام رایگان / ورود</a>
 </section>
 </main>
 
 <footer>
-  © <span id="y"></span> Afghan Followers · <a href="/blog.html">وبلاگ</a> · <a href="/auth.html">ورود / ثبت‌نام</a>
+  © <span id="y"></span> Afghan Followers · <a href="/blog.html" data-i18n="footer_blog">وبلاگ</a> · <a href="/auth.html" data-i18n="footer_auth">ورود / ثبت‌نام</a>
   <script>document.getElementById('y').textContent=new Date().getFullYear();</script>
 </footer>
 
@@ -514,6 +525,218 @@ footer a{color:var(--acc2);text-decoration:none;}
 // must match the DB_SERVICE_KEY env var, and the same value used in
 // auth.html/blog.html/smm-panel.html.
 var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c68231c8';
+
+// ── Bilingual FA/EN ──
+var LANG={
+fa:{
+  nav_blog:'📝 وبلاگ',nav_login:'ورود',nav_register:'ثبت‌نام رایگان',
+  qo_title:'⚡ سفارش فوری',
+  qo_h2:'همین الان سفارش بده — بدون ثبت‌نام',
+  qo_sub:'بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.',
+  qo_svc_lbl:'نوع سرویس',qo_svc_default:'-- انتخاب کنید --',qo_go:'ادامه &#10132;',
+  qo_pkg_hdr:'انتخاب تعداد',
+  qo_ov_svc_lbl:'سرویس',qo_ov_qty_lbl:'تعداد',qo_ov_link_lbl:'لینک/یوزرنیم',qo_ov_total_lbl:'مجموع',
+  qo_checkout_btn:'پرداخت و ثبت سفارش &#10132;',
+  qo_modal_title:'اطلاعات پرداخت',qo_m_svc_lbl:'سرویس',qo_m_qty_lbl:'تعداد',qo_m_total_lbl:'مبلغ',
+  qo_fname_lbl:'نام *',qo_lname_lbl:'فامیلی *',qo_email_lbl:'ایمیل *',
+  qo_secure:'پرداخت از طریق PayPal — امن و رمزگذاری‌شده',
+  live_chip:'پشتیبانی تلگرام هم‌اکنون آنلاین است',
+  badge:'🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان',
+  h1:'رشدی که <span>می‌توانی ببینی</span>',
+  sub:'افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی 24 ساعته.',
+  cta_register:'🎉 همین حالا ثبت‌نام کنید',cta_panel:'مشاهده قیمت‌ها و ورود',
+  trust_1:' بدون نیاز به رمز عبور',trust_2:' گارانتی جبران ریزش',trust_3:' تحویل از چند دقیقه',
+  chart_title:'نمودار نمونه — رشد فالوور',chart_sample:'نمونه',
+  chart_d1:'شنبه',chart_d2:'سه‌شنبه',chart_d3:'پنج‌شنبه',chart_d4:'امروز',
+  stat_1:'کاربر راضی',stat_2:'سفارش انجام‌شده',stat_3:'سرویس',stat_4:'پشتیبانی',
+  ref_h2:'🎁 دوستانت را دعوت کن و لایک رایگان بگیر',
+  ref_sub:'اینستاگرام یا تیک‌تاک — کاملاً رایگان',ref_btn:'ثبت‌نام رایگان',
+  plat_eyebrow:'پلتفرم‌ها',plat_h2:'جایی که مخاطبت آنجاست',
+  plat_sub:'یک پنل، همه‌ی شبکه‌های اجتماعی — Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch',
+  plat_ig:'اینستاگرام',plat_tt:'تیک‌تاک',plat_tg:'تلگرام',plat_yt:'یوتیوب',plat_fb:'فیسبوک',plat_x:'ایکس (توییتر)',
+  svc_h2:'محبوب‌ترین سرویس‌ها',
+  svc_sub:'قیمت‌ها و جزئیات کامل هر سرویس پس از ورود به پنل نمایش داده می‌شود',
+  svc_li_1:' خرید فالوور اینستاگرام (Instagram Followers)',svc_li_2:' خرید لایک اینستاگرام (Instagram Likes)',
+  svc_li_3:' خرید ویو اینستاگرام و ریلز (Instagram Views/Reels)',svc_li_4:' خرید فالوور تیک‌تاک (TikTok Followers)',
+  svc_li_5:' خرید ویو تیک‌تاک (TikTok Views)',svc_li_6:' خرید ممبر تلگرام (Telegram Members)',
+  svc_li_7:' خرید ویو یوتیوب (YouTube Views)',svc_li_8:' خرید سابسکرایبر یوتیوب (YouTube Subscribers)',
+  svc_li_9:' خرید فالوور فیسبوک (Facebook Followers)',svc_li_10:' خرید فالوور ایکس/توییتر (X / Twitter Followers)',
+  trust_eyebrow:'اعتماد',trust_h2:'چرا کاربران به ما اعتماد می‌کنند',
+  trust_section_sub:'در بازاری که نسبت به پرداخت آنلاین حساس است، شفافیت مهم‌ترین چیزی است که ارائه می‌کنیم.',
+  trust_n1_small:'کاربر',trust_n2_small:'سفارش',trust_n3_small:'پشتیبانی',
+  trust_n1_label:'کاربر راضی که تاکنون از پنل استفاده کرده‌اند',
+  trust_n2_label:'سفارش با موفقیت انجام‌شده تا امروز',
+  trust_n3_label:'پاسخ‌گویی تلگرام و واتساپ در تمام ساعات',
+  trust_b1:' بدون نیاز به رمز عبور',trust_b2:' گارانتی جبران ریزش',trust_b3:' پرداخت امن',
+  why_h2:'چرا افغان فالوورز؟',
+  why_1_h:'تحویل سریع',why_1_p:'شروع اکثر سفارش‌ها ظرف چند دقیقه تا چند ساعت پس از پرداخت.',
+  why_2_h:'امن و بدون نیاز به رمز عبور',why_2_p:'فقط لینک یا یوزرنیم عمومی لازم است — هیچ‌وقت رمز عبور شما را نمی‌خواهیم.',
+  why_3_h:'ارزان‌ترین قیمت',why_3_p:'قیمت رقابتی برای فالوور، لایک و ویو با پرداخت PayPal، ارز دیجیتال یا حواله/نقدی.',
+  why_4_h:'گارانتی Refill',why_4_p:'بسیاری از سرویس‌ها گارانتی جبران ریزش (30 تا 365 روزه یا مادام‌العمر) دارند.',
+  why_5_h:'پشتیبانی 24 ساعته',why_5_p:'پشتیبانی تلگرام و واتساپ همیشه در دسترس شماست.',
+  why_6_h:'پنل هوشمند',why_6_p:'ثبت سفارش آسان، پیگیری لحظه‌ای وضعیت، و دستیار هوش مصنوعی برای راهنمایی.',
+  final_eyebrow:'شروع کنید',final_h2:'رشد بعدی، همین امروز شروع می‌شود',
+  final_sub:'در کمتر از یک دقیقه ثبت‌نام کنید و اولین سفارش خود را ثبت کنید.',
+  final_btn:'🚀 ثبت‌نام رایگان / ورود',
+  footer_blog:'وبلاگ',footer_auth:'ورود / ثبت‌نام',
+  ai_title:'دستیار هوشمند',ai_send:'ارسال',
+  // JS-only strings
+  inp_ph_default:'یوزرنیم را وارد کنید (بدون @)',
+  inp_ph_youtube:'لینک ویدیو یا کانال را وارد کنید',
+  inp_ph_telegram:'یوزرنیم کانال یا گروه (بدون @)',
+  inp_ph_facebook:'یوزرنیم یا لینک پیج فیسبوک',
+  checking:'در حال بررسی...',invalid_fmt:'فرمت یوزرنیم نادرست است',
+  valid:'✓ یوزرنیم معتبر',view_profile:'مشاهده پروفایل ↗',
+  followers_lbl:'فالوور',following_lbl:'دنبال‌شده',posts_lbl:'پست',
+  no_svc:'در حال حاضر سرویسی برای این پلتفرم موجود نیست.',
+  no_svc_contact:'پشتیبانی تلگرام',
+  svc_not_found:'سرویسی یافت نشد. لطفاً نوع دیگری انتخاب کنید یا با ',svc_not_found2:' تماس بگیرید.',
+  popular:'محبوب',
+  save_note:'با ثبت‌نام رایگان ',save_note2:' صرفه‌جویی کنید',
+  success_h2:'سفارش ثبت شد!',success_code:'کد پیگیری سفارش شما:',
+  success_note:'این کد را نزد خود نگه دارید. پیگیری سفارش از طریق پشتیبانی تلگرام ممکن است.',
+  success_email:'اطلاعات به ',success_email2:' ارسال خواهد شد.',success_tg:'پیگیری در تلگرام',
+  pp_no_online:'در حال حاضر پرداخت آنلاین فعال نیست.<br>برای ثبت سفارش با پشتیبانی تماس بگیرید:',
+  pp_tg_btn:'📱 پشتیبانی تلگرام',
+  pp_err_load:'خطا در بارگذاری PayPal. لطفاً اتصال اینترنت را بررسی کنید.',
+  pp_not_loaded:'PayPal بارگذاری نشد.',
+  pp_enter_fname:'لطفاً نام را وارد کنید.',pp_enter_lname:'لطفاً فامیلی را وارد کنید.',
+  pp_enter_email:'لطفاً یک ایمیل معتبر وارد کنید.',
+  pp_verifying:'در حال تأیید پرداخت...',
+  pp_net_err:'خطای شبکه — لطفاً دوباره تلاش کنید.',
+  pp_err:'خطای PayPal — لطفاً دوباره تلاش کنید.',pp_cancelled:'پرداخت لغو شد.',
+  ai_typing:'در حال تایپ...',
+  ai_err_reply:'متأسفانه الان نمی‌تونم جواب بدم. لطفاً از دکمه‌ی تلگرام پیام بدید.',
+  ai_net_err:'خطا در اتصال. لطفاً دوباره امتحان کنید.',
+  plat_opt_ig:'📸 اینستاگرام',plat_opt_tt:'🎵 تیک‌تاک',plat_opt_tg:'✈️ تلگرام',plat_opt_yt:'▶️ یوتیوب',plat_opt_fb:'👤 فیسبوک',
+  svc_type_followers:'فالوور',svc_type_likes:'لایک',svc_type_views:'ویو / بازدید',
+  svc_type_members:'ممبر',svc_type_comments:'کامنت',svc_type_shares:'اشتراک‌گذاری'
+},
+en:{
+  nav_blog:'📝 Blog',nav_login:'Login',nav_register:'Sign Up Free',
+  qo_title:'⚡ Quick Order',
+  qo_h2:'Order Now — No Sign-Up Required',
+  qo_sub:'No account needed — just username, quantity, and payment. Prices are slightly higher than for registered customers. <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">Sign up free</a> for better pricing.',
+  qo_svc_lbl:'Service Type',qo_svc_default:'-- Select --',qo_go:'Continue &#10132;',
+  qo_pkg_hdr:'Select Quantity',
+  qo_ov_svc_lbl:'Service',qo_ov_qty_lbl:'Quantity',qo_ov_link_lbl:'Link / Username',qo_ov_total_lbl:'Total',
+  qo_checkout_btn:'Pay & Place Order &#10132;',
+  qo_modal_title:'Payment Details',qo_m_svc_lbl:'Service',qo_m_qty_lbl:'Quantity',qo_m_total_lbl:'Amount',
+  qo_fname_lbl:'First Name *',qo_lname_lbl:'Last Name *',qo_email_lbl:'Email *',
+  qo_secure:'Payment via PayPal — Secure & Encrypted',
+  live_chip:'Telegram support is online now',
+  badge:'🚀 Best SMM Panel in Afghanistan',
+  h1:'Growth You Can <span>See</span>',
+  sub:'Afghan Followers helps you buy real Instagram followers, likes, Telegram members, TikTok followers & YouTube views — cheap prices, fast delivery, 24/7 support.',
+  cta_register:'🎉 Sign Up Now',cta_panel:'View Prices & Login',
+  trust_1:' No Password Required',trust_2:' Refill Guarantee',trust_3:' Delivery in Minutes',
+  chart_title:'Sample Chart — Follower Growth',chart_sample:'Sample',
+  chart_d1:'Sat',chart_d2:'Tue',chart_d3:'Thu',chart_d4:'Today',
+  stat_1:'Happy Users',stat_2:'Orders Completed',stat_3:'Services',stat_4:'Support',
+  ref_h2:'🎁 Invite Friends & Get Free Likes',
+  ref_sub:'Instagram or TikTok — Completely Free',ref_btn:'Sign Up Free',
+  plat_eyebrow:'PLATFORMS',plat_h2:'Where Your Audience Is',
+  plat_sub:'One panel, all social networks — Instagram · TikTok · Telegram · YouTube · Facebook · X (Twitter) · WhatsApp · LinkedIn · Twitch',
+  plat_ig:'Instagram',plat_tt:'TikTok',plat_tg:'Telegram',plat_yt:'YouTube',plat_fb:'Facebook',plat_x:'X (Twitter)',
+  svc_h2:'Most Popular Services',
+  svc_sub:'Full pricing and service details are shown after logging in to the panel',
+  svc_li_1:' Buy Instagram Followers',svc_li_2:' Buy Instagram Likes',
+  svc_li_3:' Buy Instagram Views & Reels',svc_li_4:' Buy TikTok Followers',
+  svc_li_5:' Buy TikTok Views',svc_li_6:' Buy Telegram Members',
+  svc_li_7:' Buy YouTube Views',svc_li_8:' Buy YouTube Subscribers',
+  svc_li_9:' Buy Facebook Followers',svc_li_10:' Buy X / Twitter Followers',
+  trust_eyebrow:'TRUST',trust_h2:'Why Users Trust Us',
+  trust_section_sub:'In a market sensitive to online payments, transparency is the most important thing we offer.',
+  trust_n1_small:'Users',trust_n2_small:'Orders',trust_n3_small:'Support',
+  trust_n1_label:'Happy users who have used the panel to date',
+  trust_n2_label:'Orders successfully completed to date',
+  trust_n3_label:'Telegram & WhatsApp support available around the clock',
+  trust_b1:' No Password Required',trust_b2:' Refill Guarantee',trust_b3:' Secure Payment',
+  why_h2:'Why Afghan Followers?',
+  why_1_h:'Fast Delivery',why_1_p:'Most orders start within minutes to hours after payment.',
+  why_2_h:'Safe, No Password Needed',why_2_p:'Only your public link or username — we never ask for your password.',
+  why_3_h:'Cheapest Prices',why_3_p:'Competitive pricing for followers, likes & views via PayPal, crypto, or cash transfer.',
+  why_4_h:'Refill Guarantee',why_4_p:'Many services include a refill guarantee (30–365 days or lifetime).',
+  why_5_h:'24/7 Support',why_5_p:'Telegram and WhatsApp support is always available.',
+  why_6_h:'Smart Panel',why_6_p:'Easy ordering, real-time status tracking, and AI assistant for guidance.',
+  final_eyebrow:'GET STARTED',final_h2:'Your Next Growth Starts Today',
+  final_sub:'Sign up in less than a minute and place your first order.',
+  final_btn:'🚀 Sign Up Free / Login',
+  footer_blog:'Blog',footer_auth:'Login / Sign Up',
+  ai_title:'AI Assistant',ai_send:'Send',
+  // JS-only strings
+  inp_ph_default:'Enter username (without @)',
+  inp_ph_youtube:'Enter video or channel link',
+  inp_ph_telegram:'Channel or group username (without @)',
+  inp_ph_facebook:'Username or Facebook page link',
+  checking:'Checking...',invalid_fmt:'Invalid username format',
+  valid:'✓ Valid username',view_profile:'View Profile ↗',
+  followers_lbl:'Followers',following_lbl:'Following',posts_lbl:'Posts',
+  no_svc:'No services currently available for this platform.',
+  no_svc_contact:'Telegram Support',
+  svc_not_found:'No service found. Try another type or contact ',svc_not_found2:'.',
+  popular:'Popular',
+  save_note:'Save ',save_note2:' by signing up free',
+  success_h2:'Order Placed!',success_code:'Your order tracking code:',
+  success_note:'Keep this code. You can track your order via Telegram support.',
+  success_email:'Details will be sent to ',success_email2:'.',success_tg:'Track on Telegram',
+  pp_no_online:'Online payment is not currently active.<br>Contact support to place an order:',
+  pp_tg_btn:'📱 Telegram Support',
+  pp_err_load:'Error loading PayPal. Please check your internet connection.',
+  pp_not_loaded:'PayPal could not be loaded.',
+  pp_enter_fname:'Please enter your first name.',pp_enter_lname:'Please enter your last name.',
+  pp_enter_email:'Please enter a valid email address.',
+  pp_verifying:'Verifying payment...',
+  pp_net_err:'Network error — please try again.',
+  pp_err:'PayPal error — please try again.',pp_cancelled:'Payment cancelled.',
+  ai_typing:'Typing...',
+  ai_err_reply:"Sorry, I can't respond right now. Please message us via Telegram.",
+  ai_net_err:'Connection error. Please try again.',
+  plat_opt_ig:'📸 Instagram',plat_opt_tt:'🎵 TikTok',plat_opt_tg:'✈️ Telegram',plat_opt_yt:'▶️ YouTube',plat_opt_fb:'👤 Facebook',
+  svc_type_followers:'Followers',svc_type_likes:'Likes',svc_type_views:'Views',
+  svc_type_members:'Members',svc_type_comments:'Comments',svc_type_shares:'Shares'
+}
+};
+var _lang=localStorage.getItem('smm_lang')||'fa';
+function T(k){return(LANG[_lang]||LANG.fa)[k]||'';}
+function setLang(code){
+  _lang=code;
+  localStorage.setItem('smm_lang',code);
+  var html=document.documentElement;
+  html.lang=code;
+  html.dir=code==='en'?'ltr':'rtl';
+  var btn=document.getElementById('lang-toggle');
+  if(btn) btn.textContent=code==='en'?'فا':'EN';
+  var L=LANG[code]||LANG.fa;
+  document.querySelectorAll('[data-i18n]').forEach(function(el){
+    var key=el.getAttribute('data-i18n');
+    if(L[key]!=null) el.innerHTML=L[key];
+  });
+  // platform selector options
+  var ps=document.getElementById('qo-plat-sel');
+  if(ps){
+    var popts=[['instagram','plat_opt_ig'],['tiktok','plat_opt_tt'],['telegram','plat_opt_tg'],['youtube','plat_opt_yt'],['facebook','plat_opt_fb']];
+    popts.forEach(function(pair){
+      var opt=ps.querySelector('option[value="'+pair[0]+'"]');
+      if(opt) opt.textContent=L[pair[1]]||opt.textContent;
+    });
+  }
+  // service type dropdown labels
+  var ss=document.getElementById('qo-svc-sel');
+  if(ss){
+    var stmap={followers:'svc_type_followers',likes:'svc_type_likes',views:'svc_type_views',members:'svc_type_members',comments:'svc_type_comments',shares:'svc_type_shares'};
+    Array.from(ss.options).forEach(function(opt){
+      if(!opt.value) return;
+      var lk=stmap[opt.value];
+      if(lk&&L[lk]) opt.textContent=L[lk];
+    });
+  }
+  // AI widget placeholder
+  var ai=document.getElementById('ai-widget-input');
+  if(ai) ai.placeholder=L.ai_send==='Send'?'Ask a question...':'سوالتون رو بنویسید...';
+}
+function toggleLang(){setLang(_lang==='fa'?'en':'fa');}
+
 (function(){
   var _fetch=window.fetch;
   window.fetch=function(url,opts){
@@ -743,7 +966,7 @@ function qoBuildSvcSel(){
   var pkgsWrap=document.getElementById('qo-pkgs-wrap');
   var overview=document.getElementById('qo-overview');
 
-  sel.innerHTML='<option value="">-- انتخاب کنید --</option>';
+  sel.innerHTML='<option value="" data-i18n="qo_svc_default">'+T('qo_svc_default')+'</option>';
   pkgsWrap.style.display='none';
   overview.style.display='none';
 
@@ -772,7 +995,7 @@ function qoBuildSvcSel(){
       var _noSvcHdr=document.getElementById('qo-pkg-hdr');
       var _noSvcGrid=document.getElementById('qo-pkg-grid');
       if(_noSvcHdr) _noSvcHdr.textContent='';
-      if(_noSvcGrid) _noSvcGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">در حال حاضر سرویسی برای این پلتفرم موجود نیست.<br><a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">پشتیبانی تلگرام</a> با ما در تماس باشید.</div>';
+      if(_noSvcGrid) _noSvcGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">'+T('no_svc')+'<br><a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">'+T('no_svc_contact')+'</a></div>';
       pkgsWrap.style.display='block';
     }
     return;
@@ -781,7 +1004,8 @@ function qoBuildSvcSel(){
   availTypes.forEach(function(t){
     var opt=document.createElement('option');
     opt.value=t.key;
-    opt.textContent=t.label;
+    var lk='svc_type_'+t.key;
+    opt.textContent=T(lk)||t.label;
     sel.appendChild(opt);
   });
 
@@ -822,19 +1046,19 @@ function qoUpdateAtLbl(){
   var inp=document.getElementById('qo-link-inp');
   if(_qoPlat==='youtube'){
     lbl.textContent='🔗';
-    inp.placeholder='لینک ویدیو یا کانال را وارد کنید';
+    inp.placeholder=T('inp_ph_youtube');
     inp.style.direction='ltr';
   } else if(_qoPlat==='telegram'){
     lbl.textContent='@';
-    inp.placeholder='یوزرنیم کانال یا گروه (بدون @)';
+    inp.placeholder=T('inp_ph_telegram');
     inp.style.direction='ltr';
   } else if(_qoPlat==='facebook'){
     lbl.textContent='@';
-    inp.placeholder='یوزرنیم یا لینک پیج فیسبوک';
+    inp.placeholder=T('inp_ph_facebook');
     inp.style.direction='ltr';
   } else {
     lbl.textContent='@';
-    inp.placeholder='یوزرنیم را وارد کنید (بدون @)';
+    inp.placeholder=T('inp_ph_default');
     inp.style.direction='ltr';
   }
   qoHideUserPreview();
@@ -873,7 +1097,7 @@ function qoHideUserPreview(){
 function qoShowUserPreviewLoading(){
   var p=document.getElementById('qo-user-preview');
   if(!p) return;
-  p.innerHTML='<span style="color:var(--mt);font-size:13px">در حال بررسی...</span>';
+  p.innerHTML='<span style="color:var(--mt);font-size:13px">'+T('checking')+'</span>';
   p.style.display='flex';
 }
 
@@ -881,7 +1105,7 @@ function qoShowUserPreviewResult(data,username){
   var p=document.getElementById('qo-user-preview');
   if(!p) return;
   if(!data||!data.ok){
-    var errMsg=data&&data.error?data.error:'فرمت نادرست';
+    var errMsg=data&&data.error?data.error:T('invalid_fmt');
     p.innerHTML='<span class="qo-user-badge err">✕ '+escHtml(errMsg)+'</span>';
     p.style.display='flex';
     return;
@@ -896,9 +1120,9 @@ function qoShowUserPreviewResult(data,username){
       ?'<img class="qo-user-avatar" src="'+escHtml(data.avatar)+'" onerror="this.style.display=\'none\'">'
       :'<div class="qo-user-avatar" style="display:flex;align-items:center;justify-content:center;font-size:22px">'+emojiPl+'</div>';
     var stats='';
-    if(data.followers!=null) stats+='فالوور: '+qoFmtNum(data.followers)+'  ';
-    if(data.following!=null) stats+='دنبال‌شده: '+qoFmtNum(data.following)+'  ';
-    if(data.posts!=null) stats+='پست: '+qoFmtNum(data.posts);
+    if(data.followers!=null) stats+=T('followers_lbl')+': '+qoFmtNum(data.followers)+'  ';
+    if(data.following!=null) stats+=T('following_lbl')+': '+qoFmtNum(data.following)+'  ';
+    if(data.posts!=null) stats+=T('posts_lbl')+': '+qoFmtNum(data.posts);
     var badges='';
     if(data.verified) badges+=' ✔️';
     if(data.private) badges+=' 🔒';
@@ -907,7 +1131,7 @@ function qoShowUserPreviewResult(data,username){
         +'<div class="qo-user-handle">@'+escHtml(data.username||username)+badges+'</div>'
         +(data.fullName?'<div style="font-size:12px;color:var(--mt)">'+escHtml(data.fullName)+'</div>':'')
         +(stats?'<div class="qo-user-stats">'+escHtml(stats.trim())+'</div>':'')
-        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none">مشاهده پروفایل ↗</a>'
+        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none">'+T('view_profile')+'</a>'
       +'</div>';
     p.style.display='flex';
   } else {
@@ -916,8 +1140,8 @@ function qoShowUserPreviewResult(data,username){
       +'<span style="font-size:22px">'+emojiPl+'</span>'
       +'<div class="qo-user-info">'
         +'<div class="qo-user-handle">@'+escHtml(username)+'</div>'
-        +'<div style="margin-top:4px"><span class="qo-user-badge ok">✓ یوزرنیم معتبر</span></div>'
-        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none;margin-top:4px;display:inline-block">مشاهده پروفایل ↗</a>'
+        +'<div style="margin-top:4px"><span class="qo-user-badge ok">'+T('valid')+'</span></div>'
+        +'<a href="'+escHtml(profileUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--acc2);text-decoration:none;margin-top:4px;display:inline-block">'+T('view_profile')+'</a>'
       +'</div>'
     +'</div>';
     p.style.display='flex';
@@ -944,7 +1168,7 @@ function qoDoValidate(username){
   _qoLastValidated=username;
   var regex=_QO_PLAT_REGEXES[_qoPlat];
   if(regex&&!regex.test(username)){
-    qoShowUserPreviewResult({ok:false,error:'فرمت یوزرنیم نادرست است'},username);
+    qoShowUserPreviewResult({ok:false,error:T('invalid_fmt')},username);
     return;
   }
   qoShowUserPreviewLoading();
@@ -979,7 +1203,7 @@ function qoShowPkgs(){
     var _fbGrid=document.getElementById('qo-pkg-grid');
     var _fbWrap=document.getElementById('qo-pkgs-wrap');
     if(_fbHdr) _fbHdr.textContent='';
-    if(_fbGrid) _fbGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">سرویسی یافت نشد. لطفاً نوع دیگری انتخاب کنید یا با <a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">پشتیبانی</a> تماس بگیرید.</div>';
+    if(_fbGrid) _fbGrid.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mt);font-size:13px;padding:20px 8px">'+T('svc_not_found')+'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="color:var(--acc2);font-weight:700">'+T('no_svc_contact')+'</a>'+T('svc_not_found2')+'</div>';
     if(_fbWrap) _fbWrap.style.display='block';
     return;
   }
@@ -1008,7 +1232,7 @@ function qoShowPkgs(){
     div.dataset.price=guestPrice.toFixed(4);
     div.dataset.panelPrice=panelPrice.toFixed(4);
     div.onclick=function(){qoSelPkg(qty,guestPrice,panelPrice,svcRow);};
-    div.innerHTML=(isPopular?'<div class="qo-popular-lbl">محبوب</div>':'')
+    div.innerHTML=(isPopular?'<div class="qo-popular-lbl">'+T('popular')+'</div>':'')
       +'<div class="qo-pkg-qty">'+(isPopular?'<span style="font-size:13px;margin-bottom:2px;display:block">🔥</span>':'')+qoFmtNum(qty)+'</div>'
       +'<div class="qo-pkg-orig">'+qoFmtPrice(panelPrice)+'</div>'
       +'<div class="qo-pkg-price">'+qoFmtPrice(guestPrice)+'</div>';
@@ -1076,7 +1300,7 @@ function qoSelPkg(qty,guestPrice,panelPrice,svcRow){
   document.getElementById('qo-ov-link').textContent=link;
   document.getElementById('qo-ov-total').textContent=qoFmtPrice(guestPrice);
   var savings=guestPrice-panelPrice;
-  document.getElementById('qo-save-note').textContent='با ثبت‌نام رایگان '+qoFmtPrice(savings)+' صرفه‌جویی کنید';
+  document.getElementById('qo-save-note').textContent=T('save_note')+qoFmtPrice(savings)+T('save_note2');
 
   document.getElementById('qo-overview').style.display='block';
   document.getElementById('qo-overview').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -1115,8 +1339,8 @@ function qoLoadPayPalSdk(){
   if(!pp||!pp.clientId){
     document.getElementById('qo-pp-btn-wrap').innerHTML=''
       +'<div style="text-align:center;padding:16px 4px">'
-      +'<p style="color:var(--mt);font-size:13px;margin-bottom:14px">در حال حاضر پرداخت آنلاین فعال نیست.<br>برای ثبت سفارش با پشتیبانی تماس بگیرید:</p>'
-      +'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#2AABEE;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">📱 پشتیبانی تلگرام</a>'
+      +'<p style="color:var(--mt);font-size:13px;margin-bottom:14px">'+T('pp_no_online')+'</p>'
+      +'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#2AABEE;color:#fff;border-radius:12px;text-decoration:none;font-weight:700;font-size:14px">'+T('pp_tg_btn')+'</a>'
       +'</div>';
     return;
   }
@@ -1139,12 +1363,12 @@ function qoLoadPayPalSdk(){
   sc.id='qo-pp-sdk';
   sc.src=sdkUrl;
   sc.onload=function(){_qoPpLoaded=true;_qoPpSdkUrl=sdkUrl;qoRenderPayPalBtn();};
-  sc.onerror=function(){qoPpStatus('خطا در بارگذاری PayPal. لطفاً اتصال اینترنت را بررسی کنید.');};
+  sc.onerror=function(){qoPpStatus(T('pp_err_load'));};
   document.head.appendChild(sc);
 }
 
 function qoRenderPayPalBtn(){
-  if(typeof paypal==='undefined'){qoPpStatus('PayPal بارگذاری نشد.');return;}
+  if(typeof paypal==='undefined'){qoPpStatus(T('pp_not_loaded'));return;}
   var wrap=document.getElementById('qo-pp-btn-wrap');
   wrap.innerHTML='';
   var guestPrice=Number(_qoSvcRow[7])*_qoQty/1000*GUEST_MARKUP;
@@ -1157,9 +1381,9 @@ function qoRenderPayPalBtn(){
       var fname=(document.getElementById('qo-fname').value||'').trim();
       var lname=(document.getElementById('qo-lname').value||'').trim();
       var email=(document.getElementById('qo-email').value||'').trim();
-      if(!fname){document.getElementById('qo-fname').focus();qoPpStatus('لطفاً نام را وارد کنید.');return Promise.reject();}
-      if(!lname){document.getElementById('qo-lname').focus();qoPpStatus('لطفاً فامیلی را وارد کنید.');return Promise.reject();}
-      if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){document.getElementById('qo-email').focus();qoPpStatus('لطفاً یک ایمیل معتبر وارد کنید.');return Promise.reject();}
+      if(!fname){document.getElementById('qo-fname').focus();qoPpStatus(T('pp_enter_fname'));return Promise.reject();}
+      if(!lname){document.getElementById('qo-lname').focus();qoPpStatus(T('pp_enter_lname'));return Promise.reject();}
+      if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){document.getElementById('qo-email').focus();qoPpStatus(T('pp_enter_email'));return Promise.reject();}
       qoPpStatus('');
       return actions.order.create({
         purchase_units:[{amount:{value:guestPrice.toFixed(2),currency_code:currency},description:(_qoSvcRow[2]||'SMM Order')+' x'+_qoQty}],
@@ -1167,7 +1391,7 @@ function qoRenderPayPalBtn(){
       });
     },
     onApprove:function(data){
-      qoPpStatus('در حال تأیید پرداخت...');
+      qoPpStatus(T('pp_verifying'));
       var linkEl=document.getElementById('qo-link-inp');
       var fname=(document.getElementById('qo-fname').value||'').trim();
       var lname=(document.getElementById('qo-lname').value||'').trim();
@@ -1191,15 +1415,15 @@ function qoRenderPayPalBtn(){
           qoCloseCheckout();
           qoShowSuccess(res.trackingId,email);
         } else {
-          qoPpStatus('خطا: '+(res.error||'پرداخت تأیید نشد'));
+          qoPpStatus('✕ '+(res.error||T('pp_err')));
         }
-      }).catch(function(){qoPpStatus('خطای شبکه — لطفاً دوباره تلاش کنید.');});
+      }).catch(function(){qoPpStatus(T('pp_net_err'));});
     },
     onError:function(err){
-      qoPpStatus('خطای PayPal — لطفاً دوباره تلاش کنید.');
+      qoPpStatus(T('pp_err'));
     },
     onCancel:function(){
-      qoPpStatus('پرداخت لغو شد.');
+      qoPpStatus(T('pp_cancelled'));
     }
   }).render('#qo-pp-btn-wrap');
 }
@@ -1215,19 +1439,21 @@ function qoShowSuccess(trackingId,email){
   if(!section) return;
   section.innerHTML='<div style="text-align:center;padding:48px 24px;background:var(--s1);border:1px solid var(--bd);border-radius:20px">'
     +'<div style="font-size:52px;margin-bottom:14px">✅</div>'
-    +'<h2 style="margin-bottom:8px;color:var(--gr)">سفارش ثبت شد!</h2>'
-    +'<p style="color:var(--mt);margin-bottom:18px">کد پیگیری سفارش شما:</p>'
+    +'<h2 style="margin-bottom:8px;color:var(--gr)">'+T('success_h2')+'</h2>'
+    +'<p style="color:var(--mt);margin-bottom:18px">'+T('success_code')+'</p>'
     +'<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px 20px;font-size:22px;font-weight:900;letter-spacing:2px;direction:ltr;display:inline-block;margin-bottom:18px">'
     +escHtml(trackingId)
     +'</div>'
-    +'<p style="color:var(--mt);font-size:13px">این کد را نزد خود نگه دارید. پیگیری سفارش از طریق پشتیبانی تلگرام ممکن است.</p>'
-    +(email?'<p style="color:var(--mt);font-size:12px;margin-top:8px">اطلاعات به <b>'+escHtml(email)+'</b> ارسال خواهد شد.</p>':'')
-    +'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="display:inline-block;margin-top:18px;padding:11px 24px;background:linear-gradient(135deg,#2AABEE,#229ED9);color:#fff;border-radius:12px;text-decoration:none;font-weight:700">پیگیری در تلگرام</a>'
+    +'<p style="color:var(--mt);font-size:13px">'+T('success_note')+'</p>'
+    +(email?'<p style="color:var(--mt);font-size:12px;margin-top:8px">'+T('success_email')+'<b>'+escHtml(email)+'</b>'+T('success_email2')+'</p>':'')
+    +'<a href="https://t.me/Afgfollowers_bot" target="_blank" rel="noopener" style="display:inline-block;margin-top:18px;padding:11px 24px;background:linear-gradient(135deg,#2AABEE,#229ED9);color:#fff;border-radius:12px;text-decoration:none;font-weight:700">'+T('success_tg')+'</a>'
     +'</div>';
 }
 
 // initialise on DOMContentLoaded (DB fetch may still be in-flight)
 qoInit();
+// apply saved language (does nothing if 'fa' since HTML is already FA)
+if(_lang!=='fa') setLang(_lang);
 </script>
 
 <!-- Telegram Support FAB -->
@@ -1244,7 +1470,7 @@ qoInit();
     <span style="width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="/icons/nav-badge.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
     </span>
-    <span style="font-size:13px;font-weight:700;color:#fff;flex:1">دستیار هوشمند</span>
+    <span style="font-size:13px;font-weight:700;color:#fff;flex:1" data-i18n="ai_title">دستیار هوشمند</span>
     <span onclick="toggleAiWidget()" style="cursor:pointer;color:#fff;font-size:16px;padding:2px 6px;line-height:1">✕</span>
   </div>
   <div id="ai-widget-log" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
@@ -1254,7 +1480,7 @@ qoInit();
   </div>
   <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #232a3d">
     <input type="text" id="ai-widget-input" placeholder="سوالتون رو بنویسید..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
-    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
+    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer" data-i18n="ai_send">ارسال</button>
   </div>
 </div>
 
@@ -1301,7 +1527,7 @@ function sendAiWidgetChat(){
 
   var typingBubble=document.createElement('div');
   typingBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#8a93a6;align-self:flex-start;max-width:85%';
-  typingBubble.textContent='در حال تایپ...';
+  typingBubble.textContent=T('ai_typing');
   log.appendChild(typingBubble);
   log.scrollTop=log.scrollHeight;
 
@@ -1319,7 +1545,7 @@ function sendAiWidgetChat(){
       _aiWidgetHistory.push({role:'user',content:msg});
       _aiWidgetHistory.push({role:'assistant',content:d.reply});
     }else{
-      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً از دکمه‌ی تلگرام پیام بدید.';
+      botBubble.textContent=T('ai_err_reply');
     }
     log.appendChild(botBubble);
     log.scrollTop=log.scrollHeight;
@@ -1328,7 +1554,7 @@ function sendAiWidgetChat(){
     typingBubble.remove();
     var errBubble=document.createElement('div');
     errBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#ff5c7d;align-self:flex-start;max-width:85%';
-    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید.';
+    errBubble.textContent=T('ai_net_err');
     log.appendChild(errBubble);
   });
 }
