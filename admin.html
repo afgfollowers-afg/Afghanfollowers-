@@ -3501,12 +3501,17 @@ function _saveQoDisabled(dis){
 }
 function setQoVisible(id){
   var dis=getQoDisabled().filter(function(x){return x!==String(id);});
-  _saveQoDisabled(dis);rSvcs();toast('سرویس در سفارش فوری سایت نمایش داده می‌شود','s');
+  _saveQoDisabled(dis);
+  // Also re-sync smm_svc so the latest price is always on the server
+  syncServicesToPanel(getServices());
+  rSvcs();toast('سرویس در سفارش فوری سایت نمایش داده می‌شود','s');
 }
 function setQoHidden(id){
   var dis=getQoDisabled();
   if(dis.indexOf(String(id))<0){dis=dis.concat([String(id)]);}
-  _saveQoDisabled(dis);rSvcs();toast('سرویس از سفارش فوری سایت پنهان شد','s');
+  _saveQoDisabled(dis);
+  syncServicesToPanel(getServices());
+  rSvcs();toast('سرویس از سفارش فوری سایت پنهان شد','s');
 }
 function delSvc(id){
   if(!confirm('Delete this service?'))return;
@@ -3570,7 +3575,7 @@ function saveEditSvc(id){
   s.max=parseInt(document.getElementById('es-max').value)||s.max;
   var catVal=document.getElementById('es-cat').value;
   s.categoryId=catVal?parseInt(catVal)||catVal:null;
-  saveServices(svcs);rSvcs();
+  saveServices(svcs);syncServicesToPanel(svcs);rSvcs();
   document.getElementById('m-edit-svc').remove();
   toast('Service updated!','s');
 }
