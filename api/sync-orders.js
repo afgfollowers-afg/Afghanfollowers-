@@ -14,7 +14,7 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
-const { renderPostImage, renderFacebookPostImage } = require('./_autopost-image');
+const { renderPostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -993,7 +993,9 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   // Same platform entry the focus/hashtags above came from — guaranteed to
   // match (see AUTOPOST_PLATFORMS).
   const templateKey = platform.template;
-  const imageBuffer = await renderPostImage(templateKey, postText);
+  const imageBuffer = templateKey === 'tiktok'
+    ? await renderTikTokPostImage(postText)
+    : await renderPostImage(templateKey, postText);
 
   // Dry run: preview only — no Facebook publish, no real Telegram channel
   // post, no smm_last_autopost_date write (so it can never block or count as
