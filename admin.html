@@ -3500,11 +3500,34 @@ function _saveQoDisabled(dis){
     body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
 }
 function setQoVisible(id){
+  var svcs=getServices();
+  var target=svcs.find(function(s){return String(s.id)===String(id);});
   var dis=getQoDisabled().filter(function(x){return x!==String(id);});
+  var hiddenCount=0;
+  if(target){
+    // Same keyword tables as index.html quick-order — must stay in sync
+    var _QOP={instagram:['instagram','اینستاگرام','insta','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt']};
+    var _QOST=[{key:'followers',keys:['follower','فالوور','دنبال کننده','subscribers','subscriber']},{key:'likes',keys:['like','لایک','heart']},{key:'views',keys:['view','ویو','بازدید','watch','impression','play','video']},{key:'members',keys:['member','ممبر','join']},{key:'comments',keys:['comment','کامنت']},{key:'shares',keys:['share','اشتراک','repost','retweet']}];
+    var n=(target.name||'').toLowerCase(),c=(target.category||'').toLowerCase();
+    var tPlat=Object.keys(_QOP).find(function(p){return _QOP[p].some(function(k){return n.indexOf(k)>-1||c.indexOf(k)>-1;});});
+    var tType=_QOST.find(function(t){return t.keys.some(function(k){return n.indexOf(k)>-1||c.indexOf(k)>-1;});});
+    if(tPlat&&tType){
+      // Auto-hide competing services of the same platform+type so THIS one is displayed
+      svcs.forEach(function(s){
+        if(String(s.id)===String(id)) return;
+        var sn=(s.name||'').toLowerCase(),sc=(s.category||'').toLowerCase();
+        var samePlat=_QOP[tPlat].some(function(k){return sn.indexOf(k)>-1||sc.indexOf(k)>-1;});
+        var sameType=tType.keys.some(function(k){return sn.indexOf(k)>-1||sc.indexOf(k)>-1;});
+        if(samePlat&&sameType&&dis.indexOf(String(s.id))<0){dis=dis.concat([String(s.id)]);hiddenCount++;}
+      });
+    }
+  }
   _saveQoDisabled(dis);
-  // Also re-sync smm_svc so the latest price is always on the server
-  syncServicesToPanel(getServices());
-  rSvcs();toast('سرویس در سفارش فوری سایت نمایش داده می‌شود','s');
+  syncServicesToPanel(svcs.length?svcs:getServices());
+  rSvcs();
+  var msg='سرویس در سفارش فوری سایت نمایش داده می‌شود';
+  if(hiddenCount>0) msg+=' ('+hiddenCount+' سرویس رقیب به صورت خودکار پنهان شد)';
+  toast(msg,'s');
 }
 function setQoHidden(id){
   var dis=getQoDisabled();
