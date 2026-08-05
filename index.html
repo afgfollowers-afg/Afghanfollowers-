@@ -240,7 +240,7 @@ footer a{color:var(--acc2);text-decoration:none;}
 .qo-input-row:focus-within{border-color:var(--acc);}
 .qo-at{width:38px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--mt);flex-shrink:0;}
 .qo-inp{flex:1;height:46px;background:var(--s2);border:none;padding:0 12px;color:var(--tx);font-size:14px;font-family:'Vazirmatn','Inter',sans-serif;outline:none;direction:ltr;}
-.qo-go{padding:0 18px;background:linear-gradient(135deg,var(--acc),#5b21b6);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;transition:opacity .18s;display:flex;align-items:center;justify-content:center;white-space:nowrap;gap:5px;}
+.qo-go{width:100%;height:48px;margin-top:12px;background:linear-gradient(135deg,var(--acc),#5b21b6);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .18s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Vazirmatn','Inter',sans-serif;}
 .qo-go:hover{opacity:.85;}
 .qo-user-preview{background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin-top:10px;display:flex;align-items:center;gap:12px;animation:fadeIn .25s ease;}
 .qo-user-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--bd);}
@@ -273,7 +273,7 @@ footer a{color:var(--acc2);text-decoration:none;}
 .qo-form-inp{width:100%;height:42px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:0 12px;color:var(--tx);font-family:'Vazirmatn','Inter',sans-serif;font-size:14px;outline:none;margin-bottom:12px;transition:border-color .15s;}
 .qo-form-inp:focus{border-color:var(--acc);}
 .qo-discount-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.25);padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;color:var(--gr);}
-@media(max-width:600px){.qo-pkg-qty{font-size:16px;}.qo-pkg{padding:12px 6px;}.qo-go{padding:0 12px;font-size:13px;}}
+@media(max-width:600px){.qo-pkg-qty{font-size:16px;}.qo-pkg{padding:12px 6px;}}
 @media(max-width:400px){.qo-pkg-grid{grid-template-columns:repeat(3,1fr);gap:5px;}}
 </style>
 </head>
@@ -325,9 +325,9 @@ footer a{color:var(--acc2);text-decoration:none;}
     <div id="qo-inp-row" class="qo-input-row" style="display:none">
       <div class="qo-at" id="qo-at-lbl">@</div>
       <input id="qo-link-inp" class="qo-inp" type="text" placeholder="یوزرنیم را وارد کنید" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="qoUserInputChanged()" onblur="qoUserBlur()">
-      <button class="qo-go" onclick="qoShowPkgs()" title="ادامه">ادامه &#10132;</button>
     </div>
     <div id="qo-user-preview" class="qo-user-preview" style="display:none"></div>
+    <button id="qo-go-btn" class="qo-go" onclick="qoShowPkgs()" style="display:none">ادامه &#10132;</button>
     <div id="qo-pkgs-wrap" style="display:none">
       <div class="qo-pkg-hdr" id="qo-pkg-hdr">انتخاب تعداد</div>
       <div class="qo-pkg-grid" id="qo-pkg-grid"></div>
@@ -762,11 +762,13 @@ function qoBuildSvcSel(){
       _qoSvcRow=_allPlatSvcs[0];
       svcRow.style.display='none';
       inpRow.style.display='flex';
+      var _goBtnA=document.getElementById('qo-go-btn');if(_goBtnA)_goBtnA.style.display='flex';
       qoUpdateAtLbl();
     } else {
       // No services at all for this platform — show message in the grid element
       svcRow.style.display='none';
       inpRow.style.display='none';
+      var _goBtnB=document.getElementById('qo-go-btn');if(_goBtnB)_goBtnB.style.display='none';
       var _noSvcHdr=document.getElementById('qo-pkg-hdr');
       var _noSvcGrid=document.getElementById('qo-pkg-grid');
       if(_noSvcHdr) _noSvcHdr.textContent='';
@@ -785,6 +787,7 @@ function qoBuildSvcSel(){
 
   svcRow.style.display='block';
   inpRow.style.display='none';
+  var _goBtnC=document.getElementById('qo-go-btn');if(_goBtnC)_goBtnC.style.display='none';
   pkgsWrap.style.display='none';
   overview.style.display='none';
 }
@@ -792,6 +795,7 @@ function qoBuildSvcSel(){
 function qoSvcChange(){
   var sel=document.getElementById('qo-svc-sel');
   var inpRow=document.getElementById('qo-inp-row');
+  var goBtn=document.getElementById('qo-go-btn');
   var pkgsWrap=document.getElementById('qo-pkgs-wrap');
   var overview=document.getElementById('qo-overview');
   pkgsWrap.style.display='none';
@@ -799,14 +803,15 @@ function qoSvcChange(){
   _qoSvcRow=null;
   _qoQty=0;
   qoHideUserPreview();
-  if(!sel.value){inpRow.style.display='none';return;}
+  if(!sel.value){inpRow.style.display='none';if(goBtn)goBtn.style.display='none';return;}
   // find best service for plat+type
   var svcs=qoFilterSvcs(_qoPlat,sel.value);
-  if(!svcs.length){inpRow.style.display='none';return;}
+  if(!svcs.length){inpRow.style.display='none';if(goBtn)goBtn.style.display='none';return;}
   // prefer cheapest active service that has a reasonable range
   svcs.sort(function(a,b){return (a[7]||0)-(b[7]||0);});
   _qoSvcRow=svcs[0];
   inpRow.style.display='flex';
+  if(goBtn)goBtn.style.display='flex';
   qoUpdateAtLbl();
   // Always show packages immediately — username only needed at checkout
   qoShowPkgs();
