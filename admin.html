@@ -7051,11 +7051,33 @@ function addAnnouncement(){
 // ═══ BLOG ═══
 var BLOG_KEY='smm_blog';
 var _editBlogIndex=null;
+var _blogServerLoaded=false;
 function getBlogPosts(){try{var d=localStorage.getItem(BLOG_KEY);if(d)return JSON.parse(d);}catch(e){}return [];}
-function saveBlogPosts(list){
-  localStorage.setItem(BLOG_KEY,JSON.stringify(list));
+function _doSaveBlogToServer(list){
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_blog:list,smm_ts:Date.now()})}).catch(function(){});
+}
+function saveBlogPosts(list){
+  localStorage.setItem(BLOG_KEY,JSON.stringify(list));
+  if(!_blogServerLoaded){
+    // Server data not yet loaded — fetch first to avoid overwriting posts
+    // that exist on the server but aren't in localStorage yet.
+    fetch('/api/db').then(function(r){return r.json();}).then(function(d){
+      _blogServerLoaded=true;
+      var serverList=(d&&Array.isArray(d.smm_blog))?d.smm_blog:[];
+      // Merge: local edits win; server-only posts are preserved
+      var map={};
+      serverList.forEach(function(p){if(p&&p.id!=null)map[p.id]=p;});
+      list.forEach(function(p){if(p&&p.id!=null)map[p.id]=p;});
+      var merged=Object.keys(map).map(function(k){return map[k];})
+        .sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+      localStorage.setItem(BLOG_KEY,JSON.stringify(merged));
+      _doSaveBlogToServer(merged);
+      if(document.getElementById('blog-tbl'))rBlog();
+    }).catch(function(){_doSaveBlogToServer(list);});
+    return;
+  }
+  _doSaveBlogToServer(list);
 }
 function rBlog(){
   var list=getBlogPosts();
@@ -8114,6 +8136,7 @@ function showAuthNotConfiguredBanner(){
         if(document.getElementById('ann-tbl')) rAnnouncements();
       }
       if(d.smm_blog&&Array.isArray(d.smm_blog)){
+        _blogServerLoaded=true;
         localStorage.setItem(BLOG_KEY,JSON.stringify(d.smm_blog));
         if(document.getElementById('blog-tbl')) rBlog();
       }
