@@ -800,9 +800,8 @@ function qoSvcChange(){
   _qoSvcRow=svcs[0];
   inpRow.style.display='flex';
   qoUpdateAtLbl();
-  // Auto-refresh price packages if a link was already entered
-  var _autoLink=(document.getElementById('qo-link-inp').value||'').trim();
-  if(_autoLink) qoShowPkgs();
+  // Always show packages immediately — username only needed at checkout
+  qoShowPkgs();
 }
 
 function qoUpdateAtLbl(){
@@ -836,7 +835,6 @@ function qoFmtPrice(usd){
 function qoShowPkgs(){
   var linkEl=document.getElementById('qo-link-inp');
   var link=(linkEl.value||'').trim();
-  if(!link){linkEl.focus();linkEl.style.borderColor='#f87171';setTimeout(function(){linkEl.style.borderColor='';},1500);return;}
 
   if(!_qoSvcRow){
     var _fbHdr=document.getElementById('qo-pkg-hdr');
@@ -908,23 +906,36 @@ function qoShowPkgs(){
   pkgsWrap.style.display='block';
   overview.style.display='none';
   _qoQty=0;
+  // If called with a username (arrow button click), scroll to packages
+  if(link) pkgsWrap.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function qoSelPkg(qty,guestPrice,panelPrice,svcRow){
+  // If username not entered, highlight the input and scroll to it
+  var linkEl=document.getElementById('qo-link-inp');
+  var link=(linkEl.value||'').trim();
+  if(!link){
+    linkEl.focus();
+    linkEl.style.borderColor='#f87171';
+    linkEl.style.boxShadow='0 0 0 3px rgba(248,113,113,.25)';
+    setTimeout(function(){linkEl.style.borderColor='';linkEl.style.boxShadow='';},2000);
+    var inpRow=document.getElementById('qo-inp-row');
+    if(inpRow) inpRow.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+
   _qoQty=qty;
   _qoSvcRow=svcRow;
 
   // highlight selection
   document.querySelectorAll('.qo-pkg').forEach(function(p){p.classList.remove('on');});
-  var pkgs=document.querySelectorAll('.qo-pkg');
-  pkgs.forEach(function(p){if(Number(p.dataset.qty)===qty) p.classList.add('on');});
+  document.querySelectorAll('.qo-pkg').forEach(function(p){if(Number(p.dataset.qty)===qty) p.classList.add('on');});
 
   // populate overview
   var svcName=svcRow[2]||'سرویس';
   document.getElementById('qo-ov-svc').textContent=svcName;
   document.getElementById('qo-ov-qty').textContent=qty.toLocaleString('fa-IR');
-  var linkEl=document.getElementById('qo-link-inp');
-  document.getElementById('qo-ov-link').textContent=(linkEl.value||'').trim();
+  document.getElementById('qo-ov-link').textContent=link;
   document.getElementById('qo-ov-total').textContent=qoFmtPrice(guestPrice);
   var savings=guestPrice-panelPrice;
   document.getElementById('qo-save-note').textContent='با ثبت‌نام رایگان '+qoFmtPrice(savings)+' صرفه‌جویی کنید';
