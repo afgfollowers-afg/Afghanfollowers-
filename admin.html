@@ -3083,6 +3083,22 @@ function rSvcs(){
     return 'other';
   }
 
+  // Compute QO winners — the actual cheapest active non-disabled service per platform+type
+  var _qoDis=getQoDisabled();
+  var _QOP={instagram:['instagram','اینستاگرام','insta','ig ','| ig','ig|'],tiktok:['tiktok','تیک‌تاک','tik tok','tik-tok','tt ','| tt'],telegram:['telegram','تلگرام','tg ','| tg'],youtube:['youtube','یوتیوب','yt ','| yt']};
+  var _QOST=[{key:'followers',keys:['follower','فالوور','دنبال کننده','subscribers','subscriber']},{key:'likes',keys:['like','لایک','heart']},{key:'views',keys:['view','ویو','بازدید','watch','impression','play','video']},{key:'members',keys:['member','ممبر','join']},{key:'comments',keys:['comment','کامنت']},{key:'shares',keys:['share','اشتراک','repost','retweet']}];
+  var _winnerMap={};
+  all.filter(function(s){return s.active!==false&&_qoDis.indexOf(String(s.id))<0;}).forEach(function(s){
+    var n=(s.name||'').toLowerCase(),c=(s.category||'').toLowerCase();
+    var plat=Object.keys(_QOP).find(function(p){return _QOP[p].some(function(k){return n.indexOf(k)>-1||c.indexOf(k)>-1;});});
+    var type=_QOST.find(function(t){return t.keys.some(function(k){return n.indexOf(k)>-1||c.indexOf(k)>-1;});});
+    if(!plat||!type) return;
+    var key=plat+'_'+type.key;
+    var rate=parseFloat(s.myRate||s.price||0);
+    if(!_winnerMap[key]||rate<_winnerMap[key].rate) _winnerMap[key]={id:String(s.id),rate:rate};
+  });
+  var _qoWinners=new Set(Object.values(_winnerMap).map(function(w){return w.id;}));
+
   var html='';
   Object.keys(grouped).forEach(function(catName){
     var glist=grouped[catName];
@@ -3128,13 +3144,13 @@ function rSvcs(){
       +'<th>Options</th>'
       +'</tr></thead><tbody>';
 
-    var _qoDis=getQoDisabled();
     glist.forEach(function(s){
       var sPlat=getPlatFromStr(s.name)||getPlatFromStr(s.category)||'other';
       var logo=s.logo||platIco[sPlat]||'⭐';
       var isNew=s.importedAt&&(Date.now()-new Date(s.importedAt).getTime())<3*24*3600000;
       var active=s.active!==false;
       var isQoDis=_qoDis.indexOf(String(s.id))>-1;
+      var isQoWinner=_qoWinners.has(String(s.id));
       html+='<tr style="background:'+(active?'':'rgba(255,92,125,.03)')+'opacity:'+(active?'1':'.6')+'">'
         +'<td><input type="checkbox" class="svc-cb" data-id="'+s.id+'" onchange="updateBulkBar()"></td>'
         +'<td><div onclick="pickSvcLogo(this.dataset.id)" data-id="'+s.id+'" style="width:32px;height:32px;border-radius:8px;background:#7c5cfc;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer" title="Change logo">'+logo+'</div></td>'
@@ -3155,7 +3171,7 @@ function rSvcs(){
         })()
         +'<td style="font-size:11px">'+parseInt(s.min||0).toLocaleString()+'</td>'
         +'<td style="font-size:11px">'+parseInt(s.max||0).toLocaleString()+'</td>'
-        +'<td><div class="tog '+(active?'on ':'')+(!isQoDis&&active?'qo':'')+'" data-id="'+s.id+'" onclick="togSvc(this.dataset.id)" title="'+(active&&!isQoDis?'Active + Quick-Order (نارنجی = نمایش در سفارش فوری)':active?'Active — click to hide':'Hidden')+'"></div></td>'
+        +'<td><div class="tog '+(active?'on ':'')+( isQoWinner?'qo':'')+'" data-id="'+s.id+'" onclick="togSvc(this.dataset.id)" title="'+(isQoWinner?'🟠 نمایش در سفارش فوری (این سرویس الان نمایش داده می‌شود)':active&&!isQoDis?'Active — در استخر QO ولی ارزان‌تر نیست':active?'Active — click to hide':'Hidden')+'"></div></td>'
         +'<td><div style="position:relative;display:inline-block">'
           +'<button class="btn btn-g btn-sm" style="padding:4px 10px;font-size:11px" onclick="toggleOpts(this)">Options ▾</button>'
           +'<div class="svc-opts-menu" style="display:none;position:absolute;right:0;top:calc(100%+2px);background:var(--s1);border:1px solid var(--bd);border-radius:9px;min-width:150px;z-index:100;box-shadow:0 8px 20px rgba(0,0,0,.4);overflow:hidden">'
