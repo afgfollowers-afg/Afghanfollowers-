@@ -8099,6 +8099,8 @@ function showAuthNotConfiguredBanner(){
       }
       if(d.smm_general&&typeof d.smm_general==='object'){
         localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+        var _pgSvcE=document.getElementById('pg-services');
+        if(_pgSvcE&&_pgSvcE.classList.contains('on')) rSvcs();
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
@@ -8505,6 +8507,8 @@ function pullFromServer(){
       }
       if(d.smm_general&&typeof d.smm_general==='object'){
         localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+        var _pgSvcP=document.getElementById('pg-services');
+        if(_pgSvcP&&_pgSvcP.classList.contains('on')) rSvcs();
       }
       if(d.smm_tg_bot&&typeof d.smm_tg_bot==='object'){
         localStorage.setItem('smm_tg_bot',JSON.stringify(d.smm_tg_bot));
