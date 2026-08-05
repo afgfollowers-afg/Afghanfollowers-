@@ -3496,7 +3496,7 @@ function _saveQoDisabled(dis){
   var cfg={};try{cfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
   cfg.qo_disabled=dis;
   localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
-  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json','x-db-key':DB_CLIENT_KEY,'Authorization':'Bearer '+getToken()},
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
 }
 function setQoVisible(id){
