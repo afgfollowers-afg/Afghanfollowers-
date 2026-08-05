@@ -585,8 +585,9 @@ fa:{
   inp_ph_youtube:'لینک ویدیو یا کانال را وارد کنید',
   inp_ph_telegram:'یوزرنیم کانال یا گروه (بدون @)',
   inp_ph_facebook:'یوزرنیم یا لینک پیج فیسبوک',
+  inp_ph_video:'لینک ویدیو را وارد کنید',
   checking:'در حال بررسی...',invalid_fmt:'فرمت یوزرنیم نادرست است',
-  valid:'✓ یوزرنیم معتبر',view_profile:'مشاهده پروفایل ↗',
+  valid:'✓ یوزرنیم معتبر',link_valid:'✓ لینک وارد شد',view_profile:'مشاهده پروفایل ↗',
   followers_lbl:'فالوور',following_lbl:'دنبال‌شده',posts_lbl:'پست',
   no_svc:'در حال حاضر سرویسی برای این پلتفرم موجود نیست.',
   no_svc_contact:'پشتیبانی تلگرام',
@@ -669,8 +670,9 @@ en:{
   inp_ph_youtube:'Enter video or channel link',
   inp_ph_telegram:'Channel or group username (without @)',
   inp_ph_facebook:'Username or Facebook page link',
+  inp_ph_video:'Enter video link',
   checking:'Checking...',invalid_fmt:'Invalid username format',
-  valid:'✓ Valid username',view_profile:'View Profile ↗',
+  valid:'✓ Valid username',link_valid:'✓ Link entered',view_profile:'View Profile ↗',
   followers_lbl:'Followers',following_lbl:'Following',posts_lbl:'Posts',
   no_svc:'No services currently available for this platform.',
   no_svc_contact:'Telegram Support',
@@ -1044,7 +1046,14 @@ function qoSvcChange(){
 function qoUpdateAtLbl(){
   var lbl=document.getElementById('qo-at-lbl');
   var inp=document.getElementById('qo-link-inp');
-  if(_qoPlat==='youtube'){
+  var sel=document.getElementById('qo-svc-sel');
+  var svcType=sel?sel.value:'';
+  var needsVideoLink=(svcType==='likes'||svcType==='views'||svcType==='comments');
+  if(needsVideoLink){
+    lbl.textContent='🔗';
+    inp.placeholder=T('inp_ph_video');
+    inp.style.direction='ltr';
+  } else if(_qoPlat==='youtube'){
     lbl.textContent='🔗';
     inp.placeholder=T('inp_ph_youtube');
     inp.style.direction='ltr';
@@ -1062,6 +1071,10 @@ function qoUpdateAtLbl(){
     inp.style.direction='ltr';
   }
   qoHideUserPreview();
+  // Re-validate if input already has a value (e.g. service type changed)
+  var _inp=document.getElementById('qo-link-inp');
+  var _val=(_inp&&_inp.value||'').trim().replace(/^@/,'');
+  if(_val) qoDoValidate(_val);
 }
 
 // ── Username validation ──
@@ -1164,8 +1177,23 @@ function qoUserBlur(){
   qoDoValidate(val);
 }
 
+function qoNeedsVideoLink(){
+  var sel=document.getElementById('qo-svc-sel');
+  var v=sel?sel.value:'';
+  return v==='likes'||v==='views'||v==='comments';
+}
+
 function qoDoValidate(username){
   _qoLastValidated=username;
+  // For video-link services (likes/views/comments) skip profile check
+  if(qoNeedsVideoLink()){
+    var p=document.getElementById('qo-user-preview');
+    if(p){
+      p.innerHTML='<span class="qo-user-badge ok">'+T('link_valid')+'</span>';
+      p.style.display='flex';
+    }
+    return;
+  }
   var regex=_QO_PLAT_REGEXES[_qoPlat];
   if(regex&&!regex.test(username)){
     qoShowUserPreviewResult({ok:false,error:T('invalid_fmt')},username);
@@ -1179,7 +1207,6 @@ function qoDoValidate(username){
   }).then(function(r){return r.json();}).then(function(d){
     if(_qoLastValidated===username) qoShowUserPreviewResult(d,username);
   }).catch(function(){
-    // If API call fails, just show format-valid state
     if(_qoLastValidated===username) qoShowUserPreviewResult({ok:true},username);
   });
 }
