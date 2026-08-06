@@ -997,7 +997,10 @@ th{font-size:10px;}
             <button class="btn btn-g btn-sm" onclick="fuPick('https://vipprosmm.com/api/v2')">VipProSMM</button>
           </div>
         </div>
-        <button class="btn btn-p" onclick="fuCompare()" style="width:100%;margin-bottom:16px">🔍 مقایسه Service ID ها</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+          <button class="btn btn-p" onclick="fuCompare()">🔍 مقایسه تکی</button>
+          <button class="btn btn-s" onclick="fuBulkScan()" style="background:var(--gr);color:#000;font-weight:800">⚡ Bulk Scan (خودکار)</button>
+        </div>
         <div id="fu-result"></div>
       </div>
       <div class="md-f">
@@ -7182,6 +7185,116 @@ function fuCompare(){
     result.innerHTML=html;
   }).catch(function(e){
     result.innerHTML='<div style="color:var(--rd);padding:10px">❌ خطا: '+escHtmlAdmin(e.message)+'</div>';
+  });
+}
+
+var FU_BULK_PANELS=[
+  {name:'Peakerr',          url:'https://peakerr.com/api/v2'},
+  {name:'JustAnotherPanel', url:'https://justanotherpanel.com/api/v2'},
+  {name:'SmmStone',         url:'https://smmstone.com/api/v2'},
+  {name:'SmmFollows',       url:'https://smmfollows.com/api/v2'},
+  {name:'VipProSMM',        url:'https://vipprosmm.com/api/v2'},
+  {name:'SMMKings',         url:'https://smmkings.com/api/v2'},
+  {name:'GrowthSMM',        url:'https://growthsmm.io/api/v2'},
+  {name:'Likes.io',         url:'https://likes.io/api/v2'},
+  {name:'Panel.cheap',      url:'https://panel.cheap/api/v2'},
+  {name:'SMMXNX',           url:'https://smmxnx.com/api/v2'},
+  {name:'Smm-Heaven',       url:'https://smm-heaven.net/api/v2'},
+  {name:'Boostlikes',       url:'https://boostlikes.com/api/v2'},
+  {name:'TopFollows',       url:'https://topfollows.com/api/v2'},
+  {name:'SMMBuzz',          url:'https://smmbuzz.net/api/v2'},
+  {name:'CheapestSMM',      url:'https://cheapestsmm.com/api/v2'}
+];
+function fuBulkScan(){
+  var provId=document.getElementById('fu-src-prov').value;
+  var result=document.getElementById('fu-result');
+  if(!provId){result.innerHTML='<div style="color:var(--rd);padding:10px">لطفاً پروایدر منبع را انتخاب کنید</div>';return;}
+  var srcProv=provs.find(function(p){return String(p.id)===String(provId);});
+  if(!srcProv){result.innerHTML='<div style="color:var(--rd);padding:10px">Provider پیدا نشد</div>';return;}
+  // Build list of panels to scan: stored providers (excluding src) + bulk list
+  var targets=[];
+  provs.forEach(function(p){
+    if(String(p.id)!==String(provId)) targets.push({name:p.name,url:p.url,storedId:p.id});
+  });
+  FU_BULK_PANELS.forEach(function(bp){
+    var already=targets.some(function(t){return t.url.trim().replace(/\/$/,'')===bp.url.trim().replace(/\/$/,'');});
+    if(!already) targets.push({name:bp.name,url:bp.url,storedId:null});
+  });
+  result.innerHTML='<div style="text-align:center;padding:20px;color:var(--mt)">⏳ در حال دریافت سرویس‌های منبع...</div>';
+  callProviderAPI(srcProv.url,srcProv.key,'services',null,srcProv.id).then(function(src){
+    if(!Array.isArray(src)||src.length===0){
+      result.innerHTML='<div style="color:var(--rd);padding:10px">❌ نتونستم سرویس‌های منبع رو بگیرم: '+(src&&src.error?escHtmlAdmin(src.error):'پاسخ خالی')+'</div>';return;
+    }
+    var srcMap={};
+    src.forEach(function(s){var id=String(s.service||s.id||'');if(id)srcMap[id]=s;});
+    var done=0; var scanResults=[];
+    result.innerHTML='<div id="fu-bulk-progress" style="text-align:center;padding:20px;color:var(--mt)">⏳ اسکن <b>0/'+targets.length+'</b> پنل...</div>';
+    function updateProgress(){
+      var el=document.getElementById('fu-bulk-progress');
+      if(el) el.innerHTML='⏳ اسکن <b>'+done+'/'+targets.length+'</b> پنل...';
+    }
+    function onAllDone(){
+      scanResults.sort(function(a,b){return b.pct-a.pct;});
+      var html='<div style="font-size:14px;font-weight:800;margin-bottom:12px">نتایج Bulk Scan — مرتب‌شده بر اساس تطابق:</div>';
+      html+='<div style="overflow-x:auto"><table style="font-size:12px;width:100%;border-collapse:collapse">'
+        +'<thead><tr style="background:var(--s2)">'
+        +'<th style="padding:7px 10px;text-align:left">پنل</th>'
+        +'<th style="padding:7px 10px;text-align:center">سرویس مشترک</th>'
+        +'<th style="padding:7px 10px;text-align:center">تطابق %</th>'
+        +'<th style="padding:7px 10px;text-align:center">وضعیت</th>'
+        +'</tr></thead><tbody>';
+      scanResults.forEach(function(r){
+        var isUp=r.pct>=40;
+        var color=r.pct>=40?'var(--gr)':r.pct>=15?'var(--wn)':'var(--rd)';
+        html+='<tr style="border-bottom:1px solid var(--bd)">'
+          +'<td style="padding:6px 10px;font-weight:600">'+escHtmlAdmin(r.name)+(r.stored?'<span style="color:var(--acc2);font-size:10px;margin-right:4px"> ✦stored</span>':'')+'</td>'
+          +'<td style="padding:6px 10px;text-align:center">'+r.matches+' / '+src.length+'</td>'
+          +'<td style="padding:6px 10px;text-align:center;font-weight:800;color:'+color+'">'+r.pct+'%</td>'
+          +'<td style="padding:6px 10px;text-align:center">'+(isUp?'✅ Upstream احتمالی':r.pct===0&&r.err?'<span style="color:var(--mt);font-size:11px">'+escHtmlAdmin(r.err.slice(0,30))+'</span>':'—')+'</td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div>';
+      var top=scanResults[0];
+      if(top&&top.pct>=40){
+        html='<div style="background:rgba(0,200,100,.08);border:1px solid var(--gr);border-radius:12px;padding:14px;margin-bottom:14px">'
+          +'<div style="font-size:16px;font-weight:800;margin-bottom:4px">✅ Upstream پیدا شد: <span style="color:var(--gr)">'+escHtmlAdmin(top.name)+'</span></div>'
+          +'<div style="font-size:13px;color:var(--mt)"><b>'+top.matches+'</b> سرویس مشترک — <b>'+top.pct+'%</b> تطابق</div>'
+          +'</div>'+html;
+      } else if(top&&top.pct>0){
+        html='<div style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px">'
+          +'<div style="font-size:15px;font-weight:800;margin-bottom:4px">⚠️ بالاترین تطابق: '+escHtmlAdmin(top.name)+' ('+top.pct+'%)</div>'
+          +'<div style="font-size:12px;color:var(--mt)">احتمالاً upstream نیست یا در لیست اسکن نبود</div>'
+          +'</div>'+html;
+      }
+      result.innerHTML=html;
+    }
+    targets.forEach(function(t){
+      var call=t.storedId
+        ? callProviderAPI('','','services',null,t.storedId)
+        : callProviderAPI(t.url,'','services',null,null);
+      call.then(function(cmp){
+        done++;
+        if(Array.isArray(cmp)&&cmp.length>0){
+          var cmpMap={};
+          cmp.forEach(function(s){var id=String(s.service||s.id||'');if(id)cmpMap[id]=s;});
+          var matchCount=Object.keys(srcMap).filter(function(id){return !!cmpMap[id];}).length;
+          var pct=src.length?Math.round(matchCount/src.length*100):0;
+          scanResults.push({name:t.name,url:t.url,stored:!!t.storedId,matches:matchCount,pct:pct,err:null});
+        } else {
+          var errMsg=(cmp&&cmp.error)?cmp.error:'no data';
+          scanResults.push({name:t.name,url:t.url,stored:!!t.storedId,matches:0,pct:0,err:errMsg});
+        }
+        updateProgress();
+        if(done===targets.length) onAllDone();
+      }).catch(function(e){
+        done++;
+        scanResults.push({name:t.name,url:t.url,stored:!!t.storedId,matches:0,pct:0,err:e.message||'error'});
+        updateProgress();
+        if(done===targets.length) onAllDone();
+      });
+    });
+  }).catch(function(e){
+    result.innerHTML='<div style="color:var(--rd);padding:10px">❌ خطا در دریافت سرویس‌های منبع: '+escHtmlAdmin(e.message)+'</div>';
   });
 }
 
