@@ -7448,8 +7448,11 @@ function piStartScan(){
   _piResults=[];
 
   // Build target list: stored providers + preset list (deduplicated by URL)
+  // Source provider is excluded from targets — comparing a panel against itself is meaningless
+  var srcProvId=document.getElementById('pi-src-prov').value;
   var targets=[];
   provs.forEach(function(p){
+    if(String(p.id)===String(srcProvId)) return;
     targets.push({name:p.name,url:p.url,storedId:p.id,isStored:true});
   });
   PI_PANELS.forEach(function(bp){
@@ -7466,7 +7469,6 @@ function piStartScan(){
   });
 
   // Source provider for upstream matching
-  var srcProvId=document.getElementById('pi-src-prov').value;
   var srcProv=srcProvId?provs.find(function(p){return String(p.id)===String(srcProvId);}):null;
   var srcMapPromise=srcProv
     ? callProviderAPI(srcProv.url,srcProv.key,'services',null,srcProv.id).then(function(s){
@@ -7498,17 +7500,19 @@ function piStartScan(){
           // Upstream match
           var matchCount=hasSrc?Object.keys(srcMap).filter(function(id){return !!cmpMap[id];}).length:0;
           var upstreamPct=hasSrc&&Object.keys(srcMap).length>0?Math.round(matchCount/Object.keys(srcMap).length*100):null;
-          // Average price (common services only)
+          // Median price on common services — outlier-resistant vs mean
+          // Rates > $500 are almost certainly bad data (wrong units, placeholder values)
           var prices=[];
           if(hasSrc){
             Object.keys(srcMap).forEach(function(id){
-              if(cmpMap[id]){var r=parseFloat(cmpMap[id].rate||0);if(r>0)prices.push(r);}
+              if(cmpMap[id]){var r=parseFloat(cmpMap[id].rate||0);if(r>0&&r<=500)prices.push(r);}
             });
           } else {
-            cmp.forEach(function(s){var r=parseFloat(s.rate||0);if(r>0)prices.push(r);});
+            cmp.forEach(function(s){var r=parseFloat(s.rate||0);if(r>0&&r<=500)prices.push(r);});
           }
-          var avgPrice=prices.length?prices.reduce(function(a,b){return a+b;},0)/prices.length:null;
-          var minPrice=prices.length?Math.min.apply(null,prices):null;
+          prices.sort(function(a,b){return a-b;});
+          var avgPrice=prices.length?(prices.length%2===0?(prices[prices.length/2-1]+prices[prices.length/2])/2:prices[Math.floor(prices.length/2)]):null;
+          var minPrice=prices.length?prices[0]:null;
           _piResults.push({name:t.name,url:t.url,isStored:t.isStored,count:cmp.length,ms:ms,
             upstreamPct:upstreamPct,matchCount:matchCount,avgPrice:avgPrice,minPrice:minPrice,err:null});
         } else {
@@ -7591,7 +7595,7 @@ function piRenderResults(){
     +'<div class="pi-cell">پنل</div>'
     +'<div class="pi-cell" style="text-align:center">سرویس‌ها</div>'
     +(hasSrc?'<div class="pi-cell" style="text-align:center">Upstream %</div>':'')
-    +'<div class="pi-cell" style="text-align:center">میانگین قیمت</div>'
+    +'<div class="pi-cell" style="text-align:center">میانه قیمت</div>'
     +'<div class="pi-cell" style="text-align:center">پاسخ‌دهی</div>'
     +'<div class="pi-cell" style="text-align:center">وضعیت</div>'
     +'</div>';
