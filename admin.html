@@ -967,32 +967,34 @@ th{font-size:10px;}
     <div class="mo" id="m-find-upstream"><div class="md" style="max-width:820px;max-height:94vh">
       <div class="md-h"><div class="md-t">🔍 Find Upstream Provider</div><div class="md-x" onclick="cm('m-find-upstream')">✕</div></div>
       <div class="md-b" style="overflow-y:auto;max-height:80vh;padding:16px">
-        <div style="font-size:12px;color:var(--mt);margin-bottom:14px;line-height:1.6">اگه یه پنل از دیگری resell می‌کنه، Service ID هاشون دقیقاً یکیه. منبع (smmcost) و پنل مقایسه رو انتخاب کنید — تطابق بالای ۵۰٪ یعنی upstream پیدا شده.</div>
+        <div style="font-size:12px;color:var(--mt);margin-bottom:14px;line-height:1.6">اگه یه پنل از دیگری resell می‌کنه، Service ID هاشون دقیقاً یکیه. منبع و پنل مقایسه رو انتخاب کنید — تطابق بالای ۴۰٪ یعنی upstream پیدا شده.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
           <div>
-            <label class="fl">منبع (Provider ذخیره‌شده)</label>
+            <label class="fl">منبع</label>
             <select class="fi" id="fu-src-prov" style="padding:8px 10px;font-size:13px">
               <option value="">— انتخاب کنید —</option>
             </select>
           </div>
           <div>
-            <label class="fl">پنل مقایسه — API URL</label>
-            <input class="fi" id="fu-cmp-url" placeholder="https://panel.com/api/v2" style="font-size:12px;font-family:monospace">
+            <label class="fl">پنل مقایسه (stored)</label>
+            <select class="fi" id="fu-cmp-prov" style="padding:8px 10px;font-size:13px" onchange="fuCmpProvChange()">
+              <option value="">— یا وارد دستی کنید —</option>
+            </select>
           </div>
         </div>
-        <div style="margin-bottom:14px">
-          <label class="fl">API Key پنل مقایسه</label>
-          <input class="fi" id="fu-cmp-key" type="password" placeholder="کلید API پنل مقایسه را وارد کنید">
-        </div>
-        <div style="margin-bottom:14px">
-          <div style="font-size:12px;color:var(--mt);margin-bottom:6px">انتخاب سریع پنل‌های معروف:</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <div id="fu-manual-row" style="margin-bottom:14px">
+          <label class="fl">URL دستی (اگه stored نیست)</label>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+            <input class="fi" id="fu-cmp-url" placeholder="https://panel.com/api/v2" style="font-size:12px;font-family:monospace">
+            <input class="fi" id="fu-cmp-key" type="password" placeholder="API Key" style="width:160px;font-size:12px">
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
             <button class="btn btn-g btn-sm" onclick="fuPick('https://peakerr.com/api/v2')">Peakerr</button>
             <button class="btn btn-g btn-sm" onclick="fuPick('https://smmstone.com/api/v2')">SmmStone</button>
             <button class="btn btn-g btn-sm" onclick="fuPick('https://justanotherpanel.com/api/v2')">JustAnotherPanel</button>
             <button class="btn btn-g btn-sm" onclick="fuPick('https://smmfollows.com/api/v2')">SMMFollows</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://reliablesmm.com/api/v2')">ReliableSMM</button>
             <button class="btn btn-g btn-sm" onclick="fuPick('https://vipprosmm.com/api/v2')">VipProSMM</button>
-            <button class="btn btn-g btn-sm" onclick="fuPick('https://smmworldpanel.com/api/v2')">SMMWorldPanel</button>
           </div>
         </div>
         <button class="btn btn-p" onclick="fuCompare()" style="width:100%;margin-bottom:16px">🔍 مقایسه Service ID ها</button>
@@ -7097,10 +7099,20 @@ function showFindUpstream(){
     sel.innerHTML+='<option value="'+p.id+'">'+escHtmlAdmin(p.name)+' ('+escHtmlAdmin(p.url)+')</option>';
   });
   if(provs.length===1) sel.value=String(provs[0].id);
+  var cmpSel=document.getElementById('fu-cmp-prov');
+  cmpSel.innerHTML='<option value="">— یا وارد دستی کنید —</option>';
+  provs.forEach(function(p){
+    cmpSel.innerHTML+='<option value="'+p.id+'">'+escHtmlAdmin(p.name)+' ('+escHtmlAdmin(p.url)+')</option>';
+  });
+  document.getElementById('fu-manual-row').style.display='block';
   document.getElementById('fu-result').innerHTML='';
   document.getElementById('fu-cmp-url').value='';
   document.getElementById('fu-cmp-key').value='';
   om('m-find-upstream');
+}
+function fuCmpProvChange(){
+  var v=document.getElementById('fu-cmp-prov').value;
+  document.getElementById('fu-manual-row').style.display=v?'none':'block';
 }
 function fuPick(url){
   document.getElementById('fu-cmp-url').value=url;
@@ -7108,17 +7120,21 @@ function fuPick(url){
 }
 function fuCompare(){
   var provId=document.getElementById('fu-src-prov').value;
+  var cmpProvId=document.getElementById('fu-cmp-prov').value;
   var cmpUrl=(document.getElementById('fu-cmp-url').value||'').trim();
   var cmpKey=(document.getElementById('fu-cmp-key').value||'').trim();
   var result=document.getElementById('fu-result');
   if(!provId){result.innerHTML='<div style="color:var(--rd);padding:10px">لطفاً منبع را انتخاب کنید</div>';return;}
-  if(!cmpUrl||!cmpKey){result.innerHTML='<div style="color:var(--rd);padding:10px">URL و API Key پنل مقایسه را وارد کنید</div>';return;}
+  if(!cmpProvId&&(!cmpUrl||!cmpKey)){result.innerHTML='<div style="color:var(--rd);padding:10px">یک پنل مقایسه انتخاب کنید یا URL و API Key وارد کنید</div>';return;}
   var srcProv=provs.find(function(p){return String(p.id)===String(provId);});
   if(!srcProv){result.innerHTML='<div style="color:var(--rd);padding:10px">Provider پیدا نشد</div>';return;}
   result.innerHTML='<div style="text-align:center;padding:30px;color:var(--mt)">⏳ در حال دریافت سرویس‌ها از هر دو پنل...</div>';
+  var cmpCall=cmpProvId
+    ? callProviderAPI('','','services',null,cmpProvId)
+    : callProviderAPI(cmpUrl,cmpKey,'services',null,null);
   Promise.all([
     callProviderAPI(srcProv.url,srcProv.key,'services',null,srcProv.id),
-    callProviderAPI(cmpUrl,cmpKey,'services',null,null)
+    cmpCall
   ]).then(function(res){
     var src=res[0]; var cmp=res[1];
     if(src&&src.error){result.innerHTML='<div style="color:var(--rd);padding:10px">❌ منبع: '+escHtmlAdmin(src.error)+'</div>';return;}
