@@ -600,6 +600,21 @@ textarea.fi{resize:vertical;min-height:75px;}
 .page.on{animation:pageIn .2s ease;}
 @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
+/* ══ PROVIDER INTEL PAGE ══ */
+.pi-card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:16px;text-align:center;transition:border-color .2s;}
+.pi-card.highlight{border-color:var(--acc);background:rgba(124,92,252,.08);}
+.pi-card-ico{font-size:26px;margin-bottom:6px;}
+.pi-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mt);margin-bottom:4px;}
+.pi-card-val{font-size:15px;font-weight:800;color:var(--tx);margin-bottom:3px;}
+.pi-card-sub{font-size:11px;color:var(--mt);}
+.pi-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--bd);align-items:center;}
+.pi-row:hover{background:rgba(124,92,252,.04);}
+.pi-row-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--mt);background:var(--s2);}
+.pi-cell{padding:10px 12px;font-size:12px;}
+.pi-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;}
+.pi-cat.on{background:var(--acc);color:#fff;border-color:var(--acc);}
+@media(max-width:700px){.pi-row{grid-template-columns:1fr 1fr 1fr;}}
+
 /* ══ IMPROVED SECTION HEADERS ══ */
 .sec-t svg{opacity:.7;}
 
@@ -653,6 +668,7 @@ th{font-size:10px;}
     <div class="ni" data-label="Tickets" onclick="go('tickets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="ni-label">Tickets</span><span class="nbg" id="nb-t">5</span></div>
     <div class="sb-sec">System</div>
     <div class="ni" data-label="Alerts" onclick="go('alerts',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="ni-label">System Alerts</span><span class="nbg" id="nb-al" style="display:none">0</span></div>
+    <div class="ni" data-label="Provider Intel" onclick="go('provider-intel',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg><span class="ni-label">Provider Intel</span></div>
     <div class="sb-sec">Config</div>
     <div class="ni" data-label="Settings" onclick="go('settings',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="ni-label">Settings</span></div>
   </div>
@@ -1367,6 +1383,89 @@ th{font-size:10px;}
         </div>
         <div style="font-size:12px;color:var(--mt);margin:-6px 0 12px">Real backend failures — an order that couldn't be dispatched to its provider, a PayPal credit that exhausted every retry — logged here automatically so they're visible without digging through Telegram history.</div>
         <div class="tw" id="alerts-tbl"></div>
+      </div>
+    </div>
+
+    <!-- PROVIDER INTEL -->
+    <div class="page" id="pg-provider-intel">
+      <div class="sec">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+          <div>
+            <h2 style="margin:0;font-size:20px;font-weight:800">🔍 Provider Intelligence</h2>
+            <div style="font-size:12px;color:var(--mt);margin-top:3px">مقایسه خودکار پنل‌های wholesale — پیدا کردن upstream و بهترین قیمت</div>
+          </div>
+          <button class="btn btn-p" onclick="piStartScan()" id="pi-scan-btn" style="margin-right:auto">⚡ شروع اسکن</button>
+        </div>
+
+        <!-- Source + options row -->
+        <div style="background:var(--s2);border-radius:14px;padding:16px;margin-bottom:18px;border:1px solid var(--bd)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div>
+              <label class="fl">پروایدر منبع (برای مقایسه Upstream)</label>
+              <select class="fi" id="pi-src-prov" style="font-size:13px">
+                <option value="">— بدون منبع (اسکن عمومی) —</option>
+              </select>
+            </div>
+            <div>
+              <label class="fl">دسته‌بندی خروجی</label>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="pi-cat-filters">
+                <button class="btn btn-g btn-sm pi-cat on" data-cat="all" onclick="piSetCat('all',this)">همه</button>
+                <button class="btn btn-g btn-sm pi-cat" data-cat="cheapest" onclick="piSetCat('cheapest',this)">💰 ارزان‌ترین</button>
+                <button class="btn btn-g btn-sm pi-cat" data-cat="upstream" onclick="piSetCat('upstream',this)">🔗 Upstream</button>
+                <button class="btn btn-g btn-sm pi-cat" data-cat="fastest" onclick="piSetCat('fastest',this)">⚡ سریع‌ترین</button>
+                <button class="btn btn-g btn-sm pi-cat" data-cat="richest" onclick="piSetCat('richest',this)">📦 بیشترین سرویس</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="fl">پنل‌های اضافی برای اسکن (هر خط یک URL)</label>
+            <textarea class="fi" id="pi-extra-urls" rows="3" placeholder="https://custompanel.com/api/v2" style="font-size:12px;font-family:monospace;resize:vertical"></textarea>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div id="pi-progress-wrap" style="display:none;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:600" id="pi-progress-label">در حال اسکن...</span>
+            <span style="font-size:12px;color:var(--mt)" id="pi-progress-count">0 / 0</span>
+          </div>
+          <div style="background:var(--s2);border-radius:8px;height:8px;overflow:hidden">
+            <div id="pi-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:8px;width:0%;transition:width .3s"></div>
+          </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div id="pi-summary" style="display:none;margin-bottom:18px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+            <div class="pi-card" id="pi-card-cheapest">
+              <div class="pi-card-ico">💰</div>
+              <div class="pi-card-title">ارزان‌ترین</div>
+              <div class="pi-card-val" id="pi-cheapest-name">—</div>
+              <div class="pi-card-sub" id="pi-cheapest-sub"></div>
+            </div>
+            <div class="pi-card" id="pi-card-upstream">
+              <div class="pi-card-ico">🔗</div>
+              <div class="pi-card-title">Upstream احتمالی</div>
+              <div class="pi-card-val" id="pi-upstream-name">—</div>
+              <div class="pi-card-sub" id="pi-upstream-sub"></div>
+            </div>
+            <div class="pi-card" id="pi-card-fastest">
+              <div class="pi-card-ico">⚡</div>
+              <div class="pi-card-title">سریع‌ترین پاسخ</div>
+              <div class="pi-card-val" id="pi-fastest-name">—</div>
+              <div class="pi-card-sub" id="pi-fastest-sub"></div>
+            </div>
+            <div class="pi-card" id="pi-card-richest">
+              <div class="pi-card-ico">📦</div>
+              <div class="pi-card-title">بیشترین سرویس</div>
+              <div class="pi-card-val" id="pi-richest-name">—</div>
+              <div class="pi-card-sub" id="pi-richest-sub"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results table -->
+        <div id="pi-results"></div>
       </div>
     </div>
 
@@ -2575,7 +2674,7 @@ var pc={instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',tiktok:'#010
 var _selTk=null;
 
 // ═══ NAV ═══
-var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals','guest-orders':'Guest Orders (بدون ثبت‌نام)',tickets:'Tickets',alerts:'System Alerts',settings:'Settings'};
+var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals','guest-orders':'Guest Orders (بدون ثبت‌نام)',tickets:'Tickets',alerts:'System Alerts','provider-intel':'Provider Intelligence',settings:'Settings'};
 function go(pg,el){
   // Hide all pages
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
@@ -2612,6 +2711,7 @@ function go(pg,el){
   else if(pg==='guest-orders') renderGuestOrders();
   else if(pg==='tickets') rTickets(getRealTickets());
   else if(pg==='alerts') rAlerts(getRealAlerts());
+  else if(pg==='provider-intel') piInitPage();
   else if(pg==='settings') initSettings();
   closeSb();
 }
@@ -7296,6 +7396,240 @@ function fuBulkScan(){
   }).catch(function(e){
     result.innerHTML='<div style="color:var(--rd);padding:10px">❌ خطا در دریافت سرویس‌های منبع: '+escHtmlAdmin(e.message)+'</div>';
   });
+}
+
+// ═══ PROVIDER INTEL ═══
+var PI_PANELS=[
+  {name:'Peakerr',          url:'https://peakerr.com/api/v2'},
+  {name:'JustAnotherPanel', url:'https://justanotherpanel.com/api/v2'},
+  {name:'SmmStone',         url:'https://smmstone.com/api/v2'},
+  {name:'SmmFollows',       url:'https://smmfollows.com/api/v2'},
+  {name:'VipProSMM',        url:'https://vipprosmm.com/api/v2'},
+  {name:'SMMKings',         url:'https://smmkings.com/api/v2'},
+  {name:'Likes.io',         url:'https://likes.io/api/v2'},
+  {name:'Panel.cheap',      url:'https://panel.cheap/api/v2'},
+  {name:'SMMXNX',           url:'https://smmxnx.com/api/v2'},
+  {name:'Smm-Heaven',       url:'https://smm-heaven.net/api/v2'},
+  {name:'Boostlikes',       url:'https://boostlikes.com/api/v2'},
+  {name:'TopFollows',       url:'https://topfollows.com/api/v2'},
+  {name:'SMMBuzz',          url:'https://smmbuzz.net/api/v2'},
+  {name:'CheapestSMM',      url:'https://cheapestsmm.com/api/v2'},
+  {name:'GrowthSMM',        url:'https://growthsmm.io/api/v2'},
+  {name:'SocialPanel',      url:'https://socialpanel.com/api/v2'},
+  {name:'FameBlast',        url:'https://fameblast.com/api/v2'},
+  {name:'SMMRaja',          url:'https://smmraja.com/api/v2'},
+  {name:'BulkFollows',      url:'https://bulkfollows.com/api/v2'},
+  {name:'InstantSMM',       url:'https://instantsmmpanel.com/api/v2'}
+];
+var _piResults=[];
+var _piActiveCat='all';
+
+function piInitPage(){
+  var sel=document.getElementById('pi-src-prov');
+  if(!sel) return;
+  sel.innerHTML='<option value="">— بدون منبع (اسکن عمومی) —</option>';
+  provs.forEach(function(p){
+    sel.innerHTML+='<option value="'+p.id+'">'+escHtmlAdmin(p.name)+'</option>';
+  });
+}
+
+function piSetCat(cat,el){
+  _piActiveCat=cat;
+  document.querySelectorAll('.pi-cat').forEach(function(b){b.classList.remove('on');});
+  if(el) el.classList.add('on');
+  piRenderResults();
+}
+
+function piStartScan(){
+  var btn=document.getElementById('pi-scan-btn');
+  btn.disabled=true; btn.textContent='⏳ در حال اسکن...';
+  document.getElementById('pi-summary').style.display='none';
+  document.getElementById('pi-results').innerHTML='';
+  _piResults=[];
+
+  // Build target list: stored providers + preset list (deduplicated by URL)
+  var targets=[];
+  provs.forEach(function(p){
+    targets.push({name:p.name,url:p.url,storedId:p.id,isStored:true});
+  });
+  PI_PANELS.forEach(function(bp){
+    var norm=bp.url.replace(/\/$/,'').toLowerCase();
+    var already=targets.some(function(t){return t.url.replace(/\/$/,'').toLowerCase()===norm;});
+    if(!already) targets.push({name:bp.name,url:bp.url,storedId:null,isStored:false});
+  });
+  // Extra URLs from textarea
+  var extra=(document.getElementById('pi-extra-urls').value||'').split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  extra.forEach(function(u){
+    var norm=u.replace(/\/$/,'').toLowerCase();
+    var already=targets.some(function(t){return t.url.replace(/\/$/,'').toLowerCase()===norm;});
+    if(!already) targets.push({name:u.replace('https://','').split('/')[0],url:u,storedId:null,isStored:false});
+  });
+
+  // Source provider for upstream matching
+  var srcProvId=document.getElementById('pi-src-prov').value;
+  var srcProv=srcProvId?provs.find(function(p){return String(p.id)===String(srcProvId);}):null;
+  var srcMapPromise=srcProv
+    ? callProviderAPI(srcProv.url,srcProv.key,'services',null,srcProv.id).then(function(s){
+        if(!Array.isArray(s)) return {};
+        var m={};s.forEach(function(sv){var id=String(sv.service||sv.id||'');if(id)m[id]=sv;});return m;
+      }).catch(function(){return {};})
+    : Promise.resolve({});
+
+  var total=targets.length;
+  var done=0;
+  var pw=document.getElementById('pi-progress-wrap');
+  var pb=document.getElementById('pi-progress-bar');
+  var pl=document.getElementById('pi-progress-label');
+  var pc=document.getElementById('pi-progress-count');
+  pw.style.display='block';
+
+  srcMapPromise.then(function(srcMap){
+    var hasSrc=Object.keys(srcMap).length>0;
+    targets.forEach(function(t){
+      var t0=Date.now();
+      var call=t.storedId
+        ? callProviderAPI('','','services',null,t.storedId)
+        : callProviderAPI(t.url,'','services',null,null);
+      call.then(function(cmp){
+        var ms=Date.now()-t0;
+        if(Array.isArray(cmp)&&cmp.length>0){
+          var cmpMap={};
+          cmp.forEach(function(s){var id=String(s.service||s.id||'');if(id)cmpMap[id]=s;});
+          // Upstream match
+          var matchCount=hasSrc?Object.keys(srcMap).filter(function(id){return !!cmpMap[id];}).length:0;
+          var upstreamPct=hasSrc&&Object.keys(srcMap).length>0?Math.round(matchCount/Object.keys(srcMap).length*100):null;
+          // Average price (common services only)
+          var prices=[];
+          if(hasSrc){
+            Object.keys(srcMap).forEach(function(id){
+              if(cmpMap[id]){var r=parseFloat(cmpMap[id].rate||0);if(r>0)prices.push(r);}
+            });
+          } else {
+            cmp.forEach(function(s){var r=parseFloat(s.rate||0);if(r>0)prices.push(r);});
+          }
+          var avgPrice=prices.length?prices.reduce(function(a,b){return a+b;},0)/prices.length:null;
+          var minPrice=prices.length?Math.min.apply(null,prices):null;
+          _piResults.push({name:t.name,url:t.url,isStored:t.isStored,count:cmp.length,ms:ms,
+            upstreamPct:upstreamPct,matchCount:matchCount,avgPrice:avgPrice,minPrice:minPrice,err:null});
+        } else {
+          _piResults.push({name:t.name,url:t.url,isStored:t.isStored,count:0,ms:ms,
+            upstreamPct:null,matchCount:0,avgPrice:null,minPrice:null,err:(cmp&&cmp.error)||'no data'});
+        }
+        done++;
+        var pct=Math.round(done/total*100);
+        pb.style.width=pct+'%';
+        pc.textContent=done+' / '+total;
+        pl.textContent='اسکن '+done+' از '+total+' پنل...';
+        if(done===total) piScanDone(hasSrc);
+      }).catch(function(e){
+        done++;
+        _piResults.push({name:t.name,url:t.url,isStored:t.isStored,count:0,ms:Date.now()-t0,
+          upstreamPct:null,matchCount:0,avgPrice:null,minPrice:null,err:e.message||'error'});
+        var pct=Math.round(done/total*100);
+        pb.style.width=pct+'%';
+        pc.textContent=done+' / '+total;
+        if(done===total) piScanDone(hasSrc);
+      });
+    });
+  });
+}
+
+function piScanDone(hasSrc){
+  var btn=document.getElementById('pi-scan-btn');
+  btn.disabled=false; btn.textContent='⚡ اسکن مجدد';
+  document.getElementById('pi-progress-label').textContent='✅ اسکن کامل شد';
+
+  var valid=_piResults.filter(function(r){return r.count>0;});
+  if(!valid.length){
+    document.getElementById('pi-results').innerHTML='<div style="color:var(--mt);padding:20px;text-align:center">هیچ پنلی پاسخ نداد</div>';
+    return;
+  }
+
+  // Cheapest: lowest avg price (common services only when src exists)
+  var withPrice=valid.filter(function(r){return r.avgPrice!==null;});
+  var cheapest=withPrice.length?withPrice.slice().sort(function(a,b){return a.avgPrice-b.avgPrice;})[0]:null;
+  // Upstream: highest match%
+  var withMatch=valid.filter(function(r){return r.upstreamPct!==null;});
+  var upstream=hasSrc&&withMatch.length?withMatch.slice().sort(function(a,b){return b.upstreamPct-a.upstreamPct;})[0]:null;
+  // Fastest
+  var fastest=valid.slice().sort(function(a,b){return a.ms-b.ms;})[0];
+  // Richest
+  var richest=valid.slice().sort(function(a,b){return b.count-a.count;})[0];
+
+  // Summary cards
+  var sum=document.getElementById('pi-summary');
+  sum.style.display='block';
+  function setCard(nameId,subId,cardId,r,sub){
+    document.getElementById(nameId).textContent=r?r.name:'—';
+    document.getElementById(subId).textContent=r?sub:'';
+    if(r) document.getElementById(cardId).classList.add('highlight');
+  }
+  setCard('pi-cheapest-name','pi-cheapest-sub','pi-card-cheapest',cheapest,cheapest?'میانگین $'+cheapest.avgPrice.toFixed(4):'');
+  setCard('pi-upstream-name','pi-upstream-sub','pi-card-upstream',upstream,upstream?upstream.upstreamPct+'% تطابق':'');
+  setCard('pi-fastest-name','pi-fastest-sub','pi-card-fastest',fastest,fastest?fastest.ms+'ms':'');
+  setCard('pi-richest-name','pi-richest-sub','pi-card-richest',richest,richest?richest.count+' سرویس':'');
+
+  piRenderResults();
+}
+
+function piRenderResults(){
+  var hasSrc=_piResults.some(function(r){return r.upstreamPct!==null;});
+  var rows=_piResults.slice();
+  // Sort by active category
+  if(_piActiveCat==='cheapest') rows.sort(function(a,b){
+    if(a.avgPrice===null&&b.avgPrice===null) return 0;
+    if(a.avgPrice===null) return 1; if(b.avgPrice===null) return -1;
+    return a.avgPrice-b.avgPrice;
+  });
+  else if(_piActiveCat==='upstream') rows.sort(function(a,b){return (b.upstreamPct||0)-(a.upstreamPct||0);});
+  else if(_piActiveCat==='fastest') rows.sort(function(a,b){return a.ms-b.ms;});
+  else if(_piActiveCat==='richest') rows.sort(function(a,b){return b.count-a.count;});
+  else rows.sort(function(a,b){return b.count-a.count;}); // default: most services
+
+  var html='<div style="border:1px solid var(--bd);border-radius:14px;overflow:hidden">';
+  html+='<div class="pi-row pi-row-hd">'
+    +'<div class="pi-cell">پنل</div>'
+    +'<div class="pi-cell" style="text-align:center">سرویس‌ها</div>'
+    +(hasSrc?'<div class="pi-cell" style="text-align:center">Upstream %</div>':'')
+    +'<div class="pi-cell" style="text-align:center">میانگین قیمت</div>'
+    +'<div class="pi-cell" style="text-align:center">پاسخ‌دهی</div>'
+    +'<div class="pi-cell" style="text-align:center">وضعیت</div>'
+    +'</div>';
+
+  rows.forEach(function(r){
+    var badges='';
+    if(r.upstreamPct>=40) badges+='<span class="pi-badge" style="background:rgba(0,200,100,.15);color:var(--gr)">🔗 Upstream</span> ';
+    if(r.count>0&&rows[0]&&r.count===rows.reduce(function(mx,x){return x.count>mx?x.count:mx;},0)) badges+='<span class="pi-badge" style="background:rgba(255,170,0,.12);color:#ffaa00">📦 بیشترین</span> ';
+    if(r.avgPrice!==null&&rows.some(function(x){return x.avgPrice!==null&&x.avgPrice<r.avgPrice+0.0001&&x.avgPrice>r.avgPrice-0.0001&&x.name===r.name;})){
+      // cheapest
+    }
+    var cheapestAvg=rows.filter(function(x){return x.avgPrice!==null;}).map(function(x){return x.avgPrice;});
+    if(cheapestAvg.length&&r.avgPrice!==null&&r.avgPrice===Math.min.apply(null,cheapestAvg)) badges+='<span class="pi-badge" style="background:rgba(124,92,252,.15);color:var(--acc2)">💰 ارزان‌ترین</span> ';
+    var fastestMs=rows.map(function(x){return x.ms;});
+    if(r.ms===Math.min.apply(null,fastestMs)) badges+='<span class="pi-badge" style="background:rgba(0,180,255,.12);color:#00b4ff">⚡ سریع‌ترین</span> ';
+
+    var upstreamCell=hasSrc
+      ? '<div class="pi-cell" style="text-align:center;font-weight:700;color:'+(r.upstreamPct>=40?'var(--gr)':r.upstreamPct>=15?'var(--wn)':'var(--mt)')+'">'+
+        (r.upstreamPct!==null?r.upstreamPct+'%':'—')+'</div>'
+      : '';
+    html+='<div class="pi-row">'
+      +'<div class="pi-cell"><div style="font-weight:700;margin-bottom:2px">'+escHtmlAdmin(r.name)+(r.isStored?'<span style="color:var(--acc2);font-size:10px;margin-right:5px">✦</span>':'')+'</div>'
+      +'<div style="font-size:10px;color:var(--mt);font-family:monospace">'+escHtmlAdmin(r.url.replace('https://','').split('/')[0])+'</div>'
+      +(badges?'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'+badges+'</div>':'')
+      +'</div>'
+      +'<div class="pi-cell" style="text-align:center;font-weight:700;color:'+(r.count>0?'var(--tx)':'var(--mt)')+'">'+
+        (r.count>0?r.count:'❌')+'</div>'
+      +upstreamCell
+      +'<div class="pi-cell" style="text-align:center;color:'+(r.avgPrice!==null?'var(--gr)':'var(--mt)')+'">'+
+        (r.avgPrice!==null?'$'+r.avgPrice.toFixed(4):'—')+'</div>'
+      +'<div class="pi-cell" style="text-align:center;color:'+(r.ms<800?'var(--gr)':r.ms<2000?'var(--wn)':'var(--rd)')+'">'+
+        r.ms+'ms</div>'
+      +'<div class="pi-cell" style="text-align:center;font-size:11px;color:var(--mt)">'+
+        (r.err?escHtmlAdmin(r.err.slice(0,25)):'✅')+'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('pi-results').innerHTML=html;
 }
 
 // ═══ BLOG ═══
