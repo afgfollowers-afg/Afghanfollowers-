@@ -3741,7 +3741,7 @@ function qiLoadServices(){
       toast('✅ Loaded '+data.length+' services (in memory)','s');
     })
     .catch(function(e){
-      document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+escHtmlAdmin(e.message)+'<br><small style="color:var(--mt)">Make sure Netlify proxy is deployed</small></div>';
+      document.getElementById('qi-list').innerHTML='<div style="padding:20px;text-align:center;color:var(--rd)">❌ '+escHtmlAdmin(e.message)+'<br><small style="color:var(--mt)">Check provider URL and API key in Settings → Providers</small></div>';
     });
 }
 
