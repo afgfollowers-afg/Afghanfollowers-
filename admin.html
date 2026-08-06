@@ -833,6 +833,7 @@ th{font-size:10px;}
           <button class="btn btn-p btn-sm" onclick="om('m-create-cat')">📁 Category</button>
           <button class="btn btn-p btn-sm" onclick="om('m-add-svc')">➕ Add</button>
           <button class="btn btn-g btn-sm" onclick="showQuickImport()">⚡ Import</button>
+          <button class="btn btn-g btn-sm" onclick="showFindUpstream()">🔍 Find Upstream</button>
           <button class="btn btn-s btn-sm" onclick="syncServicesToPanel(getServices(),true)" style="background:var(--gr);color:#000;font-weight:800">🔄 Sync to Panel</button>
           <div style="position:relative">
             <button class="btn btn-g btn-sm" onclick="toggleActionsMenu()">Actions ▾</button>
@@ -959,6 +960,46 @@ th{font-size:10px;}
         <span id="qi-sel-count" style="font-size:13px;color:var(--acc2);font-weight:700;align-self:center"></span>
         <button class="btn btn-g btn-sm" onclick="qiSelectAllVisible()">☑️ Select All</button>
         <button class="btn btn-p" onclick="qiImportSelected()" id="qi-import-btn" style="min-width:140px">📥 Import Selected</button>
+      </div>
+    </div></div>
+
+    <!-- Find Upstream Provider Modal -->
+    <div class="mo" id="m-find-upstream"><div class="md" style="max-width:820px;max-height:94vh">
+      <div class="md-h"><div class="md-t">🔍 Find Upstream Provider</div><div class="md-x" onclick="cm('m-find-upstream')">✕</div></div>
+      <div class="md-b" style="overflow-y:auto;max-height:80vh;padding:16px">
+        <div style="font-size:12px;color:var(--mt);margin-bottom:14px;line-height:1.6">اگه یه پنل از دیگری resell می‌کنه، Service ID هاشون دقیقاً یکیه. منبع (smmcost) و پنل مقایسه رو انتخاب کنید — تطابق بالای ۵۰٪ یعنی upstream پیدا شده.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div>
+            <label class="fl">منبع (Provider ذخیره‌شده)</label>
+            <select class="fi" id="fu-src-prov" style="padding:8px 10px;font-size:13px">
+              <option value="">— انتخاب کنید —</option>
+            </select>
+          </div>
+          <div>
+            <label class="fl">پنل مقایسه — API URL</label>
+            <input class="fi" id="fu-cmp-url" placeholder="https://panel.com/api/v2" style="font-size:12px;font-family:monospace">
+          </div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label class="fl">API Key پنل مقایسه</label>
+          <input class="fi" id="fu-cmp-key" type="password" placeholder="کلید API پنل مقایسه را وارد کنید">
+        </div>
+        <div style="margin-bottom:14px">
+          <div style="font-size:12px;color:var(--mt);margin-bottom:6px">انتخاب سریع پنل‌های معروف:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://peakerr.com/api/v2')">Peakerr</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://smmstone.com/api/v2')">SmmStone</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://justanotherpanel.com/api/v2')">JustAnotherPanel</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://smmfollows.com/api/v2')">SMMFollows</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://vipprosmm.com/api/v2')">VipProSMM</button>
+            <button class="btn btn-g btn-sm" onclick="fuPick('https://smmworldpanel.com/api/v2')">SMMWorldPanel</button>
+          </div>
+        </div>
+        <button class="btn btn-p" onclick="fuCompare()" style="width:100%;margin-bottom:16px">🔍 مقایسه Service ID ها</button>
+        <div id="fu-result"></div>
+      </div>
+      <div class="md-f">
+        <button class="btn btn-g" onclick="cm('m-find-upstream')">بستن</button>
       </div>
     </div></div>
 
@@ -7046,6 +7087,86 @@ function addAnnouncement(){
   saveAnnouncements(list);rAnnouncements();cm('m-add-ann');toast('Announcement published!','s');
   tgBroadcast('📢 <b>'+title+'</b>\n\n'+msg+(link?'\n\n🔗 '+link:''));
   clearAnnForm();
+}
+
+// ── FIND UPSTREAM PROVIDER ──
+function showFindUpstream(){
+  var sel=document.getElementById('fu-src-prov');
+  sel.innerHTML='<option value="">— انتخاب کنید —</option>';
+  provs.forEach(function(p){
+    sel.innerHTML+='<option value="'+p.id+'">'+escHtmlAdmin(p.name)+' ('+escHtmlAdmin(p.url)+')</option>';
+  });
+  if(provs.length===1) sel.value=String(provs[0].id);
+  document.getElementById('fu-result').innerHTML='';
+  document.getElementById('fu-cmp-url').value='';
+  document.getElementById('fu-cmp-key').value='';
+  om('m-find-upstream');
+}
+function fuPick(url){
+  document.getElementById('fu-cmp-url').value=url;
+  document.getElementById('fu-cmp-key').focus();
+}
+function fuCompare(){
+  var provId=document.getElementById('fu-src-prov').value;
+  var cmpUrl=(document.getElementById('fu-cmp-url').value||'').trim();
+  var cmpKey=(document.getElementById('fu-cmp-key').value||'').trim();
+  var result=document.getElementById('fu-result');
+  if(!provId){result.innerHTML='<div style="color:var(--rd);padding:10px">لطفاً منبع را انتخاب کنید</div>';return;}
+  if(!cmpUrl||!cmpKey){result.innerHTML='<div style="color:var(--rd);padding:10px">URL و API Key پنل مقایسه را وارد کنید</div>';return;}
+  var srcProv=provs.find(function(p){return String(p.id)===String(provId);});
+  if(!srcProv){result.innerHTML='<div style="color:var(--rd);padding:10px">Provider پیدا نشد</div>';return;}
+  result.innerHTML='<div style="text-align:center;padding:30px;color:var(--mt)">⏳ در حال دریافت سرویس‌ها از هر دو پنل...</div>';
+  Promise.all([
+    callProviderAPI(srcProv.url,srcProv.key,'services',null,srcProv.id),
+    callProviderAPI(cmpUrl,cmpKey,'services',null,null)
+  ]).then(function(res){
+    var src=res[0]; var cmp=res[1];
+    if(src&&src.error){result.innerHTML='<div style="color:var(--rd);padding:10px">❌ منبع: '+escHtmlAdmin(src.error)+'</div>';return;}
+    if(cmp&&cmp.error){result.innerHTML='<div style="color:var(--rd);padding:10px">❌ پنل مقایسه: '+escHtmlAdmin(cmp.error)+'</div>';return;}
+    if(!Array.isArray(src)||!Array.isArray(cmp)){
+      result.innerHTML='<div style="color:var(--rd);padding:10px">❌ پاسخ نامعتبر از یکی از پنل‌ها</div>';return;
+    }
+    var srcMap={};
+    src.forEach(function(s){var id=String(s.service||s.id||'');if(id)srcMap[id]=s;});
+    var cmpMap={};
+    cmp.forEach(function(s){var id=String(s.service||s.id||'');if(id)cmpMap[id]=s;});
+    var matches=[];
+    Object.keys(srcMap).forEach(function(id){
+      if(cmpMap[id]) matches.push({id:id,sn:srcMap[id].name||'',cn:cmpMap[id].name||'',sr:srcMap[id].rate||0,cr:cmpMap[id].rate||0});
+    });
+    var pct=src.length?Math.round(matches.length/src.length*100):0;
+    var isUpstream=pct>=40;
+    var html='<div style="background:var(--s2);border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid '+(isUpstream?'var(--gr)':'var(--bd)')+';">'
+      +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+(isUpstream?'✅ احتمالاً Upstream پیدا شد!':'❌ این پنل upstream نیست')+'</div>'
+      +'<div style="font-size:13px;color:var(--mt)"><b>'+matches.length+'</b> سرویس مشترک از <b>'+src.length+'</b> سرویس منبع — <b style="color:'+(isUpstream?'var(--gr)':'var(--rd)')+'">'+pct+'% تطابق</b></div>'
+      +'</div>';
+    if(matches.length){
+      html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px">سرویس‌های مشترک (ID یکسان):</div>';
+      html+='<div style="overflow-x:auto"><table style="font-size:11px;width:100%;border-collapse:collapse">'
+        +'<thead><tr style="background:var(--s2);text-align:left">'
+        +'<th style="padding:6px 8px">ID</th>'
+        +'<th style="padding:6px 8px">نام منبع</th>'
+        +'<th style="padding:6px 8px">نام مقایسه</th>'
+        +'<th style="padding:6px 8px;text-align:center">قیمت منبع</th>'
+        +'<th style="padding:6px 8px;text-align:center">قیمت مقایسه</th>'
+        +'</tr></thead><tbody>';
+      matches.slice(0,30).forEach(function(m){
+        var same=m.sn.toLowerCase().trim()===m.cn.toLowerCase().trim();
+        html+='<tr style="border-bottom:1px solid var(--bd)">'
+          +'<td style="padding:5px 8px;color:var(--acc2);font-family:monospace;font-weight:700">'+escHtmlAdmin(m.id)+'</td>'
+          +'<td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtmlAdmin(m.sn.slice(0,50))+'</td>'
+          +'<td style="padding:5px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:'+(same?'var(--gr)':'inherit')+'">'+escHtmlAdmin(m.cn.slice(0,50))+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">$'+parseFloat(m.sr).toFixed(3)+'</td>'
+          +'<td style="padding:5px 8px;text-align:center;color:'+(parseFloat(m.cr)<parseFloat(m.sr)?'var(--gr)':'var(--rd)')+'">$'+parseFloat(m.cr).toFixed(3)+'</td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div>';
+      if(matches.length>30) html+='<div style="text-align:center;color:var(--mt);font-size:12px;margin-top:8px">... و '+(matches.length-30)+' سرویس مشترک دیگر</div>';
+    }
+    result.innerHTML=html;
+  }).catch(function(e){
+    result.innerHTML='<div style="color:var(--rd);padding:10px">❌ خطا: '+escHtmlAdmin(e.message)+'</div>';
+  });
 }
 
 // ═══ BLOG ═══
