@@ -1509,6 +1509,53 @@ async function runProviderIntelJob(opts) {
       allDiscovered.push({ name: r.name, url: r.url });
   });
 
+  // ── True Upstream Source Detection ──────────────────────────────────────────
+  // Goal: find the ORIGINAL provider, not just resellers.
+  // Key insight: if panel X is the true upstream source, its service IDs will
+  // appear in many other panels (resellers buy from it). A reseller's IDs only
+  // overlap with sibling-resellers who share the same source.
+  //
+  // Algorithm:
+  // 1. Pool ALL responding panels (including source) with their ID sets
+  // 2. Build a global frequency map: serviceId → how many panels have this ID
+  // 3. For each panel, compute spreadScore = average fraction of other panels
+  //    that share each of its service IDs. High score = IDs are widely shared
+  //    across the market = this panel is likely an original source.
+  // 4. Also count panelsCovered: how many panels contain ≥30% of this panel's IDs
+  const allRespondingPanels = [{ name: srcProv.name, url: srcProv.url, ids: srcIds }];
+  fetches.forEach((f, i) => {
+    if (f.services) {
+      const ids = new Set(f.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+      if (ids.size > 0) allRespondingPanels.push({ name: targets[i].name, url: targets[i].url, ids });
+    }
+  });
+
+  const idFreq = new Map();
+  allRespondingPanels.forEach(p => { p.ids.forEach(id => idFreq.set(id, (idFreq.get(id) || 0) + 1)); });
+
+  const nPanels = allRespondingPanels.length;
+  const trueUpstreamCandidates = allRespondingPanels.map(p => {
+    // spreadSum = for each ID in P, how many OTHER panels have it
+    // = Σ (freq(id) - 1) over all IDs in P
+    let spreadSum = 0;
+    p.ids.forEach(id => { spreadSum += (idFreq.get(id) || 1) - 1; });
+    // Normalize: divide by (panel's size × number of other panels) to get 0-100%
+    const spreadScore = p.ids.size > 0 && nPanels > 1
+      ? Math.round(spreadSum / (p.ids.size * (nPanels - 1)) * 100)
+      : 0;
+    // panelsCovered: how many other panels have ≥30% of this panel's IDs
+    let panelsCovered = 0;
+    allRespondingPanels.forEach(other => {
+      if (other.name === p.name || other.ids.size === 0) return;
+      let shared = 0;
+      p.ids.forEach(id => { if (other.ids.has(id)) shared++; });
+      if (shared / p.ids.size >= 0.30) panelsCovered++;
+    });
+    return { name: p.name, url: p.url, serviceCount: p.ids.size, spreadScore, panelsCovered };
+  }).sort((a, b) => b.spreadScore - a.spreadScore || b.panelsCovered - a.panelsCovered || b.serviceCount - a.serviceCount);
+
+  const likelyUpstreams = trueUpstreamCandidates.slice(0, 5);
+  const bestUpstream = likelyUpstreams[0] || null;
 
   // Save results to DB
   await fetchInternal(API_BASE + '/api/db', {
@@ -1520,7 +1567,9 @@ async function runProviderIntelJob(opts) {
         srcName: srcProv.name,
         srcCount: srcFetch.services.length,
         results,
-        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null
+        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null,
+        likelyUpstreams,
+        bestUpstream
       },
       smm_discovered_panels: allDiscovered,
       smm_last_provider_intel_date: today,
@@ -1528,15 +1577,15 @@ async function runProviderIntelJob(opts) {
     })
   });
 
-  // Telegram alert if upstream discovered
-  if (topUpstream && tgCfg.token && tgCfg.chatId) {
-    const msg = '🔍 <b>Upstream Provider پیدا شد!</b>\n\n'
-      + '📡 منبع: <b>' + srcProv.name + '</b> (' + srcFetch.services.length + ' سرویس)\n'
-      + '🔗 Upstream: <b>' + topUpstream.name + '</b>\n'
-      + '📊 تطابق: <b>' + topUpstream.upstreamPct + '%</b> ('
-      + topUpstream.matchCount + ' سرویس مشترک)\n'
-      + '🌐 URL: ' + topUpstream.url + '\n\n'
-      + '➡️ برای جزئیات کامل به Provider Intel در ادمین پنل مراجعه کن';
+  // Telegram alert: report top likely upstream sources
+  if (tgCfg.token && tgCfg.chatId && likelyUpstreams.length > 0) {
+    const topLines = likelyUpstreams.slice(0, 3).map((u, i) =>
+      (i + 1) + '. <b>' + u.name + '</b> — ' + u.serviceCount + ' سرویس | پخش: ' + u.spreadScore + '% | ' + u.panelsCovered + ' پنل از آن می‌خرند'
+    ).join('\n');
+    const msg = '🔍 <b>تحلیل پروایدر اصلی</b>\n\n'
+      + 'احتمالی‌ترین منابع اصلی (بر اساس پخش ID سرویس):\n\n'
+      + topLines + '\n\n'
+      + '<i>spreadScore = درصد پنل‌های دیگری که ID های این پنل را دارند → بالاتر = احتمال منبع اصلی بیشتر</i>';
     await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1550,6 +1599,7 @@ async function runProviderIntelJob(opts) {
     srcServices: srcFetch.services.length,
     scanned: results.length,
     responded: results.filter(r => r.count > 0).length,
-    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null
+    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null,
+    likelyUpstreams
   };
 }
