@@ -1346,7 +1346,7 @@ async function runBulkEmailCampaignJob() {
 // in the DB. If a ≥40% upstream match is found, sends an admin Telegram alert.
 const PI_PRESET_PANELS = [
   { name: 'Peakerr',          url: 'https://peakerr.com/api/v2' },
-  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2' },
+  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2', key: '2b793e8d054eb24c8fd311f142970487' },
   { name: 'SmmStone',         url: 'https://smmstone.com/api/v2' },
   { name: 'SmmFollows',       url: 'https://smmfollows.com/api/v2' },
   { name: 'VipProSMM',        url: 'https://vipprosmm.com/api/v2' },
