@@ -1369,21 +1369,49 @@ const PI_PRESET_PANELS = [
 
 async function fetchProviderServices(url, key) {
   const t0 = Date.now();
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined;
+
+  // Helper: parse response and return services or null
+  async function tryFetch(r) {
+    if (!r.ok) return null;
+    try {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && data.error) return null;
+    } catch (e) {}
+    return null;
+  }
+
   try {
-    const params = { action: 'services' };
-    if (key) params.key = key;
-    const body = new URLSearchParams(params);
-    const r = await fetch(url, {
+    // 1. POST with key (if provided)
+    if (key) {
+      const body = new URLSearchParams({ key, action: 'services' });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(), signal
+      });
+      const services = await tryFetch(r);
+      if (services) return { services, ms: Date.now() - t0, err: null };
+    }
+
+    // 2. POST without key (many panels expose services publicly)
+    const bodyNoKey = new URLSearchParams({ action: 'services' });
+    const r2 = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+      body: bodyNoKey.toString(), signal
     });
-    if (!r.ok) return { services: null, ms: Date.now() - t0, err: 'HTTP ' + r.status };
-    const data = await r.json();
-    if (Array.isArray(data) && data.length > 0) return { services: data, ms: Date.now() - t0, err: null };
-    if (data && data.error) return { services: null, ms: Date.now() - t0, err: String(data.error) };
-    return { services: null, ms: Date.now() - t0, err: 'empty' };
+    const services2 = await tryFetch(r2);
+    if (services2) return { services: services2, ms: Date.now() - t0, err: null };
+
+    // 3. GET fallback — some panels serve service list via GET without auth
+    const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=services';
+    const r3 = await fetch(getUrl, { method: 'GET', signal });
+    const services3 = await tryFetch(r3);
+    if (services3) return { services: services3, ms: Date.now() - t0, err: null };
+
+    return { services: null, ms: Date.now() - t0, err: 'no services returned' };
   } catch (e) {
     return { services: null, ms: Date.now() - t0, err: e.message || 'error' };
   }
