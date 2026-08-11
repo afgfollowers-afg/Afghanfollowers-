@@ -1018,8 +1018,12 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const results = { facebook: null, telegram: null };
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
+    // Instagram day → dedicated Facebook glassmorphism design
+    // TikTok / YouTube days → reuse the platform image already rendered above
     let fbBuf = imageBuffer;
-    try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to platform template */ }
+    if (templateKey === 'instagram') {
+      try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to imageBuffer */ }
+    }
     const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, fbBuf, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
@@ -1441,6 +1445,7 @@ async function runProviderIntelJob(opts) {
     if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
   });
 
+
   // Fetch source services first
   const srcFetch = await fetchProviderServices(srcProv.url, srcProv.key);
   if (!srcFetch.services) {
@@ -1473,6 +1478,7 @@ async function runProviderIntelJob(opts) {
     if (!allDiscovered.some(d => d.url.replace(/\/$/, '').toLowerCase() === norm))
       allDiscovered.push({ name: r.name, url: r.url });
   });
+
 
   // Save results to DB
   await fetchInternal(API_BASE + '/api/db', {
