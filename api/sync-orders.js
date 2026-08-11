@@ -1346,7 +1346,7 @@ async function runBulkEmailCampaignJob() {
 // in the DB. If a ≥40% upstream match is found, sends an admin Telegram alert.
 const PI_PRESET_PANELS = [
   { name: 'Peakerr',          url: 'https://peakerr.com/api/v2' },
-  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2' },
+  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2', key: '2b793e8d054eb24c8fd311f142970487' },
   { name: 'SmmStone',         url: 'https://smmstone.com/api/v2' },
   { name: 'SmmFollows',       url: 'https://smmfollows.com/api/v2' },
   { name: 'VipProSMM',        url: 'https://vipprosmm.com/api/v2' },
@@ -1363,25 +1363,55 @@ const PI_PRESET_PANELS = [
   { name: 'SocialPanel',      url: 'https://socialpanel.com/api/v2' },
   { name: 'FameBlast',        url: 'https://fameblast.com/api/v2' },
   { name: 'SMMRaja',          url: 'https://smmraja.com/api/v2' },
-  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2' },
+  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2', key: '095aca79300ea0ade635d8a5e3851d69' },
   { name: 'InstantSMM',       url: 'https://instantsmmpanel.com/api/v2' }
 ];
 
 async function fetchProviderServices(url, key) {
   const t0 = Date.now();
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined;
+
+  // Helper: parse response and return services or null
+  async function tryFetch(r) {
+    if (!r.ok) return null;
+    try {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && data.error) return null;
+    } catch (e) {}
+    return null;
+  }
+
   try {
-    const body = new URLSearchParams({ key: key || '', action: 'services' });
-    const r = await fetch(url, {
+    // 1. POST with key (if provided)
+    if (key) {
+      const body = new URLSearchParams({ key, action: 'services' });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(), signal
+      });
+      const services = await tryFetch(r);
+      if (services) return { services, ms: Date.now() - t0, err: null };
+    }
+
+    // 2. POST without key (many panels expose services publicly)
+    const bodyNoKey = new URLSearchParams({ action: 'services' });
+    const r2 = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+      body: bodyNoKey.toString(), signal
     });
-    if (!r.ok) return { services: null, ms: Date.now() - t0, err: 'HTTP ' + r.status };
-    const data = await r.json();
-    if (Array.isArray(data) && data.length > 0) return { services: data, ms: Date.now() - t0, err: null };
-    if (data && data.error) return { services: null, ms: Date.now() - t0, err: String(data.error) };
-    return { services: null, ms: Date.now() - t0, err: 'empty' };
+    const services2 = await tryFetch(r2);
+    if (services2) return { services: services2, ms: Date.now() - t0, err: null };
+
+    // 3. GET fallback — some panels serve service list via GET without auth
+    const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=services';
+    const r3 = await fetch(getUrl, { method: 'GET', signal });
+    const services3 = await tryFetch(r3);
+    if (services3) return { services: services3, ms: Date.now() - t0, err: null };
+
+    return { services: null, ms: Date.now() - t0, err: 'no services returned' };
   } catch (e) {
     return { services: null, ms: Date.now() - t0, err: e.message || 'error' };
   }
