@@ -77,6 +77,11 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
   }
 
+  if (req.query && req.query.job === 'provider-scan') {
+    const result = await runProviderIntelJob({ force: true }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
+  }
+
   // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
@@ -122,7 +127,10 @@ module.exports = async (req, res) => {
   let autoPostResult = null;
   try { autoPostResult = await runAutoPostJob(); } catch (e) { autoPostResult = { ok: false, error: e.message }; }
 
-  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult }));
+  let providerIntelResult = null;
+  try { providerIntelResult = await runProviderIntelJob(); } catch (e) { providerIntelResult = { ok: false, error: e.message }; }
+
+  return res.status(200).json(Object.assign({}, syncResult, { content: contentResult, autoPost: autoPostResult, bulkEmail: bulkEmailResult, reengagement: reengagementResult, providerIntel: providerIntelResult }));
 };
 
 // Exposed so api/place-order.js can dispatch a single order on demand
@@ -957,21 +965,7 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const angle = AUTOPOST_ANGLES[doy % AUTOPOST_ANGLES.length];
   const urgency = AUTOPOST_URGENCY[doy % AUTOPOST_URGENCY.length];
 
-  const promoPrompt = `یک پست تبلیغاتی کوتاه، پرانرژی و با شخصیت به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.
-
-امروز تمرکز پست را روی این موضوع بگذار: ${focus}
-زاویه نوشتن امروز: ${angle}
-این پیام فوریت/پیشنهاد را به‌طور طبیعی داخل متن بگنجان (نه به شکل جمله جدا و بریده): ${urgency}
-
-قوانین:
-- حداکثر ۶ خط
-- لحن دوستانه، پرانرژی و با شخصیت — انگار داری با یک دوست حرف می‌زنی، نه یک آگهی رسمی و خشک
-- با ایموجی‌های مناسب (نه بیش از حد)
-- درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس
-- در پایان دقیقاً همین هشتگ‌ها را بیار: ${hashtags.join(' ')}
-- بعد از هشتگ‌ها آدرس سایت afghanfollowers.online را بنویس
-- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها استفاده نکن؛ تنها استثنا خود کلمه "AfghanFollowers"، آدرس سایت و هشتگ‌های داده‌شده است
-- فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
+  const promoPrompt = `یک پست تبلیغاتی کوتاه، پرانرژی و با شخصیت به زبان فارسی/دری برای AfghanFollowers (afghanfollowers.online) بنویس — پنل فروش فالوور، لایک و ویو واقعی برای اینستاگرام، تیک‌تاک، یوتیوب، تلگرام و فیسبوک، مخصوصاً برای مخاطب افغان و ایرانی.\n\nامروز تمرکز پست را روی این موضوع بگذار: ${focus}\nزاویه نوشتن امروز: ${angle}\nاین پیام فوریت/پیشنهاد را به‌طور طبیعی داخل متن بگنجان (نه به شکل جمله جدا و بریده): ${urgency}\n\nقوانین:\n- حداکثر ۶ خط\n- لحن دوستانه، پرانرژی و با شخصیت — انگار داری با یک دوست حرف می‌زنی، نه یک آگهی رسمی و خشک\n- با ایموجی‌های مناسب (نه بیش از حد)\n- درباره سرویس دیگری غیر از AfghanFollowers چیزی ننویس\n- در پایان دقیقاً همین هشتگ‌ها را بیار: ${hashtags.join(' ')}\n- بعد از هشتگ‌ها آدرس سایت afghanfollowers.online را بنویس\n- تمام متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها استفاده نکن؛ تنها استثنا خود کلمه "AfghanFollowers"، آدرس سایت و هشتگ‌های داده‌شده است\n- فقط متن پست را بنویس، هیچ توضیح اضافه نده`;
 
   const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -1336,4 +1330,168 @@ async function runBulkEmailCampaignJob() {
   });
 
   return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
+}
+
+// ── PROVIDER INTEL JOB ──────────────────────────────────────────────────────
+// Runs daily (piggybacked on the existing cron) and also available on-demand
+// via ?job=provider-scan. Fetches the service list from every stored provider
+// plus a preset list of public wholesale panels (many return their service
+// catalogue without a key), compares IDs against the first stored provider
+// to detect upstream relationships, then saves results to smm_provider_intel
+// in the DB. If a ≥40% upstream match is found, sends an admin Telegram alert.
+const PI_PRESET_PANELS = [
+  { name: 'Peakerr',          url: 'https://peakerr.com/api/v2' },
+  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2' },
+  { name: 'SmmStone',         url: 'https://smmstone.com/api/v2' },
+  { name: 'SmmFollows',       url: 'https://smmfollows.com/api/v2' },
+  { name: 'VipProSMM',        url: 'https://vipprosmm.com/api/v2' },
+  { name: 'SMMKings',         url: 'https://smmkings.com/api/v2' },
+  { name: 'Likes.io',         url: 'https://likes.io/api/v2' },
+  { name: 'Panel.cheap',      url: 'https://panel.cheap/api/v2' },
+  { name: 'SMMXNX',           url: 'https://smmxnx.com/api/v2' },
+  { name: 'Smm-Heaven',       url: 'https://smm-heaven.net/api/v2' },
+  { name: 'Boostlikes',       url: 'https://boostlikes.com/api/v2' },
+  { name: 'TopFollows',       url: 'https://topfollows.com/api/v2' },
+  { name: 'SMMBuzz',          url: 'https://smmbuzz.net/api/v2' },
+  { name: 'CheapestSMM',      url: 'https://cheapestsmm.com/api/v2' },
+  { name: 'GrowthSMM',        url: 'https://growthsmm.io/api/v2' },
+  { name: 'SocialPanel',      url: 'https://socialpanel.com/api/v2' },
+  { name: 'FameBlast',        url: 'https://fameblast.com/api/v2' },
+  { name: 'SMMRaja',          url: 'https://smmraja.com/api/v2' },
+  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2' },
+  { name: 'InstantSMM',       url: 'https://instantsmmpanel.com/api/v2' }
+];
+
+async function fetchProviderServices(url, key) {
+  const t0 = Date.now();
+  try {
+    const body = new URLSearchParams({ key: key || '', action: 'services' });
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+    });
+    if (!r.ok) return { services: null, ms: Date.now() - t0, err: 'HTTP ' + r.status };
+    const data = await r.json();
+    if (Array.isArray(data) && data.length > 0) return { services: data, ms: Date.now() - t0, err: null };
+    if (data && data.error) return { services: null, ms: Date.now() - t0, err: String(data.error) };
+    return { services: null, ms: Date.now() - t0, err: 'empty' };
+  } catch (e) {
+    return { services: null, ms: Date.now() - t0, err: e.message || 'error' };
+  }
+}
+
+function medianPrice(services, filterByIds) {
+  const prices = [];
+  (filterByIds ? services.filter(s => filterByIds.has(String(s.service || s.id || ''))) : services)
+    .forEach(s => {
+      const r = parseFloat(s.rate || 0);
+      if (r > 0 && r <= 500) prices.push(r);
+    });
+  if (!prices.length) return null;
+  prices.sort((a, b) => a - b);
+  return prices.length % 2 === 0
+    ? (prices[prices.length / 2 - 1] + prices[prices.length / 2]) / 2
+    : prices[Math.floor(prices.length / 2)];
+}
+
+async function runProviderIntelJob(opts) {
+  opts = opts || {};
+  const today = todayKey();
+
+  const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const storedProviders = db.smm_providers || [];
+  const tgCfg = db.smm_tg_bot || {};
+
+  if (!opts.force && db.smm_last_provider_intel_date === today) {
+    return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
+  }
+
+  if (!storedProviders.length) {
+    return { ok: true, skipped: true, reason: 'No providers stored in Settings → Providers' };
+  }
+
+  // Use the first stored provider as the source for upstream comparison
+  const srcProv = storedProviders[0];
+
+  // Build target list: other stored providers + preset panels (deduped by URL)
+  const targets = [];
+  const seenUrls = new Set([srcProv.url.replace(/\/$/, '').toLowerCase()]);
+  storedProviders.slice(1).forEach(p => {
+    const norm = p.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: p.name, url: p.url, key: p.key || '' }); }
+  });
+  PI_PRESET_PANELS.forEach(bp => {
+    const norm = bp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: '' }); }
+  });
+
+  // Fetch source services first
+  const srcFetch = await fetchProviderServices(srcProv.url, srcProv.key);
+  if (!srcFetch.services) {
+    return { ok: false, error: 'Source provider (' + srcProv.name + ') failed: ' + srcFetch.err };
+  }
+  const srcIds = new Set(srcFetch.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+
+  // Fetch all targets in parallel
+  const fetches = await Promise.all(targets.map(t => fetchProviderServices(t.url, t.key)));
+
+  const results = targets.map((t, i) => {
+    const f = fetches[i];
+    if (!f.services) return { name: t.name, url: t.url, count: 0, ms: f.ms, upstreamPct: null, matchCount: 0, medianPrice: null, err: f.err };
+    const cmpIds = new Set(f.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+    let matchCount = 0; srcIds.forEach(id => { if (cmpIds.has(id)) matchCount++; });
+    const upstreamPct = srcIds.size > 0 ? Math.round(matchCount / srcIds.size * 100) : null;
+    const price = medianPrice(f.services, srcIds.size > 0 ? srcIds : null);
+    return { name: t.name, url: t.url, count: f.services.length, ms: f.ms, upstreamPct, matchCount, medianPrice: price, err: null };
+  });
+
+  // Sort: upstream % desc, then count desc
+  results.sort((a, b) => (b.upstreamPct || 0) - (a.upstreamPct || 0) || b.count - a.count);
+
+  const topUpstream = results.find(r => r.upstreamPct !== null && r.upstreamPct >= 40) || null;
+
+  // Save results to DB
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({
+      smm_provider_intel: {
+        scannedAt: new Date().toISOString(),
+        srcName: srcProv.name,
+        srcCount: srcFetch.services.length,
+        results,
+        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null
+      },
+      smm_last_provider_intel_date: today,
+      smm_ts: Date.now()
+    })
+  });
+
+  // Telegram alert if upstream discovered
+  if (topUpstream && tgCfg.token && tgCfg.chatId) {
+    const msg = '🔍 <b>Upstream Provider پیدا شد!</b>\n\n'
+      + '📡 منبع: <b>' + srcProv.name + '</b> (' + srcFetch.services.length + ' سرویس)\n'
+      + '🔗 Upstream: <b>' + topUpstream.name + '</b>\n'
+      + '📊 تطابق: <b>' + topUpstream.upstreamPct + '%</b> ('
+      + topUpstream.matchCount + ' سرویس مشترک)\n'
+      + '🌐 URL: ' + topUpstream.url + '\n\n'
+      + '➡️ برای جزئیات کامل به Provider Intel در ادمین پنل مراجعه کن';
+    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
+    }).catch(() => {});
+  }
+
+  return {
+    ok: true,
+    srcProvider: srcProv.name,
+    srcServices: srcFetch.services.length,
+    scanned: results.length,
+    responded: results.filter(r => r.count > 0).length,
+    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null
+  };
 }
