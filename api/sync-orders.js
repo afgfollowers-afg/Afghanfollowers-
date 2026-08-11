@@ -1370,7 +1370,9 @@ const PI_PRESET_PANELS = [
 async function fetchProviderServices(url, key) {
   const t0 = Date.now();
   try {
-    const body = new URLSearchParams({ key: key || '', action: 'services' });
+    const params = { action: 'services' };
+    if (key) params.key = key;
+    const body = new URLSearchParams(params);
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
