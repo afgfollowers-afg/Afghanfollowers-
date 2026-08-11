@@ -1017,8 +1017,12 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   const results = { facebook: null, telegram: null };
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
+    // Instagram day → dedicated Facebook glassmorphism design
+    // TikTok / YouTube days → reuse the platform image already rendered above
     let fbBuf = imageBuffer;
-    try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to platform template */ }
+    if (templateKey === 'instagram') {
+      try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to imageBuffer */ }
+    }
     const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, fbBuf, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
