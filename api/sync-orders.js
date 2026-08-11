@@ -14,6 +14,7 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
+const { discoverPanelsViaSearch } = require('./_provider-discovery');
 const { renderPostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -1428,6 +1429,18 @@ async function runProviderIntelJob(opts) {
     if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: '' }); }
   });
 
+  // Load panels discovered in previous runs, then run a fresh web search
+  const savedDiscovered = db.smm_discovered_panels || [];
+  savedDiscovered.forEach(dp => {
+    const norm = dp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
+  });
+  const freshDiscovered = await discoverPanelsViaSearch().catch(() => []);
+  freshDiscovered.forEach(dp => {
+    const norm = dp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
+  });
+
   // Fetch source services first
   const srcFetch = await fetchProviderServices(srcProv.url, srcProv.key);
   if (!srcFetch.services) {
@@ -1453,6 +1466,14 @@ async function runProviderIntelJob(opts) {
 
   const topUpstream = results.find(r => r.upstreamPct !== null && r.upstreamPct >= 40) || null;
 
+  // Panels that responded get persisted so future scans include them automatically
+  const allDiscovered = [...savedDiscovered];
+  results.filter(r => r.count > 0).forEach(r => {
+    const norm = r.url.replace(/\/$/, '').toLowerCase();
+    if (!allDiscovered.some(d => d.url.replace(/\/$/, '').toLowerCase() === norm))
+      allDiscovered.push({ name: r.name, url: r.url });
+  });
+
   // Save results to DB
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
@@ -1465,6 +1486,7 @@ async function runProviderIntelJob(opts) {
         results,
         topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null
       },
+      smm_discovered_panels: allDiscovered,
       smm_last_provider_intel_date: today,
       smm_ts: Date.now()
     })
