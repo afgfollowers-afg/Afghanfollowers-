@@ -1460,7 +1460,7 @@ async function runProviderIntelJob(opts) {
   });
   PI_PRESET_PANELS.forEach(bp => {
     const norm = bp.url.replace(/\/$/, '').toLowerCase();
-    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: '' }); }
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: bp.key || '' }); }
   });
 
   // Load panels discovered in previous runs, then run a fresh web search
