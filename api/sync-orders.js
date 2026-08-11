@@ -1363,7 +1363,7 @@ const PI_PRESET_PANELS = [
   { name: 'SocialPanel',      url: 'https://socialpanel.com/api/v2' },
   { name: 'FameBlast',        url: 'https://fameblast.com/api/v2' },
   { name: 'SMMRaja',          url: 'https://smmraja.com/api/v2' },
-  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2' },
+  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2', key: '095aca79300ea0ade635d8a5e3851d69' },
   { name: 'InstantSMM',       url: 'https://instantsmmpanel.com/api/v2' }
 ];
 
