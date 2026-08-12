@@ -13,7 +13,7 @@
 //     update to Facebook + Telegram (runAutoPostJob) — there was no cron
 //     slot left to give either of these their own schedule.
 
-const SITE = 'https://afghanfollowers.online';
+const SITE = 'https://www.afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const { renderPostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
