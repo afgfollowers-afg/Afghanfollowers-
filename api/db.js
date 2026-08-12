@@ -183,6 +183,35 @@ module.exports = async (req, res) => {
   if (!isAgentRequest && DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+  if (isAgentRequest && req.method === 'POST') {
+    // Allow only the ticket_reply action for agent POSTs
+    const agentBody = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    if (agentBody.action !== 'ticket_reply') {
+      return res.status(405).json({ error: 'Agent: only ticket_reply POST is allowed' });
+    }
+    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    const { ticketId, text } = agentBody;
+    if (!ticketId || !text) return res.status(200).json({ ok: false, error: 'missing ticketId or text' });
+
+    const trMain = await readBin(BIN_ID);
+    if (!trMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
+    const trData = trMain.record;
+    const trTickets = trData.smm_tickets || [];
+    const trIdx = trTickets.findIndex(t => t.id === ticketId);
+    if (trIdx === -1) return res.status(200).json({ ok: false, error: 'ticket not found' });
+
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    trTickets[trIdx].messages = trTickets[trIdx].messages || [];
+    trTickets[trIdx].messages.push({ from: 'admin', text: String(text).slice(0, 1000), time: `${hh}:${mm}` });
+    trTickets[trIdx].status = 'answered';
+    trData.smm_tickets = trTickets;
+    trData.smm_ts = Date.now();
+
+    const trWrite = await writeBin(BIN_ID, trData);
+    return res.status(200).json({ ok: trWrite.ok, error: trWrite.ok ? undefined : 'write failed' });
+  }
   if (isAgentRequest && req.method !== 'GET') {
     return res.status(405).json({ error: 'Agent: read-only' });
   }
