@@ -14,7 +14,6 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
-const { discoverPanelsViaSearch } = require('./_provider-discovery');
 const { renderPostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -1346,7 +1345,7 @@ async function runBulkEmailCampaignJob() {
 // in the DB. If a ≥40% upstream match is found, sends an admin Telegram alert.
 const PI_PRESET_PANELS = [
   { name: 'Peakerr',          url: 'https://peakerr.com/api/v2' },
-  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2', key: '2b793e8d054eb24c8fd311f142970487' },
+  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2' },
   { name: 'SmmStone',         url: 'https://smmstone.com/api/v2' },
   { name: 'SmmFollows',       url: 'https://smmfollows.com/api/v2' },
   { name: 'VipProSMM',        url: 'https://vipprosmm.com/api/v2' },
@@ -1363,55 +1362,25 @@ const PI_PRESET_PANELS = [
   { name: 'SocialPanel',      url: 'https://socialpanel.com/api/v2' },
   { name: 'FameBlast',        url: 'https://fameblast.com/api/v2' },
   { name: 'SMMRaja',          url: 'https://smmraja.com/api/v2' },
-  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2', key: '095aca79300ea0ade635d8a5e3851d69' },
+  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2' },
   { name: 'InstantSMM',       url: 'https://instantsmmpanel.com/api/v2' }
 ];
 
 async function fetchProviderServices(url, key) {
   const t0 = Date.now();
-  const signal = AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined;
-
-  // Helper: parse response and return services or null
-  async function tryFetch(r) {
-    if (!r.ok) return null;
-    try {
-      const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) return data;
-      if (data && data.error) return null;
-    } catch (e) {}
-    return null;
-  }
-
   try {
-    // 1. POST with key (if provided)
-    if (key) {
-      const body = new URLSearchParams({ key, action: 'services' });
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(), signal
-      });
-      const services = await tryFetch(r);
-      if (services) return { services, ms: Date.now() - t0, err: null };
-    }
-
-    // 2. POST without key (many panels expose services publicly)
-    const bodyNoKey = new URLSearchParams({ action: 'services' });
-    const r2 = await fetch(url, {
+    const body = new URLSearchParams({ key: key || '', action: 'services' });
+    const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: bodyNoKey.toString(), signal
+      body: body.toString(),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
     });
-    const services2 = await tryFetch(r2);
-    if (services2) return { services: services2, ms: Date.now() - t0, err: null };
-
-    // 3. GET fallback — some panels serve service list via GET without auth
-    const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=services';
-    const r3 = await fetch(getUrl, { method: 'GET', signal });
-    const services3 = await tryFetch(r3);
-    if (services3) return { services: services3, ms: Date.now() - t0, err: null };
-
-    return { services: null, ms: Date.now() - t0, err: 'no services returned' };
+    if (!r.ok) return { services: null, ms: Date.now() - t0, err: 'HTTP ' + r.status };
+    const data = await r.json();
+    if (Array.isArray(data) && data.length > 0) return { services: data, ms: Date.now() - t0, err: null };
+    if (data && data.error) return { services: null, ms: Date.now() - t0, err: String(data.error) };
+    return { services: null, ms: Date.now() - t0, err: 'empty' };
   } catch (e) {
     return { services: null, ms: Date.now() - t0, err: e.message || 'error' };
   }
@@ -1460,21 +1429,8 @@ async function runProviderIntelJob(opts) {
   });
   PI_PRESET_PANELS.forEach(bp => {
     const norm = bp.url.replace(/\/$/, '').toLowerCase();
-    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: bp.key || '' }); }
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: '' }); }
   });
-
-  // Load panels discovered in previous runs, then run a fresh web search
-  const savedDiscovered = db.smm_discovered_panels || [];
-  savedDiscovered.forEach(dp => {
-    const norm = dp.url.replace(/\/$/, '').toLowerCase();
-    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
-  });
-  const freshDiscovered = await discoverPanelsViaSearch().catch(() => []);
-  freshDiscovered.forEach(dp => {
-    const norm = dp.url.replace(/\/$/, '').toLowerCase();
-    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
-  });
-
 
   // Fetch source services first
   const srcFetch = await fetchProviderServices(srcProv.url, srcProv.key);
@@ -1501,62 +1457,6 @@ async function runProviderIntelJob(opts) {
 
   const topUpstream = results.find(r => r.upstreamPct !== null && r.upstreamPct >= 40) || null;
 
-  // Panels that responded get persisted so future scans include them automatically
-  const allDiscovered = [...savedDiscovered];
-  results.filter(r => r.count > 0).forEach(r => {
-    const norm = r.url.replace(/\/$/, '').toLowerCase();
-    if (!allDiscovered.some(d => d.url.replace(/\/$/, '').toLowerCase() === norm))
-      allDiscovered.push({ name: r.name, url: r.url });
-  });
-
-  // ── True Upstream Source Detection ──────────────────────────────────────────
-  // Goal: find the ORIGINAL provider, not just resellers.
-  // Key insight: if panel X is the true upstream source, its service IDs will
-  // appear in many other panels (resellers buy from it). A reseller's IDs only
-  // overlap with sibling-resellers who share the same source.
-  //
-  // Algorithm:
-  // 1. Pool ALL responding panels (including source) with their ID sets
-  // 2. Build a global frequency map: serviceId → how many panels have this ID
-  // 3. For each panel, compute spreadScore = average fraction of other panels
-  //    that share each of its service IDs. High score = IDs are widely shared
-  //    across the market = this panel is likely an original source.
-  // 4. Also count panelsCovered: how many panels contain ≥30% of this panel's IDs
-  const allRespondingPanels = [{ name: srcProv.name, url: srcProv.url, ids: srcIds }];
-  fetches.forEach((f, i) => {
-    if (f.services) {
-      const ids = new Set(f.services.map(s => String(s.service || s.id || '')).filter(Boolean));
-      if (ids.size > 0) allRespondingPanels.push({ name: targets[i].name, url: targets[i].url, ids });
-    }
-  });
-
-  const idFreq = new Map();
-  allRespondingPanels.forEach(p => { p.ids.forEach(id => idFreq.set(id, (idFreq.get(id) || 0) + 1)); });
-
-  const nPanels = allRespondingPanels.length;
-  const trueUpstreamCandidates = allRespondingPanels.map(p => {
-    // spreadSum = for each ID in P, how many OTHER panels have it
-    // = Σ (freq(id) - 1) over all IDs in P
-    let spreadSum = 0;
-    p.ids.forEach(id => { spreadSum += (idFreq.get(id) || 1) - 1; });
-    // Normalize: divide by (panel's size × number of other panels) to get 0-100%
-    const spreadScore = p.ids.size > 0 && nPanels > 1
-      ? Math.round(spreadSum / (p.ids.size * (nPanels - 1)) * 100)
-      : 0;
-    // panelsCovered: how many other panels have ≥30% of this panel's IDs
-    let panelsCovered = 0;
-    allRespondingPanels.forEach(other => {
-      if (other.name === p.name || other.ids.size === 0) return;
-      let shared = 0;
-      p.ids.forEach(id => { if (other.ids.has(id)) shared++; });
-      if (shared / p.ids.size >= 0.30) panelsCovered++;
-    });
-    return { name: p.name, url: p.url, serviceCount: p.ids.size, spreadScore, panelsCovered };
-  }).sort((a, b) => b.spreadScore - a.spreadScore || b.panelsCovered - a.panelsCovered || b.serviceCount - a.serviceCount);
-
-  const likelyUpstreams = trueUpstreamCandidates.slice(0, 5);
-  const bestUpstream = likelyUpstreams[0] || null;
-
   // Save results to DB
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
@@ -1567,25 +1467,22 @@ async function runProviderIntelJob(opts) {
         srcName: srcProv.name,
         srcCount: srcFetch.services.length,
         results,
-        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null,
-        likelyUpstreams,
-        bestUpstream
+        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null
       },
-      smm_discovered_panels: allDiscovered,
       smm_last_provider_intel_date: today,
       smm_ts: Date.now()
     })
   });
 
-  // Telegram alert: report top likely upstream sources
-  if (tgCfg.token && tgCfg.chatId && likelyUpstreams.length > 0) {
-    const topLines = likelyUpstreams.slice(0, 3).map((u, i) =>
-      (i + 1) + '. <b>' + u.name + '</b> — ' + u.serviceCount + ' سرویس | پخش: ' + u.spreadScore + '% | ' + u.panelsCovered + ' پنل از آن می‌خرند'
-    ).join('\n');
-    const msg = '🔍 <b>تحلیل پروایدر اصلی</b>\n\n'
-      + 'احتمالی‌ترین منابع اصلی (بر اساس پخش ID سرویس):\n\n'
-      + topLines + '\n\n'
-      + '<i>spreadScore = درصد پنل‌های دیگری که ID های این پنل را دارند → بالاتر = احتمال منبع اصلی بیشتر</i>';
+  // Telegram alert if upstream discovered
+  if (topUpstream && tgCfg.token && tgCfg.chatId) {
+    const msg = '🔍 <b>Upstream Provider پیدا شد!</b>\n\n'
+      + '📡 منبع: <b>' + srcProv.name + '</b> (' + srcFetch.services.length + ' سرویس)\n'
+      + '🔗 Upstream: <b>' + topUpstream.name + '</b>\n'
+      + '📊 تطابق: <b>' + topUpstream.upstreamPct + '%</b> ('
+      + topUpstream.matchCount + ' سرویس مشترک)\n'
+      + '🌐 URL: ' + topUpstream.url + '\n\n'
+      + '➡️ برای جزئیات کامل به Provider Intel در ادمین پنل مراجعه کن';
     await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1599,7 +1496,6 @@ async function runProviderIntelJob(opts) {
     srcServices: srcFetch.services.length,
     scanned: results.length,
     responded: results.filter(r => r.count > 0).length,
-    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null,
-    likelyUpstreams
+    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null
   };
 }
