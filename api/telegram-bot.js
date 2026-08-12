@@ -471,6 +471,19 @@ async function sendEmailStatus(token, chatId, isEnglish) {
   }
 }
 
+// Reads the real, admin-configurable link-visits threshold (same field
+// smm-panel.html's FL_VISIT_GOAL and api/db.js's VISIT_GOAL read, default
+// 50) instead of a hardcoded number — see the call site's comment for why
+// this matters.
+async function sendFreeLikesInfo(token, chatId, isEnglish) {
+  const db = await getDb();
+  const visitGoal = parseInt((db.smm_general || {})['g-fl-visits'], 10) || 50;
+  const text = isEnglish
+    ? `🎁 <b>Free Likes — Invite & Earn</b>\n\nInvite 5 friends who actually sign up (or send your link to ${visitGoal} people and get ${visitGoal} verified visits) and claim free Instagram or TikTok likes!\n\nHow it works:\n1️⃣ Open "Free Likes" in the panel and copy your referral link\n2️⃣ Share it — friends must genuinely register (or just visit, for the ${visitGoal}-visit path)\n3️⃣ Once you qualify, pick Instagram or TikTok, enter your link, and submit your claim\n4️⃣ An admin verifies it, then your free likes go out — max once a day\n\n💡 Tip: connect your Telegram from that same page to get pinged the moment it's approved.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`
+    : `🎁 <b>لایک رایگان — دعوت کن، جایزه بگیر</b>\n\nبا دعوت ۵ دوست که واقعاً ثبت‌نام کنن (یا لینکتو به ${visitGoal} نفر بفرستی و ${visitGoal} بازدید تایید‌شده بگیری) می‌تونی لایک رایگان اینستاگرام یا تیک‌تاک بگیری!\n\nمراحل:\n۱️⃣ از پنل، بخش «Free Likes» رو باز کن و لینک اختصاصی‌تو کپی کن\n۲️⃣ لینک رو با دوستات به اشتراک بذار — باید واقعاً ثبت‌نام کنن (یا فقط بازدید کنن، برای مسیر ${visitGoal} بازدید)\n۳️⃣ وقتی شرایط رو داشتی، اینستاگرام یا تیک‌تاک رو انتخاب کن، لینکتو وارد کن و درخواست بده\n۴️⃣ بعد از تایید ادمین، لایک رایگان برات ارسال میشه — حداکثر یک‌بار در روز\n\n💡 نکته: از همون صفحه می‌تونی تلگرامتو وصل کنی تا لحظه‌ی تایید، همینجا خبردار بشی.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`;
+  await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML', text: text });
+}
+
 // ── Direct top-up flow (/topup) ──────────────────────────────────────────
 // Lets the customer pay from inside the chat instead of going to the panel:
 // PayPal orders are created via PayPal's own REST API (same Orders v2 flow
@@ -973,6 +986,19 @@ module.exports = async (req, res) => {
     await sendEmailStatus(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
+  // Free Likes info — moved out of the plain keyword/FAQ chain below because
+  // the real "how many link visits unlock a reward" number is admin-
+  // configurable (smm_general['g-fl-visits'], see api/db.js / smm-panel.html's
+  // FL_VISIT_GOAL) and must be read live rather than hardcoded, otherwise
+  // this reply silently drifts out of sync with the real threshold — exactly
+  // what happened before this fix (see git history: this used to hardcode
+  // "10 visits" while the platform's actual default has always been 50,
+  // so a customer following the bot's own instructions could send their
+  // link to 10 people, get 10 real visits, and still never qualify).
+  if (lower.includes('لایک رایگان') || lower.includes('فری لایک') || lower.includes('رایگان') || lower.includes('دعوت') || lower.includes('معرفی دوست') || lower.includes('free like') || lower.includes('free follow') || lower.includes('invite') || lower.includes('referral') || lower.includes('refer a friend')) {
+    await sendFreeLikesInfo(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
   // Full step-by-step walkthrough for /buy + /topup — separate from /help
   // (which is a one-line command index) since a first-time customer needs
   // the actual sequence of steps and a concrete example, not just a list of
@@ -1099,10 +1125,6 @@ module.exports = async (req, res) => {
     reply = isEnglish
       ? `👋 Hey ${firstName}, welcome!\n\nAsk me anything about buying followers, likes, views or members — pricing, payment, account safety, whatever's on your mind 😊\n\nOr just send /services to see what we offer.`
       : `👋 سلام ${firstName} جان، خوش اومدی!\n\nهر سوالی درباره‌ی خرید فالوور، لایک، ویو یا ممبر داری بپرس — قیمت، پرداخت، امنیت حساب، هرچی ذهنتو مشغول کرده 😊\n\nیا مستقیم /services رو بزن ببین چی داریم.`;
-  } else if (lower.includes('لایک رایگان') || lower.includes('فری لایک') || lower.includes('رایگان') || lower.includes('دعوت') || lower.includes('معرفی دوست') || lower.includes('free like') || lower.includes('free follow') || lower.includes('invite') || lower.includes('referral') || lower.includes('refer a friend')) {
-    reply = isEnglish
-      ? `🎁 <b>Free Likes — Invite & Earn</b>\n\nInvite 5 friends who actually sign up (or send your link to 10 people and get 10 verified visits) and claim free Instagram or TikTok likes!\n\nHow it works:\n1️⃣ Open "Free Likes" in the panel and copy your referral link\n2️⃣ Share it — friends must genuinely register (or just visit, for the 10-visit path)\n3️⃣ Once you qualify, pick Instagram or TikTok, enter your link, and submit your claim\n4️⃣ An admin verifies it, then your free likes go out — max once a day\n\n💡 Tip: connect your Telegram from that same page to get pinged the moment it's approved.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`
-      : `🎁 <b>لایک رایگان — دعوت کن، جایزه بگیر</b>\n\nبا دعوت ۵ دوست که واقعاً ثبت‌نام کنن (یا لینکتو به ۱۰ نفر بفرستی و ۱۰ بازدید تایید‌شده بگیری) می‌تونی لایک رایگان اینستاگرام یا تیک‌تاک بگیری!\n\nمراحل:\n۱️⃣ از پنل، بخش «Free Likes» رو باز کن و لینک اختصاصی‌تو کپی کن\n۲️⃣ لینک رو با دوستات به اشتراک بذار — باید واقعاً ثبت‌نام کنن (یا فقط بازدید کنن، برای مسیر ۱۰ بازدید)\n۳️⃣ وقتی شرایط رو داشتی، اینستاگرام یا تیک‌تاک رو انتخاب کن، لینکتو وارد کن و درخواست بده\n۴️⃣ بعد از تایید ادمین، لایک رایگان برات ارسال میشه — حداکثر یک‌بار در روز\n\n💡 نکته: از همون صفحه می‌تونی تلگرامتو وصل کنی تا لحظه‌ی تایید، همینجا خبردار بشی.\n\n🌐 ${SITE}/smm-panel.html → Free Likes`;
   } else if (lower.includes('کدام سرویس') || lower.includes('کدوم سرویس') || lower.includes('چی بگیرم') || lower.includes('پیشنهاد') || lower.includes('which service') || lower.includes('recommend')) {
     reply = isEnglish
       ? `🤔 <b>Which service is right for me?</b>\n\nDepends on your goal:\n📈 Fast, cheap number growth → economy services\n💎 High quality, low drop (for a business/brand page) → High Quality / Real Accounts\n\nTell me which platform and what you're going for, and I'll guide you 🙂`
