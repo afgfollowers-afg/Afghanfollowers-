@@ -451,7 +451,7 @@ async function sendEmailStatus(token, chatId, isEnglish) {
         + `<b>Weekly re-engagement</b>\n`
         + `Enabled: ${weekly.active ? 'yes' : 'no'}\n`
         + `Sent today: ${weekly.sentToday}\n`
-        + `<i>Runs Mondays only — 0 on other days is expected, not a failure.</i>\n\n`
+        + `<i>${weekly.note}</i>\n\n`
         + `Resend configured: ${status.resendConfigured ? 'yes' : 'no'}`
       : `📧 <b>وضعیت ایمیل — ${status.today}</b>\n\n`
         + `<b>کمپین گروهی (Bulk)</b>\n`
@@ -463,7 +463,7 @@ async function sendEmailStatus(token, chatId, isEnglish) {
         + `<b>یادآوری هفتگی</b>\n`
         + `فعال: ${weekly.active ? 'بله' : 'خیر'}\n`
         + `ارسال‌شده امروز: ${weekly.sentToday}\n`
-        + `<i>این کمپین فقط دوشنبه‌ها اجرا می‌شود؛ صفر بودن در روزهای دیگر طبیعی است.</i>\n\n`
+        + `<i>این کمپین حالا هر روز اجرا می‌شود (نه فقط دوشنبه‌ها)؛ هر کاربر حداکثر هر ۷ روز یک‌بار ایمیل می‌گیرد.</i>\n\n`
         + `Resend تنظیم شده: ${status.resendConfigured ? 'بله' : 'خیر'}`;
     await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML', text: text });
   } catch (e) {

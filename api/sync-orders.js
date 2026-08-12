@@ -6,7 +6,8 @@
 // Also doubles as other scheduled jobs, folded into this same file
 // (rather than new ones) to stay under Vercel's Hobby-plan caps of 12
 // serverless functions AND 2 cron jobs per deployment:
-//   - ?job=email-campaign — weekly re-engagement emails (runEmailCampaignJob)
+//   - ?job=email-campaign — daily re-engagement emails, per-user capped to
+//     once every cooldownDays (default 7) (runEmailCampaignJob)
 //   - the default daily run (this same 3am cron) ALSO generates fresh blog
 //     content afterwards (runDailyContentJob), then posts a promo/gaming
 //     update to Facebook + Telegram (runAutoPostJob) — there was no cron
@@ -312,9 +313,9 @@ async function runStatusCheck(req, res) {
     // Weekly re-engagement campaign has no single "did it run" flag —
     // runEmailCampaignJob only appends to each recipient's own emailLog, so
     // "sent today" here means "count of users with an emailLog entry dated
-    // today", not a job-level marker. The cron for this one only fires
-    // Mondays (see vercel.json) — 0 on any other day is expected, not a
-    // failure.
+    // today", not a job-level marker. Runs daily now (see vercel.json's
+    // ?job=email-campaign cron) — cooldownDays (default 7) is what keeps
+    // any one user from being emailed more than once a week.
     const cfg = db.smm_email_auto_cfg || {};
     const users = db.smm_users || [];
     const reengagementSentToday = users.filter(function (u) {
