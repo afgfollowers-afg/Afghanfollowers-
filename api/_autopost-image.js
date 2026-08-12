@@ -504,201 +504,250 @@ async function renderFacebookPostImage(text) {
 }
 
 
-// 1080×1080 TikTok post image — same card layout as the Facebook variant but
-// with TikTok's near-black + cyan + pink colour scheme, a music-note platform
-// icon, and a cyan→pink accent/CTA gradient.
-function buildTikTokSvg(text, logoB64, ttIconB64) {
-  const W = 1080, H = 1080;
-  const CARD = { x: 120, y: 120, w: 840, h: 840 };  // bigger card = less dark border visible
-  const CX = W / 2; // 540
+// 1080×1080 TikTok post image — full-bleed neon design:
+// chromatic-aberration headline, sound-wave bars, laser beams,
+// viewfinder corners, LIVE badge, ring decorations, floating particles.
+function buildTikTokSvg(text, logoB64) {
+  const W = 1080, H = 1080, CX = W / 2;
 
   const subtitle = coreTextForImage(text);
-  const subLines = wrapText(subtitle, 38).slice(0, 2);
-  const features = ['فالوور واقعی', 'لایک و ویو', 'تحویل سریع', 'پشتیبانی ۲۴ ساعته'];
+  const subLines = wrapText(subtitle, 30).slice(0, 3);
 
-  const logoBoxY = 168;
-  const igIconY  = 338;  // icon 130×130 → bottom 468
-  const h1Y1     = 540;  // 72px gap below icon — heading well clear of logo
-  const h1Y2     = 588;
-  const subY1    = 622;
-  const featW    = (CARD.w - 80 - 16) / 2;
-  const feat1X   = CARD.x + 40;
-  const feat2X   = feat1X + featW + 16;
-  const featH    = 72;
-  const featY1   = 660;
-  const featY2   = featY1 + featH + 14;
-  const accentY  = featY2 + featH + 26;
-  const btnY     = accentY + 26;
-  const footerY  = btnY + 52 + 24;
+  // ── Sound wave bars (cyan → pink gradient, 25 bars) ──────────────────────
+  const WAVE_H  = [28,46,74,56,90,63,41,96,71,51,84,66,39,79,94,59,43,77,89,53,69,46,81,61,36];
+  const BAR_W = 18, BAR_GAP = 11;
+  const WAVE_TOTAL = WAVE_H.length * BAR_W + (WAVE_H.length - 1) * BAR_GAP;
+  const WAVE_X0 = (W - WAVE_TOTAL) / 2;
+  const WAVE_Y  = 892;
+  const waveBars = WAVE_H.map((h, i) => {
+    const bx = WAVE_X0 + i * (BAR_W + BAR_GAP);
+    const frac = i / (WAVE_H.length - 1);
+    const r = Math.round(255 * frac);
+    const g = Math.round(242 * (1 - frac));
+    const b = Math.round(234 - 154 * frac);
+    return `<rect x="${bx}" y="${WAVE_Y - h}" width="${BAR_W}" height="${h}" rx="9" fill="rgb(${r},${g},${b})" opacity="0.92"/>`;
+  }).join('');
 
-  const featCards = features.map((label, i) => {
-    const row = Math.floor(i / 2), col = i % 2;
-    const fx = col === 0 ? feat1X : feat2X;
-    const fy = row === 0 ? featY1 : featY2;
-    return `<rect x="${fx}" y="${fy}" width="${featW}" height="${featH}" rx="16"
-    fill="#ffffff" fill-opacity="0.05" stroke="#00f2ea" stroke-opacity="0.18" stroke-width="1"/>
-  <text x="${fx + featW / 2}" y="${fy + featH / 2 + 7}" font-family="Vazirmatn" font-weight="700"
-    font-size="17" fill="#ffffff" text-anchor="middle" direction="rtl">${escapeXml(label)}</text>`;
-  }).join('\n  ');
+  // ── Viewfinder corner brackets ────────────────────────────────────────────
+  const CS = 46, CT = 5, CP = 32;
+  function cb(ox, oy, fx, fy, col) {
+    const hx = fx ? ox - CS : ox, vx = fx ? ox - CT : ox;
+    const hy = fy ? oy - CT : oy, vy = fy ? oy - CS : oy;
+    return `<rect x="${hx}" y="${hy}" width="${CS}" height="${CT}" rx="2.5" fill="${col}"/>` +
+           `<rect x="${vx}" y="${vy}" width="${CT}" height="${CS}" rx="2.5" fill="${col}"/>`;
+  }
 
-  const subBlock = subLines.length ? `<text font-family="Vazirmatn" font-size="19" fill="#88cccc"
-    text-anchor="middle" direction="rtl">${
-    subLines.map((l, i) => `<tspan x="${CX}" y="${subY1 + i * 28}">${escapeXml(l)}</tspan>`).join('')
-  }</text>` : '';
+  // ── Subtitle text ─────────────────────────────────────────────────────────
+  const subBlock = subLines.map((l, i) =>
+    `<text x="${CX}" y="${638 + i * 38}" font-family="Vazirmatn" font-size="25" font-weight="600"
+      fill="#b8eeec" text-anchor="middle" direction="rtl" opacity="0.88">${escapeXml(l)}</text>`
+  ).join('');
+
+  // ── Headline strings ──────────────────────────────────────────────────────
+  const H1 = 'رشد واقعی', H2 = 'در شبکه اجتماعی';
 
   return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <defs>
-    <radialGradient id="ttOrbCyan" cx="82%" cy="12%" r="45%">
-      <stop offset="0%" stop-color="#00f2ea" stop-opacity="0.40"/>
-      <stop offset="100%" stop-color="#00f2ea" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="ttOrbPink" cx="16%" cy="90%" r="35%">
-      <stop offset="0%" stop-color="#ff0050" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="ttOrbPurp" cx="12%" cy="50%" r="32%">
-      <stop offset="0%" stop-color="#4010a0" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#4010a0" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="ttCenterGlow" cx="50%" cy="50%" r="42%">
-      <stop offset="0%" stop-color="#004444" stop-opacity="0.20"/>
-      <stop offset="100%" stop-color="#004444" stop-opacity="0"/>
-    </radialGradient>
-    <pattern id="ttDots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
-      <circle cx="14" cy="14" r="1.2" fill="#00f2ea" fill-opacity="0.18"/>
-    </pattern>
-    <radialGradient id="ttDotMaskGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="white" stop-opacity="1"/>
-      <stop offset="70%" stop-color="white" stop-opacity="0.4"/>
-      <stop offset="100%" stop-color="white" stop-opacity="0"/>
-    </radialGradient>
-    <mask id="ttDotMask">
-      <rect width="${W}" height="${H}" fill="url(#ttDotMaskGrad)"/>
-    </mask>
-    <linearGradient id="ttLogoBg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0d0d0d"/>
-      <stop offset="100%" stop-color="#060606"/>
-    </linearGradient>
-    <linearGradient id="ttAccent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#00f2ea" stop-opacity="0"/>
-      <stop offset="30%"  stop-color="#00f2ea"/>
-      <stop offset="70%"  stop-color="#ff0050"/>
-      <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="ttBtn" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#00d4cc"/>
-      <stop offset="100%" stop-color="#ff0050"/>
-    </linearGradient>
-    <linearGradient id="ttCardShine" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.07"/>
-      <stop offset="45%"  stop-color="#ffffff" stop-opacity="0.02"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <filter id="ttCardGlow" x="-5%" y="-5%" width="110%" height="110%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"/>
-      <feFlood flood-color="#00f2ea" flood-opacity="0.20" result="c"/>
-      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
-      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="ttLogoGlow" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur"/>
-      <feFlood flood-color="#00f2ea" flood-opacity="0.55" result="c"/>
-      <feComposite in="c" in2="blur" operator="in" result="shadow"/>
-      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
+<defs>
+  <linearGradient id="ttBg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%"   stop-color="#08001c"/>
+    <stop offset="50%"  stop-color="#060810"/>
+    <stop offset="100%" stop-color="#140008"/>
+  </linearGradient>
+  <radialGradient id="ttCyan" cx="80%" cy="6%" r="52%">
+    <stop offset="0%"   stop-color="#00f2ea" stop-opacity="0.58"/>
+    <stop offset="55%"  stop-color="#00c8c0" stop-opacity="0.14"/>
+    <stop offset="100%" stop-color="#00f2ea" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="ttPink" cx="20%" cy="94%" r="48%">
+    <stop offset="0%"   stop-color="#ff0050" stop-opacity="0.54"/>
+    <stop offset="55%"  stop-color="#cc0040" stop-opacity="0.12"/>
+    <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="ttPurp" cx="4%" cy="52%" r="38%">
+    <stop offset="0%"   stop-color="#7700ee" stop-opacity="0.32"/>
+    <stop offset="100%" stop-color="#7700ee" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="ttSpot" cx="50%" cy="36%" r="30%">
+    <stop offset="0%"   stop-color="#18106a" stop-opacity="0.75"/>
+    <stop offset="100%" stop-color="#18106a" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="ttHalo" cx="50%" cy="50%" r="50%">
+    <stop offset="0%"   stop-color="#00f2ea" stop-opacity="0.40"/>
+    <stop offset="100%" stop-color="#00f2ea" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="ttCta" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#00d4cc"/>
+    <stop offset="100%" stop-color="#ff0050"/>
+  </linearGradient>
+  <linearGradient id="ttAccent" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#00f2ea" stop-opacity="0"/>
+    <stop offset="30%"  stop-color="#00f2ea"/>
+    <stop offset="70%"  stop-color="#ff0050"/>
+    <stop offset="100%" stop-color="#ff0050" stop-opacity="0"/>
+  </linearGradient>
+  <pattern id="ttDiag" x="0" y="0" width="56" height="56" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="56" x2="56" y2="0" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.035"/>
+  </pattern>
+  <pattern id="ttScan" x="0" y="0" width="1" height="4" patternUnits="userSpaceOnUse">
+    <rect x="0" y="0" width="1" height="1" fill="#000000" fill-opacity="0.16"/>
+  </pattern>
+  <filter id="ttNeonC" x="-25%" y="-25%" width="150%" height="150%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="b"/>
+    <feFlood flood-color="#00f2ea" flood-opacity="0.75" result="c"/>
+    <feComposite in="c" in2="b" operator="in" result="g"/>
+    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ttNeonP" x="-25%" y="-25%" width="150%" height="150%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b"/>
+    <feFlood flood-color="#ff0050" flood-opacity="0.70" result="c"/>
+    <feComposite in="c" in2="b" operator="in" result="g"/>
+    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ttLogoG" x="-45%" y="-45%" width="190%" height="190%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="b"/>
+    <feFlood flood-color="#00f2ea" flood-opacity="0.65" result="c"/>
+    <feComposite in="c" in2="b" operator="in" result="g"/>
+    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ttWaveG" x="-3%" y="-40%" width="106%" height="180%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="ttLiveG" x="-15%" y="-20%" width="130%" height="140%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="b"/>
+    <feFlood flood-color="#ff0050" flood-opacity="0.80" result="c"/>
+    <feComposite in="c" in2="b" operator="in" result="g"/>
+    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
 
-  <rect width="${W}" height="${H}" fill="#07080C"/>
-  <rect width="${W}" height="${H}" fill="url(#ttOrbCyan)"/>
-  <rect width="${W}" height="${H}" fill="url(#ttOrbPink)"/>
-  <rect width="${W}" height="${H}" fill="url(#ttOrbPurp)"/>
-  <rect width="${W}" height="${H}" fill="url(#ttCenterGlow)"/>
-  <rect width="${W}" height="${H}" fill="url(#ttDots)" mask="url(#ttDotMask)"/>
+<!-- ① Base + colour orbs -->
+<rect width="${W}" height="${H}" fill="url(#ttBg)"/>
+<rect width="${W}" height="${H}" fill="url(#ttCyan)"/>
+<rect width="${W}" height="${H}" fill="url(#ttPink)"/>
+<rect width="${W}" height="${H}" fill="url(#ttPurp)"/>
+<rect width="${W}" height="${H}" fill="url(#ttSpot)"/>
 
-  ${reactionIcons()}
+<!-- ② Texture overlays -->
+<rect width="${W}" height="${H}" fill="url(#ttDiag)"/>
+<rect width="${W}" height="${H}" fill="url(#ttScan)"/>
 
-  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
-        fill="#ffffff" fill-opacity="0.04"
-        stroke="#00f2ea" stroke-opacity="0.14" stroke-width="1.5"
-        filter="url(#ttCardGlow)"/>
-  <rect x="${CARD.x}" y="${CARD.y}" width="${CARD.w}" height="${CARD.h}" rx="48"
-        fill="url(#ttCardShine)"/>
+<!-- ③ Laser beam streaks -->
+<line x1="-60" y1="310" x2="1140" y2="88"  stroke="#00f2ea" stroke-width="1.8" stroke-opacity="0.28"/>
+<line x1="-60" y1="332" x2="1140" y2="110" stroke="#00f2ea" stroke-width="0.6" stroke-opacity="0.12"/>
+<line x1="-60" y1="760" x2="1140" y2="988" stroke="#ff0050" stroke-width="1.8" stroke-opacity="0.25"/>
+<line x1="-60" y1="782" x2="1140" y2="1010" stroke="#ff0050" stroke-width="0.6" stroke-opacity="0.10"/>
+<line x1="830" y1="-60" x2="210" y2="1140" stroke="#7700ee" stroke-width="1.2" stroke-opacity="0.16"/>
 
-  <!-- Logo box (dark with cyan glow) -->
-  <rect x="${CX - 75}" y="${logoBoxY}" width="150" height="150" rx="40"
-        fill="url(#ttLogoBg)" filter="url(#ttLogoGlow)"/>
-  <image href="${logoB64}" xlink:href="${logoB64}"
-         x="${CX - 64}" y="${logoBoxY + 11}" width="128" height="128"/>
+<!-- ④ Ring decorations -->
+<circle cx="95"  cy="195" r="185" fill="none" stroke="#00f2ea" stroke-width="1.6" stroke-opacity="0.13"/>
+<circle cx="95"  cy="195" r="228" fill="none" stroke="#00f2ea" stroke-width="0.6" stroke-opacity="0.06"/>
+<circle cx="985" cy="885" r="205" fill="none" stroke="#ff0050" stroke-width="1.6" stroke-opacity="0.13"/>
+<circle cx="985" cy="885" r="256" fill="none" stroke="#ff0050" stroke-width="0.6" stroke-opacity="0.06"/>
+<circle cx="${CX}" cy="380" r="340" fill="none" stroke="#ffffff" stroke-width="0.8" stroke-opacity="0.04"/>
 
-  <!-- TikTok platform icon — real brand logo, circle-clipped -->
-  <image href="${ttIconB64}" xlink:href="${ttIconB64}"
-         x="${CX - 65}" y="${igIconY}" width="130" height="130"/>
+<!-- ⑤ Floating particles -->
+<circle cx="890" cy="155" r="5.5" fill="#00f2ea" opacity="0.62"/>
+<circle cx="848" cy="196" r="2.5" fill="#ffffff"  opacity="0.40"/>
+<circle cx="928" cy="124" r="3.5" fill="#ff0050"  opacity="0.52"/>
+<circle cx="148" cy="825" r="4.5" fill="#00f2ea"  opacity="0.46"/>
+<circle cx="202" cy="864" r="2"   fill="#ffffff"  opacity="0.36"/>
+<circle cx="118" cy="874" r="3"   fill="#ff0050"  opacity="0.46"/>
+<circle cx="558" cy="66"  r="4"   fill="#00f2ea"  opacity="0.52"/>
+<circle cx="602" cy="46"  r="2"   fill="#ffffff"  opacity="0.42"/>
+<circle cx="488" cy="966" r="4"   fill="#ff0050"  opacity="0.42"/>
+<circle cx="722" cy="946" r="2.5" fill="#00f2ea"  opacity="0.46"/>
+<!-- Cross/plus sparks -->
+<rect x="862" y="302" width="14" height="3" rx="1.5" fill="#00f2ea" opacity="0.52"/>
+<rect x="868" y="296" width="3"  height="14" rx="1.5" fill="#00f2ea" opacity="0.52"/>
+<rect x="182" y="462" width="12" height="2.5" rx="1" fill="#ff0050" opacity="0.46"/>
+<rect x="187" y="457" width="2.5" height="12" rx="1" fill="#ff0050" opacity="0.46"/>
+<rect x="904" y="604" width="16" height="3" rx="1.5" fill="#ffffff" opacity="0.22"/>
+<rect x="911" y="597" width="3"  height="16" rx="1.5" fill="#ffffff" opacity="0.22"/>
+<rect x="148" y="350" width="10" height="2" rx="1" fill="#7700ee" opacity="0.40"/>
+<rect x="153" y="345" width="2"  height="10" rx="1" fill="#7700ee" opacity="0.40"/>
 
-  <!-- Heading -->
-  <text x="${CX}" y="${h1Y1}" font-family="Vazirmatn" font-weight="800" font-size="38"
-        fill="#ffffff" text-anchor="middle" direction="rtl">محتوای وایرال در تیک‌تاک</text>
-  <text x="${CX}" y="${h1Y2}" font-family="Vazirmatn" font-weight="700" font-size="30"
-        fill="#00f2ea" text-anchor="middle">با AfghanFollower</text>
+<!-- ⑥ LIVE badge -->
+<rect x="862" y="44" width="150" height="48" rx="24"
+      fill="#ff0050" fill-opacity="0.92" filter="url(#ttLiveG)"/>
+<circle cx="884" cy="68" r="7" fill="#ffffff" opacity="0.95"/>
+<text x="936" y="76" font-family="Vazirmatn" font-weight="800" font-size="22"
+      fill="#ffffff" text-anchor="middle">زنده</text>
 
-  ${subBlock}
+<!-- ⑦ Logo circle with halo -->
+<circle cx="${CX}" cy="238" r="92" fill="url(#ttHalo)"/>
+<circle cx="${CX}" cy="238" r="72" fill="#08081a"
+        stroke="#00f2ea" stroke-width="2.2" stroke-opacity="0.65"/>
+<image href="${logoB64}" xlink:href="${logoB64}"
+       x="${CX - 54}" y="184" width="108" height="108"
+       filter="url(#ttLogoG)"/>
 
-  ${featCards}
+<!-- ⑧ Viewfinder corners -->
+${cb(CP,      CP,      false, false, '#00f2ea')}
+${cb(W - CP,  CP,      true,  false, '#00f2ea')}
+${cb(CP,      H - CP,  false, true,  '#ff0050')}
+${cb(W - CP,  H - CP,  true,  true,  '#ff0050')}
 
-  <rect x="${CARD.x + 80}" y="${accentY}" width="${CARD.w - 160}" height="2.5" rx="1.25"
-        fill="url(#ttAccent)"/>
+<!-- ⑨ Neon divider below logo -->
+<rect x="${CX - 130}" y="322" width="260" height="2.2" rx="1.1"
+      fill="url(#ttAccent)" opacity="0.72"/>
 
-  <rect x="${CX - 155}" y="${btnY}" width="310" height="52" rx="26" fill="url(#ttBtn)"/>
-  <text x="${CX}" y="${btnY + 34}" font-family="Vazirmatn" font-weight="700" font-size="19"
-        fill="#ffffff" text-anchor="middle" direction="rtl">همین حالا شروع کنید</text>
+<!-- ⑩ Main headline — chromatic aberration (3 layers) -->
+<!-- Cyan ghost left -->
+<text x="${CX - 5}" y="490" font-family="Vazirmatn" font-weight="800" font-size="90"
+      fill="#00f2ea" fill-opacity="0.42" text-anchor="middle" direction="rtl">${escapeXml(H1)}</text>
+<!-- Pink ghost right -->
+<text x="${CX + 5}" y="490" font-family="Vazirmatn" font-weight="800" font-size="90"
+      fill="#ff0050" fill-opacity="0.42" text-anchor="middle" direction="rtl">${escapeXml(H1)}</text>
+<!-- White main -->
+<text x="${CX}" y="490" font-family="Vazirmatn" font-weight="800" font-size="90"
+      fill="#ffffff" text-anchor="middle" direction="rtl"
+      filter="url(#ttNeonC)">${escapeXml(H1)}</text>
 
-  <text x="${CX}" y="${footerY}" font-family="Vazirmatn" font-size="15"
-        fill="#00f2ea" fill-opacity="0.75" text-anchor="middle">
-    afghanfollowers.online
-  </text>
+<!-- Sub-headline line 2 -->
+<text x="${CX - 4}" y="556" font-family="Vazirmatn" font-weight="700" font-size="48"
+      fill="#00f2ea" fill-opacity="0.38" text-anchor="middle" direction="rtl">${escapeXml(H2)}</text>
+<text x="${CX + 4}" y="556" font-family="Vazirmatn" font-weight="700" font-size="48"
+      fill="#ff0050" fill-opacity="0.38" text-anchor="middle" direction="rtl">${escapeXml(H2)}</text>
+<text x="${CX}" y="556" font-family="Vazirmatn" font-weight="700" font-size="48"
+      fill="#00f2ea" text-anchor="middle" direction="rtl"
+      filter="url(#ttNeonC)">${escapeXml(H2)}</text>
+
+<!-- ⑪ Post subtitle text -->
+${subBlock}
+
+<!-- ⑫ Sound wave bars with glow -->
+<g filter="url(#ttWaveG)">${waveBars}</g>
+
+<!-- ⑬ CTA button -->
+<rect x="${CX - 210}" y="930" width="420" height="56" rx="28"
+      fill="url(#ttCta)" opacity="0.94"/>
+<text x="${CX}" y="966" font-family="Vazirmatn" font-weight="700" font-size="22"
+      fill="#ffffff" text-anchor="middle" direction="rtl">همین حالا ثبت‌نام کنید</text>
+
+<!-- ⑭ URL -->
+<text x="${CX}" y="1012" font-family="Vazirmatn" font-size="19"
+      fill="#00f2ea" fill-opacity="0.68" text-anchor="middle">
+  afghanfollowers.online
+</text>
+
+<!-- ⑮ Decorative music note (bottom-right, very subtle) -->
+<text x="1040" y="990" font-family="Vazirmatn" font-size="68"
+      fill="#ff0050" fill-opacity="0.16" text-anchor="middle"
+      transform="rotate(-18, 1040, 990)">&#9834;</text>
+
+<!-- ⑯ Small logo bottom-left -->
+<image href="${logoB64}" xlink:href="${logoB64}"
+       x="38" y="${H - 82}" width="50" height="50" opacity="0.46"/>
+
 </svg>`;
 }
 
 async function renderTikTokPostImage(text) {
   ensureFontconfig();
-  const SZ = 130;
-  const [logoBuffer, iconBuffer] = await Promise.all([
-    sharp(LOGO_PATH).resize(150, 150).png().toBuffer(),
-    (async () => {
-      // Two-step removal: first circle-clip (removes white corners of the JPEG),
-      // then erase remaining dark/black pixels (removes the black circle background),
-      // leaving only the white/cyan/pink d-note shape on a transparent canvas.
-      const PRESZ = 520; // oversample for clean edges
-      const circleM = Buffer.from(
-        `<svg width="${PRESZ}" height="${PRESZ}"><circle cx="${PRESZ/2}" cy="${PRESZ/2}" r="${PRESZ/2}" fill="white"/></svg>`
-      );
-      // Step 1: resize large + circle clip
-      const clipped = await sharp(TT_ICON_PATH)
-        .resize(PRESZ, PRESZ)
-        .png()
-        .toBuffer()
-        .then(buf => sharp(buf)
-          .composite([{ input: circleM, blend: 'dest-in' }])
-          .png()
-          .toBuffer()
-        );
-      // Step 2: erase dark pixels (the black circle background)
-      const { data, info } = await sharp(clipped)
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true });
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-        if (a > 0 && r < 90 && g < 90 && b < 90) data[i + 3] = 0;
-      }
-      return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-        .resize(SZ, SZ)
-        .png()
-        .toBuffer();
-    })(),
-  ]);
-  const logoB64   = 'data:image/png;base64,' + logoBuffer.toString('base64');
-  const ttIconB64 = 'data:image/png;base64,' + iconBuffer.toString('base64');
-  const svg = buildTikTokSvg(text, logoB64, ttIconB64);
+  const logoBuffer = await sharp(LOGO_PATH).resize(150, 150).png().toBuffer();
+  const logoB64 = 'data:image/png;base64,' + logoBuffer.toString('base64');
+  const svg = buildTikTokSvg(text, logoB64);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 

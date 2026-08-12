@@ -2,7 +2,7 @@
 // سیستم پست خودکار با عکس — فیسبوک + تلگرام + هوش مصنوعی Groq
 // هر روز توسط Vercel Cron اجرا می‌شود
 
-import { renderFacebookPostImage, renderPostImage, pickTemplate } from './_autopost-image.js';
+import { renderFacebookPostImage, renderPostImage, renderTikTokPostImage, pickTemplate } from './_autopost-image.js';
 
 export default async function handler(req, res) {
   const results = { facebook: null, telegram: null };
@@ -107,9 +107,12 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
     // ----- ۳) تولید عکس -----
     // فیسبوک: طرح اختصاصی AfghanFollowers (۱۰۸۰×۱۰۸۰)
     // تلگرام: قالب چرخشی اینستاگرام/تیک‌تاک/یوتیوب
+    const templateKey = pickTemplate(dayOfYear);
     const [fbImageBuffer, tgImageBuffer] = await Promise.all([
       renderFacebookPostImage(postText),
-      renderPostImage(pickTemplate(dayOfYear), postText),
+      templateKey === 'tiktok'
+        ? renderTikTokPostImage(postText)
+        : renderPostImage(templateKey, postText),
     ]);
 
     // ----- ۴) پست عکس‌دار به فیسبوک -----
