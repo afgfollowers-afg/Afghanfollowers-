@@ -184,10 +184,10 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   if (isAgentRequest && req.method === 'POST') {
-    // Allow only the ticket_reply action for agent POSTs
     const agentBody = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    if (agentBody.action !== 'ticket_reply') {
-      return res.status(405).json({ error: 'Agent: only ticket_reply POST is allowed' });
+    const _AGENT_ACTIONS = ['ticket_reply', 'cancel_order', 'add_funds', 'edit_blog'];
+    if (!_AGENT_ACTIONS.includes(agentBody.action)) {
+      return res.status(405).json({ error: 'Agent: action not allowed' });
     }
     if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
     const { ticketId, text } = agentBody;
@@ -212,6 +212,76 @@ module.exports = async (req, res) => {
     const trWrite = await writeBin(BIN_ID, trData);
     return res.status(200).json({ ok: trWrite.ok, error: trWrite.ok ? undefined : 'write failed' });
   }
+
+  // cancel_order
+  if (isAgentRequest && agentBody && agentBody.action === 'cancel_order') {
+    const { orderId } = agentBody;
+    if (!orderId) return res.status(200).json({ ok: false, error: 'missing orderId' });
+    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    const coMain = await readBin(BIN_ID);
+    if (!coMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
+    const coData = coMain.record;
+    const coOrders = coData.smm_orders || [];
+    const coIdx = coOrders.findIndex(o => String(o.id) === String(orderId));
+    if (coIdx === -1) return res.status(200).json({ ok: false, error: 'order not found' });
+    const prevStatus = coOrders[coIdx].status;
+    coOrders[coIdx].status = 'cancelled';
+    coOrders[coIdx].cancel = true;
+    coData.smm_orders = coOrders;
+    coData.smm_ts = Date.now();
+    const coWrite = await writeBin(BIN_ID, coData);
+    return res.status(200).json({ ok: coWrite.ok, prevStatus, error: coWrite.ok ? undefined : 'write failed' });
+  }
+
+  // add_funds
+  if (isAgentRequest && agentBody && agentBody.action === 'add_funds') {
+    const { userId, amount, note } = agentBody;
+    if (!userId || !amount) return res.status(200).json({ ok: false, error: 'missing userId or amount' });
+    const addAmt = parseFloat(amount);
+    if (isNaN(addAmt) || addAmt <= 0) return res.status(200).json({ ok: false, error: 'invalid amount' });
+    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    const afMain = await readBin(BIN_ID);
+    if (!afMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
+    const afData = afMain.record;
+    const afUsers = afData.smm_users || [];
+    const afIdx = afUsers.findIndex(u => String(u.id) === String(userId));
+    if (afIdx === -1) return res.status(200).json({ ok: false, error: 'user not found' });
+    const prevBalance = parseFloat(afUsers[afIdx].balance || 0);
+    afUsers[afIdx].balance = Math.round((prevBalance + addAmt) * 10000) / 10000;
+    afUsers[afIdx].transactions = afUsers[afIdx].transactions || [];
+    afUsers[afIdx].transactions.unshift({
+      id: Date.now(),
+      type: 'admin_credit',
+      amount: addAmt,
+      desc: note || 'Admin credit',
+      date: new Date().toISOString(),
+      status: 'approved',
+    });
+    afData.smm_users = afUsers;
+    afData.smm_ts = Date.now();
+    const afWrite = await writeBin(BIN_ID, afData);
+    return res.status(200).json({ ok: afWrite.ok, prevBalance, newBalance: afUsers[afIdx].balance, error: afWrite.ok ? undefined : 'write failed' });
+  }
+
+  // edit_blog
+  if (isAgentRequest && agentBody && agentBody.action === 'edit_blog') {
+    const { postId, fields } = agentBody;
+    if (!postId || !fields) return res.status(200).json({ ok: false, error: 'missing postId or fields' });
+    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    const ebMain = await readBin(BIN_ID);
+    if (!ebMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
+    const ebData = ebMain.record;
+    const ebPosts = ebData.smm_blog || [];
+    const ebIdx = ebPosts.findIndex(p => String(p.id) === String(postId));
+    if (ebIdx === -1) return res.status(200).json({ ok: false, error: 'post not found' });
+    const _ALLOWED = ['title', 'content', 'excerpt', 'published', 'platform', 'emoji'];
+    _ALLOWED.forEach(function(f) { if (fields[f] !== undefined) ebPosts[ebIdx][f] = fields[f]; });
+    ebData.smm_blog = ebPosts;
+    ebData.smm_ts = Date.now();
+    const ebWrite = await writeBin(BIN_ID, ebData);
+    return res.status(200).json({ ok: ebWrite.ok, error: ebWrite.ok ? undefined : 'write failed' });
+  }
+
   if (isAgentRequest && req.method !== 'GET') {
     return res.status(405).json({ error: 'Agent: read-only' });
   }
