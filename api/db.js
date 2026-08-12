@@ -8,6 +8,7 @@
 const zlib = require('zlib');
 const { DB_SERVICE_KEY } = require('./_dbkey');
 const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
+const AGENT_SECRET = process.env.AGENT_SECRET;
 
 // Transaction types that credit or debit a wallet by admin/server decision
 // rather than the customer's own in-the-moment action — never allowed to
@@ -178,8 +179,12 @@ module.exports = async (req, res) => {
   // wide open to the entire internet. Server-side callers send it via
   // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
   // injected near the top of admin.html/smm-panel.html/auth.html.
-  if (DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+  const isAgentRequest = !!(AGENT_SECRET && req.headers['x-agent-secret'] === AGENT_SECRET);
+  if (!isAgentRequest && DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (isAgentRequest && req.method !== 'GET') {
+    return res.status(405).json({ error: 'Agent: read-only' });
   }
 
   if (!BIN_ID || !API_KEY) {
@@ -306,7 +311,7 @@ module.exports = async (req, res) => {
     // so exposing it changes nothing a registration attempt wouldn't already
     // reveal one step later).
     if (!isInternalServiceCall && Array.isArray(record.smm_users)) {
-      const callerIsAdmin = !!(_getAuthForGet && _getAuthForGet.role === 'admin');
+      const callerIsAdmin = !!(_getAuthForGet && _getAuthForGet.role === 'admin') || isAgentRequest;
       const callerSub = _getAuthForGet ? _getAuthForGet.sub : null;
       if (callerIsAdmin) {
         record.smm_users = record.smm_users.map(function (u) {
