@@ -49,6 +49,10 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [
+          {
+            role: "system",
+            content: "تو یک نویسنده محتوای فارسی/دری هستی. فقط و فقط از حروف فارسی/دری بنویس. هرگز از حروف چینی، انگلیسی، عربی یا هر زبان دیگری استفاده نکن. خروجی باید ۱۰۰٪ فارسی/دری باشد. فقط استثنا: آدرس سایت afghanfollowers.online و هشتگ‌های فارسی.",
+          },
           { role: "user", content: isPromoDay ? promoPrompt : gamingPrompt },
         ],
         temperature: 0.9,
@@ -57,10 +61,27 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
     });
 
     const groqData = await groqResp.json();
-    const postText = groqData?.choices?.[0]?.message?.content?.trim();
+    const rawText = groqData?.choices?.[0]?.message?.content?.trim();
 
-    if (!postText) {
+    if (!rawText) {
       throw new Error("Groq هیچ متنی تولید نکرد: " + JSON.stringify(groqData));
+    }
+
+    // پاک‌سازی کاراکترهای غیرفارسی (چینی، لاتین و غیره)
+    // نگه داشتن: فارسی/عربی (۰۶۰۰-۰۶FF)، ایموجی، فاصله، خط جدید، علائم نگارشی، آدرس سایت و هشتگ
+    const postText = rawText
+      .split('\n')
+      .map(line => {
+        // خطوطی که آدرس سایت دارند را دست نزن
+        if (/afghanfollowers\.online/.test(line)) return line;
+        // حذف کاراکترهای چینی، ژاپنی، کره‌ای و لاتین از بقیه خطوط
+        return line.replace(/[一-鿿㐀-䶿　-〿가-힯A-za-z]/g, '').trim();
+      })
+      .filter(line => line.length > 0)
+      .join('\n');
+
+    if (!postText.trim()) {
+      throw new Error("متن پس از پاک‌سازی خالی شد — خروجی Groq: " + rawText.slice(0, 200));
     }
 
     // ----- ۲.۵) حالت آزمایشی (dry run): فقط پیش‌نمایش به ادمین، هیچ انتشاری انجام نمی‌شود -----
