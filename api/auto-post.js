@@ -1,13 +1,15 @@
 // api/auto-post.js
-// سیستم پست خودکار — فیسبوک + تلگرام + هوش مصنوعی Groq
+// سیستم پست خودکار با عکس — فیسبوک + تلگرام + هوش مصنوعی Groq
 // هر روز توسط Vercel Cron اجرا می‌شود
+
+import { renderFacebookPostImage, renderPostImage, pickTemplate } from './_autopost-image.js';
 
 export default async function handler(req, res) {
   const results = { facebook: null, telegram: null };
   const isDryRun = req.query?.dryrun === "1" || req.query?.dryrun === "true";
 
   try {
-    // ----- ۱) تعیین نوع پست: روزهای زوج تبلیغ مستقیم، روزهای فرد محتوای آموزشی -----
+    // ----- ۱) تعیین نوع پست -----
     const dayOfYear = Math.floor(
       (Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000
     );
@@ -68,14 +70,11 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
     }
 
     // پاک‌سازی کاراکترهای غیرفارسی (چینی، لاتین و غیره)
-    // نگه داشتن: فارسی/عربی (۰۶۰۰-۰۶FF)، ایموجی، فاصله، خط جدید، علائم نگارشی، آدرس سایت و هشتگ
     const postText = rawText
       .split('\n')
       .map(line => {
-        // خطوطی که آدرس سایت دارند را دست نزن
         if (/afghanfollowers\.online/.test(line)) return line;
-        // حذف کاراکترهای چینی، ژاپنی، کره‌ای و لاتین از بقیه خطوط
-        return line.replace(/[一-鿿㐀-䶿　-〿가-힯A-za-z]/g, '').trim();
+        return line.replace(/[一-鿿㐀-䶿　-〿가-힯A-Za-z]/g, '').trim();
       })
       .filter(line => line.length > 0)
       .join('\n');
@@ -84,7 +83,7 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
       throw new Error("متن پس از پاک‌سازی خالی شد — خروجی Groq: " + rawText.slice(0, 200));
     }
 
-    // ----- ۲.۵) حالت آزمایشی (dry run): فقط پیش‌نمایش به ادمین، هیچ انتشاری انجام نمی‌شود -----
+    // ----- ۲.۵) حالت آزمایشی -----
     if (isDryRun) {
       if (process.env.TG_BOT_TOKEN) {
         await fetch(
@@ -96,63 +95,69 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
               chat_id: "7993801735",
               text:
                 `🧪 DRY RUN — پیش‌نمایش پست خودکار (${isPromoDay ? "تبلیغ" : "آموزشی"})\n` +
-                `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n` +
+                `هیچ‌چیز منتشر نشد.\n\n` +
                 `متن پست:\n${postText}`,
             }),
           }
         );
       }
-      return res.status(200).json({
-        ok: true,
-        dryRun: true,
-        type: isPromoDay ? "promo" : "educational",
-        post: postText,
-      });
+      return res.status(200).json({ ok: true, dryRun: true, type: isPromoDay ? "promo" : "educational", post: postText });
     }
 
-    // ----- ۳) پست به فیسبوک -----
+    // ----- ۳) تولید عکس -----
+    // فیسبوک: طرح اختصاصی AfghanFollowers (۱۰۸۰×۱۰۸۰)
+    // تلگرام: قالب چرخشی اینستاگرام/تیک‌تاک/یوتیوب
+    const [fbImageBuffer, tgImageBuffer] = await Promise.all([
+      renderFacebookPostImage(postText),
+      renderPostImage(pickTemplate(dayOfYear), postText),
+    ]);
+
+    // ----- ۴) پست عکس‌دار به فیسبوک -----
     if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-      const fbResp = await fetch(
-        `https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: postText,
-            access_token: process.env.FB_PAGE_TOKEN,
-          }),
-        }
-      );
-      const fbData = await fbResp.json();
-      results.facebook = fbData.id
-        ? "✅ موفق: " + fbData.id
-        : "❌ خطا: " + JSON.stringify(fbData.error || fbData);
+      try {
+        // آپلود عکس + caption به‌صورت multipart
+        const form = new FormData();
+        form.append('source', new Blob([fbImageBuffer], { type: 'image/png' }), 'post.png');
+        form.append('caption', postText);
+        form.append('access_token', process.env.FB_PAGE_TOKEN);
+
+        const fbResp = await fetch(
+          `https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/photos`,
+          { method: 'POST', body: form }
+        );
+        const fbData = await fbResp.json();
+        results.facebook = fbData.id
+          ? "✅ موفق (با عکس): " + fbData.id
+          : "❌ خطا: " + JSON.stringify(fbData.error || fbData);
+      } catch (fbErr) {
+        results.facebook = "❌ خطا در آپلود عکس: " + fbErr.message;
+      }
     } else {
       results.facebook = "⏭ تنظیم نشده";
     }
 
-    // ----- ۴) پست به کانال تلگرام -----
+    // ----- ۵) پست عکس‌دار به کانال تلگرام -----
     if (process.env.TG_BOT_TOKEN && process.env.TG_CHANNEL) {
-      const tgResp = await fetch(
-        `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: process.env.TG_CHANNEL,
-            text: postText,
-          }),
-        }
-      );
-      const tgData = await tgResp.json();
-      results.telegram = tgData.ok
-        ? "✅ موفق"
-        : "❌ خطا: " + JSON.stringify(tgData);
+      try {
+        const tgForm = new FormData();
+        tgForm.append('chat_id', process.env.TG_CHANNEL);
+        tgForm.append('caption', postText);
+        tgForm.append('photo', new Blob([tgImageBuffer], { type: 'image/png' }), 'post.png');
+
+        const tgResp = await fetch(
+          `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendPhoto`,
+          { method: 'POST', body: tgForm }
+        );
+        const tgData = await tgResp.json();
+        results.telegram = tgData.ok ? "✅ موفق (با عکس)" : "❌ خطا: " + JSON.stringify(tgData);
+      } catch (tgErr) {
+        results.telegram = "❌ خطا در ارسال عکس: " + tgErr.message;
+      }
     } else {
       results.telegram = "⏭ تنظیم نشده";
     }
 
-    // ----- ۵) گزارش به ادمین (پیام خصوصی تلگرام) -----
+    // ----- ۶) گزارش به ادمین -----
     if (process.env.TG_BOT_TOKEN) {
       await fetch(
         `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`,
@@ -172,6 +177,7 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
     }
 
     return res.status(200).json({ ok: true, type: isPromoDay ? "promo" : "educational", results, post: postText });
+
   } catch (err) {
     try {
       if (process.env.TG_BOT_TOKEN) {
