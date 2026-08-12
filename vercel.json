@@ -4,7 +4,8 @@
   },
   "crons": [
     { "path": "/api/sync-orders", "schedule": "0 3 * * *" },
-    { "path": "/api/sync-orders?job=email-campaign", "schedule": "0 20 * * *" }
+    { "path": "/api/sync-orders?job=email-campaign", "schedule": "0 20 * * *" },
+    { "path": "/api/auto-post", "schedule": "0 6 * * *" }
   ],
   "headers": [
     {
