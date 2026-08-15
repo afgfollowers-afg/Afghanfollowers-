@@ -2,27 +2,13 @@
 // TikTok: 1080×1920 (9:16 portrait), all others: 1080×1080 square
 // Platform SVG icons removed — identified by colour + badge only
 // Logo: actual AfghanFollower PNG, prominent at top
-const sharp = require('sharp');
-const fs    = require('fs');
-const path  = require('path');
+const { Resvg } = require('@resvg/resvg-js');
+const fs   = require('fs');
+const path = require('path');
 
 const LOGO_PATH      = path.join(__dirname, '..', 'icons', 'logo-full.png');
-const FONT_DIR       = path.join(__dirname, '_assets');
-const FC_CACHE       = '/tmp/fontconfig-cache';
-const FC_FILE        = '/tmp/afghfollowers-fonts.conf';
+const FONT_PATH      = path.join(__dirname, '_assets', 'Vazirmatn-Bold.ttf');
 const TEMPLATE_ORDER = ['tiktok', 'instagram', 'youtube'];
-
-let fontconfigReady = false;
-function ensureFontconfig() {
-  if (fontconfigReady) return;
-  try {
-    fs.mkdirSync(FC_CACHE, { recursive: true });
-    fs.writeFileSync(FC_FILE,
-      `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "fonts.dtd">\n<fontconfig>\n  <dir>${FONT_DIR}</dir>\n  <cachedir>${FC_CACHE}</cachedir>\n</fontconfig>`);
-    process.env.FONTCONFIG_FILE = FC_FILE;
-  } catch (_) {}
-  fontconfigReady = true;
-}
 
 function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -555,27 +541,29 @@ function buildFacebookSvg(logoB64) {
 //  RENDERERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function getLogoB64() {
-  const buf = await sharp(LOGO_PATH).resize(220, 220).png().toBuffer();
+function getLogoB64() {
+  const buf = fs.readFileSync(LOGO_PATH);
   return 'data:image/png;base64,' + buf.toString('base64');
 }
 
+function svgToPng(svgStr) {
+  const resvg = new Resvg(svgStr, {
+    font: { fontFiles: [FONT_PATH], loadSystemFonts: false },
+  });
+  return Buffer.from(resvg.render().asPng());
+}
+
 async function renderTikTokPostImage(_text) {
-  ensureFontconfig();
-  const logo = await getLogoB64();
-  return sharp(Buffer.from(buildTikTokSvg(logo))).png().toBuffer();
+  return svgToPng(buildTikTokSvg(getLogoB64()));
 }
 async function renderInstagramPostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildInstagramSvg(await getLogoB64()))).png().toBuffer();
+  return svgToPng(buildInstagramSvg(getLogoB64()));
 }
 async function renderYoutubePostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildYoutubeSvg(await getLogoB64()))).png().toBuffer();
+  return svgToPng(buildYoutubeSvg(getLogoB64()));
 }
 async function renderFacebookPostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildFacebookSvg(await getLogoB64()))).png().toBuffer();
+  return svgToPng(buildFacebookSvg(getLogoB64()));
 }
 
 module.exports = {

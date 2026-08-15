@@ -2,6 +2,6 @@
   "name": "afghanfollowers",
   "private": true,
   "dependencies": {
-    "sharp": "^0.33.5"
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

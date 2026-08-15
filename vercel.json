@@ -1,5 +1,4 @@
 {
-  "installCommand": "npm install --cpu=x64 --os=linux --libc=glibc && ls node_modules/@img 2>/dev/null | grep -v linux-x64 | xargs -I{} rm -rf node_modules/@img/{} ; echo 'sharp trimmed'",
   "functions": {
     "api/sync-orders.js": { "maxDuration": 60 },
     "api/auto-post.js":   { "maxDuration": 45 }
