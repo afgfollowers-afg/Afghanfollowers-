@@ -2,9 +2,9 @@
 // سیستم پست خودکار با عکس — فیسبوک + تلگرام + هوش مصنوعی Groq
 // هر روز توسط Vercel Cron اجرا می‌شود
 
-import { renderFacebookPostImage, renderTikTokPostImage, renderInstagramPostImage, renderYoutubePostImage, pickTemplate } from './_autopost-image.js';
+const { renderFacebookPostImage, renderTikTokPostImage, renderInstagramPostImage, renderYoutubePostImage, pickTemplate } = require('./_autopost-image.js');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const results = { facebook: null, telegram: null };
   const isDryRun = req.query?.dryrun === "1" || req.query?.dryrun === "true";
 
