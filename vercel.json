@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm install --cpu=x64 --os=linux --libc=glibc",
   "functions": {
     "api/sync-orders.js": { "maxDuration": 60 },
     "api/auto-post.js":   { "maxDuration": 45 }
