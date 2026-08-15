@@ -1,8 +1,7 @@
 // api/auto-post.js
-// سیستم پست خودکار با عکس — فیسبوک + تلگرام + هوش مصنوعی Groq
+// سیستم پست خودکار — فیسبوک + تلگرام + هوش مصنوعی Groq
 // هر روز توسط Vercel Cron اجرا می‌شود
-
-const { renderFacebookPostImage, renderTikTokPostImage, renderInstagramPostImage, renderYoutubePostImage, pickTemplate } = require('./_autopost-image.js');
+// v6: text-only posts (image generation moved to separate service)
 
 module.exports = async function handler(req, res) {
   const results = { facebook: null, telegram: null };
@@ -104,60 +103,49 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
       return res.status(200).json({ ok: true, dryRun: true, type: isPromoDay ? "promo" : "educational", post: postText });
     }
 
-    // ----- ۳) تولید عکس -----
-    // فیسبوک: طرح اختصاصی AfghanFollowers (۱۰۸۰×۱۰۸۰)
-    // تلگرام: قالب چرخشی اینستاگرام/تیک‌تاک/یوتیوب
-    const templateKey = pickTemplate(dayOfYear);
-    const tgRenderFns = {
-      tiktok:    renderTikTokPostImage,
-      instagram: renderInstagramPostImage,
-      youtube:   renderYoutubePostImage,
-    };
-    const [fbImageBuffer, tgImageBuffer] = await Promise.all([
-      renderFacebookPostImage(postText),
-      tgRenderFns[templateKey](postText),
-    ]);
-
-    // ----- ۴) پست عکس‌دار به فیسبوک -----
+    // ----- ۳) پست متنی به فیسبوک -----
     if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
       try {
-        // آپلود عکس + caption به‌صورت multipart
-        const form = new FormData();
-        form.append('source', new Blob([fbImageBuffer], { type: 'image/png' }), 'post.png');
-        form.append('caption', postText);
-        form.append('access_token', process.env.FB_PAGE_TOKEN);
-
         const fbResp = await fetch(
-          `https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/photos`,
-          { method: 'POST', body: form }
+          `https://graph.facebook.com/v21.0/${process.env.FB_PAGE_ID}/feed`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: postText,
+              access_token: process.env.FB_PAGE_TOKEN,
+            }),
+          }
         );
         const fbData = await fbResp.json();
         results.facebook = fbData.id
-          ? "✅ موفق (با عکس): " + fbData.id
+          ? "✅ موفق: " + fbData.id
           : "❌ خطا: " + JSON.stringify(fbData.error || fbData);
       } catch (fbErr) {
-        results.facebook = "❌ خطا در آپلود عکس: " + fbErr.message;
+        results.facebook = "❌ خطا: " + fbErr.message;
       }
     } else {
       results.facebook = "⏭ تنظیم نشده";
     }
 
-    // ----- ۵) پست عکس‌دار به کانال تلگرام -----
+    // ----- ۴) پست متنی به کانال تلگرام -----
     if (process.env.TG_BOT_TOKEN && process.env.TG_CHANNEL) {
       try {
-        const tgForm = new FormData();
-        tgForm.append('chat_id', process.env.TG_CHANNEL);
-        tgForm.append('caption', postText);
-        tgForm.append('photo', new Blob([tgImageBuffer], { type: 'image/png' }), 'post.png');
-
         const tgResp = await fetch(
-          `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendPhoto`,
-          { method: 'POST', body: tgForm }
+          `https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: process.env.TG_CHANNEL,
+              text: postText,
+            }),
+          }
         );
         const tgData = await tgResp.json();
-        results.telegram = tgData.ok ? "✅ موفق (با عکس)" : "❌ خطا: " + JSON.stringify(tgData);
+        results.telegram = tgData.ok ? "✅ موفق" : "❌ خطا: " + JSON.stringify(tgData);
       } catch (tgErr) {
-        results.telegram = "❌ خطا در ارسال عکس: " + tgErr.message;
+        results.telegram = "❌ خطا: " + tgErr.message;
       }
     } else {
       results.telegram = "⏭ تنظیم نشده";
