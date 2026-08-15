@@ -1124,7 +1124,7 @@ function doForgot(){
   if(!token) return;
   var np=prompt('Enter your new password (min 8 characters):');
   if(!np||np.length<8){alert('Password must be at least 8 characters. Reset cancelled.');return;}
-  fetch('/api/reset-password',{
+  fetch('/api/send-reset-email',{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({token:token,newPassword:np})
   }).then(function(r){return r.json();}).then(function(d){
