@@ -515,7 +515,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg></span>
       <span id="t-dn-refill">Refill</span>
     </div>
-    <div class="dnav-item" onclick="navTo('orders');closeDrawer()">
+    <div class="dnav-item" onclick="showRefunds();closeDrawer()">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
       <span id="t-dn-refunds">Refunds</span>
     </div>
@@ -1231,6 +1231,24 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div style="font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:14px">ⓘ The requested amount is held from your balance immediately and released back to you automatically if the request is rejected.</div>
     <button onclick="submitWithdrawRequest()" style="width:100%;padding:14px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:800;font-family:var(--fn);cursor:pointer;margin-bottom:8px">Submit Request</button>
     <button onclick="closeWithdrawModal()" style="width:100%;padding:12px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:700;font-family:var(--fn);cursor:pointer">Cancel</button>
+  </div>
+</div>
+
+<!-- Refunds Modal — refund transactions only (money returned to wallet) -->
+<div id="refunds-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:82vh;display:flex;flex-direction:column">
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 14px"></div>
+      <div style="font-size:32px;margin-bottom:6px">↩️</div>
+      <div style="font-size:16px;font-weight:800;color:var(--white)" id="t-rf-title">Refunds</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px" id="t-rf-sub">Money returned to your wallet from cancelled orders</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:center">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px" id="t-rf-total-label">Total Refunded</div>
+      <div style="font-size:26px;font-weight:900;color:var(--green);margin-top:4px" id="rf-total">$0.00</div>
+    </div>
+    <div id="rf-list" style="overflow-y:auto;flex:1;margin:0 -4px"></div>
+    <button onclick="closeRefundsModal()" style="width:100%;padding:13px;border-radius:11px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:700;font-family:var(--fn);cursor:pointer;margin-top:12px" id="t-rf-close">Close</button>
   </div>
 </div>
 
@@ -3979,6 +3997,47 @@ function getMinWithdrawAmount(){
     return min>=0?min:5;
   }catch(e){return 5;}
 }
+// Refunds view — lists only 'refund' transactions (money credited back to the
+// wallet when an order was cancelled), plus their total. Read-only; the refund
+// itself is issued from the Orders page's Cancel button (finishCancelOrder).
+function showRefunds(){
+  var u=getCurrentUser();
+  if(!u){showToast('Login required','e');return;}
+  var refunds=(u.transactions||[]).filter(function(t){return t.type==='refund';});
+  var total=refunds.reduce(function(sum,t){return sum+(parseFloat(t.amount||t.credit||0)||0);},0);
+  var totalEl=document.getElementById('rf-total');
+  if(totalEl) totalEl.textContent=fmt(total);
+  var list=document.getElementById('rf-list');
+  if(list){
+    if(!refunds.length){
+      list.innerHTML='<div style="text-align:center;padding:30px 12px;color:var(--muted)">'
+        +'<div style="font-size:34px;margin-bottom:8px">📭</div>'
+        +'<div style="font-size:14px;font-weight:700">No refunds yet</div>'
+        +'<div style="font-size:12px;margin-top:4px">Cancelled orders are refunded to your wallet and shown here</div>'
+        +'</div>';
+    } else {
+      list.innerHTML=refunds.map(function(t){
+        var amt=parseFloat(t.amount||t.credit||0)||0;
+        var when=t.date?new Date(t.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';
+        var ref=t.orderId?('Order #'+escHtml(String(t.orderId))):escHtml(t.desc||'Refund');
+        return '<div style="padding:12px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">'
+          +'<div style="width:38px;height:38px;border-radius:10px;background:rgba(0,210,160,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">↩️</div>'
+          +'<div style="flex:1;min-width:0">'
+            +'<div style="font-size:13px;font-weight:700;color:var(--white)">'+ref+'</div>'
+            +'<div style="font-size:11px;color:var(--muted)">'+when+'</div>'
+          +'</div>'
+          +'<div style="font-size:15px;font-weight:800;color:var(--green);flex-shrink:0">+'+fmt(amt)+'</div>'
+        +'</div>';
+      }).join('');
+    }
+  }
+  document.getElementById('refunds-modal').style.display='flex';
+}
+function closeRefundsModal(){
+  var m=document.getElementById('refunds-modal');
+  if(m) m.style.display='none';
+}
+
 function openWithdrawModal(){
   var u=getCurrentUser();
   if(!u){showToast('Login required','e');return;}
