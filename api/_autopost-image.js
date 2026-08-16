@@ -1,7 +1,24 @@
-// Auto-post image generator v5
-// TikTok: 1080×1920 (9:16 portrait), all others: 1080×1080 square
-// Platform SVG icons removed — identified by colour + badge only
-// Logo: actual AfghanFollower PNG, prominent at top
+// Auto-post image generator v6
+// TikTok: 1080×1920 (9:16 portrait), all others: 1080×1080 square.
+//
+// Everything is drawn as pure SVG and rasterised by sharp — no template PNGs,
+// no browser, no AI image call at post time (this runs inside a Vercel
+// serverless function on the daily cron).
+//
+// ── RTL TEXT RULES (read before touching any <text>) ──────────────────────
+// 1. NEVER combine text-anchor="end" with direction="rtl". Under an RTL base
+//    direction "end" resolves to the LEFT edge, so the string flows rightwards
+//    off the canvas — that is what clipped every checklist row and footer line
+//    in v5.
+// 2. A single all-Persian run is strong-RTL, so the bidi algorithm shapes it
+//    correctly with no `direction` at all. Those use plain LTR anchors:
+//    right-aligned → "end", centred → "middle", left-aligned → "start".
+// 3. A line built from SEVERAL runs (a coloured <tspan> beside plain text) is
+//    different: without a declared base direction the runs are laid out
+//    left-to-right in document order, so "خدمات ویژه <tspan>تیک‌تاک</tspan>"
+//    renders as "تیک‌تاک خدمات ویژه". Multi-run lines therefore DO set
+//    direction="rtl", paired with text-anchor="start" to anchor the RIGHT
+//    edge (or "middle" to centre) — never "end", per rule 1.
 const sharp = require('sharp');
 const fs    = require('fs');
 const path  = require('path');
@@ -33,550 +50,499 @@ function pickTemplate(dayIndex) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  TIKTOK — 1080 × 1920  (9:16 portrait, standard TikTok feed format)
+//  ICONS — all drawn around a 0,0 origin so they can be dropped anywhere with
+//  a single translate(). Scale via the `s` argument.
 // ─────────────────────────────────────────────────────────────────────────────
-function buildTikTokSvg(logoB64) {
-  const W = 1080, H = 1920, CX = W / 2;
-  const c1 = '#00f2ea', c2 = '#ff0050';
+const ICON_PATHS = {
+  // Shield with a tick — quality guarantee
+  shield: 'M0,-25 L21,-15 L21,2 C21,17 0,27 0,27 C0,27 -21,17 -21,2 L-21,-15 Z',
+  shieldTick: 'M-9,0 L-3,7 L10,-8',
+  // Rocket — fast delivery
+  rocket: 'M0,-28 C10,-17 15,-4 15,10 L15,17 L-15,17 L-15,10 C-15,-4 -10,-17 0,-28 Z',
+  rocketFinL: 'M-15,3 L-26,20 L-15,17 Z',
+  rocketFinR: 'M15,3 L26,20 L15,17 Z',
+  rocketFlame: 'M-7,19 L0,32 L7,19 Z',
+  // Person bust — real followers
+  personHead: 'M0,-16 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0',
+  personBody: 'M-18,24 C-18,8 -10,1 0,1 C10,1 18,8 18,24 Z',
+  // Headset — 24h support
+  headBand: 'M-19,6 L-19,-3 A19,19 0 0,1 19,-3 L19,6',
+  earL: 'M-22,4 h7 a3,3 0 0,1 3,3 v12 a3,3 0 0,1 -3,3 h-7 a3,3 0 0,1 -3,-3 v-12 a3,3 0 0,1 3,-3 Z',
+  earR: 'M22,4 h-7 a3,3 0 0,0 -3,3 v12 a3,3 0 0,0 3,3 h7 a3,3 0 0,0 3,-3 v-12 a3,3 0 0,0 -3,-3 Z'
+};
 
-  const checkItems = [
-    'افزایش فالوور واقعی و هدفمند',
-    'افزایش لایک، ویو و کامنت',
-    'افزایش بازدید ویدیو و لایو',
-    'بدون نیاز به رمز عبور',
-    'کاملاً امن و بدون ریزش',
-    'تحویل فوری با ضمانت کیفیت',
-  ];
-  const CLH = 76;
-  const CY0 = 1092;
+function iconSvg(kind, x, y, color, s) {
+  const t = `translate(${x},${y}) scale(${s})`;
+  const stroke = `fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"`;
+  switch (kind) {
+    case 'shield':
+      return `<g transform="${t}">
+  <path d="${ICON_PATHS.shield}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="${ICON_PATHS.shieldTick}" ${stroke}/>
+</g>`;
+    case 'rocket':
+      return `<g transform="${t}">
+  <path d="${ICON_PATHS.rocketFinL}" fill="${color}" fill-opacity="0.32" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="${ICON_PATHS.rocketFinR}" fill="${color}" fill-opacity="0.32" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="${ICON_PATHS.rocket}" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="2.6" stroke-linejoin="round"/>
+  <circle cx="0" cy="-5" r="5.5" fill="none" stroke="${color}" stroke-width="2.6"/>
+  <path d="${ICON_PATHS.rocketFlame}" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+</g>`;
+    case 'person':
+      return `<g transform="${t}">
+  <path d="${ICON_PATHS.personHead}" fill="${color}"/>
+  <path d="${ICON_PATHS.personBody}" fill="${color}" fill-opacity="0.55"/>
+</g>`;
+    case 'headset':
+      return `<g transform="${t}">
+  <path d="${ICON_PATHS.headBand}" ${stroke}/>
+  <path d="${ICON_PATHS.earL}" fill="${color}" fill-opacity="0.35" stroke="${color}" stroke-width="2.4"/>
+  <path d="${ICON_PATHS.earR}" fill="${color}" fill-opacity="0.35" stroke="${color}" stroke-width="2.4"/>
+</g>`;
+    default:
+      return '';
+  }
+}
 
-  const checks = checkItems.map((item, i) => {
-    const cy = CY0 + i * CLH;
-    return `
-<circle cx="998" cy="${cy}" r="22" fill="#000000" fill-opacity="0.50"
-        stroke="${c1}" stroke-width="2.8"/>
-<path d="M989,${cy} L995,${cy+9} L1009,${cy-11}"
-      fill="none" stroke="${c1}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="964" y="${cy+11}" font-family="Vazirmatn" font-size="30" font-weight="700"
-      fill="#ffffff" text-anchor="end" direction="rtl">${escapeXml(item)}</text>`;
-  }).join('');
+// The TikTok quaver, drawn once and echoed in cyan / pink / white to get the
+// brand's signature chromatic split without shipping a raster asset.
+const TT_NOTE = 'M22,-48 C22,-31 35,-20 52,-19 L52,0 C39,0 29,-4 21,-11 L21,23 C21,44 5,58 -13,58 C-32,58 -47,44 -47,23 C-47,3 -32,-11 -13,-11 L-13,8 C-22,8 -29,15 -29,23 C-29,31 -22,38 -13,38 C-5,38 3,31 3,23 L3,-48 Z';
 
-  const starPts = '0,-11 2.6,-3.8 10.5,-3.4 4.2,1.4 6.5,9 0,4.6 -6.5,9 -4.2,1.4 -10.5,-3.4 -2.6,-3.8';
-  const stars = [-104,-52,0,52,104].map(dx =>
-    `<polygon points="${starPts}" transform="translate(${CX+dx+60},1800)" fill="#FFD700" opacity="0.88"/>`
-  ).join('');
+function tiktokGlyph(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <path d="${TT_NOTE}" fill="#00f2ea" transform="translate(-7,-5)" opacity="0.95"/>
+  <path d="${TT_NOTE}" fill="#ff0050" transform="translate(7,5)" opacity="0.95"/>
+  <path d="${TT_NOTE}" fill="#ffffff"/>
+</g>`;
+}
 
-  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<defs>
-  <radialGradient id="tOrb1" cx="72%" cy="8%" r="58%">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0.72"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="tOrb2" cx="14%" cy="92%" r="56%">
-    <stop offset="0%" stop-color="${c2}" stop-opacity="0.68"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="tOrb3" cx="88%" cy="52%" r="34%">
-    <stop offset="0%" stop-color="${c2}" stop-opacity="0.26"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="tOrb4" cx="10%" cy="32%" r="28%">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0.22"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="tLogoHalo" cx="50%" cy="50%" r="50%">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0.80"/><stop offset="65%" stop-color="${c1}" stop-opacity="0.15"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
-  </radialGradient>
-  <linearGradient id="tH2" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
-  </linearGradient>
-  <linearGradient id="tCta" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
-  </linearGradient>
-  <linearGradient id="tDiv" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0"/><stop offset="28%" stop-color="${c1}"/>
-    <stop offset="72%" stop-color="${c2}"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
-  </linearGradient>
-  <filter id="tGlowLogo">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="36" result="b"/>
-    <feFlood flood-color="${c1}" flood-opacity="0.75" result="c"/>
-    <feComposite in="c" in2="b" operator="in" result="g"/>
-    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="tGlowH2">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="28" result="b"/>
-    <feFlood flood-color="${c1}" flood-opacity="0.65" result="c"/>
-    <feComposite in="c" in2="b" operator="in" result="g"/>
-    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="tGlowCta">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="b"/>
-    <feFlood flood-color="${c1}" flood-opacity="0.60" result="c"/>
-    <feComposite in="c" in2="b" operator="in" result="g"/>
-    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-</defs>
-
-<!-- Background -->
-<rect width="${W}" height="${H}" fill="#050810"/>
-<rect width="${W}" height="${H}" fill="url(#tOrb1)"/>
-<rect width="${W}" height="${H}" fill="url(#tOrb2)"/>
-<rect width="${W}" height="${H}" fill="url(#tOrb3)"/>
-<rect width="${W}" height="${H}" fill="url(#tOrb4)"/>
-
-<!-- Diagonal laser lines -->
-<line x1="-80" y1="500" x2="${W+80}" y2="140" stroke="${c1}" stroke-width="2" stroke-opacity="0.20"/>
-<line x1="-80" y1="540" x2="${W+80}" y2="180" stroke="${c1}" stroke-width="0.8" stroke-opacity="0.10"/>
-<line x1="-80" y1="${H-400}" x2="${W+80}" y2="${H-120}" stroke="${c2}" stroke-width="1.8" stroke-opacity="0.18"/>
-<line x1="-80" y1="${H-360}" x2="${W+80}" y2="${H-80}" stroke="${c2}" stroke-width="0.6" stroke-opacity="0.08"/>
-
-<!-- Floating geometric accents -->
-<circle cx="130" cy="420" r="320" fill="none" stroke="${c1}" stroke-width="1.5" stroke-opacity="0.12"/>
-<circle cx="130" cy="420" r="260" fill="none" stroke="${c1}" stroke-width="0.8" stroke-opacity="0.07"/>
-<circle cx="${W-90}" cy="${H-420}" r="360" fill="none" stroke="${c2}" stroke-width="1.5" stroke-opacity="0.12"/>
-<circle cx="${W-90}" cy="${H-420}" r="290" fill="none" stroke="${c2}" stroke-width="0.8" stroke-opacity="0.07"/>
-
-<!-- Particles -->
-<circle cx="${W-160}" cy="240" r="10" fill="${c1}" opacity="0.75"/>
-<circle cx="${W-120}" cy="310" r="5"  fill="#ffffff"   opacity="0.50"/>
-<circle cx="${W-210}" cy="180" r="7"  fill="${c2}"     opacity="0.65"/>
-<circle cx="145" cy="${H-240}" r="9"  fill="${c1}" opacity="0.60"/>
-<circle cx="100" cy="${H-180}" r="4"  fill="${c2}"     opacity="0.55"/>
-<rect x="${W-220}" y="570" width="24" height="5" rx="2.5" fill="${c1}" opacity="0.60"/>
-<rect x="${W-208}" y="558" width="5"  height="24" rx="2.5" fill="${c1}" opacity="0.60"/>
-<rect x="148" y="712" width="20" height="4" rx="2" fill="${c2}" opacity="0.50"/>
-<rect x="156" y="704" width="4" height="20" rx="2" fill="${c2}" opacity="0.50"/>
-
-<!-- Corner brackets -->
-<rect x="40" y="40" width="80" height="7" rx="3.5" fill="${c1}" opacity="0.85"/>
-<rect x="40" y="40" width="7"  height="80" rx="3.5" fill="${c1}" opacity="0.85"/>
-<rect x="${W-120}" y="40" width="80" height="7" rx="3.5" fill="${c1}" opacity="0.85"/>
-<rect x="${W-47}" y="40" width="7"  height="80" rx="3.5" fill="${c1}" opacity="0.85"/>
-<rect x="40" y="${H-47}" width="80" height="7" rx="3.5" fill="${c2}" opacity="0.85"/>
-<rect x="40" y="${H-120}" width="7"  height="80" rx="3.5" fill="${c2}" opacity="0.85"/>
-<rect x="${W-120}" y="${H-47}" width="80" height="7" rx="3.5" fill="${c2}" opacity="0.85"/>
-<rect x="${W-47}" y="${H-120}" width="7"  height="80" rx="3.5" fill="${c2}" opacity="0.85"/>
-
-<!-- ── LOGO ──────────────────────────────────────────────────────────────── -->
-<circle cx="${CX}" cy="210" r="184" fill="url(#tLogoHalo)"/>
-<circle cx="${CX}" cy="210" r="148" fill="#ffffff" fill-opacity="0.97"/>
-<circle cx="${CX}" cy="210" r="152" fill="none" stroke="${c1}" stroke-width="5" stroke-opacity="0.90"/>
-<circle cx="${CX+5}" cy="215" r="157" fill="none" stroke="${c2}" stroke-width="2.5" stroke-opacity="0.40"/>
-<image href="${logoB64}" xlink:href="${logoB64}"
-       x="${CX-112}" y="98" width="224" height="224" filter="url(#tGlowLogo)"/>
-
-<!-- ── BADGE ─────────────────────────────────────────────────────────────── -->
-<rect x="${CX-290}" y="380" width="580" height="62" rx="31"
-      fill="#000000" fill-opacity="0.60" stroke="${c1}" stroke-width="2.2" stroke-opacity="0.75"/>
-<text x="${CX}" y="420" font-family="Vazirmatn" font-weight="700" font-size="28"
-      fill="${c1}" text-anchor="middle">افزایش دیده شدن واقعی در تیک‌تاک</text>
-
-<!-- ── HEADLINES ─────────────────────────────────────────────────────────── -->
-<text x="${CX}" y="514" font-family="Vazirmatn" font-weight="800" font-size="80"
-      fill="#ffffff" text-anchor="middle" direction="rtl">حساب تیک‌تاکت رو</text>
-<text x="${CX}" y="636" font-family="Vazirmatn" font-weight="900" font-size="114"
-      fill="url(#tH2)" text-anchor="middle" direction="rtl"
-      filter="url(#tGlowH2)">متفاوت کن!</text>
-
-<!-- ── FEATURE CARDS 2 × 2 ──────────────────────────────────────────────── -->
-<!-- Row 1 -->
-<rect x="42" y="680" width="476" height="126" rx="22"
-      fill="#000000" fill-opacity="0.48" stroke="${c1}" stroke-width="2.5" stroke-opacity="0.85"/>
-<rect x="42" y="680" width="476" height="48" rx="22 22 0 0" fill="${c1}" fill-opacity="0.14"/>
-<text x="280" y="724" font-family="Vazirmatn" font-weight="800" font-size="32"
-      fill="${c1}" text-anchor="middle">ضمانت کیفیت</text>
-<text x="280" y="775" font-family="Vazirmatn" font-weight="700" font-size="26"
-      fill="#ffffff" fill-opacity="0.88" text-anchor="middle">بالاترین کیفیت خدمات</text>
-
-<rect x="562" y="680" width="476" height="126" rx="22"
-      fill="#000000" fill-opacity="0.48" stroke="${c2}" stroke-width="2.5" stroke-opacity="0.85"/>
-<rect x="562" y="680" width="476" height="48" rx="22 22 0 0" fill="${c2}" fill-opacity="0.14"/>
-<text x="800" y="724" font-family="Vazirmatn" font-weight="800" font-size="32"
-      fill="${c2}" text-anchor="middle">تحویل سریع</text>
-<text x="800" y="775" font-family="Vazirmatn" font-weight="700" font-size="26"
-      fill="#ffffff" fill-opacity="0.88" text-anchor="middle">شروع فوری پس از سفارش</text>
-
-<!-- Row 2 -->
-<rect x="42" y="826" width="476" height="126" rx="22"
-      fill="#000000" fill-opacity="0.48" stroke="${c1}" stroke-width="2.5" stroke-opacity="0.85"/>
-<rect x="42" y="826" width="476" height="48" rx="22 22 0 0" fill="${c1}" fill-opacity="0.14"/>
-<text x="280" y="870" font-family="Vazirmatn" font-weight="800" font-size="32"
-      fill="${c1}" text-anchor="middle">فالوور واقعی</text>
-<text x="280" y="921" font-family="Vazirmatn" font-weight="700" font-size="26"
-      fill="#ffffff" fill-opacity="0.88" text-anchor="middle">بدون فالوور فیک</text>
-
-<rect x="562" y="826" width="476" height="126" rx="22"
-      fill="#000000" fill-opacity="0.48" stroke="${c2}" stroke-width="2.5" stroke-opacity="0.85"/>
-<rect x="562" y="826" width="476" height="48" rx="22 22 0 0" fill="${c2}" fill-opacity="0.14"/>
-<text x="800" y="870" font-family="Vazirmatn" font-weight="800" font-size="32"
-      fill="${c2}" text-anchor="middle">پشتیبانی ۲۴ ساعته</text>
-<text x="800" y="921" font-family="Vazirmatn" font-weight="700" font-size="26"
-      fill="#ffffff" fill-opacity="0.88" text-anchor="middle">همیشه در کنار شما</text>
-
-<!-- ── SECTION DIVIDER ─────────────────────────────────────────────────── -->
-<rect x="60" y="978" width="${W-120}" height="3" rx="1.5" fill="url(#tDiv)" opacity="0.75"/>
-
-<!-- ── CHECKLIST ────────────────────────────────────────────────────────── -->
-<rect x="42" y="1000" width="${W-84}" height="${checkItems.length * CLH + 120}" rx="24"
-      fill="#000000" fill-opacity="0.50"/>
-
-<text x="1014" y="1056" font-family="Vazirmatn" font-weight="900" font-size="36"
-      fill="${c1}" text-anchor="end" direction="rtl">خدمات ویژه ما</text>
-<rect x="64" y="1060" width="420" height="3" rx="1.5" fill="${c2}" fill-opacity="0.40"/>
-
-${checks}
-
-<!-- ── DIVIDER BEFORE CTA ─────────────────────────────────────────────── -->
-<rect x="60" y="1568" width="${W-120}" height="3" rx="1.5" fill="url(#tDiv)" opacity="0.50"/>
-
-<!-- ── CTA ───────────────────────────────────────────────────────────────── -->
-<rect x="52" y="1588" width="${W-104}" height="110" rx="55"
-      fill="url(#tCta)" filter="url(#tGlowCta)"/>
-<rect x="54" y="1590" width="${W-108}" height="44" rx="54"
-      fill="#ffffff" fill-opacity="0.12"/>
-<text x="${CX}" y="1654" font-family="Vazirmatn" font-weight="900" font-size="44"
-      fill="#ffffff" text-anchor="middle" direction="rtl">سفارش بده و رشد کن!</text>
-
-<!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
-<!-- Logo small (left) -->
-<circle cx="108" cy="1756" r="58" fill="#ffffff" fill-opacity="0.92"/>
-<image href="${logoB64}" xlink:href="${logoB64}" x="56" y="1704" width="104" height="104"/>
-
-<!-- Stars -->
-${stars}
-
-<!-- Tagline + URL -->
-<text x="${W-70}" y="1744" font-family="Vazirmatn" font-size="30" fill="${c1}" fill-opacity="0.88"
-      text-anchor="end">afghanfollowers.online</text>
-<text x="${W-70}" y="1780" font-family="Vazirmatn" font-size="22" fill="#ffffff" fill-opacity="0.48"
-      text-anchor="end" direction="rtl">پرداخت امن | ضمانت کیفیت</text>
-<text x="${W-70}" y="1845" font-family="Vazirmatn" font-size="24" fill="#ffffff" fill-opacity="0.55"
-      text-anchor="end" direction="rtl">هزاران مشتری راضی</text>
-
-<!-- Bottom accent bar -->
-<rect x="0" y="${H-10}" width="${W}" height="10" fill="url(#tDiv)" opacity="0.92"/>
-</svg>`;
+// Five-pointed star used for the social-proof rating row.
+const STAR = '0,-10 2.4,-3.4 9.5,-3.1 3.8,1.3 5.9,8.2 0,4.2 -5.9,8.2 -3.8,1.3 -9.5,-3.1 -2.4,-3.4';
+function starRow(cx, cy, gap, s, count) {
+  const half = (count - 1) / 2;
+  return Array.from({ length: count }, (_, i) =>
+    `<polygon points="${STAR}" transform="translate(${cx + (i - half) * gap},${cy}) scale(${s})" fill="#FFC93C"/>`
+  ).join('\n  ');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SQUARE (1080×1080) — shared builder for Instagram, YouTube, Facebook
-//  No platform icon — platform identified by colour-scheme + badge text
+//  Shared <defs> — gradients, glows and the ambient background wash.
 // ─────────────────────────────────────────────────────────────────────────────
-function buildSquareSvg({ badge, h1, h2, ctaText, c1, c2, bgBase, featItems, checkItems, logoB64, decorSvg }) {
-  const W = 1080, H = 1080, CX = W / 2;
-  const CLH = 28;
-  const CY0 = 638;
-
-  const FW = 228, FH = 88, FGAP = 16, FY = 494;
-  const featCards = featItems.map(([lbl, sub], i) => {
-    const fx  = 60 + i * (FW + FGAP);
-    const col = i % 2 === 0 ? c1 : c2;
-    return `
-<rect x="${fx}" y="${FY}" width="${FW}" height="${FH}" rx="18"
-      fill="#000000" fill-opacity="0.48" stroke="${col}" stroke-opacity="0.88" stroke-width="2.2"/>
-<rect x="${fx}" y="${FY}" width="${FW}" height="34" rx="18 18 0 0"
-      fill="${col}" fill-opacity="0.16"/>
-<text x="${fx + FW/2}" y="${FY + 26}" font-family="Vazirmatn" font-weight="800" font-size="22"
-      fill="${col}" text-anchor="middle">${escapeXml(lbl)}</text>
-<text x="${fx + FW/2}" y="${FY + 66}" font-family="Vazirmatn" font-weight="700" font-size="19"
-      fill="#ffffff" fill-opacity="0.90" text-anchor="middle">${escapeXml(sub)}</text>`;
-  }).join('');
-
-  const checks = checkItems.map((item, i) => {
-    const cy = CY0 + i * CLH + 14;
-    return `
-<circle cx="970" cy="${cy}" r="15" fill="#000000" fill-opacity="0.50"
-        stroke="${c1}" stroke-width="2.2"/>
-<path d="M963,${cy} L968.5,${cy+7} L978,${cy-8}"
-      fill="none" stroke="${c1}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="940" y="${cy+7}" font-family="Vazirmatn" font-size="22" font-weight="700"
-      fill="#ffffff" text-anchor="end" direction="rtl">${escapeXml(item)}</text>`;
-  }).join('');
-
-  const starPts = '0,-9 2.2,-3.1 8.6,-2.8 3.5,1.1 5.2,7.3 0,3.7 -5.2,7.3 -3.5,1.1 -8.6,-2.8 -2.2,-3.1';
-  const stars = [-44,-22,0,22,44].map(dx =>
-    `<polygon points="${starPts}" transform="translate(${CX+dx-52},956)" fill="#FFD700" opacity="0.88"/>`
-  ).join('');
-
-  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<defs>
-  <radialGradient id="sqOrb1" cx="78%" cy="6%" r="58%">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0.72"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+function sharedDefs(c1, c2, p, ctaA, ctaB) {
+  return `
+  <radialGradient id="${p}Orb1" cx="76%" cy="7%" r="55%">
+    <stop offset="0%" stop-color="${c1}" stop-opacity="0.42"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
   </radialGradient>
-  <radialGradient id="sqOrb2" cx="12%" cy="94%" r="56%">
-    <stop offset="0%" stop-color="${c2}" stop-opacity="0.68"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
+  <radialGradient id="${p}Orb2" cx="14%" cy="88%" r="55%">
+    <stop offset="0%" stop-color="${c2}" stop-opacity="0.40"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
   </radialGradient>
-  <radialGradient id="sqOrb3" cx="90%" cy="55%" r="32%">
-    <stop offset="0%" stop-color="${c2}" stop-opacity="0.24"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
+  <radialGradient id="${p}Orb3" cx="90%" cy="52%" r="34%">
+    <stop offset="0%" stop-color="${c2}" stop-opacity="0.20"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
   </radialGradient>
-  <radialGradient id="sqLogoHalo" cx="50%" cy="50%" r="50%">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0.80"/><stop offset="60%" stop-color="${c1}" stop-opacity="0.12"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+  <radialGradient id="${p}Halo" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="${c1}" stop-opacity="0.62"/><stop offset="70%" stop-color="${c1}" stop-opacity="0.10"/><stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
   </radialGradient>
-  <linearGradient id="sqH2" x1="0" y1="0" x2="1" y2="0">
+  <linearGradient id="${p}Accent" x1="1" y1="0" x2="0" y2="0">
     <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
   </linearGradient>
-  <linearGradient id="sqCta" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+  <linearGradient id="${p}Cta" x1="1" y1="0" x2="0" y2="0">
+    <stop offset="0%" stop-color="${ctaA}"/><stop offset="100%" stop-color="${ctaB}"/>
   </linearGradient>
-  <linearGradient id="sqDiv" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0%" stop-color="${c1}" stop-opacity="0"/><stop offset="26%" stop-color="${c1}"/>
-    <stop offset="74%" stop-color="${c2}"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
+  <linearGradient id="${p}Div" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="${c1}" stop-opacity="0"/><stop offset="28%" stop-color="${c1}" stop-opacity="0.85"/>
+    <stop offset="72%" stop-color="${c2}" stop-opacity="0.85"/><stop offset="100%" stop-color="${c2}" stop-opacity="0"/>
   </linearGradient>
-  <filter id="sqGlowLogo">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="28" result="b"/>
-    <feFlood flood-color="${c1}" flood-opacity="0.75" result="c"/>
-    <feComposite in="c" in2="b" operator="in" result="g"/>
-    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="sqGlowH2">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="b"/>
-    <feFlood flood-color="${c1}" flood-opacity="0.60" result="c"/>
-    <feComposite in="c" in2="b" operator="in" result="g"/>
-    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
-  </filter>
-  <filter id="sqGlowCta">
-    <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="b"/>
+  <linearGradient id="${p}Card" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.07"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.02"/>
+  </linearGradient>
+  <filter id="${p}Soft" x="-45%" y="-45%" width="190%" height="190%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="17" result="b"/>
     <feFlood flood-color="${c1}" flood-opacity="0.55" result="c"/>
     <feComposite in="c" in2="b" operator="in" result="g"/>
     <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
   </filter>
-</defs>
+  <filter id="${p}Warm" x="-45%" y="-45%" width="190%" height="190%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="20" result="b"/>
+    <feFlood flood-color="${c2}" flood-opacity="0.55" result="c"/>
+    <feComposite in="c" in2="b" operator="in" result="g"/>
+    <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>`;
+}
 
-<!-- Background -->
+function ambientBg(W, H, bgBase, c1, c2, p) {
+  return `
 <rect width="${W}" height="${H}" fill="${bgBase}"/>
-<rect width="${W}" height="${H}" fill="url(#sqOrb1)"/>
-<rect width="${W}" height="${H}" fill="url(#sqOrb2)"/>
-<rect width="${W}" height="${H}" fill="url(#sqOrb3)"/>
+<rect width="${W}" height="${H}" fill="url(#${p}Orb1)"/>
+<rect width="${W}" height="${H}" fill="url(#${p}Orb2)"/>
+<rect width="${W}" height="${H}" fill="url(#${p}Orb3)"/>
+<circle cx="${W * 0.1}" cy="${H * 0.2}" r="${W * 0.4}" fill="none" stroke="${c1}" stroke-width="1.3" stroke-opacity="0.10"/>
+<circle cx="${W * 0.92}" cy="${H * 0.78}" r="${W * 0.42}" fill="none" stroke="${c2}" stroke-width="1.3" stroke-opacity="0.10"/>
+<circle cx="${W - 128}" cy="${H * 0.09}" r="7" fill="${c1}" opacity="0.55"/>
+<circle cx="${W - 186}" cy="${H * 0.06}" r="4" fill="${c2}" opacity="0.50"/>
+<circle cx="96" cy="${H * 0.88}" r="6" fill="${c1}" opacity="0.42"/>
+<circle cx="150" cy="${H * 0.93}" r="3.5" fill="${c2}" opacity="0.45"/>`;
+}
 
-<!-- Diagonal lines -->
-<line x1="-60" y1="310" x2="${W+60}" y2="80" stroke="${c1}" stroke-width="1.8" stroke-opacity="0.18"/>
-<line x1="-60" y1="340" x2="${W+60}" y2="110" stroke="${c1}" stroke-width="0.6" stroke-opacity="0.08"/>
-<line x1="-60" y1="${H-220}" x2="${W+60}" y2="${H-60}" stroke="${c2}" stroke-width="1.5" stroke-opacity="0.16"/>
+// Corner brackets — a light frame that keeps the poster from bleeding away at
+// the edges without boxing the whole composition in.
+function cornerFrame(W, H, c1, c2) {
+  const L = 58, T = 6, M = 34;
+  return `
+<rect x="${M}" y="${M}" width="${L}" height="${T}" rx="3" fill="${c1}" opacity="0.75"/>
+<rect x="${M}" y="${M}" width="${T}" height="${L}" rx="3" fill="${c1}" opacity="0.75"/>
+<rect x="${W - M - L}" y="${M}" width="${L}" height="${T}" rx="3" fill="${c1}" opacity="0.75"/>
+<rect x="${W - M - T}" y="${M}" width="${T}" height="${L}" rx="3" fill="${c1}" opacity="0.75"/>
+<rect x="${M}" y="${H - M - T}" width="${L}" height="${T}" rx="3" fill="${c2}" opacity="0.75"/>
+<rect x="${M}" y="${H - M - L}" width="${T}" height="${L}" rx="3" fill="${c2}" opacity="0.75"/>
+<rect x="${W - M - L}" y="${H - M - T}" width="${L}" height="${T}" rx="3" fill="${c2}" opacity="0.75"/>
+<rect x="${W - M - T}" y="${H - M - L}" width="${T}" height="${L}" rx="3" fill="${c2}" opacity="0.75"/>`;
+}
 
-<!-- Decorative rings -->
-<circle cx="90" cy="280" r="248" fill="none" stroke="${c1}" stroke-width="1.2" stroke-opacity="0.12"/>
-<circle cx="${W-80}" cy="${H-270}" r="270" fill="none" stroke="${c2}" stroke-width="1.2" stroke-opacity="0.12"/>
+// Four-column capability strip. Index 0 sits furthest RIGHT so the row reads
+// in the same direction as the Persian copy inside it.
+function featureStrip({ x, y, w, h, items, c1, c2 }) {
+  const colW = w / items.length;
+  const cells = items.map(([icon, title, sub], i) => {
+    const cx  = x + w - colW * (i + 0.5);
+    const col = i % 2 === 0 ? c1 : c2;
+    const divider = i < items.length - 1
+      ? `<rect x="${x + w - colW * (i + 1)}" y="${y + 34}" width="1.6" height="${h - 68}" fill="#ffffff" fill-opacity="0.12"/>`
+      : '';
+    return `${divider}
+  ${iconSvg(icon, cx, y + 52, col, 1.05)}
+  <text x="${cx}" y="${y + 116}" font-family="Vazirmatn" font-size="26" fill="#ffffff" text-anchor="middle">${escapeXml(title)}</text>
+  <text x="${cx}" y="${y + 152}" font-family="Vazirmatn" font-size="26" fill="#ffffff" fill-opacity="0.62" text-anchor="middle">${escapeXml(sub)}</text>`;
+  }).join('\n  ');
 
-<!-- Platform-specific decorative element -->
-${decorSvg}
+  return `
+<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="30" fill="url(#pCard)" stroke="${c1}" stroke-opacity="0.28" stroke-width="1.8"/>
+  ${cells}`;
+}
 
-<!-- Particles -->
-<circle cx="${W-145}" cy="165" r="8"  fill="${c1}" opacity="0.72"/>
-<circle cx="${W-105}" cy="210" r="4"  fill="#ffffff" opacity="0.48"/>
-<circle cx="${W-192}" cy="130" r="5.5" fill="${c2}" opacity="0.62"/>
-<circle cx="110" cy="${H-155}" r="7"  fill="${c1}" opacity="0.58"/>
-<circle cx="78"  cy="${H-115}" r="3.5" fill="${c2}" opacity="0.52"/>
-<rect x="${W-175}" y="285" width="18" height="4"  rx="2" fill="${c1}" opacity="0.58"/>
-<rect x="${W-166}" y="276" width="4"  height="18" rx="2" fill="${c1}" opacity="0.58"/>
+// Right-aligned tick list. The tick sits to the RIGHT of its label, matching
+// the reading order of the Persian copy.
+function checkList({ xRight, yStart, lineH, items, c1, fontSize }) {
+  return items.map((item, i) => {
+    const cy = yStart + i * lineH;
+    return `
+<circle cx="${xRight}" cy="${cy}" r="17" fill="${c1}" fill-opacity="0.12" stroke="${c1}" stroke-width="2.2"/>
+<path d="M${xRight - 7.5},${cy + 0.5} L${xRight - 2},${cy + 6} L${xRight + 7.5},${cy - 5.5}" fill="none" stroke="${c1}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="${xRight - 34}" y="${cy + 10}" font-family="Vazirmatn" font-size="${fontSize}" fill="#ffffff" fill-opacity="0.94" text-anchor="end">${escapeXml(item)}</text>`;
+  }).join('');
+}
 
-<!-- Corner brackets -->
-<rect x="28" y="28" width="58" height="6" rx="3" fill="${c1}" opacity="0.80"/>
-<rect x="28" y="28" width="6"  height="58" rx="3" fill="${c1}" opacity="0.80"/>
-<rect x="${W-86}" y="28" width="58" height="6" rx="3" fill="${c1}" opacity="0.80"/>
-<rect x="${W-34}" y="28" width="6"  height="58" rx="3" fill="${c1}" opacity="0.80"/>
-<rect x="28" y="${H-34}" width="58" height="6" rx="3" fill="${c2}" opacity="0.80"/>
-<rect x="28" y="${H-86}" width="6"  height="58" rx="3" fill="${c2}" opacity="0.80"/>
-<rect x="${W-86}" y="${H-34}" width="58" height="6" rx="3" fill="${c2}" opacity="0.80"/>
-<rect x="${W-34}" y="${H-86}" width="6"  height="58" rx="3" fill="${c2}" opacity="0.80"/>
+// Gradient pill CTA with a circular arrow badge on the left (the direction the
+// eye travels last in an RTL layout).
+function ctaButton({ x, y, w, h, label, p }) {
+  const cy = y + h / 2;
+  return `
+<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}" fill="url(#${p}Cta)" filter="url(#${p}Warm)"/>
+<rect x="${x + 3}" y="${y + 3}" width="${w - 6}" height="${h * 0.42}" rx="${h / 2}" fill="#ffffff" fill-opacity="0.16"/>
+<circle cx="${x + h * 0.62}" cy="${cy}" r="${h * 0.31}" fill="#ffffff"/>
+<path d="M${x + h * 0.72},${cy} L${x + h * 0.5},${cy} M${x + h * 0.58},${cy - 9} L${x + h * 0.49},${cy} L${x + h * 0.58},${cy + 9}"
+      fill="none" stroke="#1a1030" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="${x + w / 2 + h * 0.3}" y="${cy + 15}" font-family="Vazirmatn" font-size="44" fill="#ffffff" text-anchor="middle">${escapeXml(label)}</text>`;
+}
 
-<!-- ── LOGO ──────────────────────────────────────────────────────────────── -->
-<circle cx="${CX}" cy="114" r="136" fill="url(#sqLogoHalo)"/>
-<circle cx="${CX}" cy="114" r="108" fill="#ffffff" fill-opacity="0.97"/>
-<circle cx="${CX}" cy="114" r="112" fill="none" stroke="${c1}" stroke-width="4.5" stroke-opacity="0.88"/>
-<circle cx="${CX+4}" cy="118" r="117" fill="none" stroke="${c2}" stroke-width="2" stroke-opacity="0.38"/>
-<image href="${logoB64}" xlink:href="${logoB64}"
-       x="${CX-82}" y="32" width="164" height="164" filter="url(#sqGlowLogo)"/>
+// Trust bar, laid out as three fixed cells so nothing has to be measured at
+// render time (SVG gives us no text metrics): social proof on the right,
+// brand lock-up in the middle, payment reassurance on the left. Cell edges —
+// right 730…1030, centre 380…730, left 50…380 — are the budget every string
+// below is sized to stay inside.
+function footerBar({ W, y, logoB64, c1, c2 }) {
+  return `
+<rect x="50" y="${y}" width="${W - 100}" height="132" rx="26" fill="#ffffff" fill-opacity="0.045"/>
 
-<!-- ── BADGE ─────────────────────────────────────────────────────────────── -->
-<rect x="${CX-224}" y="238" width="448" height="52" rx="26"
-      fill="#000000" fill-opacity="0.58" stroke="${c1}" stroke-width="2" stroke-opacity="0.72"/>
-<text x="${CX}" y="272" font-family="Vazirmatn" font-weight="700" font-size="22"
-      fill="${c1}" text-anchor="middle">${escapeXml(badge)}</text>
+<!-- right cell — social proof -->
+  ${starRow(946, y + 50, 30, 1.25, 5)}
+<text x="1006" y="${y + 96}" font-family="Vazirmatn" font-size="24" fill="#ffffff" fill-opacity="0.66" text-anchor="end">هزاران مشتری راضی</text>
 
-<!-- ── HEADLINES ─────────────────────────────────────────────────────────── -->
-<text x="${CX}" y="354" font-family="Vazirmatn" font-weight="800" font-size="64"
-      fill="#ffffff" text-anchor="middle" direction="rtl">${escapeXml(h1)}</text>
-<text x="${CX}" y="446" font-family="Vazirmatn" font-weight="900" font-size="84"
-      fill="url(#sqH2)" text-anchor="middle" direction="rtl"
-      filter="url(#sqGlowH2)">${escapeXml(h2)}</text>
+<rect x="730" y="${y + 28}" width="1.6" height="76" fill="#ffffff" fill-opacity="0.13"/>
 
-<!-- ── FEATURE CARDS ─────────────────────────────────────────────────────── -->
-${featCards}
+<!-- centre cell — brand lock-up -->
+<rect x="400" y="${y + 32}" width="68" height="68" rx="17" fill="#ffffff"/>
+<image href="${logoB64}" xlink:href="${logoB64}" x="400" y="${y + 32}" width="68" height="68"/>
+<text x="482" y="${y + 62}" font-family="Vazirmatn" font-size="26" fill="#ffffff" text-anchor="start">AfghanFollowers</text>
+<text x="482" y="${y + 94}" font-family="Vazirmatn" font-size="21" fill="${c1}" fill-opacity="0.82" text-anchor="start">رشد شما، تخصص ماست</text>
 
-<!-- ── DIVIDER ────────────────────────────────────────────────────────────── -->
-<rect x="60" y="596" width="${W-120}" height="2.5" rx="1.25" fill="url(#sqDiv)" opacity="0.75"/>
+<rect x="380" y="${y + 28}" width="1.6" height="76" fill="#ffffff" fill-opacity="0.13"/>
 
-<!-- ── CHECKLIST ─────────────────────────────────────────────────────────── -->
-<rect x="50" y="612" width="${W-100}" height="${checkItems.length * CLH + 26}" rx="16"
-      fill="#000000" fill-opacity="0.50"/>
-<text x="968" y="646" font-family="Vazirmatn" font-weight="900" font-size="26"
-      fill="${c1}" text-anchor="end" direction="rtl">خدمات ویژه ما</text>
-<rect x="68" y="648" width="360" height="2.2" rx="1.1" fill="${c2}" fill-opacity="0.38"/>
+<!-- left cell — payment reassurance -->
+  ${iconSvg('shield', 96, y + 66, c2, 0.88)}
+<text x="136" y="${y + 58}" font-family="Vazirmatn" font-size="24" fill="#ffffff" fill-opacity="0.88" text-anchor="start">پرداخت امن</text>
+<text x="136" y="${y + 92}" font-family="Vazirmatn" font-size="20" fill="#ffffff" fill-opacity="0.52" text-anchor="start">اطلاعات شما محفوظ</text>`;
+}
 
-${checks}
+// The URL sets ~435px wide at 38px, so the globe is parked at x=270 — clear of
+// the centred string's left edge (~322) rather than sitting on top of it.
+function urlBar({ W, y, c1, p }) {
+  const gx = 270;
+  return `
+<rect x="0" y="${y + 46}" width="${W}" height="5" fill="url(#${p}Div)" opacity="0.85"/>
+<circle cx="${gx}" cy="${y + 6}" r="15" fill="none" stroke="${c1}" stroke-width="2.4"/>
+<line x1="${gx - 15}" y1="${y + 6}" x2="${gx + 15}" y2="${y + 6}" stroke="${c1}" stroke-width="2.2"/>
+<ellipse cx="${gx}" cy="${y + 6}" rx="6.5" ry="15" fill="none" stroke="${c1}" stroke-width="2.2"/>
+<text x="${W / 2}" y="${y + 19}" font-family="Vazirmatn" font-size="38" fill="#ffffff" text-anchor="middle">afghanfollowers.online</text>`;
+}
 
-<!-- ── DIVIDER BEFORE CTA ─────────────────────────────────────────────── -->
-<rect x="60" y="836" width="${W-120}" height="2" rx="1" fill="url(#sqDiv)" opacity="0.42"/>
+// ─────────────────────────────────────────────────────────────────────────────
+//  TIKTOK — 1080 × 1920 (9:16 portrait)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildTikTokSvg(logoB64) {
+  const W = 1080, H = 1920;
+  const c1 = '#00f2ea', c2 = '#ff2b55';
+  const p  = 'p';
+
+  const features = [
+    ['headset', 'پشتیبانی ۲۴ ساعته', 'همیشه در کنار شما'],
+    ['person',  'فالوور واقعی',      'و فعال'],
+    ['rocket',  'تحویل سریع',        'و آنی'],
+    ['shield',  'ضمانت کیفیت',       'و ماندگاری']
+  ];
+
+  const services = [
+    'افزایش فالوور واقعی و هدفمند',
+    'افزایش لایک و ویو و کامنت',
+    'افزایش بازدید ویدیو',
+    'افزایش بازدید لایو',
+    'بدون نیاز به رمز عبور',
+    'کاملاً امن و بدون ریزش'
+  ];
+
+  // Phone mock-up — a stylised TikTok profile with a rising trend line.
+  const PH = { x: 96, y: 764, w: 300, h: 536, r: 38 };
+  const phCx = PH.x + PH.w / 2;
+  const phone = `
+<rect x="${PH.x - 7}" y="${PH.y - 7}" width="${PH.w + 14}" height="${PH.h + 14}" rx="${PH.r + 6}"
+      fill="none" stroke="${c1}" stroke-width="2" stroke-opacity="0.45"/>
+<rect x="${PH.x}" y="${PH.y}" width="${PH.w}" height="${PH.h}" rx="${PH.r}" fill="#0b0e17" stroke="#2a3348" stroke-width="2.5"/>
+<rect x="${phCx - 44}" y="${PH.y + 16}" width="88" height="13" rx="6.5" fill="#212a3d"/>
+<text x="${phCx}" y="${PH.y + 62}" font-family="Vazirmatn" font-size="21" fill="#ffffff" fill-opacity="0.85" text-anchor="middle">TikTok</text>
+<circle cx="${phCx}" cy="${PH.y + 132}" r="44" fill="#151a28" stroke="${c1}" stroke-width="2.4"/>
+  ${tiktokGlyph(phCx, PH.y + 132, 0.42)}
+<text x="${phCx}" y="${PH.y + 206}" font-family="Vazirmatn" font-size="19" fill="#ffffff" fill-opacity="0.55" text-anchor="middle">@your_account</text>
+
+<text x="${phCx - 88}" y="${PH.y + 254}" font-family="Vazirmatn" font-size="25" fill="#ffffff" text-anchor="middle">۱۲۰</text>
+<text x="${phCx - 88}" y="${PH.y + 278}" font-family="Vazirmatn" font-size="16" fill="#ffffff" fill-opacity="0.45" text-anchor="middle">دنبال‌شده</text>
+<text x="${phCx}" y="${PH.y + 254}" font-family="Vazirmatn" font-size="25" fill="${c1}" text-anchor="middle">۲۵.۶K</text>
+<text x="${phCx}" y="${PH.y + 278}" font-family="Vazirmatn" font-size="16" fill="#ffffff" fill-opacity="0.45" text-anchor="middle">دنبال‌کننده</text>
+<text x="${phCx + 88}" y="${PH.y + 254}" font-family="Vazirmatn" font-size="25" fill="#ffffff" text-anchor="middle">۱.۲M</text>
+<text x="${phCx + 88}" y="${PH.y + 278}" font-family="Vazirmatn" font-size="16" fill="#ffffff" fill-opacity="0.45" text-anchor="middle">پسند</text>
+
+<rect x="${phCx - 92}" y="${PH.y + 300}" width="184" height="46" rx="10" fill="${c2}"/>
+<text x="${phCx}" y="${PH.y + 331}" font-family="Vazirmatn" font-size="23" fill="#ffffff" text-anchor="middle">دنبال کردن</text>
+
+<polyline points="${PH.x + 34},${PH.y + 476} ${PH.x + 84},${PH.y + 452} ${PH.x + 130},${PH.y + 462} ${PH.x + 178},${PH.y + 424} ${PH.x + 224},${PH.y + 436} ${PH.x + 268},${PH.y + 384}"
+          fill="none" stroke="${c2}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M${PH.x + 252},${PH.y + 386} L${PH.x + 270},${PH.y + 380} L${PH.x + 266},${PH.y + 400} Z" fill="${c2}"/>`;
+
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>${sharedDefs(c1, c2, p, '#ff2b55', '#ff6a3d')}</defs>
+${ambientBg(W, H, '#04060e', c1, c2, p)}
+${cornerFrame(W, H, c1, c2)}
+
+<!-- ── HERO ──────────────────────────────────────────────────────────────── -->
+<circle cx="212" cy="216" r="196" fill="url(#${p}Halo)"/>
+<rect x="82" y="86" width="260" height="260" rx="62" fill="#0a0d16" stroke="${c1}" stroke-width="3" stroke-opacity="0.75" filter="url(#${p}Soft)"/>
+<rect x="94" y="98" width="236" height="118" rx="52" fill="#ffffff" fill-opacity="0.05"/>
+${tiktokGlyph(212, 216, 1.32)}
+
+<rect x="622" y="96" width="410" height="70" rx="35" fill="#12060f" fill-opacity="0.8" stroke="${c2}" stroke-width="2.4"/>
+<text x="1000" y="141" font-family="Vazirmatn" font-size="30" fill="${c2}" text-anchor="end">افزایش دیده شدن واقعی</text>
+
+<text x="1024" y="270" font-family="Vazirmatn" font-size="74" fill="#ffffff" text-anchor="end">حساب تیک‌تاکت رو</text>
+<text x="1024" y="384" font-family="Vazirmatn" font-size="102" fill="url(#${p}Accent)" text-anchor="end" filter="url(#${p}Warm)">متفاوت کن!</text>
+<text x="1024" y="452" font-family="Vazirmatn" font-size="31" fill="#ffffff" fill-opacity="0.72" text-anchor="end">بیشتر دیده شو، بیشتر فالوور بگیر، بیشتر بدرخش</text>
+
+<!-- ── CAPABILITY STRIP ──────────────────────────────────────────────────── -->
+${featureStrip({ x: 50, y: 506, w: 980, h: 192, items: features, c1, c2 })}
+
+<!-- ── PHONE + SERVICES ──────────────────────────────────────────────────── -->
+${phone}
+
+<rect x="452" y="764" width="578" height="536" rx="30" fill="url(#${p}Card)" stroke="${c1}" stroke-opacity="0.26" stroke-width="1.8"/>
+<text x="990" y="836" font-family="Vazirmatn" font-size="40" fill="#ffffff" direction="rtl" text-anchor="start">خدمات ویژه <tspan fill="${c2}">تیک‌تاک</tspan></text>
+<rect x="640" y="856" width="350" height="3" rx="1.5" fill="url(#${p}Div)" opacity="0.8"/>
+${checkList({ xRight: 990, yStart: 918, lineH: 62, items: services, c1, fontSize: 28 })}
 
 <!-- ── CTA ───────────────────────────────────────────────────────────────── -->
-<rect x="56" y="850" width="${W-112}" height="74" rx="37"
-      fill="url(#sqCta)" filter="url(#sqGlowCta)"/>
-<rect x="58" y="852" width="${W-116}" height="30" rx="36"
-      fill="#ffffff" fill-opacity="0.12"/>
-<text x="${CX}" y="896" font-family="Vazirmatn" font-weight="900" font-size="32"
-      fill="#ffffff" text-anchor="middle" direction="rtl">${escapeXml(ctaText)}</text>
+<text x="${W / 2}" y="1392" font-family="Vazirmatn" font-size="42" fill="#ffffff" direction="rtl" text-anchor="middle"><tspan fill="${c2}">همین امروز</tspan> شروع کن و نتیجه رو ببین</text>
+${ctaButton({ x: 118, y: 1440, w: W - 236, h: 118, label: 'سفارش بده و رشد کن!', p })}
 
-<!-- ── FOOTER ────────────────────────────────────────────────────────────── -->
-<circle cx="82" cy="962" r="44" fill="#ffffff" fill-opacity="0.92"/>
-<image href="${logoB64}" xlink:href="${logoB64}" x="46" y="926" width="72" height="72"/>
-
-${stars}
-
-<text x="${CX+40}" y="976" font-family="Vazirmatn" font-size="17" fill="#ffffff" fill-opacity="0.52"
-      text-anchor="middle" direction="rtl">هزاران مشتری راضی</text>
-<text x="${W-52}" y="948" font-family="Vazirmatn" font-size="19" fill="${c1}" fill-opacity="0.82"
-      text-anchor="end">afghanfollowers.online</text>
-<text x="${W-52}" y="970" font-family="Vazirmatn" font-size="14" fill="#ffffff" fill-opacity="0.40"
-      text-anchor="end" direction="rtl">پرداخت امن | ضمانت کیفیت</text>
-
-<!-- Bottom accent bar -->
-<rect x="0" y="${H-8}" width="${W}" height="8" fill="url(#sqDiv)" opacity="0.88"/>
+<!-- ── TRUST BAR + URL ───────────────────────────────────────────────────── -->
+${footerBar({ W, y: 1622, logoB64, c1, c2 })}
+${urlBar({ W, y: 1826, c1, p })}
 </svg>`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  PER-PLATFORM SQUARE BUILDERS
+//  SQUARE (1080×1080) — Instagram, YouTube, Facebook
+//  Same visual language, compressed: no phone mock-up, full-width service card.
 // ─────────────────────────────────────────────────────────────────────────────
+function buildSquareSvg({ badge, h1, h2, tagline, sectionTitle, ctaText, c1, c2, ctaA, ctaB, bgBase, features, services, logoB64, glyph }) {
+  const W = 1080, H = 1080;
+  const p = 'p';
 
-// Instagram: concentric gradient rings (purple → pink → orange) as decorative accent
-function buildInstagramSvg(logoB64) {
-  const c1 = '#E1306C', c2 = '#F77737';
-  const CX = 540;
-  const decorSvg = `
-<circle cx="${CX}" cy="306" r="130" fill="#833ab4" fill-opacity="0.06"/>
-<circle cx="${CX}" cy="306" r="100" fill="#E1306C" fill-opacity="0.07"/>
-<circle cx="${CX}" cy="306" r="70"  fill="#F77737" fill-opacity="0.08"/>
-<circle cx="${CX}" cy="306" r="40"  fill="#FCAF45" fill-opacity="0.10"/>
-<circle cx="${CX}" cy="306" r="130" fill="none" stroke="#833ab4" stroke-width="1.5" stroke-opacity="0.22"/>
-<circle cx="${CX}" cy="306" r="100" fill="none" stroke="#E1306C" stroke-width="1.5" stroke-opacity="0.22"/>
-<circle cx="${CX}" cy="306" r="70"  fill="none" stroke="#F77737" stroke-width="1.5" stroke-opacity="0.22"/>`;
+  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>${sharedDefs(c1, c2, p, ctaA, ctaB)}</defs>
+${ambientBg(W, H, bgBase, c1, c2, p)}
+${cornerFrame(W, H, c1, c2)}
 
-  return buildSquareSvg({
+<!-- ── HERO ──────────────────────────────────────────────────────────────── -->
+<circle cx="176" cy="172" r="150" fill="url(#${p}Halo)"/>
+<rect x="76" y="72" width="200" height="200" rx="48" fill="#0a0d16" stroke="${c1}" stroke-width="2.6" stroke-opacity="0.75" filter="url(#${p}Soft)"/>
+<rect x="86" y="82" width="180" height="90" rx="40" fill="#ffffff" fill-opacity="0.05"/>
+${glyph(176, 172, 1.02)}
+
+<rect x="642" y="78" width="382" height="62" rx="31" fill="#000000" fill-opacity="0.55" stroke="${c2}" stroke-width="2.2"/>
+<text x="994" y="118" font-family="Vazirmatn" font-size="27" fill="${c2}" text-anchor="end">${escapeXml(badge)}</text>
+
+<text x="1016" y="222" font-family="Vazirmatn" font-size="60" fill="#ffffff" text-anchor="end">${escapeXml(h1)}</text>
+<text x="1016" y="308" font-family="Vazirmatn" font-size="80" fill="url(#${p}Accent)" text-anchor="end" filter="url(#${p}Warm)">${escapeXml(h2)}</text>
+<text x="1016" y="360" font-family="Vazirmatn" font-size="26" fill="#ffffff" fill-opacity="0.70" text-anchor="end">${escapeXml(tagline)}</text>
+
+<!-- ── CAPABILITY STRIP ──────────────────────────────────────────────────── -->
+${featureStrip({ x: 46, y: 398, w: 988, h: 184, items: features, c1, c2 })}
+
+<!-- ── SERVICES ──────────────────────────────────────────────────────────── -->
+<rect x="46" y="606" width="988" height="286" rx="28" fill="url(#${p}Card)" stroke="${c1}" stroke-opacity="0.26" stroke-width="1.8"/>
+<text x="994" y="662" font-family="Vazirmatn" font-size="34" fill="#ffffff" text-anchor="end">${escapeXml(sectionTitle)}</text>
+<rect x="660" y="680" width="334" height="2.6" rx="1.3" fill="url(#${p}Div)" opacity="0.8"/>
+
+${checkList({ xRight: 994, yStart: 726, lineH: 52, items: services.slice(0, 3), c1, fontSize: 26 })}
+${checkList({ xRight: 520, yStart: 726, lineH: 52, items: services.slice(3, 6), c1, fontSize: 26 })}
+
+<!-- ── CTA ───────────────────────────────────────────────────────────────── -->
+${ctaButton({ x: 92, y: 918, w: W - 184, h: 96, label: ctaText, p })}
+
+<!-- ── URL ───────────────────────────────────────────────────────────────── -->
+<!-- The mark is parked left of the centred URL (which sets ~320px wide at
+     28px) so the two never overlap, and the whole row clears the 1073 bar. -->
+<rect x="286" y="1006" width="48" height="48" rx="12" fill="#ffffff"/>
+<image href="${logoB64}" xlink:href="${logoB64}" x="286" y="1006" width="48" height="48"/>
+<text x="${W / 2}" y="1044" font-family="Vazirmatn" font-size="28" fill="#ffffff" fill-opacity="0.92" text-anchor="middle">afghanfollowers.online</text>
+<rect x="0" y="${H - 7}" width="${W}" height="7" fill="url(#${p}Div)" opacity="0.9"/>
+</svg>`;
+}
+
+// Platform glyphs for the square hero tile.
+function instagramGlyph(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <rect x="-52" y="-52" width="104" height="104" rx="30" fill="none" stroke="#ffffff" stroke-width="9"/>
+  <circle cx="0" cy="0" r="26" fill="none" stroke="#ffffff" stroke-width="9"/>
+  <circle cx="32" cy="-32" r="7.5" fill="#ffffff"/>
+</g>`;
+}
+function youtubeGlyph(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <rect x="-62" y="-44" width="124" height="88" rx="26" fill="#ffffff"/>
+  <polygon points="-16,-24 -16,24 26,0" fill="#0a0d16"/>
+</g>`;
+}
+function facebookGlyph(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <path d="M14,-52 h22 v30 h-22 c-4,0 -6,2 -6,7 v13 h28 l-5,31 h-23 v46 h-32 v-46 h-22 v-31 h22 v-18 c0,-21 13,-32 38,-32 Z" fill="#ffffff"/>
+</g>`;
+}
+
+const SQUARE_PLATFORMS = {
+  instagram: {
     badge: 'رشد واقعی اینستاگرام',
     h1: 'پیجت رو', h2: 'ستاره کن!',
-    ctaText: 'همین حالا شروع کنید!',
-    c1, c2, bgBase: '#0a0010',
-    featItems: [
-      ['فالوور فعال', 'واقعی و هدفمند'],
-      ['لایک واقعی', 'بدون فیک'],
-      ['ریچ بالا', 'بیشتر دیده شو'],
-      ['پشتیبانی', '۲۴ ساعته'],
+    tagline: 'بیشتر دیده شو، بیشتر فالوور بگیر',
+    sectionTitle: 'خدمات ویژه اینستاگرام',
+    ctaText: 'همین حالا شروع کن!',
+    c1: '#ff4d8d', c2: '#ff8a3d', bgBase: '#0b0311',
+    ctaA: '#ff4d8d', ctaB: '#ff8a3d',
+    glyph: instagramGlyph,
+    features: [
+      ['headset', 'پشتیبانی ۲۴ ساعته', 'همیشه در کنار شما'],
+      ['person',  'فالوور فعال',       'واقعی و هدفمند'],
+      ['rocket',  'ریچ بالا',          'بیشتر دیده شو'],
+      ['shield',  'لایک واقعی',        'بدون فیک']
     ],
-    checkItems: [
+    services: [
       'افزایش فالوور فعال و واقعی',
       'افزایش لایک و کامنت ارگانیک',
       'افزایش ریچ پست‌های شما',
       'افزایش بازدید استوری و ریلز',
       'کاملاً امن و بدون ریزش',
-      'تحویل فوری با ضمانت کیفیت',
-    ],
-    logoB64, decorSvg,
-  });
-}
-
-// YouTube: concentric red rings + dark centre
-function buildYoutubeSvg(logoB64) {
-  const c1 = '#FF3333', c2 = '#FFAA00';
-  const CX = 540;
-  const decorSvg = `
-<circle cx="${CX}" cy="306" r="140" fill="#FF0000" fill-opacity="0.06"/>
-<circle cx="${CX}" cy="306" r="105" fill="#FF3333" fill-opacity="0.08"/>
-<circle cx="${CX}" cy="306" r="70"  fill="#CC0000" fill-opacity="0.10"/>
-<circle cx="${CX}" cy="306" r="140" fill="none" stroke="#FF3333" stroke-width="1.5" stroke-opacity="0.20"/>
-<circle cx="${CX}" cy="306" r="105" fill="none" stroke="#FF0000" stroke-width="1.5" stroke-opacity="0.20"/>
-<circle cx="${CX}" cy="306" r="70"  fill="none" stroke="#FFAA00" stroke-width="1.2" stroke-opacity="0.20"/>
-<polygon points="0,-28 0,28 46,0" transform="translate(${CX},306)" fill="#FF3333" fill-opacity="0.18"/>`;
-
-  return buildSquareSvg({
+      'تحویل فوری با ضمانت کیفیت'
+    ]
+  },
+  youtube: {
     badge: 'رشد کانال یوتیوب',
     h1: 'کانالت رو', h2: 'وایرال کن!',
+    tagline: 'بیشتر دیده شو، بیشتر ساب بگیر',
+    sectionTitle: 'خدمات ویژه یوتیوب',
     ctaText: 'رشد کانالت رو شروع کن!',
-    c1, c2, bgBase: '#080000',
-    featItems: [
-      ['ساب واقعی', 'مخاطب هدفمند'],
-      ['ویو بالا', 'بازدید واقعی'],
-      ['لایک واقعی', 'بدون فیک'],
-      ['پشتیبانی', '۲۴ ساعته'],
+    c1: '#ff4444', c2: '#ffa62b', bgBase: '#0d0304',
+    ctaA: '#ff4444', ctaB: '#ffa62b',
+    glyph: youtubeGlyph,
+    features: [
+      ['headset', 'پشتیبانی ۲۴ ساعته', 'همیشه در کنار شما'],
+      ['person',  'ساب واقعی',         'مخاطب هدفمند'],
+      ['rocket',  'ویو بالا',          'بازدید واقعی'],
+      ['shield',  'لایک واقعی',        'بدون فیک']
     ],
-    checkItems: [
+    services: [
       'افزایش ساب‌اسکرایبر واقعی',
       'افزایش بازدید ویدیوها',
       'افزایش لایک و کامنت',
       'افزایش بازدید لایو',
       'کاملاً امن و بدون ریزش',
-      'تحویل فوری با ضمانت کیفیت',
-    ],
-    logoB64, decorSvg,
-  });
-}
-
-// Facebook: deep blue concentric rings
-function buildFacebookSvg(logoB64) {
-  const c1 = '#1877F2', c2 = '#FF9F1A';
-  const CX = 540;
-  const decorSvg = `
-<circle cx="${CX}" cy="306" r="140" fill="#1877F2" fill-opacity="0.07"/>
-<circle cx="${CX}" cy="306" r="105" fill="#1877F2" fill-opacity="0.09"/>
-<circle cx="${CX}" cy="306" r="70"  fill="#00A3FF" fill-opacity="0.11"/>
-<circle cx="${CX}" cy="306" r="140" fill="none" stroke="#1877F2" stroke-width="1.5" stroke-opacity="0.22"/>
-<circle cx="${CX}" cy="306" r="105" fill="none" stroke="#4599F4" stroke-width="1.5" stroke-opacity="0.22"/>
-<circle cx="${CX}" cy="306" r="70"  fill="none" stroke="#00A3FF" stroke-width="1.2" stroke-opacity="0.22"/>`;
-
-  return buildSquareSvg({
+      'تحویل فوری با ضمانت کیفیت'
+    ]
+  },
+  facebook: {
     badge: 'رشد صفحه فیسبوک',
     h1: 'صفحه‌ات رو', h2: 'محبوب کن!',
+    tagline: 'بیشتر دیده شو، بیشتر تعامل بگیر',
+    sectionTitle: 'خدمات ویژه فیسبوک',
     ctaText: 'صفحه‌ات رو رشد بده!',
-    c1, c2, bgBase: '#040E28',
-    featItems: [
-      ['لایک واقعی', 'صفحه و پست'],
-      ['فالوور فعال', 'هدفمند'],
-      ['ریچ بالا', 'بیشتر دیده شو'],
-      ['پشتیبانی', '۲۴ ساعته'],
+    c1: '#3d9bff', c2: '#ff9f1a', bgBase: '#030a1c',
+    ctaA: '#2f8fff', ctaB: '#00c2ff',
+    glyph: facebookGlyph,
+    features: [
+      ['headset', 'پشتیبانی ۲۴ ساعته', 'همیشه در کنار شما'],
+      ['person',  'فالوور فعال',       'هدفمند'],
+      ['rocket',  'ریچ بالا',          'بیشتر دیده شو'],
+      ['shield',  'لایک واقعی',        'صفحه و پست']
     ],
-    checkItems: [
+    services: [
       'افزایش لایک صفحه و پست',
       'افزایش فالوور صفحه فیسبوک',
       'افزایش کامنت و ریکشن',
       'افزایش ریچ پست‌های شما',
       'کاملاً امن و بدون ریزش',
-      'تحویل فوری با ضمانت کیفیت',
-    ],
-    logoB64, decorSvg,
-  });
-}
+      'تحویل فوری با ضمانت کیفیت'
+    ]
+  }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  RENDERERS
 // ─────────────────────────────────────────────────────────────────────────────
-
 async function getLogoB64() {
-  const buf = await sharp(LOGO_PATH).resize(220, 220).png().toBuffer();
+  const buf = await sharp(LOGO_PATH).resize(220, 220, { fit: 'contain', background: '#ffffff' }).png().toBuffer();
   return 'data:image/png;base64,' + buf.toString('base64');
 }
 
+async function renderSvg(svg) {
+  ensureFontconfig();
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 async function renderTikTokPostImage(_text) {
-  ensureFontconfig();
-  const logo = await getLogoB64();
-  return sharp(Buffer.from(buildTikTokSvg(logo))).png().toBuffer();
+  return renderSvg(buildTikTokSvg(await getLogoB64()));
 }
-async function renderInstagramPostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildInstagramSvg(await getLogoB64()))).png().toBuffer();
+async function renderSquare(key) {
+  const cfg = SQUARE_PLATFORMS[key];
+  return renderSvg(buildSquareSvg(Object.assign({}, cfg, { logoB64: await getLogoB64() })));
 }
-async function renderYoutubePostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildYoutubeSvg(await getLogoB64()))).png().toBuffer();
-}
-async function renderFacebookPostImage(_text) {
-  ensureFontconfig();
-  return sharp(Buffer.from(buildFacebookSvg(await getLogoB64()))).png().toBuffer();
-}
+async function renderInstagramPostImage(_text) { return renderSquare('instagram'); }
+async function renderYoutubePostImage(_text)   { return renderSquare('youtube'); }
+async function renderFacebookPostImage(_text)  { return renderSquare('facebook'); }
 
 module.exports = {
   renderFacebookPostImage,
