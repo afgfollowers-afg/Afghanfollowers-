@@ -183,8 +183,10 @@ module.exports = async (req, res) => {
   if (!isAgentRequest && DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  const agentBody = isAgentRequest ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})) : null;
+
   if (isAgentRequest && req.method === 'POST') {
-    const agentBody = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const _AGENT_ACTIONS = ['ticket_reply', 'cancel_order', 'add_funds', 'edit_blog'];
     if (!_AGENT_ACTIONS.includes(agentBody.action)) {
       return res.status(405).json({ error: 'Agent: action not allowed' });
