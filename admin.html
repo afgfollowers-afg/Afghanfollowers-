@@ -9081,8 +9081,10 @@ function forceSync(){
 }
 
 function pullFromServer(){
-  fetch('/api/db',{method:'GET'})
-    .then(function(r){return r.json();})
+  var controller=new AbortController();
+  var timeout=setTimeout(function(){controller.abort();},8000);
+  fetch('/api/db',{method:'GET',signal:controller.signal})
+    .then(function(r){clearTimeout(timeout);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(d){
       if(!d||!d.smm_ts) return;
       var serverTs=parseInt(d.smm_ts||0);
@@ -9245,7 +9247,11 @@ function pushToServer(){
     if(resp&&resp.smm_users_restricted){
       forceAdminReauth();
     }
-  }).catch(function(){});
+  }).catch(function(err){
+    clearTimeout(timeout);
+    if(err.name==='AbortError') console.warn('pullFromServer: timeout after 8s');
+    else if(err.message) console.warn('pullFromServer error:',err.message);
+  });
 }
 setInterval(pullFromServer,30000);
 setTimeout(pullFromServer,500);
