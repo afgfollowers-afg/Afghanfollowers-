@@ -175,23 +175,14 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Require the shared service key (once configured) so this endpoint isn't
-  // wide open to the entire internet. Server-side callers send it via
-  // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
-  // injected near the top of admin.html/smm-panel.html/auth.html.
-  const isAgentRequest = !!(AGENT_SECRET && req.headers['x-agent-secret'] === AGENT_SECRET);
-  if (!isAgentRequest && DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const agentBody = isAgentRequest ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})) : null;
-
   // ?diag=jsonbin — a read-only JSONBin connectivity probe, folded in here
-  // instead of living in its own api/test-jsonbin.js (Vercel Hobby caps this
-  // project at 12 functions; a 13th fails the whole deployment). Sits behind
-  // the same x-db-key gate as everything else and, unlike the old standalone
-  // file, never echoes any of the record's contents back — only whether the
-  // env vars are set and whether JSONBin answers, so it can't leak user data.
+  // instead of its own api/test-jsonbin.js (Vercel Hobby caps this project at
+  // 12 functions; a 13th fails the whole deployment). Deliberately placed
+  // BEFORE the x-db-key gate so it can be checked straight from a browser.
+  // That is safe only because, unlike the old standalone file (which echoed
+  // the first 100 bytes of the raw bin), this NEVER returns record contents —
+  // only whether the env vars are set, whether JSONBin answers, and
+  // non-sensitive counts (no balances, emails, or any PII).
   if (req.query && req.query.diag === 'jsonbin') {
     if (!BIN_ID || !API_KEY) {
       return res.status(200).json({ diag: 'jsonbin', binId: !!BIN_ID, apiKey: !!API_KEY, ok: false, error: 'not configured' });
@@ -209,6 +200,17 @@ module.exports = async (req, res) => {
       return res.status(200).json({ diag: 'jsonbin', binId: true, apiKey: true, ok: false, error: err.message });
     }
   }
+
+  // Require the shared service key (once configured) so this endpoint isn't
+  // wide open to the entire internet. Server-side callers send it via
+  // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
+  // injected near the top of admin.html/smm-panel.html/auth.html.
+  const isAgentRequest = !!(AGENT_SECRET && req.headers['x-agent-secret'] === AGENT_SECRET);
+  if (!isAgentRequest && DB_SERVICE_KEY && req.headers['x-db-key'] !== DB_SERVICE_KEY) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const agentBody = isAgentRequest ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})) : null;
 
   if (isAgentRequest && req.method === 'POST') {
     const _AGENT_ACTIONS = ['ticket_reply', 'cancel_order', 'add_funds', 'edit_blog'];
