@@ -17,6 +17,11 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 // budget. A plain model gets neither, so switching GROQ_MODEL back to one
 // can't be broken by an unsupported param.
 const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
+// The customer-support chat is real-time, so it uses a lighter/faster model
+// than the background blog+email generation (GROQ_MODEL) — the 120B reasoning
+// model's hidden chain-of-thought makes live replies feel sluggish. Override
+// GROQ_CHAT_MODEL in Vercel to tune the speed/quality trade-off.
+const GROQ_CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-20b';
 const SITE = 'https://afghanfollowers.online';
 const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
@@ -159,7 +164,9 @@ const BLOG_SYSTEM_PROMPT = `شما نویسنده‌ی محتوای وبلاگ �
 6. هیچ قیمت یا تخفیف دقیق ادعا نکن مگر کاربر آن را در موضوع خواسته باشد.
 7. متن باید کاملاً فارسی/دری باشد — هیچ کلمه‌ی انگلیسی، ترکی یا هر زبان دیگری داخل جمله‌ها قاطی نکن.`;
 
-async function callGroq(messages, maxTokens) {
+async function callGroq(messages, maxTokens, model) {
+  const useModel = model || GROQ_MODEL;
+  const isReasoning = /gpt-oss|qwen3|deepseek-r1/i.test(useModel);
   const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -167,11 +174,11 @@ async function callGroq(messages, maxTokens) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify(Object.assign({
-      model: GROQ_MODEL,
+      model: useModel,
       messages: messages,
       temperature: 0.6,
-      max_tokens: GROQ_IS_REASONING ? maxTokens + 1500 : maxTokens
-    }, GROQ_IS_REASONING ? { reasoning_effort: 'low' } : {}))
+      max_tokens: isReasoning ? maxTokens + 1500 : maxTokens
+    }, isReasoning ? { reasoning_effort: 'low' } : {}))
   });
   const data = await resp.json();
   if (!resp.ok) throw new Error('Groq API error: ' + JSON.stringify(data));
@@ -269,7 +276,7 @@ module.exports = async (req, res) => {
       { role: 'system', content: SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: message }
-    ], 400);
+    ], 400, GROQ_CHAT_MODEL);
 
     await notifyAdminOfChat(message, reply);
 
