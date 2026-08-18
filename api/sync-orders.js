@@ -1547,3 +1547,4 @@ async function runProviderIntelJob(opts) {
     topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null
   };
 }
+// redeploy: force Vercel to serve latest main (Groq model = GROQ_MODEL || openai/gpt-oss-120b)
