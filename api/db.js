@@ -1110,6 +1110,53 @@ module.exports = async (req, res) => {
           smmUsersRestricted = revisedResult.restricted;
         }
       }
+
+      // ── Non-destructive write guard (anti-mass-deletion) ──────────────────
+      // A normal write only ADDS users/orders (a signup, a new order) or
+      // removes exactly one row via smm_users_delete_id / smm_orders_delete_id.
+      // It must never drop rows in bulk. But JSONBin's documented read-after-
+      // write staleness can hand this request a baseline that is already
+      // missing rows, and merging additively onto that stale baseline still
+      // writes the shrunken set back — permanently deleting everyone who
+      // registered since the stale snapshot (exactly the incident this guards
+      // against). So right before writing, re-read the freshest server state
+      // and re-attach any user/order that exists there but is absent from what
+      // we are about to write, except an id this request is explicitly
+      // deleting. This makes every write strictly non-destructive; it only
+      // ever preserves existing rows, so it cannot itself corrupt anything.
+      try {
+        const guardRead = await readBin(BIN_ID);
+        if (guardRead.ok && guardRead.record) {
+          let recoveredUsers = 0, recoveredOrders = 0;
+          if (Array.isArray(current.smm_users)) {
+            const haveU = {};
+            current.smm_users.forEach(function (u) { if (u && u.id !== undefined) haveU[u.id] = true; });
+            (guardRead.record.smm_users || []).forEach(function (u) {
+              if (!u || u.id === undefined) return;
+              if (body.smm_users_delete_id !== undefined && String(u.id) === String(body.smm_users_delete_id)) return;
+              if (!haveU[u.id]) { current.smm_users.push(u); recoveredUsers++; }
+            });
+          }
+          if (Array.isArray(current.smm_orders)) {
+            const haveO = {};
+            current.smm_orders.forEach(function (o) { if (o && o.id !== undefined) haveO[o.id] = true; });
+            (guardRead.record.smm_orders || []).forEach(function (o) {
+              if (!o || o.id === undefined) return;
+              if (body.smm_orders_delete_id !== undefined && String(o.id) === String(body.smm_orders_delete_id)) return;
+              if (!haveO[o.id]) { current.smm_orders.push(o); recoveredOrders++; }
+            });
+          }
+          if (recoveredUsers || recoveredOrders) {
+            const guardEntry = {
+              id: Date.now() + '-guard-' + Math.random().toString(36).slice(2, 6), ts: Date.now(),
+              source: 'write-guard',
+              message: 'Blocked a shrinking write: re-attached ' + recoveredUsers + ' user(s) and ' + recoveredOrders + ' order(s) that a stale payload would have deleted'
+            };
+            current.smm_error_log = [guardEntry].concat(Array.isArray(current.smm_error_log) ? current.smm_error_log : []).slice(0, 200);
+          }
+        }
+      } catch (e) { /* best-effort — the guard must never block a legitimate write */ }
+
       current.smm_ts = Date.now();
 
       const w2 = await writeBin(BIN_ID, current);
