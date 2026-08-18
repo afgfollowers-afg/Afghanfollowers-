@@ -201,6 +201,47 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ?diag=balances — per-user balance-vs-ledger reconciliation report, to
+  // find which balances were lost when the record got rolled back. Returns
+  // ONLY non-identifying numbers (user id, current balance, a per-type
+  // transaction breakdown, the net computed from the ledger, and the delta) —
+  // never name/email/phone/password. Placed before the x-db-key gate so it's
+  // checkable from a browser; the figures are balances with no identity
+  // attached. Read-only.
+  if (req.query && req.query.diag === 'balances') {
+    if (!BIN_ID || !API_KEY) return res.status(200).json({ diag: 'balances', ok: false, error: 'not configured' });
+    let rec;
+    try {
+      const probe = await readBin(BIN_ID);
+      if (!probe.ok) return res.status(200).json({ diag: 'balances', ok: false, status: probe.status });
+      rec = probe.record;
+    } catch (err) {
+      return res.status(200).json({ diag: 'balances', ok: false, error: err.message });
+    }
+    const CREDIT = { deposit: 1, bonus: 1, admin_credit: 1, refund: 1 };
+    const DEBIT = { spend: 1, withdrawal: 1, admin_debit: 1 };
+    const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+    const report = (rec.smm_users || []).map(u => {
+      const txs = Array.isArray(u.transactions) ? u.transactions : [];
+      const byType = {};
+      let net = 0;
+      txs.forEach(t => {
+        if (!t || !t.type) return;
+        // deposit credits by `credit` (amount minus fees) when present, else amount
+        let v = t.type === 'deposit'
+          ? (t.status === 'approved' ? Math.abs(parseFloat(t.credit !== undefined ? t.credit : t.amount) || 0) : 0)
+          : Math.abs(parseFloat(t.amount) || 0);
+        byType[t.type] = round2((byType[t.type] || 0) + v);
+        if (CREDIT[t.type]) net += v;
+        else if (DEBIT[t.type]) net -= v;
+      });
+      const balance = round2(parseFloat(u.balance) || 0);
+      net = round2(net);
+      return { id: u.id, balance, ledgerNet: net, delta: round2(balance - net), txCount: txs.length, byType };
+    });
+    return res.status(200).json({ diag: 'balances', ok: true, userCount: report.length, users: report });
+  }
+
   // Require the shared service key (once configured) so this endpoint isn't
   // wide open to the entire internet. Server-side callers send it via
   // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
