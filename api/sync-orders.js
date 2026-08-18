@@ -23,6 +23,11 @@ const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.de
 // auto-post and blog jobs), so this stays overridable via one Vercel env var
 // instead of being hardcoded here and in api/ai-chat.js separately.
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+// Reasoning models (gpt-oss, qwen3, deepseek-r1) spend part of the token
+// budget on a hidden chain-of-thought and return empty content if starved —
+// see api/ai-chat.js for the full note. Ask for low reasoning effort and give
+// extra headroom for those; a plain model gets neither param.
+const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 
 // Multipart uploads for Telegram sendPhoto / Facebook /photos — both need an
 // actual file part, not a JSON body, so these can't reuse the plain
@@ -979,12 +984,12 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`
     },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       model: GROQ_MODEL,
       messages: [{ role: 'user', content: promoPrompt }],
       temperature: 0.9,
-      max_tokens: 500
-    })
+      max_tokens: GROQ_IS_REASONING ? 2000 : 500
+    }, GROQ_IS_REASONING ? { reasoning_effort: 'low' } : {}))
   });
   const groqData = await groqResp.json();
   const postText = groqData?.choices?.[0]?.message?.content?.trim();

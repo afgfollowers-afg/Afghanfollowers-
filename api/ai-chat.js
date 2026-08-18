@@ -9,6 +9,14 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 // three files. Override GROQ_MODEL in Vercel to whatever your account lists
 // at console.groq.com/docs/models.
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+// Reasoning models (gpt-oss, qwen3, deepseek-r1) spend part of their token
+// budget on a hidden chain-of-thought returned in a separate `reasoning`
+// field — with a small max_tokens they burn the whole budget thinking and
+// return an EMPTY `content` (finish_reason:"length"). For those we ask for
+// minimal reasoning effort and add headroom on top of the caller's content
+// budget. A plain model gets neither, so switching GROQ_MODEL back to one
+// can't be broken by an unsupported param.
+const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 const SITE = 'https://afghanfollowers.online';
 const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
@@ -158,12 +166,12 @@ async function callGroq(messages, maxTokens) {
       'Authorization': 'Bearer ' + GROQ_API_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       model: GROQ_MODEL,
       messages: messages,
       temperature: 0.6,
-      max_tokens: maxTokens
-    })
+      max_tokens: GROQ_IS_REASONING ? maxTokens + 1500 : maxTokens
+    }, GROQ_IS_REASONING ? { reasoning_effort: 'low' } : {}))
   });
   const data = await resp.json();
   if (!resp.ok) throw new Error('Groq API error: ' + JSON.stringify(data));

@@ -6,6 +6,10 @@
 module.exports = async function handler(req, res) {
   const results = { facebook: null, telegram: null };
   const isDryRun = req.query?.dryrun === "1" || req.query?.dryrun === "true";
+  // See api/ai-chat.js: reasoning models (gpt-oss etc.) need low reasoning
+  // effort + extra token headroom or they return empty content.
+  const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+  const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 
   try {
     // ----- ۱) تعیین نوع پست -----
@@ -48,7 +52,7 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+        model: GROQ_MODEL,
         messages: [
           {
             role: "system",
@@ -57,7 +61,8 @@ AfghanFollowers (afghanfollowers.online) — خرید فالوور واقعی، 
           { role: "user", content: isPromoDay ? promoPrompt : gamingPrompt },
         ],
         temperature: 0.9,
-        max_tokens: 500,
+        max_tokens: GROQ_IS_REASONING ? 2000 : 500,
+        ...(GROQ_IS_REASONING ? { reasoning_effort: "low" } : {}),
       }),
     });
 
