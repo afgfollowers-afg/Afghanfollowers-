@@ -14,6 +14,7 @@
 
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
+const { discoverPanelsViaSearch } = require('./_provider-discovery');
 const { renderPostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -77,7 +78,14 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
   }
 
-// Order syncing, daily content, and auto-post are three independent jobs
+  // ?job=provider-scan — on-demand manual trigger only; never runs automatically
+  // in the cron to avoid exhausting JSONBin quota.
+  if (req.query && req.query.job === 'provider-scan') {
+    const result = await runProviderIntelJob({ force: true }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
+  }
+
+  // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
   // provider API being down) can never silently prevent the others from
@@ -1326,4 +1334,242 @@ async function runBulkEmailCampaignJob() {
   });
 
   return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
+}
+
+// ── PROVIDER INTEL JOB ──────────────────────────────────────────────────────
+// Available on-demand via ?job=provider-scan ONLY — never runs automatically
+// in the daily cron to avoid exhausting JSONBin's free-plan quota.
+// Fetches the service list from every stored provider plus a preset list of
+// public wholesale panels, compares IDs to detect upstream relationships, then
+// saves results to smm_provider_intel in the DB. Sends an admin Telegram alert
+// with the top likely original-source candidates ranked by spreadScore.
+const PI_PRESET_PANELS = [
+  { name: 'Peakerr',          url: 'https://peakerr.com/api/v2' },
+  { name: 'JustAnotherPanel', url: 'https://justanotherpanel.com/api/v2', key: '2b793e8d054eb24c8fd311f142970487' },
+  { name: 'SmmStone',         url: 'https://smmstone.com/api/v2' },
+  { name: 'SmmFollows',       url: 'https://smmfollows.com/api/v2' },
+  { name: 'VipProSMM',        url: 'https://vipprosmm.com/api/v2' },
+  { name: 'SMMKings',         url: 'https://smmkings.com/api/v2' },
+  { name: 'Likes.io',         url: 'https://likes.io/api/v2' },
+  { name: 'Panel.cheap',      url: 'https://panel.cheap/api/v2' },
+  { name: 'SMMXNX',           url: 'https://smmxnx.com/api/v2' },
+  { name: 'Smm-Heaven',       url: 'https://smm-heaven.net/api/v2' },
+  { name: 'Boostlikes',       url: 'https://boostlikes.com/api/v2' },
+  { name: 'TopFollows',       url: 'https://topfollows.com/api/v2' },
+  { name: 'SMMBuzz',          url: 'https://smmbuzz.net/api/v2' },
+  { name: 'CheapestSMM',      url: 'https://cheapestsmm.com/api/v2' },
+  { name: 'GrowthSMM',        url: 'https://growthsmm.io/api/v2' },
+  { name: 'SocialPanel',      url: 'https://socialpanel.com/api/v2' },
+  { name: 'FameBlast',        url: 'https://fameblast.com/api/v2' },
+  { name: 'SMMRaja',          url: 'https://smmraja.com/api/v2' },
+  { name: 'BulkFollows',      url: 'https://bulkfollows.com/api/v2', key: '095aca79300ea0ade635d8a5e3851d69' },
+  { name: 'InstantSMM',       url: 'https://instantsmmpanel.com/api/v2' }
+];
+
+async function fetchProviderServices(url, key) {
+  const t0 = Date.now();
+  const signal = AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined;
+
+  async function tryFetch(r) {
+    if (!r.ok) return null;
+    try {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      if (data && data.error) return null;
+    } catch (e) {}
+    return null;
+  }
+
+  try {
+    if (key) {
+      const body = new URLSearchParams({ key, action: 'services' });
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(), signal
+      });
+      const services = await tryFetch(r);
+      if (services) return { services, ms: Date.now() - t0, err: null };
+    }
+
+    const bodyNoKey = new URLSearchParams({ action: 'services' });
+    const r2 = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: bodyNoKey.toString(), signal
+    });
+    const services2 = await tryFetch(r2);
+    if (services2) return { services: services2, ms: Date.now() - t0, err: null };
+
+    const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=services';
+    const r3 = await fetch(getUrl, { method: 'GET', signal });
+    const services3 = await tryFetch(r3);
+    if (services3) return { services: services3, ms: Date.now() - t0, err: null };
+
+    return { services: null, ms: Date.now() - t0, err: 'no services returned' };
+  } catch (e) {
+    return { services: null, ms: Date.now() - t0, err: e.message || 'error' };
+  }
+}
+
+function medianPrice(services, filterByIds) {
+  const prices = [];
+  (filterByIds ? services.filter(s => filterByIds.has(String(s.service || s.id || ''))) : services)
+    .forEach(s => {
+      const r = parseFloat(s.rate || 0);
+      if (r > 0 && r <= 500) prices.push(r);
+    });
+  if (!prices.length) return null;
+  prices.sort((a, b) => a - b);
+  return prices.length % 2 === 0
+    ? (prices[prices.length / 2 - 1] + prices[prices.length / 2]) / 2
+    : prices[Math.floor(prices.length / 2)];
+}
+
+async function runProviderIntelJob(opts) {
+  opts = opts || {};
+  const today = todayKey();
+
+  const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+  const db = await dbResp.json();
+  const storedProviders = db.smm_providers || [];
+  const tgCfg = db.smm_tg_bot || {};
+
+  if (!opts.force && db.smm_last_provider_intel_date === today) {
+    return { ok: true, skipped: true, reason: 'Already ran today (' + today + ')' };
+  }
+
+  if (!storedProviders.length) {
+    return { ok: true, skipped: true, reason: 'No providers stored in Settings → Providers' };
+  }
+
+  const srcProv = storedProviders[0];
+
+  const targets = [];
+  const seenUrls = new Set([srcProv.url.replace(/\/$/, '').toLowerCase()]);
+  storedProviders.slice(1).forEach(p => {
+    const norm = p.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: p.name, url: p.url, key: p.key || '' }); }
+  });
+  PI_PRESET_PANELS.forEach(bp => {
+    const norm = bp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: bp.name, url: bp.url, key: bp.key || '' }); }
+  });
+
+  const savedDiscovered = db.smm_discovered_panels || [];
+  savedDiscovered.forEach(dp => {
+    const norm = dp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
+  });
+  const freshDiscovered = await discoverPanelsViaSearch().catch(() => []);
+  freshDiscovered.forEach(dp => {
+    const norm = dp.url.replace(/\/$/, '').toLowerCase();
+    if (!seenUrls.has(norm)) { seenUrls.add(norm); targets.push({ name: dp.name, url: dp.url, key: '' }); }
+  });
+
+  const srcFetch = await fetchProviderServices(srcProv.url, srcProv.key);
+  if (!srcFetch.services) {
+    return { ok: false, error: 'Source provider (' + srcProv.name + ') failed: ' + srcFetch.err };
+  }
+  const srcIds = new Set(srcFetch.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+
+  const fetches = await Promise.all(targets.map(t => fetchProviderServices(t.url, t.key)));
+
+  const results = targets.map((t, i) => {
+    const f = fetches[i];
+    if (!f.services) return { name: t.name, url: t.url, count: 0, ms: f.ms, upstreamPct: null, matchCount: 0, medianPrice: null, err: f.err };
+    const cmpIds = new Set(f.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+    let matchCount = 0; srcIds.forEach(id => { if (cmpIds.has(id)) matchCount++; });
+    const upstreamPct = srcIds.size > 0 ? Math.round(matchCount / srcIds.size * 100) : null;
+    const price = medianPrice(f.services, srcIds.size > 0 ? srcIds : null);
+    return { name: t.name, url: t.url, count: f.services.length, ms: f.ms, upstreamPct, matchCount, medianPrice: price, err: null };
+  });
+
+  results.sort((a, b) => (b.upstreamPct || 0) - (a.upstreamPct || 0) || b.count - a.count);
+
+  const topUpstream = results.find(r => r.upstreamPct !== null && r.upstreamPct >= 40) || null;
+
+  const allDiscovered = [...savedDiscovered];
+  results.filter(r => r.count > 0).forEach(r => {
+    const norm = r.url.replace(/\/$/, '').toLowerCase();
+    if (!allDiscovered.some(d => d.url.replace(/\/$/, '').toLowerCase() === norm))
+      allDiscovered.push({ name: r.name, url: r.url });
+  });
+
+  // True upstream source detection via spreadScore:
+  // IDs that appear across many panels belong to the original source.
+  const allRespondingPanels = [{ name: srcProv.name, url: srcProv.url, ids: srcIds }];
+  fetches.forEach((f, i) => {
+    if (f.services) {
+      const ids = new Set(f.services.map(s => String(s.service || s.id || '')).filter(Boolean));
+      if (ids.size > 0) allRespondingPanels.push({ name: targets[i].name, url: targets[i].url, ids });
+    }
+  });
+
+  const idFreq = new Map();
+  allRespondingPanels.forEach(p => { p.ids.forEach(id => idFreq.set(id, (idFreq.get(id) || 0) + 1)); });
+
+  const nPanels = allRespondingPanels.length;
+  const trueUpstreamCandidates = allRespondingPanels.map(p => {
+    let spreadSum = 0;
+    p.ids.forEach(id => { spreadSum += (idFreq.get(id) || 1) - 1; });
+    const spreadScore = p.ids.size > 0 && nPanels > 1
+      ? Math.round(spreadSum / (p.ids.size * (nPanels - 1)) * 100)
+      : 0;
+    let panelsCovered = 0;
+    allRespondingPanels.forEach(other => {
+      if (other.name === p.name || other.ids.size === 0) return;
+      let shared = 0;
+      p.ids.forEach(id => { if (other.ids.has(id)) shared++; });
+      if (shared / p.ids.size >= 0.30) panelsCovered++;
+    });
+    return { name: p.name, url: p.url, serviceCount: p.ids.size, spreadScore, panelsCovered };
+  }).sort((a, b) => b.spreadScore - a.spreadScore || b.panelsCovered - a.panelsCovered || b.serviceCount - a.serviceCount);
+
+  const likelyUpstreams = trueUpstreamCandidates.slice(0, 5);
+  const bestUpstream = likelyUpstreams[0] || null;
+
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({
+      smm_provider_intel: {
+        scannedAt: new Date().toISOString(),
+        srcName: srcProv.name,
+        srcCount: srcFetch.services.length,
+        results,
+        topUpstream: topUpstream ? { name: topUpstream.name, url: topUpstream.url, pct: topUpstream.upstreamPct } : null,
+        likelyUpstreams,
+        bestUpstream
+      },
+      smm_discovered_panels: allDiscovered,
+      smm_last_provider_intel_date: today,
+      smm_ts: Date.now()
+    })
+  });
+
+  if (tgCfg.token && tgCfg.chatId && likelyUpstreams.length > 0) {
+    const topLines = likelyUpstreams.slice(0, 3).map((u, i) =>
+      (i + 1) + '. <b>' + u.name + '</b> — ' + u.serviceCount + ' سرویس | پخش: ' + u.spreadScore + '% | ' + u.panelsCovered + ' پنل از آن می‌خرند'
+    ).join('\n');
+    const msg = '🔍 <b>تحلیل پروایدر اصلی</b>\n\n'
+      + 'احتمالی‌ترین منابع اصلی (بر اساس پخش ID سرویس):\n\n'
+      + topLines + '\n\n'
+      + '<i>spreadScore = درصد پنل‌های دیگری که ID های این پنل را دارند → بالاتر = احتمال منبع اصلی بیشتر</i>';
+    await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
+    }).catch(() => {});
+  }
+
+  return {
+    ok: true,
+    srcProvider: srcProv.name,
+    srcServices: srcFetch.services.length,
+    scanned: results.length,
+    responded: results.filter(r => r.count > 0).length,
+    topUpstream: topUpstream ? { name: topUpstream.name, pct: topUpstream.upstreamPct } : null,
+    likelyUpstreams
+  };
 }
