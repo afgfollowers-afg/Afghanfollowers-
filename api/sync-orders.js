@@ -1015,6 +1015,21 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
     // present and what Telegram actually answered, not just a blanket ok.
     let telegram;
     const chatUsed = tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID;
+    // Identify which bot the SAVED token belongs to, server-side, so a manual
+    // getMe URL's copy-paste errors can't muddy the diagnosis. Returns the
+    // bot's username (not the token) — the admin must press Start on exactly
+    // this bot for "chat not found" to clear. If botInfo.ok is false the
+    // stored token itself is bad and must be re-entered from BotFather.
+    let botInfo = null;
+    if (tgCfg.token) {
+      try {
+        const meResp = await fetch(`https://api.telegram.org/bot${tgCfg.token}/getMe`);
+        const me = await meResp.json();
+        botInfo = me && me.ok
+          ? { ok: true, username: me.result && me.result.username, name: me.result && me.result.first_name }
+          : { ok: false, telegramError: me };
+      } catch (e) { botInfo = { ok: false, error: e.message }; }
+    }
     if (!tgCfg.token) {
       telegram = { sent: false, reason: 'smm_tg_bot.token is empty — re-enter Bot Token in Admin → Settings → Integrations' };
     } else {
@@ -1035,6 +1050,7 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
     return {
       ok: true, dryRun: true, focus, template: templateKey, post: postText,
       tgConfig: { hasToken: !!tgCfg.token, hasChatId: !!tgCfg.chatId, usingFallbackChat: !tgCfg.chatId },
+      bot: botInfo,
       telegram
     };
   }
