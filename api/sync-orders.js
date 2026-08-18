@@ -1004,15 +1004,34 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   // today's real run). Only DMs the admin chat, clearly labeled. No
   // approval buttons — there's nothing to approve, this is a plain preview.
   if (dryRun) {
-    if (tgCfg.token) {
-      await tgSendPhoto(
-        tgCfg.token, tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID, imageBuffer,
-        `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
-          + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
-          + `متن پست:\n${postText}`
-      ).catch(() => {});
+    // Surface exactly what happened with the Telegram send instead of
+    // swallowing it — a dry run whose whole point is to verify the admin's
+    // re-entered smm_tg_bot config must report whether the token/chatId are
+    // present and what Telegram actually answered, not just a blanket ok.
+    let telegram;
+    const chatUsed = tgCfg.chatId || AUTOPOST_ADMIN_CHAT_ID;
+    if (!tgCfg.token) {
+      telegram = { sent: false, reason: 'smm_tg_bot.token is empty — re-enter Bot Token in Admin → Settings → Integrations' };
+    } else {
+      try {
+        const tgResp = await tgSendPhoto(
+          tgCfg.token, chatUsed, imageBuffer,
+          `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
+            + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
+            + `متن پست:\n${postText}`
+        );
+        telegram = tgResp && tgResp.ok
+          ? { sent: true, chatId: chatUsed }
+          : { sent: false, chatId: chatUsed, telegramError: tgResp };
+      } catch (e) {
+        telegram = { sent: false, chatId: chatUsed, error: e.message };
+      }
     }
-    return { ok: true, dryRun: true, focus, template: templateKey, post: postText };
+    return {
+      ok: true, dryRun: true, focus, template: templateKey, post: postText,
+      tgConfig: { hasToken: !!tgCfg.token, hasChatId: !!tgCfg.chatId, usingFallbackChat: !tgCfg.chatId },
+      telegram
+    };
   }
 
   // Real run: publish directly — no approval gate. A rare AI glitch (stray
