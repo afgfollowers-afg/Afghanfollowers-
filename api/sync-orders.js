@@ -18,6 +18,11 @@ const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = r
 const { renderInstagramPostImage, renderYoutubePostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+// Single source of truth for the Groq model — Groq retires model IDs
+// periodically (llama-3.3-70b-versatile was decommissioned, breaking the
+// auto-post and blog jobs), so this stays overridable via one Vercel env var
+// instead of being hardcoded here and in api/ai-chat.js separately.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 // Multipart uploads for Telegram sendPhoto / Facebook /photos — both need an
 // actual file part, not a JSON body, so these can't reuse the plain
@@ -975,7 +980,7 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: GROQ_MODEL,
       messages: [{ role: 'user', content: promoPrompt }],
       temperature: 0.9,
       max_tokens: 500

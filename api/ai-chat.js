@@ -3,6 +3,12 @@
 // orders, payments, etc. Politely declines unrelated topics.
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
+// Groq periodically decommissions model IDs (e.g. llama-3.3-70b-versatile was
+// retired, breaking every AI feature at once). Keep the model in one env var
+// so a future rotation is a one-line Vercel change, not a code edit across
+// three files. Override GROQ_MODEL in Vercel to whatever your account lists
+// at console.groq.com/docs/models.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const SITE = 'https://afghanfollowers.online';
 const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
@@ -153,7 +159,7 @@ async function callGroq(messages, maxTokens) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: GROQ_MODEL,
       messages: messages,
       temperature: 0.6,
       max_tokens: maxTokens
