@@ -910,13 +910,50 @@ async function createTicket(chatId, username, message) {
 }
 
 module.exports = async (req, res) => {
+  // ?setup=webhook — one-shot self-registration. Reads the bot token the admin
+  // already saved in smm_tg_bot (the same one the auto-post uses), points
+  // Telegram's webhook for THAT bot at this very endpoint, and reports back —
+  // so /start etc. start working without pasting the token into any URL or
+  // setting a separate TG_BOT_TOKEN env var. The webhook URL carries the token
+  // as ?token= so every incoming update below resolves it even with no env var.
+  // The response never echoes the token (only the bot username + status).
+  if (req.query && req.query.setup === 'webhook') {
+    let cfg = {};
+    try { const db = await getDb(); cfg = db.smm_tg_bot || {}; } catch (e) {}
+    const tok = cfg.token || process.env.TG_BOT_TOKEN;
+    if (!tok) return res.status(200).json({ setup: 'webhook', ok: false, error: 'no bot token found in smm_tg_bot (Admin → Settings → Integrations) or TG_BOT_TOKEN' });
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const hookUrl = `https://${host}/api/telegram-bot?token=${tok}`;
+    const set = await tgApi(tok, 'setWebhook', { url: hookUrl, allowed_updates: ['message', 'edited_message', 'callback_query'] }).catch(e => ({ ok: false, description: e.message }));
+    const me = await tgApi(tok, 'getMe', {}).catch(() => ({}));
+    const info = await tgApi(tok, 'getWebhookInfo', {}).catch(() => ({}));
+    return res.status(200).json({
+      setup: 'webhook',
+      ok: !!set.ok,
+      bot: me.result && me.result.username,
+      webhookDescription: set.description,
+      host: host,
+      pending: info.result && info.result.pending_update_count,
+      lastError: info.result && info.result.last_error_message
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).send('Method not allowed');
   }
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
 
-  const token = process.env.TG_BOT_TOKEN || req.query.token;
+  // Token resolution, most-specific first: an explicit env var, then the
+  // ?token= the setup webhook baked into the callback URL, then — as a
+  // resilient fallback so a token change in the admin panel alone is enough —
+  // the bot token saved in smm_tg_bot. Without this last step the interactive
+  // bot and the auto-post could drift onto different bots (exactly what broke
+  // /start after the bot was switched).
+  let token = process.env.TG_BOT_TOKEN || (req.query && req.query.token);
+  if (!token) {
+    try { const db = await getDb(); token = db.smm_tg_bot && db.smm_tg_bot.token; } catch (e) {}
+  }
   if (!token) return res.status(200).send('no token');
 
   // Inline-keyboard button taps (platform/service pick, order confirm/cancel
