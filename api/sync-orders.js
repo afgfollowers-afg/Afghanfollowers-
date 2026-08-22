@@ -100,6 +100,28 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
   }
 
+  // ?job=bot-check — read-only: identify which real bot each token points at
+  // (main = smm_tg_bot, admin = ADMIN_BOT_TOKEN), so a swapped/mis-set token
+  // is obvious. Returns only bot usernames + chat ids, never the tokens.
+  if (req.query && req.query.job === 'bot-check') {
+    const out = { adminBotConfigured: ADMIN_BOT_CONFIGURED, adminChatId: process.env.ADMIN_BOT_CHAT_ID || null };
+    try {
+      const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+      const db = await dbResp.json();
+      const tgCfg = db.smm_tg_bot || {};
+      out.mainBotChatId = tgCfg.chatId || null;
+      if (tgCfg.token) {
+        const me = await fetch('https://api.telegram.org/bot' + tgCfg.token + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
+        out.mainBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
+      } else out.mainBot = 'no token in smm_tg_bot';
+    } catch (e) { out.mainBot = 'error: ' + e.message; }
+    if (process.env.ADMIN_BOT_TOKEN) {
+      const me = await fetch('https://api.telegram.org/bot' + process.env.ADMIN_BOT_TOKEN + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
+      out.adminBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
+    } else out.adminBot = 'ADMIN_BOT_TOKEN not set';
+    return res.status(200).json(out);
+  }
+
   // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
