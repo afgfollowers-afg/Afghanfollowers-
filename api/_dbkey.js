@@ -106,18 +106,36 @@ async function logSystemError(source, message, details) {
 // on their own channel: the daily stats report and important system alerts.
 // Everything routine (new orders, deposits, tickets, broadcasts) stays on the
 // main bot. Best-effort — never throws, so it can't break a caller.
-const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
-const ADMIN_BOT_CHAT_ID = process.env.ADMIN_BOT_CHAT_ID;
+// Admin bot credentials come from EITHER Vercel env vars (ADMIN_BOT_TOKEN /
+// ADMIN_BOT_CHAT_ID) OR — friendlier for a non-technical admin — the panel
+// itself (smm_tg_bot.adminToken / adminChatId, set in Settings → Integrations
+// the same way the main bot is). Env vars win when present; otherwise fall
+// back to the DB config. Best-effort throughout — never throws.
+async function resolveAdminBot() {
+  let token = process.env.ADMIN_BOT_TOKEN;
+  let chatId = process.env.ADMIN_BOT_CHAT_ID;
+  if (!token || !chatId) {
+    try {
+      const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+      const db = await r.json();
+      const cfg = (db && db.smm_tg_bot) || {};
+      token = token || cfg.adminToken;
+      chatId = chatId || cfg.adminChatId;
+    } catch (e) { /* fall through — unconfigured */ }
+  }
+  return { token: token, chatId: chatId };
+}
 async function notifyAdminBot(text) {
-  if (!ADMIN_BOT_TOKEN || !ADMIN_BOT_CHAT_ID) return { ok: false, skipped: 'admin bot not configured' };
+  const { token, chatId } = await resolveAdminBot();
+  if (!token || !chatId) return { ok: false, skipped: 'admin bot not configured' };
   try {
-    const r = await fetch('https://api.telegram.org/bot' + ADMIN_BOT_TOKEN + '/sendMessage', {
+    const r = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: ADMIN_BOT_CHAT_ID, text: text, parse_mode: 'HTML' })
+      body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
     });
     return r.json();
   } catch (e) { return { ok: false, error: e.message }; }
 }
 
-module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot };
+module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot };

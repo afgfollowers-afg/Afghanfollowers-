@@ -14,8 +14,7 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://www.afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot } = require('./_dbkey');
-const ADMIN_BOT_CONFIGURED = !!(process.env.ADMIN_BOT_TOKEN && process.env.ADMIN_BOT_CHAT_ID);
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot } = require('./_dbkey');
 const { renderInstagramPostImage, renderYoutubePostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -104,7 +103,12 @@ module.exports = async (req, res) => {
   // (main = smm_tg_bot, admin = ADMIN_BOT_TOKEN), so a swapped/mis-set token
   // is obvious. Returns only bot usernames + chat ids, never the tokens.
   if (req.query && req.query.job === 'bot-check') {
-    const out = { adminBotConfigured: ADMIN_BOT_CONFIGURED, adminChatId: process.env.ADMIN_BOT_CHAT_ID || null };
+    const admin = await resolveAdminBot();
+    const out = {
+      adminBotConfigured: !!(admin.token && admin.chatId),
+      adminSource: process.env.ADMIN_BOT_TOKEN ? 'env' : (admin.token ? 'panel (smm_tg_bot.adminToken)' : 'none'),
+      adminChatId: admin.chatId || null
+    };
     try {
       const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
       const db = await dbResp.json();
@@ -115,10 +119,10 @@ module.exports = async (req, res) => {
         out.mainBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
       } else out.mainBot = 'no token in smm_tg_bot';
     } catch (e) { out.mainBot = 'error: ' + e.message; }
-    if (process.env.ADMIN_BOT_TOKEN) {
-      const me = await fetch('https://api.telegram.org/bot' + process.env.ADMIN_BOT_TOKEN + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
+    if (admin.token) {
+      const me = await fetch('https://api.telegram.org/bot' + admin.token + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
       out.adminBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
-    } else out.adminBot = 'ADMIN_BOT_TOKEN not set';
+    } else out.adminBot = 'not set (add it in Admin → Settings → Integrations, or as ADMIN_BOT_TOKEN)';
     return res.status(200).json(out);
   }
 
@@ -1169,11 +1173,13 @@ async function runDailyStatsReportJob(opts) {
   }
 
   // The daily report is an admin-only summary, so it prefers the dedicated
-  // admin bot (@takrun_bot via ADMIN_BOT_TOKEN/CHAT_ID); the main customer bot
-  // (smm_tg_bot) is only the fallback when the admin bot isn't configured.
-  // Skip only when NEITHER destination exists.
-  if (!ADMIN_BOT_CONFIGURED && (!tgCfg.token || !tgCfg.chatId)) {
-    return { ok: true, skipped: true, reason: 'No Telegram destination (neither ADMIN_BOT_TOKEN/CHAT_ID nor smm_tg_bot configured)' };
+  // admin bot (env ADMIN_BOT_* or panel smm_tg_bot.adminToken); the main
+  // customer bot (smm_tg_bot) is only the fallback. Skip only when NEITHER
+  // destination exists.
+  const adminBot = await resolveAdminBot();
+  const adminBotReady = !!(adminBot.token && adminBot.chatId);
+  if (!adminBotReady && (!tgCfg.token || !tgCfg.chatId)) {
+    return { ok: true, skipped: true, reason: 'No Telegram destination (admin bot not set, and smm_tg_bot missing)' };
   }
 
   if (!opts.force && db.smm_last_daily_report_date === today) {
@@ -1215,7 +1221,7 @@ async function runDailyStatsReportJob(opts) {
   // Send to the admin bot first; only fall back to the main bot if the admin
   // bot isn't configured (or its send fails).
   let sentVia = null, sendErr = null;
-  if (ADMIN_BOT_CONFIGURED) {
+  if (adminBotReady) {
     const adminResp = await notifyAdminBot(msg);
     if (adminResp && adminResp.ok) sentVia = 'admin-bot';
     else sendErr = 'admin bot: ' + JSON.stringify(adminResp);

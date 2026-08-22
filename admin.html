@@ -6904,6 +6904,8 @@ function rIntg(){
     +'<div class="fg"><label class="fl">Chat ID (Admin)</label><input class="fi" id="tg-chatid" value="'+(tgCfg.chatId||'')+'" placeholder="@Afgfollowers_bot" style="font-size:12px"></div>'
     +'<div class="fg"><label class="fl">Bot Username (for users)</label><input class="fi" id="tg-username" value="'+(tgCfg.username||'')+'" placeholder="@Afgfollowers_bot" style="font-size:12px"></div>'
     +'<div class="fg"><label class="fl">Channel ID <span style="color:var(--mt);font-weight:400;text-transform:none">(for public broadcasts, optional)</span></label><input class="fi" id="tg-channelid" value="'+(tgCfg.channelId||'')+'" placeholder="@YourChannel or -1001234567890" style="font-size:12px"></div>'
+    +'<div class="fg"><label class="fl">Admin Bot Token <span style="color:var(--mt);font-weight:400;text-transform:none">(separate bot for daily report + alerts, optional)</span></label><input class="fi" id="tg-admintoken" value="'+(tgCfg.adminToken||'')+'" placeholder="e.g. @takrun_bot token" style="font-size:12px"></div>'
+    +'<div class="fg"><label class="fl">Admin Bot Chat ID</label><input class="fi" id="tg-adminchatid" value="'+(tgCfg.adminChatId||'')+'" placeholder="your personal chat id, e.g. 7993801735" style="font-size:12px"></div>'
     +'</div>'
     +'<div style="background:rgba(0,210,160,.08);border:1px solid rgba(0,210,160,.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#7ee0c4">'
     +'📢 <b>Channel ID</b> is where new Announcements and Blog posts get auto-broadcast. The bot must be an <b>admin</b> of that channel first. Leave empty to disable broadcasting.'
@@ -6965,7 +6967,9 @@ function saveTgBot(){
   var chatId=document.getElementById('tg-chatid').value.trim();
   var channelId=document.getElementById('tg-channelid').value.trim();
   var username=(document.getElementById('tg-username').value||'').trim().replace(/^@/,'');
-  var cfg={token:token,chatId:chatId,channelId:channelId,username:username};
+  var adminToken=(document.getElementById('tg-admintoken')||{}).value; adminToken=(adminToken||'').trim();
+  var adminChatId=(document.getElementById('tg-adminchatid')||{}).value; adminChatId=(adminChatId||'').trim();
+  var cfg={token:token,chatId:chatId,channelId:channelId,username:username,adminToken:adminToken,adminChatId:adminChatId};
   localStorage.setItem('smm_tg_bot',JSON.stringify(cfg));
   fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_tg_bot:cfg,smm_ts:Date.now()})}).catch(function(){});
