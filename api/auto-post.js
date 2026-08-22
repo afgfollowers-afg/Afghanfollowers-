@@ -8,7 +8,8 @@ module.exports = async function handler(req, res) {
   const isDryRun = req.query?.dryrun === "1" || req.query?.dryrun === "true";
   // See api/ai-chat.js: reasoning models (gpt-oss etc.) need low reasoning
   // effort + extra token headroom or they return empty content.
-  const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+  const _GROQ_DEAD_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"];
+  const GROQ_MODEL = (process.env.GROQ_MODEL && _GROQ_DEAD_MODELS.indexOf(process.env.GROQ_MODEL) === -1) ? process.env.GROQ_MODEL : "openai/gpt-oss-120b";
   const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 
   try {

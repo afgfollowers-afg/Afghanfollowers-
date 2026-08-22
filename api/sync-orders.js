@@ -22,7 +22,13 @@ const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.de
 // periodically (llama-3.3-70b-versatile was decommissioned, breaking the
 // auto-post and blog jobs), so this stays overridable via one Vercel env var
 // instead of being hardcoded here and in api/ai-chat.js separately.
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+// Ignore a GROQ_MODEL env var that points at a model Groq has decommissioned
+// (llama-3.3-70b-versatile, the 8B-instant, and the Llama 4 pair were all
+// retired 2026-06-17). If one of those is somehow set in Vercel it would make
+// every AI job fail with "model does not exist" no matter how correct the code
+// is — so treat a dead value as unset and fall back to the working default.
+const _GROQ_DEAD_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
+const GROQ_MODEL = (process.env.GROQ_MODEL && _GROQ_DEAD_MODELS.indexOf(process.env.GROQ_MODEL) === -1) ? process.env.GROQ_MODEL : 'openai/gpt-oss-120b';
 // Reasoning models (gpt-oss, qwen3, deepseek-r1) spend part of the token
 // budget on a hidden chain-of-thought and return empty content if starved —
 // see api/ai-chat.js for the full note. Ask for low reasoning effort and give

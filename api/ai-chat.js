@@ -8,7 +8,10 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 // so a future rotation is a one-line Vercel change, not a code edit across
 // three files. Override GROQ_MODEL in Vercel to whatever your account lists
 // at console.groq.com/docs/models.
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+// Ignore a GROQ_MODEL env var pointing at a decommissioned model (see the
+// dead-model list) so a stale Vercel env value can't break every AI feature.
+const _GROQ_DEAD_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
+const GROQ_MODEL = (process.env.GROQ_MODEL && _GROQ_DEAD_MODELS.indexOf(process.env.GROQ_MODEL) === -1) ? process.env.GROQ_MODEL : 'openai/gpt-oss-120b';
 // Reasoning models (gpt-oss, qwen3, deepseek-r1) spend part of their token
 // budget on a hidden chain-of-thought returned in a separate `reasoning`
 // field — with a small max_tokens they burn the whole budget thinking and
@@ -21,7 +24,7 @@ const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 // than the background blog+email generation (GROQ_MODEL) — the 120B reasoning
 // model's hidden chain-of-thought makes live replies feel sluggish. Override
 // GROQ_CHAT_MODEL in Vercel to tune the speed/quality trade-off.
-const GROQ_CHAT_MODEL = process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-20b';
+const GROQ_CHAT_MODEL = (process.env.GROQ_CHAT_MODEL && _GROQ_DEAD_MODELS.indexOf(process.env.GROQ_CHAT_MODEL) === -1) ? process.env.GROQ_CHAT_MODEL : 'openai/gpt-oss-20b';
 const SITE = 'https://afghanfollowers.online';
 const { DB_SERVICE_KEY, dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 
