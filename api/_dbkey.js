@@ -92,6 +92,32 @@ async function logSystemError(source, message, details) {
       body: JSON.stringify({ smm_error_log_push: { source: source, message: message, details: details || null }, smm_ts: Date.now() })
     });
   } catch (e) { /* best-effort */ }
+  // Also surface the alert on the dedicated ADMIN bot so important backend
+  // failures reach the admin's own Telegram channel, not just the panel's
+  // System Alerts page. Best-effort and independent of the log write above.
+  try {
+    await notifyAdminBot('⚠️ <b>هشدار سیستم</b>\n📍 <b>' + source + '</b>\n' + message);
+  } catch (e) { /* best-effort */ }
 }
 
-module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError };
+// Dedicated ADMIN bot (@takrun_bot), configured via ADMIN_BOT_TOKEN /
+// ADMIN_BOT_CHAT_ID — deliberately separate from the customer-facing bot
+// (smm_tg_bot / @Afgfollowers_bot). Reserved for what the admin wants isolated
+// on their own channel: the daily stats report and important system alerts.
+// Everything routine (new orders, deposits, tickets, broadcasts) stays on the
+// main bot. Best-effort — never throws, so it can't break a caller.
+const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
+const ADMIN_BOT_CHAT_ID = process.env.ADMIN_BOT_CHAT_ID;
+async function notifyAdminBot(text) {
+  if (!ADMIN_BOT_TOKEN || !ADMIN_BOT_CHAT_ID) return { ok: false, skipped: 'admin bot not configured' };
+  try {
+    const r = await fetch('https://api.telegram.org/bot' + ADMIN_BOT_TOKEN + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: ADMIN_BOT_CHAT_ID, text: text, parse_mode: 'HTML' })
+    });
+    return r.json();
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
+module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot };

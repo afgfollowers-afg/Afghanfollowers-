@@ -14,7 +14,8 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://www.afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot } = require('./_dbkey');
+const ADMIN_BOT_CONFIGURED = !!(process.env.ADMIN_BOT_TOKEN && process.env.ADMIN_BOT_CHAT_ID);
 const { renderInstagramPostImage, renderYoutubePostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
@@ -1145,8 +1146,12 @@ async function runDailyStatsReportJob(opts) {
     return { ok: false, error: 'DB fetch failed: ' + e.message };
   }
 
-  if (!tgCfg.token || !tgCfg.chatId) {
-    return { ok: true, skipped: true, reason: 'Telegram not configured (smm_tg_bot.token / chatId missing)' };
+  // The daily report is an admin-only summary, so it prefers the dedicated
+  // admin bot (@takrun_bot via ADMIN_BOT_TOKEN/CHAT_ID); the main customer bot
+  // (smm_tg_bot) is only the fallback when the admin bot isn't configured.
+  // Skip only when NEITHER destination exists.
+  if (!ADMIN_BOT_CONFIGURED && (!tgCfg.token || !tgCfg.chatId)) {
+    return { ok: true, skipped: true, reason: 'No Telegram destination (neither ADMIN_BOT_TOKEN/CHAT_ID nor smm_tg_bot configured)' };
   }
 
   if (!opts.force && db.smm_last_daily_report_date === today) {
@@ -1185,17 +1190,29 @@ async function runDailyStatsReportJob(opts) {
     + '📋 کل سفارش‌ها: ' + totalOrders + '\n'
     + '💵 کل درآمد: $' + totalRevenue.toFixed(2);
 
-  try {
-    const r = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
-    });
-    const data = await r.json();
-    if (!data.ok) return { ok: false, error: 'Telegram error: ' + JSON.stringify(data) };
-  } catch (e) {
-    return { ok: false, error: e.message };
+  // Send to the admin bot first; only fall back to the main bot if the admin
+  // bot isn't configured (or its send fails).
+  let sentVia = null, sendErr = null;
+  if (ADMIN_BOT_CONFIGURED) {
+    const adminResp = await notifyAdminBot(msg);
+    if (adminResp && adminResp.ok) sentVia = 'admin-bot';
+    else sendErr = 'admin bot: ' + JSON.stringify(adminResp);
   }
+  if (!sentVia && tgCfg.token && tgCfg.chatId) {
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
+      });
+      const data = await r.json();
+      if (data.ok) sentVia = 'main-bot';
+      else sendErr = (sendErr ? sendErr + ' | ' : '') + 'main bot: ' + JSON.stringify(data);
+    } catch (e) {
+      sendErr = (sendErr ? sendErr + ' | ' : '') + 'main bot: ' + e.message;
+    }
+  }
+  if (!sentVia) return { ok: false, error: 'Telegram send failed — ' + sendErr };
 
   await fetchInternal(API_BASE + '/api/db', {
     method: 'POST',
@@ -1203,7 +1220,7 @@ async function runDailyStatsReportJob(opts) {
     body: JSON.stringify({ smm_last_daily_report_date: today, smm_ts: Date.now() })
   }).catch(() => {});
 
-  return { ok: true, todayOrders: todayOrders.length, todayRevenue, todayUsers: todayUsers.length };
+  return { ok: true, sentVia, todayOrders: todayOrders.length, todayRevenue, todayUsers: todayUsers.length };
 }
 
 // ── Daily bulk email campaign ──
