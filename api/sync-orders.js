@@ -126,6 +126,38 @@ module.exports = async (req, res) => {
     return res.status(200).json(out);
   }
 
+  // ?job=email-check — browser-accessible health check for the daily customer
+  // email campaign (the gated ?status=1 above returns the same figures but
+  // needs the x-db-key header). Only non-sensitive status — booleans, counts,
+  // config presence — never any recipient address.
+  if (req.query && req.query.job === 'email-check') {
+    try {
+      const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+      const db = await dbResp.json();
+      const today = todayKey();
+      const cfg = db.smm_email_auto_cfg || {};
+      const listData = db.smm_bulk_campaign_list;
+      const hasList = !!(listData && Array.isArray(listData.all) && listData.all.length);
+      const sentLog = db.smm_bulk_campaign_sent || {};
+      const statuses = (listData && listData.statuses) || {};
+      const remaining = hasList ? listData.all.filter(function (r) { return statuses[r.status] && !sentLog[r.email]; }).length : 0;
+      const sentToday = Object.keys(sentLog).map(function (k) { return sentLog[k]; }).filter(function (ts) { return typeof ts === 'string' && ts.slice(0, 10) === today; }).length;
+      return res.status(200).json({
+        emailCheck: true,
+        resendConfigured: !!RESEND_API_KEY,
+        fromEmailConfigured: !!cfg.from,
+        fromName: cfg.fromName || null,
+        dailyLimit: cfg.dailyLimit || 200,
+        recipientList: { uploaded: hasList, total: hasList ? listData.all.length : 0, remainingToSend: remaining },
+        lastRunDate: db.smm_last_bulk_campaign_date || null,
+        ranToday: db.smm_last_bulk_campaign_date === today,
+        sentToday: sentToday,
+        totalEverSent: Object.keys(sentLog).length,
+        reengagementActive: !!cfg.active
+      });
+    } catch (e) { return res.status(200).json({ emailCheck: true, ok: false, error: e.message }); }
+  }
+
   // Order syncing, daily content, and auto-post are three independent jobs
   // piggybacked on this one daily cron invocation (see the file header for
   // why). Each runs in its own try/catch so a failure in one (e.g. a
