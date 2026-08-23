@@ -1494,6 +1494,21 @@ async function runBulkEmailCampaignJob() {
     body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })
   });
 
+  // Daily campaign report to the admin bot (@takrun_bot). Best-effort — a
+  // report failure must never affect the campaign's own result.
+  try {
+    await notifyAdminBot(
+      '📧 <b>گزارش کمپین ایمیل روزانه</b> — ' + today + '\n\n'
+      + '✅ ارسال موفق: <b>' + sent + '</b>\n'
+      + (failed ? '❌ ناموفق: <b>' + failed + '</b>\n' : '')
+      + '📤 ارسال امروز: <b>' + batch.length + '</b> (سقف روزانه: ' + limit + ')\n'
+      + '⏳ باقی‌مانده‌ی امروز: <b>' + (eligible.length - batch.length) + '</b>\n\n'
+      + '👥 کل لیست (پنل + آپلود): <b>' + pool.length + '</b>\n'
+      + '📬 امروز موعددار (قانون ۷ روزه): <b>' + eligible.length + '</b>\n\n'
+      + '📝 موضوع: ' + (subject || '—')
+    );
+  } catch (e) { /* best-effort */ }
+
   return { ok: true, sent, failed, poolSize: pool.length, dueToday: eligible.length, dailySend: limit, remainingDue: eligible.length - batch.length, topic, subject };
 }
 
