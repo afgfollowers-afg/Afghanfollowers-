@@ -140,19 +140,28 @@ module.exports = async (req, res) => {
       const hasList = !!(listData && Array.isArray(listData.all) && listData.all.length);
       const sentLog = db.smm_bulk_campaign_sent || {};
       const statuses = (listData && listData.statuses) || {};
-      const remaining = hasList ? listData.all.filter(function (r) { return statuses[r.status] && !sentLog[r.email]; }).length : 0;
+      // Same merged pool the campaign uses: uploaded list (enabled statuses) +
+      // panel users, deduped by lowercased email.
+      const poolMap = {};
+      if (hasList) listData.all.forEach(function (r) { if (r && r.email && statuses[r.status]) { const e = String(r.email).trim().toLowerCase(); if (e.indexOf('@') > -1) poolMap[e] = 1; } });
+      (db.smm_users || []).forEach(function (u) { if (u && u.email && u.status !== 'suspended') { const e = String(u.email).trim().toLowerCase(); if (e.indexOf('@') > -1) poolMap[e] = 1; } });
+      const poolEmails = Object.keys(poolMap);
+      const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000, nowMs = Date.now();
+      const dueToday = poolEmails.filter(function (e) { const ts = sentLog[e]; if (!ts) return true; const l = Date.parse(ts); return isNaN(l) || (nowMs - l) >= COOLDOWN_MS; }).length;
       const sentToday = Object.keys(sentLog).map(function (k) { return sentLog[k]; }).filter(function (ts) { return typeof ts === 'string' && ts.slice(0, 10) === today; }).length;
       return res.status(200).json({
         emailCheck: true,
         resendConfigured: !!RESEND_API_KEY,
         fromEmailConfigured: !!cfg.from,
         fromName: cfg.fromName || null,
-        dailyLimit: cfg.dailyLimit || 200,
-        recipientList: { uploaded: hasList, total: hasList ? listData.all.length : 0, remainingToSend: remaining },
+        uploadedListSize: hasList ? listData.all.length : 0,
+        panelUsers: (db.smm_users || []).length,
+        combinedPool: poolEmails.length,
+        dailySend: Math.min(cfg.dailyLimit > 0 ? cfg.dailyLimit : Infinity, Math.max(1, Math.ceil(poolEmails.length / 7))),
+        dueTodayWithin7dRule: dueToday,
+        sentToday: sentToday,
         lastRunDate: db.smm_last_bulk_campaign_date || null,
         ranToday: db.smm_last_bulk_campaign_date === today,
-        sentToday: sentToday,
-        totalEverSent: Object.keys(sentLog).length,
         reengagementActive: !!cfg.active
       });
     } catch (e) { return res.status(200).json({ emailCheck: true, ok: false, error: e.message }); }
@@ -1342,26 +1351,47 @@ async function runBulkEmailCampaignJob() {
 
   let sentLog = db.smm_bulk_campaign_sent || {};
   const statuses = listData.statuses || {};
-  let recipients = listData.all.filter(r => statuses[r.status] && !sentLog[r.email]);
 
-  // When the list is exhausted (everyone has been emailed this cycle),
-  // reset immediately so the next cron hit starts a fresh cycle — no
-  // waiting period. The smm_last_bulk_campaign_date guard above already
-  // prevents the same run from double-sending on the same calendar day,
-  // so resetting right now is safe: today's send already happened (or
-  // there's nothing left to send today), and tomorrow's cron will pick
-  // up from the top of the clean list.
-  let cycleWasReset = false;
-  if (!recipients.length) {
-    await fetchInternal(API_BASE + '/api/db', {
-      method: 'POST', headers: dbHeaders(),
-      body: JSON.stringify({ smm_bulk_campaign_sent_clear: true, smm_bulk_campaign_cycle_at: 0, smm_ts: Date.now() })
-    });
-    return { ok: true, sent: 0, cycleRestarted: true, reason: 'All recipients emailed — cycle reset, sending resumes tomorrow' };
+  // Recipient pool = the uploaded bulk list (only its enabled statuses) UNIONED
+  // with every panel user's email, deduped by lowercased address — so the
+  // campaign always covers registered customers too (including anyone who
+  // signs up later) without re-uploading a list.
+  const poolMap = {};
+  (listData.all || []).forEach(function (r) {
+    if (!r || !r.email || !statuses[r.status]) return;
+    const e = String(r.email).trim().toLowerCase();
+    if (e.indexOf('@') < 0 || poolMap[e]) return;
+    poolMap[e] = { email: e, name: r.name || '' };
+  });
+  (db.smm_users || []).forEach(function (u) {
+    if (!u || !u.email || u.status === 'suspended') return;
+    const e = String(u.email).trim().toLowerCase();
+    if (e.indexOf('@') < 0 || poolMap[e]) return;
+    poolMap[e] = { email: e, name: u.fname || u.name || '' };
+  });
+  const pool = Object.keys(poolMap).map(function (k) { return poolMap[k]; });
+
+  // Weekly no-repeat pacing: a recipient is due only if they were NOT emailed
+  // in the last 7 days (sentLog holds each address's last-send ISO timestamp),
+  // and each day we send at most ceil(total / 7) of them — so the whole pool
+  // is covered once across a week with nobody emailed twice within it. Sending
+  // updates the timestamp, so each address naturally becomes due again exactly
+  // a week later; there is no cycle to reset. A smaller explicit dailyLimit
+  // still caps the daily volume (e.g. to respect a Resend tier limit).
+  const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const eligible = pool.filter(function (r) {
+    const prev = sentLog[r.email];
+    if (!prev) return true;
+    const last = Date.parse(prev);
+    return isNaN(last) || (nowMs - last) >= COOLDOWN_MS;
+  });
+  if (!eligible.length) {
+    return { ok: true, sent: 0, reason: 'Everyone in the pool was emailed within the last 7 days — nothing due today', poolSize: pool.length };
   }
-
-  const limit = cfg.dailyLimit > 0 ? Math.max(cfg.dailyLimit, 100) : 200;
-  const batch = recipients.slice(0, limit);
+  let limit = Math.max(1, Math.ceil(pool.length / 7));
+  if (cfg.dailyLimit > 0 && cfg.dailyLimit < limit) limit = cfg.dailyLimit;
+  const batch = eligible.slice(0, limit);
   const siteName = cfg.fromName || 'Afghan Followers';
 
   // One fresh AI-written message per day, personalized per recipient below
@@ -1404,7 +1434,7 @@ async function runBulkEmailCampaignJob() {
       const previewPayload = {
         from: cfg.fromName ? cfg.fromName + ' <' + cfg.from + '>' : cfg.from,
         to: [previewTarget],
-        subject: '[Preview] ' + subject + ' (' + recipients.length + ' recipient(s) today)',
+        subject: '[Preview] ' + subject + ' (' + batch.length + ' recipient(s) today)',
         html: previewHtml
       };
       if (cfg.replyTo) previewPayload.reply_to = cfg.replyTo;
@@ -1464,7 +1494,7 @@ async function runBulkEmailCampaignJob() {
     body: JSON.stringify({ smm_bulk_campaign_sent: sentLog, smm_last_bulk_campaign_date: today, smm_ts: Date.now() })
   });
 
-  return { ok: true, sent, failed, remaining: recipients.length - batch.length, topic, subject };
+  return { ok: true, sent, failed, poolSize: pool.length, dueToday: eligible.length, dailySend: limit, remainingDue: eligible.length - batch.length, topic, subject };
 }
 
 // ── PROVIDER INTEL JOB ──────────────────────────────────────────────────────
