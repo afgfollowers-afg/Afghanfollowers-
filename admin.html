@@ -3699,12 +3699,40 @@ function togSvc(id){
 function getQoDisabled(){
   try{var g=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');return Array.isArray(g.qo_disabled)?g.qo_disabled:[];}catch(e){return[];}
 }
+// Guards a just-made guest-order (qo_disabled) selection from being reverted
+// by the 30s background pull (pullFromServer) before the write has propagated
+// through JSONBin's read-after-write lag. While this hold is active,
+// applyServerGeneral() keeps the LOCAL qo_disabled instead of overwriting it
+// with a possibly-stale server copy — which is exactly what used to make a
+// service the admin just selected "deselect itself" a few seconds later.
+var _qoHoldUntil=0;
+function _postGeneralWithRetry(cfg,attempt){
+  attempt=attempt||0;
+  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})})
+    .then(function(r){if(!r.ok&&attempt<3)setTimeout(function(){_postGeneralWithRetry(cfg,attempt+1);},1500*(attempt+1));})
+    .catch(function(){if(attempt<3)setTimeout(function(){_postGeneralWithRetry(cfg,attempt+1);},1500*(attempt+1));});
+}
+// Apply the server's smm_general onto localStorage, but never clobber a
+// guest-order selection the admin made in the last _qoHoldUntil window — take
+// every other general-settings field from the server, keep qo_disabled local.
+function applyServerGeneral(serverGen){
+  if(!serverGen||typeof serverGen!=='object') return;
+  if(Date.now()<_qoHoldUntil){
+    var localCfg={};try{localCfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
+    var merged=Object.assign({},serverGen,{qo_disabled:Array.isArray(localCfg.qo_disabled)?localCfg.qo_disabled:[]});
+    localStorage.setItem('smm_general_settings',JSON.stringify(merged));
+  } else {
+    localStorage.setItem('smm_general_settings',JSON.stringify(serverGen));
+  }
+}
 function _saveQoDisabled(dis){
   var cfg={};try{cfg=JSON.parse(localStorage.getItem(GEN_KEY)||'{}');}catch(e){}
   cfg.qo_disabled=dis;
   localStorage.setItem(GEN_KEY,JSON.stringify(cfg));
-  fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_general:cfg,smm_ts:Date.now()})}).catch(function(){});
+  // Protect this edit through at least the next 30s poll cycle + propagation.
+  _qoHoldUntil=Date.now()+60000;
+  _postGeneralWithRetry(cfg);
 }
 function setQoVisible(id){
   var svcs=getServices();
@@ -8757,7 +8785,7 @@ function showAuthNotConfiguredBanner(){
         localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
       }
       if(d.smm_general&&typeof d.smm_general==='object'){
-        localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+        applyServerGeneral(d.smm_general);
         var _pgSvcE=document.getElementById('pg-services');
         if(_pgSvcE&&_pgSvcE.classList.contains('on')) rSvcs();
       }
@@ -9168,7 +9196,7 @@ function pullFromServer(){
         localStorage.setItem(ADMIN_CREDS_KEY,JSON.stringify(d.smm_admin_creds));
       }
       if(d.smm_general&&typeof d.smm_general==='object'){
-        localStorage.setItem('smm_general_settings',JSON.stringify(d.smm_general));
+        applyServerGeneral(d.smm_general);
         var _pgSvcP=document.getElementById('pg-services');
         if(_pgSvcP&&_pgSvcP.classList.contains('on')) rSvcs();
       }
