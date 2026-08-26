@@ -874,6 +874,8 @@ th{font-size:10px;}
           <select class="fi" style="width:110px;padding:7px 9px;font-size:12px" onchange="filterSvcStatus(this.value)"><option value="">All</option><option value="active">Active</option><option value="inactive">Hidden</option></select>
           <!-- Provider filter — populated by rSvcs() from the providers that actually own services; lets the admin view one provider at a time instead of all mixed together. -->
           <select class="fi" id="svc-prov-filter" style="width:150px;padding:7px 9px;font-size:12px" onchange="filterSvcProv(this.value)"><option value="">All Providers</option></select>
+          <!-- Guest Orders filter — a service is "selected for guest orders" (home-page Quick Order widget) when it's active AND not hidden from the site (qo_disabled). Counts filled in by rSvcs(). -->
+          <select class="fi" id="svc-guest-filter" style="width:160px;padding:7px 9px;font-size:12px" onchange="filterSvcGuest(this.value)"><option value="">All (guest &amp; not)</option><option value="in">👤 In Guest Orders</option><option value="out">🚫 Not in Guest Orders</option></select>
           <!-- Kept hidden — rSvcs() still reads svc-cat-filter's value via _svcCat; the unified box above drives it. -->
           <select class="fi" id="svc-cat-filter" style="display:none"><option value="">All Categories</option></select>
         </div>
@@ -3158,6 +3160,7 @@ var _svcFilter='';
 var _svcCat='';
 var _svcStatus='';
 var _svcProv='';
+var _svcGuest='';
 var _svcPinnedId=null;
 
 function rSvcs(){
@@ -3204,6 +3207,20 @@ function rSvcs(){
     provSel.innerHTML=opts;
   }
 
+  // "Selected for guest orders" = active AND not hidden from the site
+  // (qo_disabled) — exactly what the home-page Quick Order widget shows to
+  // guests (see qoFilterSvcs() in index.html). Computed once here and reused
+  // by the filter below and the guest dropdown's counts.
+  var _qoDisArr=getQoDisabled();
+  function _isGuestSvc(s){ return s.active!==false && _qoDisArr.indexOf(String(s.id))<0; }
+  var guestSel=document.getElementById('svc-guest-filter');
+  if(guestSel){
+    var inCnt=all.filter(_isGuestSvc).length, outCnt=all.length-inCnt;
+    guestSel.innerHTML='<option value=""'+(_svcGuest===''?' selected':'')+'>All (guest &amp; not)</option>'
+      +'<option value="in"'+(_svcGuest==='in'?' selected':'')+'>👤 In Guest Orders ('+inCnt+')</option>'
+      +'<option value="out"'+(_svcGuest==='out'?' selected':'')+'>🚫 Not in Guest Orders ('+outCnt+')</option>';
+  }
+
   // Get unique provider category names from services
   var provCats={};
   all.forEach(function(s){
@@ -3219,6 +3236,8 @@ function rSvcs(){
     if(_svcFilter&&s.name.toLowerCase().indexOf(_svcFilter.toLowerCase())<0) return false;
     if(_svcCat&&(s.category||'Uncategorized')!==_svcCat) return false;
     if(_svcProv&&String(s.provId||0)!==_svcProv) return false;
+    if(_svcGuest==='in'&&!_isGuestSvc(s)) return false;
+    if(_svcGuest==='out'&&_isGuestSvc(s)) return false;
     if(_svcStatus==='active'&&s.active===false) return false;
     if(_svcStatus==='inactive'&&s.active!==false) return false;
     return true;
@@ -3583,6 +3602,7 @@ function filterSvcCat(v){
 }
 function filterSvcStatus(v){_svcStatus=v;rSvcs();}
 function filterSvcProv(v){_svcProv=v;_svcPinnedId=null;rSvcs();}
+function filterSvcGuest(v){_svcGuest=v;_svcPinnedId=null;rSvcs();}
 
 // ── Unified "find service or category" box for the live Services page ──
 function svcUnifiedInput(){
