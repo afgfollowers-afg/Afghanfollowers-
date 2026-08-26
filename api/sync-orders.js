@@ -94,6 +94,14 @@ module.exports = async (req, res) => {
     return res.status(200).json(result);
   }
 
+  // ?job=balance-report — on-demand manual trigger for the daily "balance
+  // report" (all users holding a positive wallet balance + total), to the
+  // admin bot. Bypasses the once-per-day dedup guard for previewing on demand.
+  if (req.query && req.query.job === 'balance-report') {
+    const result = await runBalanceReportJob({ force: true }).catch(e => ({ ok: false, error: e.message }));
+    return res.status(200).json(result);
+  }
+
   if (req.query && req.query.job === 'provider-scan') {
     const result = await runProviderIntelJob({ force: true }).catch(e => ({ ok: false, error: e.message }));
     return res.status(200).json(result);
@@ -720,7 +728,10 @@ async function runEmailCampaignJob(req, res) {
     // alongside this cron, deduped by smm_last_daily_report_date.
     const dailyReport = await runDailyStatsReportJob().catch(e => ({ ok: false, error: e.message }));
 
-    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult, dailyReport });
+    // Daily balance report — deduped by smm_last_balance_report_date, same slot.
+    const balanceReport = await runBalanceReportJob().catch(e => ({ ok: false, error: e.message }));
+
+    return res.status(200).json({ ok: true, inactive: inactive.length, eligible: eligible.length, sent, failed, bulk: bulkResult, dailyReport, balanceReport });
   } catch (e) {
     return res.status(200).json({ ok: false, error: e.message });
   }
@@ -1290,6 +1301,96 @@ async function runDailyStatsReportJob(opts) {
   }).catch(() => {});
 
   return { ok: true, sentVia, todayOrders: todayOrders.length, todayRevenue, todayUsers: todayUsers.length };
+}
+
+// Daily "balance report" — lists every user who currently holds a positive
+// wallet balance, sorted highest-first, with the grand total. Requested so
+// the admin has a once-a-day snapshot of outstanding customer credit on their
+// own Telegram channel, separate from the stats report above. Routed to the
+// dedicated admin bot first (env ADMIN_BOT_* or panel smm_tg_bot.adminToken),
+// falling back to the main customer bot only if the admin bot isn't set.
+// Deduped by smm_last_balance_report_date so retries / manual hits the same
+// day are no-ops (pass opts.force to bypass, used by the ?job=balance-report
+// manual trigger). Telegram caps a message at 4096 chars, so the per-user
+// list is capped at BALANCE_REPORT_MAX rows (the total still reflects everyone).
+const BALANCE_REPORT_MAX = 50;
+async function runBalanceReportJob(opts) {
+  opts = opts || {};
+  const today = todayKey();
+  let db = {};
+  try {
+    const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    db = await dbResp.json();
+  } catch (e) {
+    return { ok: false, error: 'DB fetch failed: ' + e.message };
+  }
+
+  const tgCfg = db.smm_tg_bot || {};
+  const adminBot = await resolveAdminBot();
+  const adminBotReady = !!(adminBot.token && adminBot.chatId);
+  if (!adminBotReady && (!tgCfg.token || !tgCfg.chatId)) {
+    return { ok: true, skipped: true, reason: 'No Telegram destination (admin bot not set, and smm_tg_bot missing)' };
+  }
+
+  if (!opts.force && db.smm_last_balance_report_date === today) {
+    return { ok: true, skipped: true, reason: 'Already sent today (' + today + ')' };
+  }
+
+  const users = db.smm_users || [];
+  const withBalance = users
+    .map(u => ({ u, bal: parseFloat(u.balance) || 0 }))
+    .filter(x => x.bal > 0)
+    .sort((a, b) => b.bal - a.bal);
+  const totalBalance = withBalance.reduce((s, x) => s + x.bal, 0);
+
+  let msg;
+  if (!withBalance.length) {
+    msg = '💰 <b>گزارش موجودی کاربران — ' + today + '</b>\n\nهیچ کاربری موجودی مثبت ندارد.';
+  } else {
+    const rows = withBalance.slice(0, BALANCE_REPORT_MAX).map((x, i) => {
+      const name = x.u.fname || x.u.email || ('#' + x.u.id);
+      // escape the few HTML-significant chars so a name/email can't break parse_mode=HTML
+      const safe = String(name).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return (i + 1) + '. ' + safe + ' — <b>$' + x.bal.toFixed(2) + '</b>';
+    }).join('\n');
+    const extra = withBalance.length > BALANCE_REPORT_MAX
+      ? '\n… و ' + (withBalance.length - BALANCE_REPORT_MAX) + ' کاربر دیگر'
+      : '';
+    msg = '💰 <b>گزارش موجودی کاربران — ' + today + '</b>\n\n'
+      + '👥 کاربران دارای موجودی: <b>' + withBalance.length + '</b>\n'
+      + '💵 مجموع موجودی: <b>$' + totalBalance.toFixed(2) + '</b>\n\n'
+      + rows + extra;
+  }
+
+  let sentVia = null, sendErr = null;
+  if (adminBotReady) {
+    const adminResp = await notifyAdminBot(msg);
+    if (adminResp && adminResp.ok) sentVia = 'admin-bot';
+    else sendErr = 'admin bot: ' + JSON.stringify(adminResp);
+  }
+  if (!sentVia && tgCfg.token && tgCfg.chatId) {
+    try {
+      const r = await fetch(`https://api.telegram.org/bot${tgCfg.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: tgCfg.chatId, text: msg, parse_mode: 'HTML' })
+      });
+      const data = await r.json();
+      if (data.ok) sentVia = 'main-bot';
+      else sendErr = (sendErr ? sendErr + ' | ' : '') + 'main bot: ' + JSON.stringify(data);
+    } catch (e) {
+      sendErr = (sendErr ? sendErr + ' | ' : '') + 'main bot: ' + e.message;
+    }
+  }
+  if (!sentVia) return { ok: false, error: 'Telegram send failed — ' + sendErr };
+
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_last_balance_report_date: today, smm_ts: Date.now() })
+  }).catch(() => {});
+
+  return { ok: true, sentVia, usersWithBalance: withBalance.length, totalBalance: Number(totalBalance.toFixed(2)) };
 }
 
 // ── Daily bulk email campaign ──
