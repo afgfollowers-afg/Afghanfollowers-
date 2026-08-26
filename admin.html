@@ -872,6 +872,8 @@ th{font-size:10px;}
             <div id="svc-unified-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:var(--s1);border:1px solid var(--bd);border-radius:8px;margin-top:4px;max-height:280px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.5)"></div>
           </div>
           <select class="fi" style="width:110px;padding:7px 9px;font-size:12px" onchange="filterSvcStatus(this.value)"><option value="">All</option><option value="active">Active</option><option value="inactive">Hidden</option></select>
+          <!-- Provider filter — populated by rSvcs() from the providers that actually own services; lets the admin view one provider at a time instead of all mixed together. -->
+          <select class="fi" id="svc-prov-filter" style="width:150px;padding:7px 9px;font-size:12px" onchange="filterSvcProv(this.value)"><option value="">All Providers</option></select>
           <!-- Kept hidden — rSvcs() still reads svc-cat-filter's value via _svcCat; the unified box above drives it. -->
           <select class="fi" id="svc-cat-filter" style="display:none"><option value="">All Categories</option></select>
         </div>
@@ -3155,6 +3157,7 @@ function saveCategories(c){
 var _svcFilter='';
 var _svcCat='';
 var _svcStatus='';
+var _svcProv='';
 var _svcPinnedId=null;
 
 function rSvcs(){
@@ -3181,6 +3184,26 @@ function rSvcs(){
     });
   }
 
+  // Populate the provider filter dropdown from the providers that actually own
+  // services. Keyed by provId (stable) so a provider rename doesn't break the
+  // current selection; services with no provider (manually added) group under 0.
+  var provSel=document.getElementById('svc-prov-filter');
+  if(provSel){
+    var provPairs={};
+    all.forEach(function(s){
+      var pid=String(s.provId||0);
+      if(!(pid in provPairs)) provPairs[pid]=(pid==='0')?'Manual / Local':(s.provName||('Provider '+pid));
+    });
+    // If the currently selected provider no longer owns any service, reset it.
+    if(_svcProv && !(_svcProv in provPairs)){ _svcProv=''; }
+    var opts='<option value="">All Providers ('+all.length+')</option>';
+    Object.keys(provPairs).sort(function(a,b){return provPairs[a].localeCompare(provPairs[b]);}).forEach(function(pid){
+      var cnt=all.filter(function(s){return String(s.provId||0)===pid;}).length;
+      opts+='<option value="'+pid+'"'+(_svcProv===pid?' selected':'')+'>'+provPairs[pid]+' ('+cnt+')</option>';
+    });
+    provSel.innerHTML=opts;
+  }
+
   // Get unique provider category names from services
   var provCats={};
   all.forEach(function(s){
@@ -3195,6 +3218,7 @@ function rSvcs(){
     if(_svcPinnedId!=null) return s.id===_svcPinnedId;
     if(_svcFilter&&s.name.toLowerCase().indexOf(_svcFilter.toLowerCase())<0) return false;
     if(_svcCat&&(s.category||'Uncategorized')!==_svcCat) return false;
+    if(_svcProv&&String(s.provId||0)!==_svcProv) return false;
     if(_svcStatus==='active'&&s.active===false) return false;
     if(_svcStatus==='inactive'&&s.active!==false) return false;
     return true;
@@ -3558,6 +3582,7 @@ function filterSvcCat(v){
   rSvcs();
 }
 function filterSvcStatus(v){_svcStatus=v;rSvcs();}
+function filterSvcProv(v){_svcProv=v;_svcPinnedId=null;rSvcs();}
 
 // ── Unified "find service or category" box for the live Services page ──
 function svcUnifiedInput(){
