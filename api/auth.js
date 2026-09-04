@@ -216,32 +216,30 @@ async function logAdminLoginAttempt(entry) {
 // db.js gates writes to smm_admin_creds behind an admin token — so an empty
 // key means there is no route back into the panel from the UI at all.
 //
-// This restores that route without bringing back the hardcoded
-// admin/admin123 fallback that #105 removed. The seed password comes from a
-// Vercel environment variable, so it never lives in this repo or its git
-// history, the admin chooses it, and it can be rotated or removed from the
-// Vercel dashboard. When ADMIN_BOOTSTRAP_PASSWORD is unset the behaviour is
-// exactly what it is today: login stays blocked, visibly, rather than
-// accepting a password anyone reading this repo would know.
+// This deliberately restores the admin/admin123 default that #105 removed,
+// at the repo owner's explicit instruction after the tradeoff was spelled
+// out. KNOW WHAT THIS MEANS: the moment smm_admin_creds is empty, anyone who
+// reads this file — it is the panel's default and is published here in
+// plaintext — can log into the admin panel of a deployment that holds
+// customer wallet balances and PayPal history. Treat the default as public.
 //
-// Seeding does NOT by itself let anyone in — it only writes the credential.
-// The caller still has to present that username and password to the normal
-// hash comparison below, so triggering the seed is worthless without the
-// env var's value.
+// ADMIN_BOOTSTRAP_USER / ADMIN_BOOTSTRAP_PASSWORD still override the default
+// if they are set in Vercel, so the credential can be changed later without
+// another code change. Out of the box, with neither set, this seeds exactly
+// admin / admin123.
+//
+// Change the password in the panel (Settings -> Security) as soon as you are
+// back in; that writes a real salted credential and this fallback goes dormant
+// until smm_admin_creds is emptied again.
 const BOOTSTRAP_USER = process.env.ADMIN_BOOTSTRAP_USER || 'admin';
-const BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD;
-const BOOTSTRAP_MIN_LEN = 8;
+const BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD || 'admin123';
 
 async function seedAdminCreds() {
-  if (!BOOTSTRAP_PASSWORD) return null;
-  // Same floor handleRegister() applies to customers — a bootstrap credential
-  // that can be brute-forced is the hole #105 closed, reopened by other means.
-  if (String(BOOTSTRAP_PASSWORD).length < BOOTSTRAP_MIN_LEN) {
-    await logSystemError('auth:admin-bootstrap',
-      'ADMIN_BOOTSTRAP_PASSWORD is shorter than ' + BOOTSTRAP_MIN_LEN + ' characters; refusing to seed admin credentials.');
-    return null;
-  }
-
+  // Stored salted+stretched via _passhash.js, NOT as the literal string
+  // 'admin123' — handleAdminLogin() below verifies with
+  // hashPass(password, creds.salt) and rejects any record without a salt, so
+  // a plaintext password field would seed a credential that can never log in.
+  // That exact bug is what 873d9bc had to fix last time this default existed.
   const salt = genSalt();
   const creds = { username: BOOTSTRAP_USER, password: hashPass(BOOTSTRAP_PASSWORD, salt), salt };
   // db.js stamps smm_admin_creds_changed_at / _change_log on this write, so
@@ -274,13 +272,10 @@ async function handleAdminLogin(body, ip, ua) {
 
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
-  // Still no hardcoded default password when smm_admin_creds isn't
-  // configured — a public, well-known credential (admin/admin123) that
-  // anyone reading this repo's history knows is exactly what #105 removed.
-  // Instead, recover from an empty key using an operator-supplied
-  // ADMIN_BOOTSTRAP_PASSWORD if one is set (see seedAdminCreds above). With
-  // no such env var this behaves as before: login is blocked, which is
-  // visibly broken and therefore gets noticed and fixed.
+  // An empty smm_admin_creds self-heals into the default admin credential
+  // (see seedAdminCreds above) rather than blocking login. This reverses
+  // #105 by the owner's decision — the default password is public, so anyone
+  // can claim admin whenever this key is empty.
   let creds = db.smm_admin_creds;
   if (!creds || !creds.username || !creds.password) {
     creds = await seedAdminCreds();
