@@ -195,10 +195,29 @@ async function handleGoogleLogin(body) {
   return { ok: true, token, user: safeUser, isNewUser };
 }
 
-async function handleAdminLogin(body) {
+// Best-effort append to the admin-login audit trail (smm_admin_login_log in the
+// DB, capped server-side). There was previously NO record anywhere of who
+// logged into the admin panel or when — so a compromised admin password was
+// completely invisible. This makes every admin-login attempt (success AND
+// failure) visible, viewable via db.js's ?diag=admin-audit. Never throws.
+async function logAdminLoginAttempt(entry) {
+  try {
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_admin_login_push: entry, smm_ts: Date.now() })
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+async function handleAdminLogin(body, ip, ua) {
+  ip = ip || 'unknown';
   const username = String(body.username || '').trim();
   const password = body.password;
-  if (!username || !password) return { ok: false, error: 'Missing username or password' };
+  if (!username || !password) {
+    await logAdminLoginAttempt({ ok: false, reason: 'missing-credentials', username: username || null, ip: ip, ua: ua || null });
+    return { ok: false, error: 'Missing username or password' };
+  }
 
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
@@ -209,14 +228,17 @@ async function handleAdminLogin(body) {
   // noticed and fixed) rather than silently accepting a public, well-known
   // password (admin/admin123) that anyone reading this repo's history knows.
   if (!db.smm_admin_creds || !db.smm_admin_creds.username || !db.smm_admin_creds.password) {
+    await logAdminLoginAttempt({ ok: false, reason: 'creds-not-configured', username: username, ip: ip, ua: ua || null });
     return { ok: false, error: 'Admin credentials are not configured.' };
   }
   const creds = db.smm_admin_creds;
 
   if (username !== creds.username || !creds.salt || hashPass(password, creds.salt) !== creds.password) {
+    await logAdminLoginAttempt({ ok: false, reason: 'invalid-credentials', username: username, ip: ip, ua: ua || null });
     return { ok: false, error: 'Invalid credentials' };
   }
 
+  await logAdminLoginAttempt({ ok: true, reason: 'success', username: creds.username, ip: ip, ua: ua || null });
   const token = signToken({ sub: creds.username, role: 'admin' });
   return { ok: true, token, username: creds.username };
 }
@@ -303,7 +325,11 @@ module.exports = async (req, res) => {
     if (action === 'login') result = await handleLogin(body);
     else if (action === 'register') result = await handleRegister(body);
     else if (action === 'google') result = await handleGoogleLogin(body);
-    else if (action === 'admin-login') result = await handleAdminLogin(body);
+    else if (action === 'admin-login') {
+      const _ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim() || 'unknown';
+      const _ua = String(req.headers['user-agent'] || '').slice(0, 160);
+      result = await handleAdminLogin(body, _ip, _ua);
+    }
     else if (action === 'profile-check') result = await handleProfileCheck(body);
     else return res.status(200).json({ ok: false, error: 'Unknown action' });
     return res.status(200).json(result);

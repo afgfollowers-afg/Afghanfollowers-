@@ -242,6 +242,47 @@ module.exports = async (req, res) => {
     return res.status(200).json({ diag: 'balances', ok: true, userCount: report.length, users: report });
   }
 
+  // ?diag=admin-audit — read-only security snapshot for "did someone get into
+  // the admin panel?". Placed before the x-db-key gate so the owner can open
+  // it straight from a browser. Deliberately NEVER returns the admin password
+  // hash/salt or any customer password — only: the current admin username,
+  // whether/when the admin credential last changed (and from/to which
+  // username), the recent admin-login attempts (success + failure, with IP),
+  // and recent sign-ups. This is exactly the trail needed to spot a takeover.
+  if (req.query && req.query.diag === 'admin-audit') {
+    if (!BIN_ID || !API_KEY) return res.status(200).json({ diag: 'admin-audit', ok: false, error: 'not configured' });
+    let rec;
+    try {
+      const probe = await readBin(BIN_ID);
+      if (!probe.ok) return res.status(200).json({ diag: 'admin-audit', ok: false, status: probe.status });
+      rec = probe.record;
+    } catch (err) {
+      return res.status(200).json({ diag: 'admin-audit', ok: false, error: err.message });
+    }
+    const creds = rec.smm_admin_creds || null;
+    const loginLog = Array.isArray(rec.smm_admin_login_log) ? rec.smm_admin_login_log : [];
+    const now = Date.now();
+    const users = Array.isArray(rec.smm_users) ? rec.smm_users : [];
+    const recentSignups = users
+      .filter(u => { const t = Date.parse(u.joined); return !isNaN(t) && (now - t) < 5 * 24 * 3600 * 1000; })
+      .map(u => ({ id: u.id, fname: u.fname || null, email: u.email || null, joined: u.joined, status: u.status || null }))
+      .slice(0, 50);
+    return res.status(200).json({
+      diag: 'admin-audit', ok: true,
+      authConfigured: AUTH_CONFIGURED,
+      adminUsername: creds ? (creds.username || null) : null,
+      adminCredsConfigured: !!(creds && creds.username && creds.password),
+      adminCredsChangedAt: rec.smm_admin_creds_changed_at || null,
+      adminCredsChangeLog: Array.isArray(rec.smm_admin_creds_change_log) ? rec.smm_admin_creds_change_log : [],
+      serverLastWrite: rec.smm_ts || null,
+      loginAttempts: loginLog.length,
+      successfulLoginsRecent: loginLog.filter(e => e && e.ok).slice(0, 20),
+      failedLoginsRecent: loginLog.filter(e => e && !e.ok).slice(0, 20),
+      userCount: users.length,
+      recentSignups
+    });
+  }
+
   // Require the shared service key (once configured) so this endpoint isn't
   // wide open to the entire internet. Server-side callers send it via
   // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
@@ -905,6 +946,15 @@ module.exports = async (req, res) => {
         const entry = Object.assign({}, body.smm_error_log_push, { id: Date.now() + '-' + Math.random().toString(36).slice(2, 8), ts: Date.now() });
         current.smm_error_log = [entry].concat(Array.isArray(current.smm_error_log) ? current.smm_error_log : []).slice(0, 200);
       }
+      // Admin-login audit trail — appended by api/auth.js on every admin-login
+      // attempt (success and failure). Capped to the most recent 100 entries.
+      // Read-only-visible via ?diag=admin-audit below. The panel previously
+      // kept NO record of admin logins at all, so a stolen admin password was
+      // invisible; this is the fix.
+      if (body.smm_admin_login_push && typeof body.smm_admin_login_push === 'object') {
+        const _le = Object.assign({}, body.smm_admin_login_push, { ts: Date.now() });
+        current.smm_admin_login_log = [_le].concat(Array.isArray(current.smm_admin_login_log) ? current.smm_admin_login_log : []).slice(0, 100);
+      }
       // Clearing is admin-only — an anonymous caller shouldn't be able to
       // wipe the admin's only visibility into failures happening elsewhere.
       if (body.smm_error_log_clear === true) {
@@ -973,6 +1023,19 @@ module.exports = async (req, res) => {
         current.smm_paypal_processed = body.smm_paypal_processed;
       }
       if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object') {
+        // Record WHEN and FROM/TO which username the admin credential last
+        // changed, so a credential takeover leaves a visible trace (surfaced
+        // by ?diag=admin-audit). Only stamp on a real change, not on an
+        // identical re-save.
+        const _prev = current.smm_admin_creds || {};
+        const _prevUser = _prev.username || null;
+        const _newUser = body.smm_admin_creds.username || null;
+        const _pwChanged = (_prev.password || null) !== (body.smm_admin_creds.password || null);
+        if (_prevUser !== _newUser || _pwChanged) {
+          current.smm_admin_creds_changed_at = Date.now();
+          current.smm_admin_creds_change_log = [{ ts: Date.now(), fromUser: _prevUser, toUser: _newUser, passwordChanged: _pwChanged }]
+            .concat(Array.isArray(current.smm_admin_creds_change_log) ? current.smm_admin_creds_change_log : []).slice(0, 20);
+        }
         current.smm_admin_creds = body.smm_admin_creds;
       }
       if (body.smm_general && typeof body.smm_general === 'object') {
