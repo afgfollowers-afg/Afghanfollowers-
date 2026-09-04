@@ -208,9 +208,7 @@ async function handleAdminLogin(body) {
   // the correct outcome is login being blocked (visibly broken, gets
   // noticed and fixed) rather than silently accepting a public, well-known
   // password (admin/admin123) that anyone reading this repo's history knows.
-  if (!db.smm_admin_creds || !db.smm_admin_creds.username || !db.smm_admin_creds.password) {
-  db.smm_admin_creds = { username: 'admin', password: 'admin123' };
-} {
+if (!db.smm_admin_creds || !db.smm_admin_creds.username || !db.smm_admin_creds.password) { {
     return { ok: false, error: 'Admin credentials are not configured.' };
   }
   const creds = db.smm_admin_creds;
