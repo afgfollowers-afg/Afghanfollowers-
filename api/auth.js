@@ -14,7 +14,7 @@
 // hashPass()/genSalt() byte-for-byte, so no existing account needs a forced
 // reset) here on the server, and only then issue a signed session token
 // (see _auth.js) that api/db.js and api/paypal-verify.js can trust.
-const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
+const { dbHeaders, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const { hashPass, genSalt } = require('./_passhash');
 const { signToken, AUTH_CONFIGURED } = require('./_auth');
 const { rateLimit } = require('./_ratelimit');
@@ -210,6 +210,59 @@ async function logAdminLoginAttempt(entry) {
   } catch (e) { /* best-effort */ }
 }
 
+// Bootstrap recovery for an smm_admin_creds that was never set or got
+// cleared. api/db.js seeds that key as {}, the panel's own change-password
+// form (admin.html) only runs once you are ALREADY logged in as admin, and
+// db.js gates writes to smm_admin_creds behind an admin token — so an empty
+// key means there is no route back into the panel from the UI at all.
+//
+// This restores that route without bringing back the hardcoded
+// admin/admin123 fallback that #105 removed. The seed password comes from a
+// Vercel environment variable, so it never lives in this repo or its git
+// history, the admin chooses it, and it can be rotated or removed from the
+// Vercel dashboard. When ADMIN_BOOTSTRAP_PASSWORD is unset the behaviour is
+// exactly what it is today: login stays blocked, visibly, rather than
+// accepting a password anyone reading this repo would know.
+//
+// Seeding does NOT by itself let anyone in — it only writes the credential.
+// The caller still has to present that username and password to the normal
+// hash comparison below, so triggering the seed is worthless without the
+// env var's value.
+const BOOTSTRAP_USER = process.env.ADMIN_BOOTSTRAP_USER || 'admin';
+const BOOTSTRAP_PASSWORD = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+const BOOTSTRAP_MIN_LEN = 8;
+
+async function seedAdminCreds() {
+  if (!BOOTSTRAP_PASSWORD) return null;
+  // Same floor handleRegister() applies to customers — a bootstrap credential
+  // that can be brute-forced is the hole #105 closed, reopened by other means.
+  if (String(BOOTSTRAP_PASSWORD).length < BOOTSTRAP_MIN_LEN) {
+    await logSystemError('auth:admin-bootstrap',
+      'ADMIN_BOOTSTRAP_PASSWORD is shorter than ' + BOOTSTRAP_MIN_LEN + ' characters; refusing to seed admin credentials.');
+    return null;
+  }
+
+  const salt = genSalt();
+  const creds = { username: BOOTSTRAP_USER, password: hashPass(BOOTSTRAP_PASSWORD, salt), salt };
+  // db.js stamps smm_admin_creds_changed_at / _change_log on this write, so
+  // the bootstrap shows up in ?diag=admin-audit like any other credential
+  // change rather than happening silently.
+  const resp = await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST',
+    headers: dbHeaders(),
+    body: JSON.stringify({ smm_admin_creds: creds, smm_ts: Date.now() })
+  });
+  if (!resp.ok) {
+    // Don't authenticate against a credential the store never accepted —
+    // otherwise the next request finds the key still empty and re-seeds with
+    // a fresh salt, and the admin appears to log in against nothing.
+    await logSystemError('auth:admin-bootstrap',
+      'Failed to persist bootstrapped admin credentials.', { status: resp.status });
+    return null;
+  }
+  return creds;
+}
+
 async function handleAdminLogin(body, ip, ua) {
   ip = ip || 'unknown';
   const username = String(body.username || '').trim();
@@ -221,17 +274,22 @@ async function handleAdminLogin(body, ip, ua) {
 
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
-  // No longer falls back to a hardcoded default password when
-  // smm_admin_creds isn't configured — a real admin credential has been set
-  // on this deployment, so if that setting were ever accidentally cleared,
-  // the correct outcome is login being blocked (visibly broken, gets
-  // noticed and fixed) rather than silently accepting a public, well-known
-  // password (admin/admin123) that anyone reading this repo's history knows.
-  if (!db.smm_admin_creds || !db.smm_admin_creds.username || !db.smm_admin_creds.password) {
-    await logAdminLoginAttempt({ ok: false, reason: 'creds-not-configured', username: username, ip: ip, ua: ua || null });
-    return { ok: false, error: 'Admin credentials are not configured.' };
+  // Still no hardcoded default password when smm_admin_creds isn't
+  // configured — a public, well-known credential (admin/admin123) that
+  // anyone reading this repo's history knows is exactly what #105 removed.
+  // Instead, recover from an empty key using an operator-supplied
+  // ADMIN_BOOTSTRAP_PASSWORD if one is set (see seedAdminCreds above). With
+  // no such env var this behaves as before: login is blocked, which is
+  // visibly broken and therefore gets noticed and fixed.
+  let creds = db.smm_admin_creds;
+  if (!creds || !creds.username || !creds.password) {
+    creds = await seedAdminCreds();
+    if (!creds) {
+      await logAdminLoginAttempt({ ok: false, reason: 'creds-not-configured', username: username, ip: ip, ua: ua || null });
+      return { ok: false, error: 'Admin credentials are not configured.' };
+    }
+    await logAdminLoginAttempt({ ok: false, reason: 'creds-bootstrapped', username: creds.username, ip: ip, ua: ua || null });
   }
-  const creds = db.smm_admin_creds;
 
   if (username !== creds.username || !creds.salt || hashPass(password, creds.salt) !== creds.password) {
     await logAdminLoginAttempt({ ok: false, reason: 'invalid-credentials', username: username, ip: ip, ua: ua || null });
