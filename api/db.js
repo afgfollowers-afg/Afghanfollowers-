@@ -189,8 +189,25 @@ module.exports = async (req, res) => {
     }
     try {
       const probe = await readBin(BIN_ID);
+      const svcProbe = SVC_BIN_ID ? await readBin(SVC_BIN_ID) : null;
       return res.status(200).json({
         diag: 'jsonbin', binId: true, apiKey: true,
+        // Safe key fingerprints (NOT the key): a real JSONBin master key is a
+        // ~60-char bcrypt string starting "$2a$"/"$2b$". If keyPrefix is not
+        // one of those (e.g. the leading "$" got eaten by a .env bulk-paste),
+        // or keyLen is short, the value STORED in Vercel is corrupted even if
+        // the key you copied was correct. keyEndsClean=false means a trailing
+        // space/newline slipped in. None of these 4 chars reveal the key.
+        keyLen: API_KEY.length,
+        keyPrefix: API_KEY.slice(0, 4),
+        keyEndsClean: /[A-Za-z0-9./]$/.test(API_KEY),
+        binIdUsed: BIN_ID,
+        svcBinIdUsed: SVC_BIN_ID || null,
+        // jsonbin's OWN response so we see exactly why it rejects it:
+        //   "Invalid X-Master-Key"  -> key is wrong/corrupted (401)
+        //   "not authorized"/bin    -> key is from a different account (403)
+        main: { ok: probe.ok, status: probe.status, message: probe.ok ? 'ok' : probe.raw },
+        svc: svcProbe ? { ok: svcProbe.ok, status: svcProbe.status, message: svcProbe.ok ? 'ok' : svcProbe.raw } : null,
         ok: probe.ok, status: probe.status,
         users: probe.ok && Array.isArray(probe.record.smm_users) ? probe.record.smm_users.length : null,
         orders: probe.ok && Array.isArray(probe.record.smm_orders) ? probe.record.smm_orders.length : null,
