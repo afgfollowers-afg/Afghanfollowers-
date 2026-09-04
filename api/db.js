@@ -810,9 +810,16 @@ module.exports = async (req, res) => {
         smmUsersRestricted = usersResult.restricted;
       }
       if (body.smm_users_delete_id !== undefined) {
-        current.smm_users = (current.smm_users || []).filter(function (u) {
-          return String(u.id) !== String(body.smm_users_delete_id);
-        });
+        // Deleting a user is admin-only. Previously this had NO auth check at
+        // all, so any caller past the public x-db-key gate could erase any
+        // customer (and their balance/history) — a data-destruction hole.
+        // Gated the same way smm_orders_delete_id already is.
+        const delUAuth = AUTH_CONFIGURED ? (smmUsersAuth || getAuth(req)) : null;
+        if (!AUTH_CONFIGURED || (delUAuth && delUAuth.role === 'admin')) {
+          current.smm_users = (current.smm_users || []).filter(function (u) {
+            return String(u.id) !== String(body.smm_users_delete_id);
+          });
+        }
       }
       // Looks up a service's real per-1000 price from the compressed smm_svc
       // catalog array (see admin.html's syncServicesToPanel(): index 1=svcId,
@@ -1022,7 +1029,15 @@ module.exports = async (req, res) => {
         // captured PayPal order can never be credited twice.
         current.smm_paypal_processed = body.smm_paypal_processed;
       }
-      if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object') {
+      if (body.smm_admin_creds && typeof body.smm_admin_creds === 'object'
+          // Changing the admin login is admin-only. Previously this had NO
+          // auth check, so any caller past the public x-db-key gate could
+          // overwrite the admin username/password and lock the real admin out
+          // — a full account-takeover hole. Gate it like every other admin-
+          // only field. (When AUTH is off nothing here is enforceable anyway;
+          // the real defense is setting AUTH_JWT_SECRET so AUTH_CONFIGURED is
+          // true — see the sanitizer bypass at computeMergedUsers.)
+          && (!AUTH_CONFIGURED || (function () { const a = smmUsersAuth || getAuth(req); return a && a.role === 'admin'; })())) {
         // Record WHEN and FROM/TO which username the admin credential last
         // changed, so a credential takeover leaves a visible trace (surfaced
         // by ?diag=admin-audit). Only stamp on a real change, not on an
