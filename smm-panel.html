@@ -4942,7 +4942,12 @@ function pullFromServerOnLoad(){
     }).catch(function(){});
 }
 pullFromServerOnLoad();
-setInterval(pullFromServerOnLoad,30000);
+// Poll every 2 min instead of 30s, and skip entirely while the tab is
+// backgrounded — each pull is 2 JSONBin reads (main + svc bin), and a swarm
+// of left-open 30s-polling tabs is what exhausts the JSONBin request quota.
+// The visibilitychange/focus handlers below still force a fresh pull the
+// instant the tab is looked at again, so freshness on return is unaffected.
+setInterval(function(){ if(document.visibilityState==='visible') pullFromServerOnLoad(); },120000);
 
 // Mobile browsers/installed PWAs throttle or fully suspend setInterval
 // while the tab is backgrounded (phone locked, switched to another app) —

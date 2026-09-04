@@ -9330,8 +9330,18 @@ function pushToServer(){
     else if(err.message) console.warn('pullFromServer error:',err.message);
   });
 }
-setInterval(pullFromServer,30000);
+// Poll every 2 min instead of 30s, and skip entirely while the tab is
+// backgrounded — each pull is 2 JSONBin reads (main + svc bin), and admin
+// tabs left open all day polling every 30s are a major drain on the JSONBin
+// request quota. A focus/visibility handler pulls fresh data the instant the
+// admin returns to the tab, so the slower interval never shows stale data.
+setInterval(function(){ if(document.visibilityState==='visible') pullFromServer(); },120000);
 setTimeout(pullFromServer,500);
+var _lastAdminVisPull=Date.now();
+function _adminPullIfDue(){ if(Date.now()-_lastAdminVisPull<5000) return; _lastAdminVisPull=Date.now(); pullFromServer(); }
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _adminPullIfDue(); });
+window.addEventListener('focus',_adminPullIfDue);
+window.addEventListener('pageshow',function(e){ if(e.persisted) _adminPullIfDue(); });
 
 // ══════════════════════════════════════════
 // ══ SIDEBAR COLLAPSE ══════════════════════
