@@ -14,9 +14,10 @@
 // hashPass()/genSalt() byte-for-byte, so no existing account needs a forced
 // reset) here on the server, and only then issue a signed session token
 // (see _auth.js) that api/db.js and api/paypal-verify.js can trust.
+const crypto = require('crypto');
 const { dbHeaders, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
 const { hashPass, genSalt } = require('./_passhash');
-const { signToken, AUTH_CONFIGURED } = require('./_auth');
+const { signToken, verifyToken, AUTH_CONFIGURED } = require('./_auth');
 const { rateLimit } = require('./_ratelimit');
 
 const SITE = 'https://afghanfollowers.online';
@@ -27,6 +28,9 @@ const RATE_LIMITS = {
   register: [5, 15 * 60 * 1000],
   google: [10, 5 * 60 * 1000],
   'admin-login': [5, 15 * 60 * 1000],
+  // Tighter than admin-login: this is the one path that mints a trusted
+  // device, so brute-forcing ADMIN_DEVICE_ENROLL_CODE must stay expensive.
+  'admin-device-enroll': [3, 30 * 60 * 1000],
   'profile-check': [30, 5 * 60 * 1000]
 };
 
@@ -261,39 +265,165 @@ async function seedAdminCreds() {
   return creds;
 }
 
-async function handleAdminLogin(body, ip, ua) {
-  ip = ip || 'unknown';
+// The username/password half of admin authentication, shared by the login and
+// device-enrolment paths so both enforce exactly the same credential rules and
+// the same smm_admin_creds bootstrap. Returns the matched creds on success;
+// callers own the audit logging so each can record its own reason string.
+async function verifyAdminPassword(body) {
   const username = String(body.username || '').trim();
   const password = body.password;
   if (!username || !password) {
-    await logAdminLoginAttempt({ ok: false, reason: 'missing-credentials', username: username || null, ip: ip, ua: ua || null });
-    return { ok: false, error: 'Missing username or password' };
+    return { ok: false, reason: 'missing-credentials', error: 'Missing username or password' };
   }
 
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
   // An empty smm_admin_creds self-heals into the default admin credential
   // (see seedAdminCreds above) rather than blocking login. This reverses
-  // #105 by the owner's decision — the default password is public, so anyone
-  // can claim admin whenever this key is empty.
+  // #105 by the owner's decision — the default password is public, which is
+  // survivable only because the device gate in handleAdminLogin() means the
+  // password alone no longer gets anyone into the panel.
   let creds = db.smm_admin_creds;
   if (!creds || !creds.username || !creds.password) {
     creds = await seedAdminCreds();
     if (!creds) {
-      await logAdminLoginAttempt({ ok: false, reason: 'creds-not-configured', username: username, ip: ip, ua: ua || null });
-      return { ok: false, error: 'Admin credentials are not configured.' };
+      return { ok: false, reason: 'creds-not-configured', error: 'Admin credentials are not configured.' };
     }
-    await logAdminLoginAttempt({ ok: false, reason: 'creds-bootstrapped', username: creds.username, ip: ip, ua: ua || null });
   }
 
   if (username !== creds.username || !creds.salt || hashPass(password, creds.salt) !== creds.password) {
-    await logAdminLoginAttempt({ ok: false, reason: 'invalid-credentials', username: username, ip: ip, ua: ua || null });
-    return { ok: false, error: 'Invalid credentials' };
+    return { ok: false, reason: 'invalid-credentials', error: 'Invalid credentials' };
+  }
+  return { ok: true, creds: creds };
+}
+
+// ---------------------------------------------------------------------------
+// Admin device lock — the admin panel opens only on browsers that have been
+// explicitly enrolled, so a correct password on an unknown device is not
+// enough to get in.
+//
+// Deliberately STATELESS: an enrolled device holds a long-lived HMAC-signed
+// token (same _auth.js secret as every other token here) instead of the server
+// keeping a device allowlist in the JSONBin store. Two reasons:
+//   1. That store is the panel's single point of failure — when its request
+//      quota is exhausted it serves empty objects and silently drops writes,
+//      which is exactly how smm_admin_creds came to read as "not configured".
+//      An allowlist kept there would evaporate the same way and lock the admin
+//      out of their own panel, or re-enroll attackers, depending on which way
+//      the failure fell. A signature the server can recompute from
+//      AUTH_JWT_SECRET cannot be lost by a datastore outage.
+//   2. It costs zero extra reads/writes per login, on a store already at its
+//      quota ceiling.
+//
+// Enrolling a device requires the admin password AND ADMIN_DEVICE_ENROLL_CODE,
+// a value that exists only in Vercel's environment. That second factor is what
+// makes the public admin/admin123 default survivable: knowing the password does
+// not by itself get anyone in, and the enroll code is not in this repo.
+//
+// Revocation is deliberately coarse (there is one admin with a couple of
+// devices, not a fleet): bump ADMIN_DEVICE_EPOCH in Vercel and every enrolled
+// device is invalidated at once and must re-enroll. There is no per-device
+// revoke list precisely because such a list would have to live in the store
+// this design is avoiding.
+//
+// Lockout safety: enrollment depends only on Vercel env vars, which the owner
+// always controls, so there is no state that can strand them outside the panel.
+// Until ADMIN_DEVICE_ENROLL_CODE is set the gate stays open (see
+// handleAdminLogin) so that shipping this file cannot itself lock anyone out.
+const DEVICE_ENROLL_CODE = process.env.ADMIN_DEVICE_ENROLL_CODE || '';
+const DEVICE_EPOCH = process.env.ADMIN_DEVICE_EPOCH || '1';
+const DEVICE_TTL_SECONDS = 365 * 24 * 60 * 60; // re-enroll once a year
+
+// Constant-time compare so the enroll code can't be recovered a character at a
+// time from response timing. Length is compared first and non-secretly, since
+// timingSafeEqual throws on a length mismatch.
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a), 'utf8');
+  const bb = Buffer.from(String(b), 'utf8');
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+// A device token is valid only if it is properly signed, unexpired, actually a
+// device token (not an admin session token replayed into this slot), and
+// stamped with the current epoch.
+function deviceFromToken(deviceToken) {
+  const payload = verifyToken(deviceToken);
+  if (!payload || payload.typ !== 'device') return null;
+  if (String(payload.epoch) !== String(DEVICE_EPOCH)) return null;
+  return payload;
+}
+
+// Enrolls the browser that presents the right admin password AND enroll code.
+// Returns a device token the client stores once and replays on every login.
+async function handleAdminDeviceEnroll(body, ip, ua) {
+  ip = ip || 'unknown';
+  if (!DEVICE_ENROLL_CODE) {
+    return { ok: false, error: 'Device enrollment is not configured. Set ADMIN_DEVICE_ENROLL_CODE in Vercel.' };
   }
 
-  await logAdminLoginAttempt({ ok: true, reason: 'success', username: creds.username, ip: ip, ua: ua || null });
-  const token = signToken({ sub: creds.username, role: 'admin' });
-  return { ok: true, token, username: creds.username };
+  // Enrolling is a privileged act, so it demands the password too — the enroll
+  // code alone must not mint a trusted device.
+  const credCheck = await verifyAdminPassword(body);
+  if (!credCheck.ok) {
+    await logAdminLoginAttempt({ ok: false, reason: 'device-enroll-bad-credentials', username: String(body.username || '') || null, ip: ip, ua: ua || null });
+    return { ok: false, error: credCheck.error };
+  }
+  if (!safeEqual(String(body.enrollCode || ''), DEVICE_ENROLL_CODE)) {
+    await logAdminLoginAttempt({ ok: false, reason: 'device-enroll-bad-code', username: credCheck.creds.username, ip: ip, ua: ua || null });
+    return { ok: false, error: 'Invalid enrollment code' };
+  }
+
+  const name = String(body.deviceName || '').trim().slice(0, 40) || 'Unnamed device';
+  const did = crypto.randomBytes(16).toString('hex');
+  const deviceToken = signToken({ typ: 'device', did: did, name: name, epoch: DEVICE_EPOCH }, DEVICE_TTL_SECONDS);
+  await logAdminLoginAttempt({ ok: true, reason: 'device-enrolled', username: credCheck.creds.username, ip: ip, ua: ua || null, device: name, did: did });
+  return { ok: true, deviceToken, deviceName: name, did: did };
+}
+
+async function handleAdminLogin(body, ip, ua) {
+  ip = ip || 'unknown';
+  const deviceToken = body.deviceToken;
+
+  const credCheck = await verifyAdminPassword(body);
+  if (!credCheck.ok) {
+    await logAdminLoginAttempt({ ok: false, reason: credCheck.reason, username: String(body.username || '') || null, ip: ip, ua: ua || null });
+    return { ok: false, error: credCheck.error };
+  }
+  const creds = credCheck.creds;
+
+  // The device gate sits AFTER the password check on purpose: an unknown
+  // browser holding a wrong password learns only "invalid credentials", so
+  // this response can't be used to probe which passwords are valid.
+  const device = deviceFromToken(deviceToken);
+  if (!device) {
+    // Fail OPEN while ADMIN_DEVICE_ENROLL_CODE is unset, because there is no
+    // way to enroll a first device without it — enforcing the gate before it
+    // can be configured would brick the panel for its only admin, with the
+    // fix reachable only from that same panel. This is not a weakening: with
+    // no enroll code set, the deployment is in exactly the state it was in
+    // before device-lock existed. The gate arms itself the moment the env var
+    // is present, with no redeploy of this file required.
+    if (!DEVICE_ENROLL_CODE) {
+      await logAdminLoginAttempt({ ok: true, reason: 'success-device-lock-inactive', username: creds.username, ip: ip, ua: ua || null });
+      const openToken = signToken({ sub: creds.username, role: 'admin' });
+      return { ok: true, token: openToken, username: creds.username, deviceLockInactive: true };
+    }
+    await logAdminLoginAttempt({ ok: false, reason: deviceToken ? 'device-not-recognised' : 'device-absent', username: creds.username, ip: ip, ua: ua || null });
+    // needDevice tells admin.html to show the enrollment form instead of the
+    // ordinary "wrong password" error — the password was in fact correct.
+    return {
+      ok: false, needDevice: true,
+      enrollConfigured: true,
+      error: 'This device is not authorised for the admin panel.'
+    };
+  }
+
+  await logAdminLoginAttempt({ ok: true, reason: 'success', username: creds.username, ip: ip, ua: ua || null, device: device.name, did: device.did });
+  // did travels in the session token so a later audit can tell which enrolled
+  // device an admin action came from.
+  const token = signToken({ sub: creds.username, role: 'admin', did: device.did });
+  return { ok: true, token, username: creds.username, deviceName: device.name };
 }
 
 async function handleProfileCheck(body) {
@@ -382,6 +512,11 @@ module.exports = async (req, res) => {
       const _ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim() || 'unknown';
       const _ua = String(req.headers['user-agent'] || '').slice(0, 160);
       result = await handleAdminLogin(body, _ip, _ua);
+    }
+    else if (action === 'admin-device-enroll') {
+      const _ip = String(req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || '').split(',')[0].trim() || 'unknown';
+      const _ua = String(req.headers['user-agent'] || '').slice(0, 160);
+      result = await handleAdminDeviceEnroll(body, _ip, _ua);
     }
     else if (action === 'profile-check') result = await handleProfileCheck(body);
     else return res.status(200).json({ ok: false, error: 'Unknown action' });

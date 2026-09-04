@@ -2239,11 +2239,29 @@ th{font-size:10px;}
       <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--mt)">
         🔒 Admin access only · All actions are logged
       </div>
-    </div>
 
-    <!-- Default credentials hint (remove in production) -->
-    <div id="admin-hint" style="margin-top:14px;background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.2);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--acc2);text-align:center">
-      Default: <strong>admin</strong> / <strong>admin123</strong> — Change in Settings
+      <!-- Device enrolment — revealed only when the password was CORRECT but
+           this browser has no valid device token (api/auth.js returns
+           needDevice). Enrolling additionally requires ADMIN_DEVICE_ENROLL_CODE,
+           which lives only in Vercel's env, so a correct password on an
+           unknown device still cannot open the panel. -->
+      <div id="admin-device-box" style="display:none;margin-top:18px;padding-top:18px;border-top:1px solid var(--bd)">
+        <div style="font-size:13px;font-weight:700;color:var(--tx);margin-bottom:6px">🔐 Authorise this device</div>
+        <div id="admin-device-msg" style="font-size:12px;color:var(--mt);line-height:1.6;margin-bottom:14px">
+          Your password was correct, but this browser isn't authorised yet. Enter your enrollment code to trust it.
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block">Device name</label>
+          <input class="fi" id="admin-device-name" type="text" placeholder="e.g. My PC" style="background:var(--s2);border:1.5px solid var(--bd);color:var(--tx);padding:12px 14px;border-radius:10px;font-size:14px;outline:none;width:100%;font-family:var(--fn)">
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:11px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block">Enrollment code</label>
+          <input class="fi" id="admin-device-code" type="password" placeholder="••••••••" autocomplete="one-time-code" style="background:var(--s2);border:1.5px solid var(--bd);color:var(--tx);padding:12px 14px;border-radius:10px;font-size:14px;outline:none;width:100%;font-family:var(--fn)">
+        </div>
+        <button id="admin-device-btn" onclick="doAdminDeviceEnroll()" style="width:100%;padding:13px;border-radius:11px;border:none;background:linear-gradient(135deg,#10b981,#047857);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fn);box-shadow:0 6px 20px rgba(16,185,129,.3)">
+          ✅ Trust this device
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -8864,8 +8882,26 @@ function doAdminLogin(){
   // api/_auth.js) is only ever issued once the server itself confirms it.
   fetch('/api/auth?action=admin-login',{
     method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({username:username,password:password})
+    body:JSON.stringify({username:username,password:password,deviceToken:getAdminDeviceToken()})
   }).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.needDevice){
+      // Password was right; only the device is untrusted. Reveal the
+      // enrolment form rather than the misleading "wrong password" error.
+      btn.innerHTML='🔐 Sign In';
+      btn.disabled=false;
+      var box=document.getElementById('admin-device-box');
+      if(box) box.style.display='block';
+      var nameInp=document.getElementById('admin-device-name');
+      if(nameInp&&!nameInp.value) nameInp.value=guessDeviceName();
+      if(!d.enrollConfigured){
+        var msg=document.getElementById('admin-device-msg');
+        if(msg) msg.innerHTML='Device enrollment isn\'t configured yet. Set <strong>ADMIN_DEVICE_ENROLL_CODE</strong> in your Vercel environment variables, redeploy, then reload this page.';
+        var eb=document.getElementById('admin-device-btn');
+        if(eb) eb.disabled=true;
+      }
+      showAdminLoginAlert('🔐 This device isn\'t authorised yet');
+      return;
+    }
     if(!d||!d.ok){
       btn.innerHTML='🔐 Sign In';
       btn.disabled=false;
@@ -8899,12 +8935,91 @@ function doAdminLogin(){
     initDash();
     savePmVisibility();
     toast('Welcome back, '+username+'! 👋','s');
+    // Device lock is deployed but not yet armed — say so every login, so a
+    // half-finished setup can't be mistaken for a protected panel.
+    if(d.deviceLockInactive){
+      setTimeout(function(){
+        toast('⚠️ Device lock is OFF — set ADMIN_DEVICE_ENROLL_CODE in Vercel to restrict the panel to your devices','e');
+      },3500);
+    }else if(d.deviceName){
+      setTimeout(function(){toast('🔐 Signed in on trusted device: '+d.deviceName,'s');},3500);
+    }
+  });
+}
+
+// --- Admin device lock (client half) ------------------------------------
+// The device token is a long-lived HMAC-signed token minted by
+// api/auth.js?action=admin-device-enroll. It is NOT a password and grants
+// nothing on its own — the admin password is still required on every login.
+// It only answers "is this one of the browsers the owner authorised".
+var ADMIN_DEVICE_KEY='smm_admin_device';
+function getAdminDeviceToken(){
+  try{return localStorage.getItem(ADMIN_DEVICE_KEY)||'';}catch(e){return '';}
+}
+function setAdminDeviceToken(t){
+  try{localStorage.setItem(ADMIN_DEVICE_KEY,t);}catch(e){}
+}
+
+// Suggests a readable device name so the audit log shows "My PC" rather than
+// a raw user-agent string. The admin can overwrite it.
+function guessDeviceName(){
+  var ua=navigator.userAgent||'';
+  var isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  var os='Device';
+  if(/Windows/i.test(ua)) os='Windows PC';
+  else if(/Macintosh|Mac OS/i.test(ua)) os='Mac';
+  else if(/Android/i.test(ua)) os='Android';
+  else if(/iPhone|iPad|iPod/i.test(ua)) os='iPhone/iPad';
+  else if(/Linux/i.test(ua)) os='Linux';
+  return isMobile?(os+' (mobile)'):os;
+}
+
+function doAdminDeviceEnroll(){
+  var btn=document.getElementById('admin-device-btn');
+  var code=(document.getElementById('admin-device-code')||{}).value||'';
+  var name=(document.getElementById('admin-device-name')||{}).value||'';
+  var username=document.getElementById('admin-username-inp').value.trim();
+  var password=document.getElementById('admin-pass-inp').value;
+  if(!code.trim()){showAdminLoginAlert('Please enter your enrollment code');return;}
+  if(!username||!password){showAdminLoginAlert('Please re-enter your username and password');return;}
+  if(!name.trim()) name=guessDeviceName();
+
+  btn.disabled=true;
+  btn.innerHTML='<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>';
+
+  fetch('/api/auth?action=admin-device-enroll',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:username,password:password,enrollCode:code,deviceName:name})
+  }).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false;
+    btn.innerHTML='✅ Trust this device';
+    if(!d||!d.ok){
+      showAdminLoginAlert('❌ '+((d&&d.error)||'Enrollment failed'));
+      var ci=document.getElementById('admin-device-code'); if(ci) ci.value='';
+      return;
+    }
+    setAdminDeviceToken(d.deviceToken);
+    var box=document.getElementById('admin-device-box');
+    if(box) box.style.display='none';
+    showAdminLoginAlert('✅ Device authorised — signing you in…');
+    // Device is trusted now, so replay the ordinary login to get a session.
+    doAdminLogin();
+  }).catch(function(){
+    btn.disabled=false;
+    btn.innerHTML='✅ Trust this device';
+    showAdminLoginAlert('❌ Network error during enrollment');
   });
 }
 
 function showAdminLoginAlert(msg){
   var el=document.getElementById('admin-login-alert');
   el.textContent=msg;
+  // The box is styled red in markup; device-lock added success/neutral states
+  // to it, so tint by message kind instead of always reading as an error.
+  var ok=msg.indexOf('✅')===0, info=msg.indexOf('🔐')===0;
+  el.style.background=ok?'rgba(16,185,129,.1)':info?'rgba(124,92,252,.1)':'rgba(255,92,125,.1)';
+  el.style.borderColor=ok?'rgba(16,185,129,.3)':info?'rgba(124,92,252,.3)':'rgba(255,92,125,.3)';
+  el.style.color=ok?'#10b981':info?'var(--acc2)':'var(--rd)';
   el.style.display='block';
   setTimeout(function(){el.style.display='none';},3000);
 }
