@@ -451,7 +451,14 @@ module.exports = async (req, res) => {
     if (!main.ok) return res.status(200).json({ diag: 'GET_MAIN_FAILED', jsonbinStatus: main.status, jsonbinBodyRaw: main.raw });
 
     let svc = [];
-    if (SVC_BIN_ID) {
+    // ?nosvc=1 lets a frequent poller (the admin/customer 30s auto-refresh)
+    // skip the SECOND bin read. The service catalog changes rarely, so
+    // re-reading it on every poll just burns the storage quota for nothing;
+    // callers that actually need services (first page load, the Services
+    // page, a manual sync) omit the flag and get them as before. Halves the
+    // per-poll read cost, which is what keeps a 30s refresh affordable.
+    const skipSvc = !!(req.query && (req.query.nosvc === '1' || req.query.nosvc === 'true'));
+    if (SVC_BIN_ID && !skipSvc) {
       const svcResult = await readBin(SVC_BIN_ID);
       if (svcResult.ok) {
         try {
