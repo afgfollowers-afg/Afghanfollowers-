@@ -13,6 +13,8 @@ const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = r
 const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 const { dispatchOneOrder } = require('./sync-orders');
 
+const { KV_ENABLED, kvGet, KV_MAIN_KEY } = require('./_kv');
+
 const SITE = 'https://afghanfollowers.online';
 const BIN_ID = process.env.JSONBIN_BIN_ID;
 const API_KEY = process.env.JSONBIN_API_KEY;
@@ -29,6 +31,15 @@ const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
 const DEPLOY_MARKER = 'pv-2026-07-28-v10-env-diag';
 
 async function readRecord() {
+  // When Upstash (KV) is the store, read the main blob straight from it — the
+  // JSONBin read-after-write caching quirk described below doesn't apply, and
+  // this is the whole point of the migration (JSONBin's quota is exhausted).
+  if (KV_ENABLED) {
+    const g = await kvGet(KV_MAIN_KEY);
+    if (!g.ok) throw new Error('Failed to read database (kv ' + g.status + ')');
+    if (g.value === null || g.value === undefined || g.value === '') return {};
+    try { return JSON.parse(g.value); } catch (e) { throw new Error('Failed to parse database (kv)'); }
+  }
   // The retry-until-verified loop below proved a write JSONBin's own PUT
   // confirmed can still be invisible to a GET moments later, consistently,
   // not as an occasional fluke — which stopped looking like an application-

@@ -8,6 +8,7 @@
 const zlib = require('zlib');
 const { DB_SERVICE_KEY } = require('./_dbkey');
 const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
+const { KV_ENABLED, kvGet, kvSet, KV_MAIN_KEY, KV_SVC_KEY } = require('./_kv');
 const AGENT_SECRET = process.env.AGENT_SECRET;
 
 // Transaction types that credit or debit a wallet by admin/server decision
@@ -120,13 +121,37 @@ function sanitizeCustomerUserWrites(incoming, currentUsers, subId, serverOrders)
   return out;
 }
 
-const BIN_ID = process.env.JSONBIN_BIN_ID;
-const SVC_BIN_ID = process.env.JSONBIN_SVC_BIN_ID;
+// When Upstash (KV) is enabled but the old JSONBIN_* ids aren't set, fall back
+// to sentinels so every "is a bin configured?" guard below still passes and
+// readBin/writeBin can tell the main store from the service store by comparing
+// the passed id against SVC_BIN_ID (unchanged from the JSONBin code path).
+const KV_MAIN_SENTINEL = '__kv_main__';
+const KV_SVC_SENTINEL = '__kv_svc__';
+const BIN_ID = process.env.JSONBIN_BIN_ID || (KV_ENABLED ? KV_MAIN_SENTINEL : undefined);
+const SVC_BIN_ID = process.env.JSONBIN_SVC_BIN_ID || (KV_ENABLED ? KV_SVC_SENTINEL : undefined);
 const API_KEY = process.env.JSONBIN_API_KEY;
 const BASE = 'https://api.jsonbin.io/v3/b/';
+// True once a storage backend (Upstash KV, or the classic JSONBin trio) is
+// configured — replaces the old bare "!BIN_ID || !API_KEY" checks so KV-only
+// deployments (no JSONBIN_API_KEY) aren't wrongly reported as unconfigured.
+const STORE_CONFIGURED = KV_ENABLED || !!(process.env.JSONBIN_BIN_ID && API_KEY);
 const SITE_ORIGIN = 'https://afghanfollowers.online';
 
+// Which fixed Upstash key a given bin id maps to. Service-catalog calls pass
+// SVC_BIN_ID; everything else is the main record.
+function kvKeyFor(binId) { return (SVC_BIN_ID && binId === SVC_BIN_ID) ? KV_SVC_KEY : KV_MAIN_KEY; }
+
 async function readBin(binId) {
+  if (KV_ENABLED) {
+    const g = await kvGet(kvKeyFor(binId));
+    if (!g.ok) return { ok: false, status: g.status, raw: g.raw };
+    // A never-written key returns null — treat as an empty record so a fresh
+    // Upstash database behaves like a fresh JSONBin bin (the app seeds it on
+    // first write) rather than looking like a read failure.
+    if (g.value === null || g.value === undefined || g.value === '') return { ok: true, record: {} };
+    try { return { ok: true, record: JSON.parse(g.value) }; }
+    catch (e) { return { ok: false, status: 500, raw: 'kv parse error: ' + e.message }; }
+  }
   // See api/paypal-verify.js's readRecord() for why: a write JSONBin's own
   // PUT confirmed can still be invisible to a GET moments later, and it
   // happened consistently across repeated real-world attempts rather than
@@ -145,6 +170,9 @@ async function readBin(binId) {
 }
 
 async function writeBin(binId, record) {
+  if (KV_ENABLED) {
+    return await kvSet(kvKeyFor(binId), JSON.stringify(record));
+  }
   const r = await fetch(BASE + binId, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
@@ -184,37 +212,38 @@ module.exports = async (req, res) => {
   // only whether the env vars are set, whether JSONBin answers, and
   // non-sensitive counts (no balances, emails, or any PII).
   if (req.query && req.query.diag === 'jsonbin') {
-    if (!BIN_ID || !API_KEY) {
-      return res.status(200).json({ diag: 'jsonbin', binId: !!BIN_ID, apiKey: !!API_KEY, ok: false, error: 'not configured' });
+    const backend = KV_ENABLED ? 'upstash' : 'jsonbin';
+    if (!STORE_CONFIGURED) {
+      return res.status(200).json({ diag: 'jsonbin', backend, binId: !!BIN_ID, apiKey: !!API_KEY, ok: false, error: 'not configured' });
     }
     try {
       const probe = await readBin(BIN_ID);
       const svcProbe = SVC_BIN_ID ? await readBin(SVC_BIN_ID) : null;
-      return res.status(200).json({
-        diag: 'jsonbin', binId: true, apiKey: true,
-        // Safe key fingerprints (NOT the key): a real JSONBin master key is a
-        // ~60-char bcrypt string starting "$2a$"/"$2b$". If keyPrefix is not
-        // one of those (e.g. the leading "$" got eaten by a .env bulk-paste),
-        // or keyLen is short, the value STORED in Vercel is corrupted even if
-        // the key you copied was correct. keyEndsClean=false means a trailing
-        // space/newline slipped in. None of these 4 chars reveal the key.
-        keyLen: API_KEY.length,
-        keyPrefix: API_KEY.slice(0, 4),
-        keyEndsClean: /[A-Za-z0-9./]$/.test(API_KEY),
+      const out = {
+        diag: 'jsonbin', backend, binId: true, apiKey: KV_ENABLED ? undefined : true,
         binIdUsed: BIN_ID,
         svcBinIdUsed: SVC_BIN_ID || null,
-        // jsonbin's OWN response so we see exactly why it rejects it:
-        //   "Invalid X-Master-Key"  -> key is wrong/corrupted (401)
-        //   "not authorized"/bin    -> key is from a different account (403)
+        // the backend's OWN response, so a failure's real cause is visible
+        // (jsonbin: "Invalid X-Master-Key" / "Requests exhausted"; upstash: an
+        // auth or URL error) rather than a bare status code.
         main: { ok: probe.ok, status: probe.status, message: probe.ok ? 'ok' : probe.raw },
         svc: svcProbe ? { ok: svcProbe.ok, status: svcProbe.status, message: svcProbe.ok ? 'ok' : svcProbe.raw } : null,
         ok: probe.ok, status: probe.status,
         users: probe.ok && Array.isArray(probe.record.smm_users) ? probe.record.smm_users.length : null,
         orders: probe.ok && Array.isArray(probe.record.smm_orders) ? probe.record.smm_orders.length : null,
         smm_ts: probe.ok ? probe.record.smm_ts : null
-      });
+      };
+      // JSONBin-only: safe key fingerprints (NOT the key) to catch a corrupted
+      // master key (leading "$" eaten by a .env bulk-paste, truncation, or a
+      // trailing space). Meaningless under Upstash, so omitted there.
+      if (!KV_ENABLED && API_KEY) {
+        out.keyLen = API_KEY.length;
+        out.keyPrefix = API_KEY.slice(0, 4);
+        out.keyEndsClean = /[A-Za-z0-9./]$/.test(API_KEY);
+      }
+      return res.status(200).json(out);
     } catch (err) {
-      return res.status(200).json({ diag: 'jsonbin', binId: true, apiKey: true, ok: false, error: err.message });
+      return res.status(200).json({ diag: 'jsonbin', backend, ok: false, error: err.message });
     }
   }
 
@@ -226,7 +255,7 @@ module.exports = async (req, res) => {
   // checkable from a browser; the figures are balances with no identity
   // attached. Read-only.
   if (req.query && req.query.diag === 'balances') {
-    if (!BIN_ID || !API_KEY) return res.status(200).json({ diag: 'balances', ok: false, error: 'not configured' });
+    if (!STORE_CONFIGURED) return res.status(200).json({ diag: 'balances', ok: false, error: 'not configured' });
     let rec;
     try {
       const probe = await readBin(BIN_ID);
@@ -267,7 +296,7 @@ module.exports = async (req, res) => {
   // username), the recent admin-login attempts (success + failure, with IP),
   // and recent sign-ups. This is exactly the trail needed to spot a takeover.
   if (req.query && req.query.diag === 'admin-audit') {
-    if (!BIN_ID || !API_KEY) return res.status(200).json({ diag: 'admin-audit', ok: false, error: 'not configured' });
+    if (!STORE_CONFIGURED) return res.status(200).json({ diag: 'admin-audit', ok: false, error: 'not configured' });
     let rec;
     try {
       const probe = await readBin(BIN_ID);
@@ -316,7 +345,7 @@ module.exports = async (req, res) => {
     if (!_AGENT_ACTIONS.includes(agentBody.action)) {
       return res.status(405).json({ error: 'Agent: action not allowed' });
     }
-    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    if (!STORE_CONFIGURED) return res.status(500).json({ error: 'Database not configured' });
     const { ticketId, text } = agentBody;
     if (!ticketId || !text) return res.status(200).json({ ok: false, error: 'missing ticketId or text' });
 
@@ -344,7 +373,7 @@ module.exports = async (req, res) => {
   if (isAgentRequest && agentBody && agentBody.action === 'cancel_order') {
     const { orderId } = agentBody;
     if (!orderId) return res.status(200).json({ ok: false, error: 'missing orderId' });
-    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    if (!STORE_CONFIGURED) return res.status(500).json({ error: 'Database not configured' });
     const coMain = await readBin(BIN_ID);
     if (!coMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
     const coData = coMain.record;
@@ -366,7 +395,7 @@ module.exports = async (req, res) => {
     if (!userId || !amount) return res.status(200).json({ ok: false, error: 'missing userId or amount' });
     const addAmt = parseFloat(amount);
     if (isNaN(addAmt) || addAmt <= 0) return res.status(200).json({ ok: false, error: 'invalid amount' });
-    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    if (!STORE_CONFIGURED) return res.status(500).json({ error: 'Database not configured' });
     const afMain = await readBin(BIN_ID);
     if (!afMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
     const afData = afMain.record;
@@ -394,7 +423,7 @@ module.exports = async (req, res) => {
   if (isAgentRequest && agentBody && agentBody.action === 'edit_blog') {
     const { postId, fields } = agentBody;
     if (!postId || !fields) return res.status(200).json({ ok: false, error: 'missing postId or fields' });
-    if (!BIN_ID || !API_KEY) return res.status(500).json({ error: 'Database not configured' });
+    if (!STORE_CONFIGURED) return res.status(500).json({ error: 'Database not configured' });
     const ebMain = await readBin(BIN_ID);
     if (!ebMain.ok) return res.status(200).json({ ok: false, error: 'read failed' });
     const ebData = ebMain.record;
@@ -413,7 +442,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Agent: read-only' });
   }
 
-  if (!BIN_ID || !API_KEY) {
+  if (!STORE_CONFIGURED) {
     return res.status(500).json({ error: 'Database not configured. Set JSONBIN_BIN_ID and JSONBIN_API_KEY.' });
   }
 
