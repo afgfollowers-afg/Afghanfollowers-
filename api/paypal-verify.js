@@ -10,7 +10,7 @@
 // crediting decision never depends on trusting anything the client sent.
 
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError } = require('./_dbkey');
-const { getAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
+const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 const { dispatchOneOrder } = require('./sync-orders');
 
 const { KV_ENABLED, kvGet, KV_MAIN_KEY } = require('./_kv');
@@ -232,7 +232,13 @@ module.exports = async (req, res) => {
     if (AUTH_CONFIGURED) {
       const auth = getAuth(req);
       if (!auth || auth.sub === undefined || auth.sub === null) {
-        return res.status(200).json({ ok: false, error: 'Unauthorized' });
+        // Surface WHY the session token was rejected (no header / bad
+        // signature / expired / wrong role) so an "Unauthorized" that isn't a
+        // PayPal problem can actually be diagnosed. diagnoseAuth() returns no
+        // secret — only the failure class and a secret-fingerprint to confirm
+        // this function and the login that signed the token agree on
+        // AUTH_JWT_SECRET.
+        return res.status(200).json({ ok: false, error: 'Unauthorized', authDiag: diagnoseAuth(req), secretFp: SECRET_FINGERPRINT });
       }
       userId = auth.sub;
     }
