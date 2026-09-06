@@ -4473,7 +4473,7 @@ function verifyPayPalOrder(orderId){
       // Always surface the order id here — it's the only thing that lets
       // support/admin manually reconcile a payment that succeeded at PayPal
       // but failed to verify/credit on our side for any reason.
-      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+(res.authDiag?' <b>['+res.authDiag+']</b>':'')+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
       showToast('Payment verification failed — save this Order ID: '+orderId,'e');
       return;
     }
