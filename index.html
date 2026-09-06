@@ -886,8 +886,20 @@ fetch('/api/db').then(function(r){return r.json();}).then(function(d){
 // QUICK ORDER WIDGET
 // ══════════════════════════════════════════
 var GUEST_MARKUP=1.5; // 50% above panel price
+// Minimum a guest package can cost. Some services are priced so low per-1000
+// that small quantities computed out to $0.00 — which looks broken and can't
+// be charged (PayPal rejects a $0.00 order). Floor every package here and
+// round UP to the cent so nothing is ever free and every package is payable.
+var QO_MIN_PRICE=0.30;
 var QO_PKGS=[100,250,500,1000,2000,5000,10000,20000,50000];
 var QO_POPULAR_QTY=1000;
+// Guest price for a given panel-cost, with the markup, rounded up to the cent
+// and floored at QO_MIN_PRICE. Used everywhere a guest price is shown or
+// charged (package cards, overview total, PayPal amount) so they always agree.
+function qoGuestPrice(panelPrice){
+  var p=Math.ceil(panelPrice*GUEST_MARKUP*100)/100;
+  return p<QO_MIN_PRICE?QO_MIN_PRICE:p;
+}
 
 // Platform → keywords to match against service name/category
 var QO_PLAT_KEYS={
@@ -1255,7 +1267,7 @@ function qoShowPkgs(){
   QO_PKGS.forEach(function(qty){
     if(qty<minQty||qty>maxQty) return;
     var panelPrice=priceK*qty/1000;
-    var guestPrice=panelPrice*GUEST_MARKUP;
+    var guestPrice=qoGuestPrice(panelPrice);
     var isPopular=(qty===QO_POPULAR_QTY);
     var div=document.createElement('div');
     div.className='qo-pkg'+(isPopular?' popular':'');
@@ -1265,7 +1277,6 @@ function qoShowPkgs(){
     div.onclick=function(){qoSelPkg(qty,guestPrice,panelPrice,svcRow);};
     div.innerHTML=(isPopular?'<div class="qo-popular-lbl">'+T('popular')+'</div>':'')
       +'<div class="qo-pkg-qty">'+(isPopular?'<span style="font-size:13px;margin-bottom:2px;display:block">🔥</span>':'')+qoFmtNum(qty)+'</div>'
-      +'<div class="qo-pkg-orig">'+qoFmtPrice(panelPrice)+'</div>'
       +'<div class="qo-pkg-price">'+qoFmtPrice(guestPrice)+'</div>';
     grid.appendChild(div);
     shown++;
@@ -1282,14 +1293,13 @@ function qoShowPkgs(){
     dynQtys.forEach(function(qty){
       if(qty<minQty||qty>maxQty) return;
       var panelPrice=priceK*qty/1000;
-      var guestPrice=panelPrice*GUEST_MARKUP;
+      var guestPrice=qoGuestPrice(panelPrice);
       var isPopular=false;
       var div=document.createElement('div');
       div.className='qo-pkg';
       div.dataset.qty=qty;
       div.onclick=function(){qoSelPkg(qty,guestPrice,panelPrice,svcRow);};
       div.innerHTML='<div class="qo-pkg-qty">'+qoFmtNum(qty)+'</div>'
-        +'<div class="qo-pkg-orig">'+qoFmtPrice(panelPrice)+'</div>'
         +'<div class="qo-pkg-price">'+qoFmtPrice(guestPrice)+'</div>';
       grid.appendChild(div);
       shown++;
@@ -1343,7 +1353,7 @@ function qoOpenCheckout(){
   var link=(linkEl.value||'').trim();
   if(!link) return;
 
-  var guestPrice=Number(_qoSvcRow[7])*_qoQty/1000*GUEST_MARKUP;
+  var guestPrice=qoGuestPrice(Number(_qoSvcRow[7])*_qoQty/1000);
   var svcName=_qoSvcRow[2]||'سرویس';
 
   document.getElementById('qo-m-svc').textContent=svcName;
@@ -1402,7 +1412,7 @@ function qoRenderPayPalBtn(){
   if(typeof paypal==='undefined'){qoPpStatus(T('pp_not_loaded'));return;}
   var wrap=document.getElementById('qo-pp-btn-wrap');
   wrap.innerHTML='';
-  var guestPrice=Number(_qoSvcRow[7])*_qoQty/1000*GUEST_MARKUP;
+  var guestPrice=qoGuestPrice(Number(_qoSvcRow[7])*_qoQty/1000);
   var _ppEntry=(qoGetPmList().find(function(m){return m.method==='paypal';})||{});
   var currency=_ppEntry.cur||_ppEntry.currency||'USD';
 
