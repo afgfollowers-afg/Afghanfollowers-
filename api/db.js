@@ -329,6 +329,38 @@ module.exports = async (req, res) => {
     });
   }
 
+  // ?diag=paypal — read-only PayPal-config health check (browser-openable,
+  // before the gate). NEVER returns the client secret — only whether the
+  // pieces the verify flow needs are actually present, so we can tell "the
+  // secret got stripped on restore" from an auth problem. clientIdPrefix is
+  // a public-facing PayPal app id fragment, not a secret.
+  if (req.query && req.query.diag === 'paypal') {
+    if (!STORE_CONFIGURED) return res.status(200).json({ diag: 'paypal', ok: false, error: 'not configured' });
+    let rec;
+    try {
+      const probe = await readBin(BIN_ID);
+      if (!probe.ok) return res.status(200).json({ diag: 'paypal', ok: false, status: probe.status });
+      rec = probe.record;
+    } catch (err) {
+      return res.status(200).json({ diag: 'paypal', ok: false, error: err.message });
+    }
+    const pms = Array.isArray(rec.smm_pm) ? rec.smm_pm : [];
+    const pp = pms.find(m => m && m.method === 'paypal') || null;
+    return res.status(200).json({
+      diag: 'paypal', ok: true,
+      dbServiceKeyConfigured: !!DB_SERVICE_KEY,
+      authConfigured: AUTH_CONFIGURED,
+      paypalMethodPresent: !!pp,
+      enabled: pp ? (pp.enabled !== false) : null,
+      hasClientId: !!(pp && pp.clientId),
+      clientIdPrefix: (pp && pp.clientId) ? String(pp.clientId).slice(0, 10) : null,
+      // the REAL secret (not just the _has_ placeholder the stripped GET leaves)
+      clientSecretPresent: !!(pp && pp.clientSecret),
+      onlyHasSecretPlaceholder: !!(pp && !pp.clientSecret && pp._has_clientSecret),
+      mode: pp ? (pp.sandbox ? 'sandbox' : (pp.mode || 'live')) : null
+    });
+  }
+
   // Require the shared service key (once configured) so this endpoint isn't
   // wide open to the entire internet. Server-side callers send it via
   // _dbkey.js; first-party pages send it via the DB_CLIENT_KEY constant
