@@ -161,6 +161,9 @@ module.exports = async (req, res) => {
         emailCheck: true,
         resendConfigured: !!RESEND_API_KEY,
         fromEmailConfigured: !!cfg.from,
+        // effective sender the bulk campaign will actually use: panel From
+        // Email, else the RESEND_FROM_EMAIL env fallback (if it's a real value)
+        effectiveFrom: cfg.from || ((RESEND_FROM_EMAIL && RESEND_FROM_EMAIL !== 'onboarding@resend.dev') ? RESEND_FROM_EMAIL : null),
         fromName: cfg.fromName || null,
         uploadedListSize: hasList ? listData.all.length : 0,
         panelUsers: (db.smm_users || []).length,
@@ -1429,13 +1432,21 @@ const BULK_EMAIL_TOPICS = [
 async function runBulkEmailCampaignJob() {
   const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
   const db = await dbResp.json();
-  const listData = db.smm_bulk_campaign_list;
+  const listData = db.smm_bulk_campaign_list || {};
   const cfg = db.smm_email_auto_cfg || {};
   const today = todayKey();
-
-  if (!listData || !Array.isArray(listData.all) || !listData.all.length) {
-    return { ok: true, skipped: true, reason: 'No bulk campaign recipient list uploaded yet' };
+  // Fall back to the RESEND_FROM_EMAIL env sender when the panel's From Email
+  // isn't set (e.g. after the datastore migration wiped smm_email_auto_cfg),
+  // but only if it's a real configured value, not the resend.dev placeholder.
+  if (!cfg.from && RESEND_FROM_EMAIL && RESEND_FROM_EMAIL !== 'onboarding@resend.dev') {
+    cfg.from = RESEND_FROM_EMAIL;
   }
+  // No early "list required" guard any more: the recipient pool below unions
+  // the uploaded list (if any) with every panel user, so the campaign still
+  // runs for registered customers even when no CSV was ever uploaded (the
+  // normal state right after the datastore migration). We skip only if the
+  // final pool turns out empty (checked right after it is built).
+
   // Same guard pattern as the other daily jobs in this file — this endpoint
   // gets hit more than once a day (retries, manual /api/sync-orders visits),
   // so without this a second hit the same day would send a whole extra
@@ -1471,6 +1482,9 @@ async function runBulkEmailCampaignJob() {
     poolMap[e] = { email: e, name: u.fname || u.name || '' };
   });
   const pool = Object.keys(poolMap).map(function (k) { return poolMap[k]; });
+  if (!pool.length) {
+    return { ok: true, skipped: true, reason: 'No recipients — empty uploaded list and no eligible panel users' };
+  }
 
   // Weekly no-repeat pacing: a recipient is due only if they were NOT emailed
   // in the last 7 days (sentLog holds each address's last-send ISO timestamp),
