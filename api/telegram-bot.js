@@ -932,7 +932,12 @@ async function listOpenTickets(token, chatId) {
     return;
   }
   if (!isAdminChat(db, chatId)) {
-    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '🔒 این دستور فقط برای ادمین است.' });
+    // A customer sent a bare /ticket — guide them to the create-ticket form
+    // rather than exposing that this is also an admin command.
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId, parse_mode: 'HTML',
+      text: '🎫 برای ثبت تیکت پشتیبانی، پیامت را بعد از دستور بنویس:\n<code>/ticket پیام شما</code>\nمثال: <code>/ticket سفارشم تکمیل نشده</code>'
+    });
     return;
   }
   const open = (db.smm_tickets || []).filter(t => t && t.status !== 'closed');
@@ -1150,18 +1155,6 @@ module.exports = async (req, res) => {
   const text = (msg.text || '').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim();
   const firstName = (msg.from && msg.from.first_name) || 'User';
 
-  // TEMP DIAGNOSTIC \u2014 logs exactly what each chat sends (raw + cleaned text +
-  // codepoints + chat id) so a mis-sent command or hidden character is visible
-  // in the Vercel runtime logs. Remove once the ticket-reply flow is verified.
-  try {
-    console.log('TGBOT_RX ' + JSON.stringify({
-      chatId,
-      raw: msg.text || '',
-      clean: text,
-      codes: Array.from(msg.text || '').slice(0, 20).map(c => c.codePointAt(0))
-    }));
-  } catch (e) {}
-
   async function sendMsg(chat, txt) {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
@@ -1230,10 +1223,13 @@ module.exports = async (req, res) => {
   }
   // Admin-only: list open support tickets, each with a copy-paste /reply
   // command. Gated to the admin chat inside listOpenTickets().
-  // Match "/tickets" and also the "/tickets@BotName" form some Telegram
-  // clients send (and a couple of plain-word aliases), so a stray @suffix or a
-  // menu tap can't drop the command through to the generic FAQ reply below.
-  if (/^\/tickets(@\w+)?$/i.test(text) || lower.trim() === 'تیکت‌ها' || lower.trim() === 'تیکت ها') {
+  // Match the admin ticket-list command. Accept BOTH "/tickets" (plural) and a
+  // bare "/ticket" (singular) — the admin naturally types the singular they see
+  // in the menu — plus the "@BotName" suffix form, and a couple of Persian
+  // aliases. A bare /ticket with NO message lands here (the "$" excludes
+  // "/ticket <message>", which is still the customer create-ticket command
+  // handled below). Non-admins who send it get a create-ticket hint.
+  if (/^\/tickets?(@\w+)?$/i.test(text) || lower.trim() === 'تیکت‌ها' || lower.trim() === 'تیکت ها') {
     await listOpenTickets(token, chatId);
     return res.status(200).send('ok');
   }
