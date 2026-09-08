@@ -15,7 +15,8 @@
 
 const SITE = 'https://www.afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot } = require('./_dbkey');
-const { renderInstagramPostImage, renderYoutubePostImage, renderFacebookPostImage, renderTikTokPostImage } = require('./_autopost-image');
+// (auto-post is text-only now — no image renderer, so `sharp` is no longer
+// pulled into this function's bundle; see tgSendMessage/fbPostText below.)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 // Single source of truth for the Groq model — Groq retires model IDs
@@ -35,25 +36,28 @@ const GROQ_MODEL = (process.env.GROQ_MODEL && _GROQ_DEAD_MODELS.indexOf(process.
 // extra headroom for those; a plain model gets neither param.
 const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 
-// Multipart uploads for Telegram sendPhoto / Facebook /photos — both need an
-// actual file part, not a JSON body, so these can't reuse the plain
-// fetch(...,{body:JSON.stringify(...)}) pattern the rest of this file uses.
-async function tgSendPhoto(token, chatId, imageBuffer, caption, replyMarkup) {
-  const form = new FormData();
-  form.append('chat_id', String(chatId));
-  if (caption) form.append('caption', caption);
-  if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
-  form.append('photo', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
-  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: form });
+// Text-only social posting. The auto-post used to render a PNG per platform
+// with `sharp` (see the old api/_autopost-image.js) and upload it via
+// sendPhoto/photos — but `sharp` bundles a ~100MB native binary into every
+// function that transitively requires this file (sync-orders and the three
+// that import it for dispatchOneOrder), which exhausted Vercel's 10GB free
+// Function Storage. Posting the caption as plain text (matching the
+// standalone api/auto-post.js "v6 text-only" job) drops `sharp` from the
+// whole project and keeps the promo posts going.
+async function tgSendMessage(token, chatId, text, replyMarkup) {
+  const body = { chat_id: chatId, text: text, disable_web_page_preview: false };
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
   return r.json();
 }
 
-async function fbPostPhoto(pageId, pageToken, imageBuffer, caption) {
-  const form = new FormData();
-  form.append('caption', caption);
-  form.append('access_token', pageToken);
-  form.append('source', new Blob([imageBuffer], { type: 'image/png' }), 'post.png');
-  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, { method: 'POST', body: form });
+async function fbPostText(pageId, pageToken, message) {
+  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: message, access_token: pageToken })
+  });
   return r.json();
 }
 
@@ -1086,11 +1090,6 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   // Same platform entry the focus/hashtags above came from — guaranteed to
   // match (see AUTOPOST_PLATFORMS).
   const templateKey = platform.template;
-  const imageBuffer = templateKey === 'tiktok'
-    ? await renderTikTokPostImage(postText)
-    : templateKey === 'instagram'
-    ? await renderInstagramPostImage(postText)
-    : await renderYoutubePostImage(postText);
 
   // Dry run: preview only — no Facebook publish, no real Telegram channel
   // post, no smm_last_autopost_date write (so it can never block or count as
@@ -1122,8 +1121,8 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
       telegram = { sent: false, reason: 'smm_tg_bot.token is empty — re-enter Bot Token in Admin → Settings → Integrations' };
     } else {
       try {
-        const tgResp = await tgSendPhoto(
-          tgCfg.token, chatUsed, imageBuffer,
+        const tgResp = await tgSendMessage(
+          tgCfg.token, chatUsed,
           `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
             + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
             + `متن پست:\n${postText}`
@@ -1144,22 +1143,14 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   }
 
   // Real run: publish directly — no approval gate. A rare AI glitch (stray
-  // non-Farsi characters, foreign-language mixing, an off-topic tangent)
-  // now reaches Facebook and the real Telegram channel unreviewed; the
-  // Farsi-only character filter in _autopost-image.js still protects the
-  // IMAGE overlay specifically, but the caption text below goes out exactly
-  // as Groq wrote it. logSystemError below is a monitoring/audit trail, not
-  // a safety gate — it only records what already happened.
+  // non-Farsi characters, foreign-language mixing, an off-topic tangent) now
+  // reaches Facebook and the real Telegram channel unreviewed — the text goes
+  // out exactly as Groq wrote it. logSystemError below is a monitoring/audit
+  // trail, not a safety gate — it only records what already happened.
   const results = { facebook: null, telegram: null };
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    // Instagram day → dedicated Facebook glassmorphism design
-    // TikTok / YouTube days → reuse the platform image already rendered above
-    let fbBuf = imageBuffer;
-    if (templateKey === 'instagram') {
-      try { fbBuf = await renderFacebookPostImage(postText); } catch (e) { /* fall back to imageBuffer */ }
-    }
-    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, fbBuf, postText);
+    const fbData = await fbPostText(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, postText);
     results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
     results.facebook = '⏭ تنظیم نشده';
@@ -1167,7 +1158,7 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
 
   const tgChannel = tgCfg.channelId || tgCfg.chatId;
   if (tgCfg.token && tgChannel) {
-    const tgData = await tgSendPhoto(tgCfg.token, tgChannel, imageBuffer, postText);
+    const tgData = await tgSendMessage(tgCfg.token, tgChannel, postText);
     results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
   } else {
     results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';

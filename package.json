@@ -1,7 +1,4 @@
 {
   "name": "afghanfollowers",
-  "private": true,
-  "dependencies": {
-    "sharp": "^0.35.3"
-  }
+  "private": true
 }
