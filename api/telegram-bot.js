@@ -940,20 +940,43 @@ async function listOpenTickets(token, chatId) {
     });
     return;
   }
-  const open = (db.smm_tickets || []).filter(t => t && t.status !== 'closed');
+  // Newest first. The stored array order isn't reliable — Telegram tickets are
+  // unshifted, panel tickets are pushed, and db.js's mergeById can reorder — so
+  // the latest ticket could otherwise be past the display cap. Sort by a robust
+  // creation time: the ms embedded in a "T<ms>" id, else Date.parse(date).
+  const ticketTime = (t) => {
+    const m = String(t.id || '').match(/(\d{10,})/);
+    if (m) return Number(m[1]);
+    const d = Date.parse(t.date || '');
+    return isNaN(d) ? 0 : d;
+  };
+  const open = (db.smm_tickets || [])
+    .filter(t => t && t.status !== 'closed')
+    .sort((a, b) => ticketTime(b) - ticketTime(a));
   if (!open.length) {
     await tgApi(token, 'sendMessage', { chat_id: chatId, text: '📭 هیچ تیکت بازی وجود ندارد.' });
     return;
   }
-  const top = open.slice(0, 10);
-  let out = `🎫 <b>تیکت‌های باز (${open.length})</b>\n`;
+  const fmtWhen = (t) => {
+    const ts = ticketTime(t);
+    if (!ts) return '';
+    const mins = Math.floor((Date.now() - ts) / 60000);
+    if (mins < 1) return 'همین الان';
+    if (mins < 60) return mins + ' دقیقه پیش';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + ' ساعت پیش';
+    return Math.floor(hrs / 24) + ' روز پیش';
+  };
+  const top = open.slice(0, 12);
+  let out = `🎫 <b>تیکت‌های باز (${open.length})</b> — جدیدترین بالا\n`;
   for (const t of top) {
     const msgs = Array.isArray(t.messages) ? t.messages : [];
     const last = msgs.length ? msgs[msgs.length - 1] : { from: 'user', text: t.message || t.msg || '' };
     const waiting = last.from !== 'admin';
     const snippet = escapeHtml(String(last.text || '').replace(/\s+/g, ' ').slice(0, 100));
     const src = t.tgChatId ? '📱 تلگرام' : '🖥 پنل';
-    out += `\n──────────\n🆔 <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}\n`
+    const when = fmtWhen(t);
+    out += `\n──────────\n🆔 <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}${when ? ' · ' + when : ''}\n`
       + `${waiting ? '🟢 منتظر پاسخ شما' : '↩️ آخرین پیام: شما'}\n`
       + `💬 «${snippet}»\n`
       + `✍️ پاسخ: <code>/reply ${escapeHtml(t.id)} پیام شما</code>\n`;
