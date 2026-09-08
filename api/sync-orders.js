@@ -15,8 +15,9 @@
 
 const SITE = 'https://www.afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot } = require('./_dbkey');
-// (auto-post is text-only now — no image renderer, so `sharp` is no longer
-// pulled into this function's bundle; see tgSendMessage/fbPostText below.)
+// (auto-post sends a promo image by URL from a public Supabase bucket — no
+// runtime image renderer, so `sharp` is no longer pulled into this function's
+// bundle; see PROMO_IMAGE_BASE / tgSendPhoto / fbPostPhoto below.)
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 // Single source of truth for the Groq model — Groq retires model IDs
@@ -36,14 +37,26 @@ const GROQ_MODEL = (process.env.GROQ_MODEL && _GROQ_DEAD_MODELS.indexOf(process.
 // extra headroom for those; a plain model gets neither param.
 const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 
-// Text-only social posting. The auto-post used to render a PNG per platform
-// with `sharp` (see the old api/_autopost-image.js) and upload it via
-// sendPhoto/photos — but `sharp` bundles a ~100MB native binary into every
-// function that transitively requires this file (sync-orders and the three
-// that import it for dispatchOneOrder), which exhausted Vercel's 10GB free
-// Function Storage. Posting the caption as plain text (matching the
-// standalone api/auto-post.js "v6 text-only" job) drops `sharp` from the
-// whole project and keeps the promo posts going.
+// Social posting with a promo image. The auto-post used to RENDER a PNG per
+// platform at runtime with `sharp` (see the old api/_autopost-image.js), but
+// `sharp` bundles a ~100MB native binary into every function that
+// transitively requires this file (sync-orders and the three that import it
+// for dispatchOneOrder), which exhausted Vercel's 10GB free Function Storage.
+// Now the three platform template images live in a public Supabase Storage
+// bucket instead, and we send them by URL — Telegram and Facebook fetch the
+// image themselves. No image library, no native binary, zero npm deps: the
+// function bundle stays a few KB. Swapping the artwork is a dashboard upload,
+// not a redeploy. Set PROMO_IMAGE_BASE in Vercel to point at a different
+// bucket/host; the default is this project's public `promo` bucket.
+const PROMO_IMAGE_BASE = process.env.PROMO_IMAGE_BASE
+  || 'https://wowllsagrhmtaxkleelz.supabase.co/storage/v1/object/public/promo';
+
+// templateKey is 'instagram' | 'tiktok' | 'youtube' (see AUTOPOST_PLATFORMS);
+// the file names in the bucket match "<key>-template.png".
+function promoImageUrl(templateKey) {
+  return `${PROMO_IMAGE_BASE}/${templateKey}-template.png`;
+}
+
 async function tgSendMessage(token, chatId, text, replyMarkup) {
   const body = { chat_id: chatId, text: text, disable_web_page_preview: false };
   if (replyMarkup) body.reply_markup = replyMarkup;
@@ -53,10 +66,30 @@ async function tgSendMessage(token, chatId, text, replyMarkup) {
   return r.json();
 }
 
-async function fbPostText(pageId, pageToken, message) {
-  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/feed`, {
+// Send a photo (by URL) with the post as its caption. Telegram caps a photo
+// caption at 1024 chars, so anything longer is sent as a normal follow-up
+// message rather than being silently truncated.
+async function tgSendPhoto(token, chatId, photoUrl, caption, replyMarkup) {
+  const cap = caption && caption.length <= 1024 ? caption : '';
+  const body = { chat_id: chatId, photo: photoUrl };
+  if (cap) body.caption = cap;
+  if (replyMarkup) body.reply_markup = replyMarkup;
+  const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (data && data.ok && caption && !cap) {
+    await tgSendMessage(token, chatId, caption).catch(() => {});
+  }
+  return data;
+}
+
+// Publish a photo (by URL) to the page with the post text as its caption.
+// The Graph /photos edge takes `url` + `caption` and returns { id, post_id }.
+async function fbPostPhoto(pageId, pageToken, photoUrl, caption) {
+  const r = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: message, access_token: pageToken })
+    body: JSON.stringify({ url: photoUrl, caption: caption, access_token: pageToken })
   });
   return r.json();
 }
@@ -1121,14 +1154,16 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
       telegram = { sent: false, reason: 'smm_tg_bot.token is empty — re-enter Bot Token in Admin → Settings → Integrations' };
     } else {
       try {
-        const tgResp = await tgSendMessage(
-          tgCfg.token, chatUsed,
+        // Send the real promo image as the preview so the admin sees exactly
+        // what would be published (the caption carries the DRY RUN banner + text).
+        const tgResp = await tgSendPhoto(
+          tgCfg.token, chatUsed, promoImageUrl(templateKey),
           `🧪 DRY RUN — پیش‌نمایش پست خودکار (${focus})\n`
             + `هیچ‌چیز منتشر نشد (نه فیسبوک، نه کانال تلگرام).\n\n`
             + `متن پست:\n${postText}`
         );
         telegram = tgResp && tgResp.ok
-          ? { sent: true, chatId: chatUsed }
+          ? { sent: true, chatId: chatUsed, image: promoImageUrl(templateKey) }
           : { sent: false, chatId: chatUsed, telegramError: tgResp };
       } catch (e) {
         telegram = { sent: false, chatId: chatUsed, error: e.message };
@@ -1136,6 +1171,7 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
     }
     return {
       ok: true, dryRun: true, focus, template: templateKey, post: postText,
+      image: promoImageUrl(templateKey),
       tgConfig: { hasToken: !!tgCfg.token, hasChatId: !!tgCfg.chatId, usingFallbackChat: !tgCfg.chatId },
       bot: botInfo,
       telegram
@@ -1148,18 +1184,26 @@ async function runAutoPostJobInner(tgCfg, today, dryRun) {
   // out exactly as Groq wrote it. logSystemError below is a monitoring/audit
   // trail, not a safety gate — it only records what already happened.
   const results = { facebook: null, telegram: null };
+  const promoImg = promoImageUrl(templateKey);
 
   if (process.env.FB_PAGE_ID && process.env.FB_PAGE_TOKEN) {
-    const fbData = await fbPostText(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, postText);
-    results.facebook = fbData.id ? '✅ موفق: ' + fbData.id : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
+    const fbData = await fbPostPhoto(process.env.FB_PAGE_ID, process.env.FB_PAGE_TOKEN, promoImg, postText);
+    const fbId = fbData.post_id || fbData.id;
+    results.facebook = fbId ? '✅ موفق: ' + fbId : '❌ خطا: ' + JSON.stringify(fbData.error || fbData);
   } else {
     results.facebook = '⏭ تنظیم نشده';
   }
 
   const tgChannel = tgCfg.channelId || tgCfg.chatId;
   if (tgCfg.token && tgChannel) {
-    const tgData = await tgSendMessage(tgCfg.token, tgChannel, postText);
+    const tgData = await tgSendPhoto(tgCfg.token, tgChannel, promoImg, postText);
     results.telegram = tgData.ok ? '✅ موفق' : '❌ خطا: ' + JSON.stringify(tgData);
+    // A missing image (e.g. the templates haven't been uploaded to the bucket
+    // yet) must never mean a missing post — fall back to publishing the text.
+    if (!tgData.ok) {
+      const tgText = await tgSendMessage(tgCfg.token, tgChannel, postText);
+      if (tgText.ok) results.telegram = '✅ موفق (متن — ارسال عکس ناموفق بود)';
+    }
   } else {
     results.telegram = '⏭ تنظیم نشده (بخش Telegram در Settings → Integrations پنل ادمین را کامل کنید)';
   }
