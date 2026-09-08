@@ -49,7 +49,7 @@ const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 // not a redeploy. Set PROMO_IMAGE_BASE in Vercel to point at a different
 // bucket/host; the default is this project's public `promo` bucket.
 const PROMO_IMAGE_BASE = process.env.PROMO_IMAGE_BASE
-  || 'https://wowllsagrhmtaxkleelz.supabase.co/storage/v1/object/public/promo';
+  || 'https://qxovzpkexdrxbuyibddk.supabase.co/storage/v1/object/public/promo';
 
 // templateKey is 'instagram' | 'tiktok' | 'youtube' (see AUTOPOST_PLATFORMS);
 // the file names in the bucket match "<key>-template.png".
