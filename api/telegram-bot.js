@@ -1022,6 +1022,35 @@ async function replyToTicket(token, chatId, ticketId, replyText) {
   });
 }
 
+// Register the bot's command menu so the admin can TAP /tickets and /reply
+// (guaranteeing the exact command text) instead of typing them. The customer
+// commands are the default (everyone) scope; the admin-only commands are set
+// under a chat-scoped list for the admin's chat, so customers never see them.
+async function registerBotCommands(tok, adminChatId) {
+  const customer = [
+    { command: 'buy', description: 'سفارش سرویس' },
+    { command: 'topup', description: 'شارژ حساب' },
+    { command: 'balance', description: 'موجودی کیف پول' },
+    { command: 'guide', description: 'راهنمای خرید' },
+    { command: 'services', description: 'لیست سرویس‌ها' },
+    { command: 'order', description: 'وضعیت سفارش' },
+    { command: 'ticket', description: 'ثبت تیکت پشتیبانی' },
+    { command: 'help', description: 'راهنما' }
+  ];
+  await tgApi(tok, 'setMyCommands', { commands: customer }).catch(() => {});
+  if (adminChatId) {
+    const admin = customer.concat([
+      { command: 'tickets', description: '📋 تیکت‌های باز (ادمین)' },
+      { command: 'reply', description: '✍️ پاسخ به تیکت (ادمین)' },
+      { command: 'emailstatus', description: 'وضعیت ایمیل‌ها (ادمین)' }
+    ]);
+    await tgApi(tok, 'setMyCommands', {
+      commands: admin,
+      scope: { type: 'chat', chat_id: Number(adminChatId) }
+    }).catch(() => {});
+  }
+}
+
 module.exports = async (req, res) => {
   // ?setup=webhook — one-shot self-registration. Reads the bot token the admin
   // already saved in smm_tg_bot (the same one the auto-post uses), points
@@ -1038,6 +1067,7 @@ module.exports = async (req, res) => {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const hookUrl = `https://${host}/api/telegram-bot?token=${tok}`;
     const set = await tgApi(tok, 'setWebhook', { url: hookUrl, allowed_updates: ['message', 'edited_message', 'callback_query'] }).catch(e => ({ ok: false, description: e.message }));
+    await registerBotCommands(tok, cfg.chatId);
     const me = await tgApi(tok, 'getMe', {}).catch(() => ({}));
     const info = await tgApi(tok, 'getWebhookInfo', {}).catch(() => ({}));
     return res.status(200).json({
@@ -1066,6 +1096,7 @@ module.exports = async (req, res) => {
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     const hookUrl = `https://${host}/api/telegram-bot?token=${tok}`;
     const set = await tgApi(tok, 'setWebhook', { url: hookUrl, allowed_updates: ['message', 'edited_message', 'callback_query'] }).catch(e => ({ ok: false, description: e.message }));
+    await registerBotCommands(tok, cfg.chatId);
     const me = await tgApi(tok, 'getMe', {}).catch(() => ({}));
     const info = await tgApi(tok, 'getWebhookInfo', {}).catch(() => ({}));
     return res.status(200).json({
@@ -1164,17 +1195,34 @@ module.exports = async (req, res) => {
     await sendEmailStatus(token, chatId, isEnglish);
     return res.status(200).send('ok');
   }
+  // Diagnostic: echo back exactly what the bot received (raw text + this chat's
+  // id + whether it's recognised as the admin chat). Lets a mis-sent command or
+  // a chat-id mismatch be spotted without guessing.
+  if (text === '/echo' || text === '/id') {
+    let adminChat = null;
+    try { const dbx = await getDb(); adminChat = dbx.smm_tg_bot && dbx.smm_tg_bot.chatId; } catch (e) {}
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text:
+        `🩺 chatId: ${chatId}\nadminChatId: ${adminChat}\nisAdmin: ${adminChat && String(adminChat) === String(chatId)}\nraw text: «${text}»` })
+    }).catch(() => {});
+    return res.status(200).send('ok');
+  }
   // Admin-only: list open support tickets, each with a copy-paste /reply
   // command. Gated to the admin chat inside listOpenTickets().
-  if (text === '/tickets' || lower.trim() === 'تیکت‌ها' || lower.trim() === 'تیکت ها') {
+  // Match "/tickets" and also the "/tickets@BotName" form some Telegram
+  // clients send (and a couple of plain-word aliases), so a stray @suffix or a
+  // menu tap can't drop the command through to the generic FAQ reply below.
+  if (/^\/tickets(@\w+)?$/i.test(text) || lower.trim() === 'تیکت‌ها' || lower.trim() === 'تیکت ها') {
     await listOpenTickets(token, chatId);
     return res.status(200).send('ok');
   }
   // Admin-only: "/reply <ticketId> <message>" answers a ticket — appends the
   // reply (visible in the panel) and DMs it to the customer for a Telegram
-  // ticket. A malformed /reply gets a usage hint (admin-gated inside).
-  if (/^\/reply\b/i.test(text)) {
-    const m = text.match(/^\/reply\s+(\S+)\s+([\s\S]+)$/i);
+  // ticket. A malformed /reply gets a usage hint (admin-gated inside). Accepts
+  // the "/reply@BotName ..." form too.
+  if (/^\/reply(@\w+)?(\s|$)/i.test(text)) {
+    const m = text.match(/^\/reply(?:@\w+)?\s+(\S+)\s+([\s\S]+)$/i);
     await replyToTicket(token, chatId, m ? m[1].trim() : '', m ? m[2].trim() : '');
     return res.status(200).send('ok');
   }
