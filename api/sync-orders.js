@@ -1043,11 +1043,11 @@ async function runAutoPostJob(opts) {
 // unrelated 5-length array (dayOfYear % 5) and hashtags from a 20-length
 // pool (dayOfYear*4 % 20) — three different cycle lengths meant the
 // template and the text it was captioning agreed only by coincidence (e.g.
-// an Instagram template paired with TikTok-focused copy). Only 3 platforms
-// here now, matching the 3 template images that actually exist — Telegram
-// and Facebook are still where every post gets published either way, they
-// just aren't a content FOCUS topic anymore since there's no template art
-// for them.
+// an Instagram template paired with TikTok-focused copy). One entry per
+// platform image that exists in /promo (instagram, tiktok, youtube, facebook)
+// so the daily rotation cycles through all four, each with its own artwork,
+// focus copy and hashtags. Telegram is still where every post is published,
+// it just isn't a content FOCUS topic since there's no template art for it.
 const AUTOPOST_PLATFORMS = [
   {
     template: 'instagram',
@@ -1063,6 +1063,11 @@ const AUTOPOST_PLATFORMS = [
     template: 'youtube',
     focus: 'ساب‌اسکرایب و ویو واقعی یوتیوب',
     hashtags: ['#یوتیوب_افغانستان', '#ساب_اسکرایب_یوتیوب', '#افغان_فالوورز', '#سوشال_مدیا_مارکتینگ']
+  },
+  {
+    template: 'facebook',
+    focus: 'لایک و فالوور واقعی صفحه فیسبوک',
+    hashtags: ['#فیسبوک', '#افزایش_لایک_فیسبوک', '#فالوور_فیسبوک', '#افغان_فالوورز']
   }
 ];
 
