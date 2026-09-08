@@ -1150,6 +1150,18 @@ module.exports = async (req, res) => {
   const text = (msg.text || '').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim();
   const firstName = (msg.from && msg.from.first_name) || 'User';
 
+  // TEMP DIAGNOSTIC \u2014 logs exactly what each chat sends (raw + cleaned text +
+  // codepoints + chat id) so a mis-sent command or hidden character is visible
+  // in the Vercel runtime logs. Remove once the ticket-reply flow is verified.
+  try {
+    console.log('TGBOT_RX ' + JSON.stringify({
+      chatId,
+      raw: msg.text || '',
+      clean: text,
+      codes: Array.from(msg.text || '').slice(0, 20).map(c => c.codePointAt(0))
+    }));
+  } catch (e) {}
+
   async function sendMsg(chat, txt) {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
