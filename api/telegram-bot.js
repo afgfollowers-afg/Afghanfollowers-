@@ -1141,7 +1141,13 @@ module.exports = async (req, res) => {
   if (!msg) return res.status(200).send('ok');
 
   const chatId = msg.chat.id;
-  const text = (msg.text || '').trim();
+  // Strip zero-width and bidirectional control marks (U+200B–200F, U+202A–202E,
+  // U+2066–2069, BOM) that mobile keyboards — Persian/RTL ones especially —
+  // silently inject around a typed command. A leading RTL mark before
+  // "/tickets" makes it start with an invisible char, so "^/…" never matches
+  // and the command falls through to the generic FAQ reply. Remove them first,
+  // then trim, so command matching sees the clean "/tickets".
+  const text = (msg.text || '').replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').trim();
   const firstName = (msg.from && msg.from.first_name) || 'User';
 
   async function sendMsg(chat, txt) {
@@ -1201,10 +1207,12 @@ module.exports = async (req, res) => {
   if (text === '/echo' || text === '/id') {
     let adminChat = null;
     try { const dbx = await getDb(); adminChat = dbx.smm_tg_bot && dbx.smm_tg_bot.chatId; } catch (e) {}
+    const rawMsg = (msg.text || '');
+    const codes = Array.from(rawMsg).slice(0, 14).map(c => c.codePointAt(0)).join(',');
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text:
-        `🩺 chatId: ${chatId}\nadminChatId: ${adminChat}\nisAdmin: ${adminChat && String(adminChat) === String(chatId)}\nraw text: «${text}»` })
+        `🩺 chatId: ${chatId}\nadminChatId: ${adminChat}\nisAdmin: ${adminChat && String(adminChat) === String(chatId)}\nlen(raw): ${rawMsg.length}\ncodepoints: ${codes}\nclean: «${text}»` })
     }).catch(() => {});
     return res.status(200).send('ok');
   }
