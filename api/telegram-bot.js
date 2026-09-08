@@ -909,6 +909,113 @@ async function createTicket(chatId, username, message) {
   }
 }
 
+// ── ADMIN TICKET MANAGEMENT (from Telegram) ────────────────────────────────
+// Lets the admin triage and answer support tickets from their phone. Every
+// command here is fenced behind isAdminChat() — the same gate /emailstatus
+// uses: the chat must be the one saved in smm_tg_bot.chatId. A customer who
+// guesses the command just gets "admin only".
+
+function isAdminChat(db, chatId) {
+  const adminChat = db && db.smm_tg_bot && db.smm_tg_bot.chatId;
+  return !!adminChat && String(adminChat) === String(chatId);
+}
+
+// /tickets — list the open (non-closed) tickets, newest first, each with a
+// ready-to-copy /reply command so the admin can answer without typing an id.
+async function listOpenTickets(token, chatId) {
+  let db;
+  try {
+    const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    db = await r.json();
+  } catch (e) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ خطا در خواندن تیکت‌ها.' });
+    return;
+  }
+  if (!isAdminChat(db, chatId)) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '🔒 این دستور فقط برای ادمین است.' });
+    return;
+  }
+  const open = (db.smm_tickets || []).filter(t => t && t.status !== 'closed');
+  if (!open.length) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '📭 هیچ تیکت بازی وجود ندارد.' });
+    return;
+  }
+  const top = open.slice(0, 10);
+  let out = `🎫 <b>تیکت‌های باز (${open.length})</b>\n`;
+  for (const t of top) {
+    const msgs = Array.isArray(t.messages) ? t.messages : [];
+    const last = msgs.length ? msgs[msgs.length - 1] : { from: 'user', text: t.message || t.msg || '' };
+    const waiting = last.from !== 'admin';
+    const snippet = escapeHtml(String(last.text || '').replace(/\s+/g, ' ').slice(0, 100));
+    const src = t.tgChatId ? '📱 تلگرام' : '🖥 پنل';
+    out += `\n──────────\n🆔 <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}\n`
+      + `${waiting ? '🟢 منتظر پاسخ شما' : '↩️ آخرین پیام: شما'}\n`
+      + `💬 «${snippet}»\n`
+      + `✍️ پاسخ: <code>/reply ${escapeHtml(t.id)} پیام شما</code>\n`;
+  }
+  if (open.length > top.length) out += `\n… و ${open.length - top.length} تیکت دیگر`;
+  await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML', text: out });
+}
+
+// /reply <ticketId> <message> — append the admin's answer to a ticket (so it
+// shows in the panel's Support view, identical to a reply sent from the admin
+// panel: from:'admin' + status:'pending') and, for a Telegram-origin ticket,
+// deliver it straight to the customer's chat.
+async function replyToTicket(token, chatId, ticketId, replyText) {
+  let db;
+  try {
+    const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    db = await r.json();
+  } catch (e) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ خطا در خواندن تیکت‌ها.' });
+    return;
+  }
+  if (!isAdminChat(db, chatId)) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '🔒 این دستور فقط برای ادمین است.' });
+    return;
+  }
+  if (!ticketId || !replyText) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML',
+      text: 'قالب درست:\n<code>/reply &lt;شماره تیکت&gt; &lt;پیام&gt;</code>\nمثال: <code>/reply T123 سلام، مشکل شما حل شد.</code>\n\nلیست تیکت‌ها: /tickets' });
+    return;
+  }
+  const tickets = db.smm_tickets || [];
+  const t = tickets.find(x => x && String(x.id) === String(ticketId));
+  if (!t) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: `❌ تیکتی با شماره ${ticketId} پیدا نشد. لیست: /tickets` });
+    return;
+  }
+  if (!Array.isArray(t.messages)) t.messages = [{ from: 'user', text: t.message || t.msg || '', date: t.date }];
+  t.messages.push({ from: 'admin', text: replyText, date: new Date().toLocaleString() });
+  t.status = 'pending';
+  try {
+    await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST',
+      headers: dbHeaders(),
+      body: JSON.stringify({ smm_tickets: tickets, smm_ts: Date.now() })
+    });
+  } catch (e) {
+    await tgApi(token, 'sendMessage', { chat_id: chatId, text: '❌ ذخیره‌ی پاسخ ناموفق بود. کمی بعد دوباره امتحان کن.' });
+    return;
+  }
+  // Deliver to the customer: a Telegram ticket gets the reply in their chat;
+  // a panel ticket sees it in the panel's Support view on their next sync.
+  let delivery = '🖥 مشتری پاسخ را در پنل (بخش پشتیبانی) می‌بیند.';
+  if (t.tgChatId) {
+    const sent = await tgApi(token, 'sendMessage', {
+      chat_id: t.tgChatId, parse_mode: 'HTML',
+      text: `💬 <b>پاسخ پشتیبانی به تیکت ${escapeHtml(t.id)}</b>\n\n${escapeHtml(replyText)}\n\nاگر سوال دیگری داری، با <code>/ticket پیام شما</code> بپرس یا وارد پنل شو.`
+    }).catch(() => ({ ok: false }));
+    delivery = (sent && sent.ok)
+      ? '📱 پاسخ مستقیم در تلگرام برای مشتری فرستاده شد.'
+      : '⚠️ ذخیره شد، ولی ارسال به تلگرامِ مشتری ناموفق بود (شاید ربات را بلاک کرده). پاسخ در پنل قابل مشاهده است.';
+  }
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId, parse_mode: 'HTML',
+    text: `✅ <b>پاسخ به تیکت ${escapeHtml(t.id)} ثبت شد.</b>\n${delivery}`
+  });
+}
+
 module.exports = async (req, res) => {
   // ?setup=webhook — one-shot self-registration. Reads the bot token the admin
   // already saved in smm_tg_bot (the same one the auto-post uses), points
@@ -1021,6 +1128,20 @@ module.exports = async (req, res) => {
   // DevTools to call that endpoint directly isn't an option.
   if (text === '/emailstatus') {
     await sendEmailStatus(token, chatId, isEnglish);
+    return res.status(200).send('ok');
+  }
+  // Admin-only: list open support tickets, each with a copy-paste /reply
+  // command. Gated to the admin chat inside listOpenTickets().
+  if (text === '/tickets' || lower.trim() === 'تیکت‌ها' || lower.trim() === 'تیکت ها') {
+    await listOpenTickets(token, chatId);
+    return res.status(200).send('ok');
+  }
+  // Admin-only: "/reply <ticketId> <message>" answers a ticket — appends the
+  // reply (visible in the panel) and DMs it to the customer for a Telegram
+  // ticket. A malformed /reply gets a usage hint (admin-gated inside).
+  if (/^\/reply\b/i.test(text)) {
+    const m = text.match(/^\/reply\s+(\S+)\s+([\s\S]+)$/i);
+    await replyToTicket(token, chatId, m ? m[1].trim() : '', m ? m[2].trim() : '');
     return res.status(200).send('ok');
   }
   // Free Likes info — moved out of the plain keyword/FAQ chain below because
