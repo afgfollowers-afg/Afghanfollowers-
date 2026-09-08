@@ -42,14 +42,14 @@ const GROQ_IS_REASONING = /gpt-oss|qwen3|deepseek-r1/i.test(GROQ_MODEL);
 // `sharp` bundles a ~100MB native binary into every function that
 // transitively requires this file (sync-orders and the three that import it
 // for dispatchOneOrder), which exhausted Vercel's 10GB free Function Storage.
-// Now the three platform template images live in a public Supabase Storage
-// bucket instead, and we send them by URL — Telegram and Facebook fetch the
-// image themselves. No image library, no native binary, zero npm deps: the
-// function bundle stays a few KB. Swapping the artwork is a dashboard upload,
-// not a redeploy. Set PROMO_IMAGE_BASE in Vercel to point at a different
-// bucket/host; the default is this project's public `promo` bucket.
-const PROMO_IMAGE_BASE = process.env.PROMO_IMAGE_BASE
-  || 'https://qxovzpkexdrxbuyibddk.supabase.co/storage/v1/object/public/promo';
+// Now the three platform template images are plain static files served from
+// this site's own /promo folder (committed to the repo, exactly like /icons),
+// and we send them by URL — Telegram and Facebook fetch the image themselves.
+// No image library, no native binary, zero npm deps: the function bundle stays
+// a few KB, and static assets don't count against Vercel's Function Storage.
+// Set PROMO_IMAGE_BASE in Vercel to override (e.g. point at a CDN/bucket);
+// the default is this site's /promo directory.
+const PROMO_IMAGE_BASE = process.env.PROMO_IMAGE_BASE || `${SITE}/promo`;
 
 // templateKey is 'instagram' | 'tiktok' | 'youtube' (see AUTOPOST_PLATFORMS);
 // the file names in the bucket match "<key>-template.png".
