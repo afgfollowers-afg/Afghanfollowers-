@@ -1000,9 +1000,15 @@ async function replyToTicket(token, chatId, ticketId, replyText) {
   }
   // Deliver to the customer: a Telegram ticket gets the reply in their chat;
   // a panel ticket sees it in the panel's Support view on their next sync.
+  // ALWAYS send the customer DM via the MAIN customer bot (smm_tg_bot.token) —
+  // the bot the customer actually has a chat with — even when this /reply came
+  // in on the admin bot (@takrun_bot). A bot can only message a user who has
+  // started IT, so replying via the receiving admin-bot token would fail with
+  // "chat not found".
+  const mainToken = (db.smm_tg_bot && db.smm_tg_bot.token) || token;
   let delivery = '🖥 مشتری پاسخ را در پنل (بخش پشتیبانی) می‌بیند.';
   if (t.tgChatId) {
-    const sent = await tgApi(token, 'sendMessage', {
+    const sent = await tgApi(mainToken, 'sendMessage', {
       chat_id: t.tgChatId, parse_mode: 'HTML',
       text: `💬 <b>پاسخ پشتیبانی به تیکت ${escapeHtml(t.id)}</b>\n\n${escapeHtml(replyText)}\n\nاگر سوال دیگری داری، با <code>/ticket پیام شما</code> بپرس یا وارد پنل شو.`
     }).catch(() => ({ ok: false }));
@@ -1036,6 +1042,34 @@ module.exports = async (req, res) => {
     const info = await tgApi(tok, 'getWebhookInfo', {}).catch(() => ({}));
     return res.status(200).json({
       setup: 'webhook',
+      ok: !!set.ok,
+      bot: me.result && me.result.username,
+      webhookDescription: set.description,
+      host: host,
+      pending: info.result && info.result.pending_update_count,
+      lastError: info.result && info.result.last_error_message
+    });
+  }
+
+  // ?setup=adminwebhook — same one-shot self-registration for the ADMIN bot
+  // (smm_tg_bot.adminToken / ADMIN_BOT_TOKEN), the bot the admin actually reads
+  // reports and ticket alerts on. Pointing its webhook here lets the admin run
+  // /tickets and /reply from that chat too; the reply to the customer is still
+  // sent via the main customer bot (see replyToTicket). The token is baked into
+  // the webhook URL as ?token= so every admin-bot update resolves it, and the
+  // response never echoes it (only the bot username + status).
+  if (req.query && req.query.setup === 'adminwebhook') {
+    let cfg = {};
+    try { const db = await getDb(); cfg = db.smm_tg_bot || {}; } catch (e) {}
+    const tok = cfg.adminToken || process.env.ADMIN_BOT_TOKEN;
+    if (!tok) return res.status(200).json({ setup: 'adminwebhook', ok: false, error: 'no admin bot token found in smm_tg_bot.adminToken or ADMIN_BOT_TOKEN' });
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const hookUrl = `https://${host}/api/telegram-bot?token=${tok}`;
+    const set = await tgApi(tok, 'setWebhook', { url: hookUrl, allowed_updates: ['message', 'edited_message', 'callback_query'] }).catch(e => ({ ok: false, description: e.message }));
+    const me = await tgApi(tok, 'getMe', {}).catch(() => ({}));
+    const info = await tgApi(tok, 'getWebhookInfo', {}).catch(() => ({}));
+    return res.status(200).json({
+      setup: 'adminwebhook',
       ok: !!set.ok,
       bot: me.result && me.result.username,
       webhookDescription: set.description,
