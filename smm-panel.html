@@ -4294,6 +4294,16 @@ function saveProfile(){
 // postrobot_method. Target window is closed" error.
 var _ppCheckoutInProgress=false;
 
+// True only when the session JWT is present, decodable, and its exp is in the
+// past. On any decode failure returns false — don't block a payment on a token
+// we merely can't parse; let the server be the authority in that case.
+function _ppTokenExpired(tok){
+  try{
+    var p=JSON.parse(atob(String(tok).split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    return typeof p.exp==='number' && (Math.floor(Date.now()/1000) > p.exp);
+  }catch(e){ return false; }
+}
+
 function openPayPalModal(amt, clientId, fee){
   if(_ppCheckoutInProgress){
     showToast('A PayPal checkout is already in progress','w');return;
@@ -4305,9 +4315,16 @@ function openPayPalModal(amt, clientId, fee){
   // api/paypal-verify.js now requires one to credit a wallet, and checking
   // only there meant a customer could go all the way through PayPal (money
   // actually captured) before finding out verification would fail. Catch it
-  // here instead, before anything is charged.
-  if(!_session||!_session.token){
-    showToast('Please log out and log back in before making a payment.','e');
+  // here instead, before anything is charged. Also catch an EXPIRED token:
+  // the 7-day session token outlives nothing on the client, so a returning
+  // customer still looks "logged in" while their token is dead — paypal-verify
+  // then rejects it as 'token-expired' AFTER PayPal captured the money. Force
+  // a re-login here, before any charge, instead.
+  if(!_session||!_session.token||_ppTokenExpired(_session.token)){
+    var _em=(typeof _isFa==='function'&&_isFa())
+      ? 'نشست شما منقضی شده — لطفاً یک‌بار خارج و دوباره وارد شوید، سپس پرداخت کنید.'
+      : 'Your session has expired — please log out and log back in, then pay.';
+    showToast(_em,'e');
     return;
   }
   // Read minimum and fee from admin settings
