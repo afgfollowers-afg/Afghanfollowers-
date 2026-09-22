@@ -238,7 +238,9 @@ module.exports = async (req, res) => {
         // secret — only the failure class and a secret-fingerprint to confirm
         // this function and the login that signed the token agree on
         // AUTH_JWT_SECRET.
-        return res.status(200).json({ ok: false, error: 'Unauthorized', authDiag: diagnoseAuth(req), secretFp: SECRET_FINGERPRINT });
+        const _diag = diagnoseAuth(req);
+        try { console.log('PAYPAL_AUTH_FAIL ' + JSON.stringify({ orderId: body.orderId, bodyUserId: body.userId, diag: _diag, secretFp: SECRET_FINGERPRINT })); } catch (e) {}
+        return res.status(200).json({ ok: false, error: 'Unauthorized', authDiag: _diag, secretFp: SECRET_FINGERPRINT });
       }
       userId = auth.sub;
     }

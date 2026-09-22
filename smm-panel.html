@@ -4473,7 +4473,14 @@ function verifyPayPalOrder(orderId){
       // Always surface the order id here — it's the only thing that lets
       // support/admin manually reconcile a payment that succeeded at PayPal
       // but failed to verify/credit on our side for any reason.
-      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+(res.authDiag?' <b>['+res.authDiag+']</b>':'')+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
+      // authDiag is an OBJECT ({reason:...}); render its reason string, never
+      // the object (which stringifies to the useless "[object Object]").
+      var _diag='';
+      if(res.authDiag){ _diag=(typeof res.authDiag==='string')?res.authDiag:(res.authDiag.reason||JSON.stringify(res.authDiag)); }
+      // A rejected session token (no header / expired / signature) is an auth
+      // problem, not a PayPal one — tell the user how to fix it themselves.
+      var _authHint=res.authDiag?'<br><small>⚠️ نشست شما منقضی یا نامعتبر شده. لطفاً یک‌بار از حساب خارج شوید و دوباره وارد شوید، سپس دوباره پرداخت را امتحان کنید.</small>':'';
+      ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+(_diag?' <b>['+_diag+']</b>':'')+_authHint+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
       showToast('Payment verification failed — save this Order ID: '+orderId,'e');
       return;
     }
