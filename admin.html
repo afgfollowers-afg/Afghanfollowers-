@@ -7,7 +7,7 @@
 <title>Admin Panel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--s3:#1c2235;--bd:#232a3d;--acc:#7c5cfc;--acc2:#a78bfa;--gr:#00d2a0;--rd:#ff5c7d;--yw:#fbbf24;--or:#f97316;--tx:#e2e8f0;--mt:#64748b;--wh:#fff;--fn:'Inter',sans-serif;}
+:root{--bg:#08090d;--s1:#10131c;--s2:#161b28;--s3:#1c2235;--bd:#232a3d;--acc:#ff2e93;--acc2:#22e4ff;--gr:#00d2a0;--rd:#ff5c7d;--yw:#fbbf24;--or:#f97316;--tx:#e2e8f0;--mt:#64748b;--wh:#fff;--fn:'Inter',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--tx);font-family:var(--fn);display:flex;min-height:100vh;}
 
@@ -21,7 +21,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fn);display:flex;min
 .sb-sec{font-size:10px;font-weight:700;color:var(--mt);text-transform:uppercase;letter-spacing:1.5px;padding:14px 16px 5px;}
 .ni{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;color:var(--mt);font-size:13px;font-weight:500;transition:all .15s;position:relative;}
 .ni:hover{background:var(--s2);color:var(--tx);}
-.ni.on{background:rgba(124,92,252,.15);color:var(--acc2);}
+.ni.on{background:rgba(255,46,147,.15);color:var(--acc2);}
 .ni.on::before{content:'';position:absolute;left:0;top:25%;bottom:25%;width:3px;background:var(--acc);border-radius:0 3px 3px 0;}
 .ni-ico{width:18px;height:18px;flex-shrink:0;}
 .nbg{margin-left:auto;background:var(--acc);color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;}
@@ -79,12 +79,12 @@ tr:hover td{background:rgba(22,27,40,.6);}
 .bg{background:rgba(0,210,160,.12);color:var(--gr);border:1px solid rgba(0,210,160,.25);}
 .by{background:rgba(251,191,36,.12);color:var(--yw);border:1px solid rgba(251,191,36,.25);}
 .br{background:rgba(255,92,125,.12);color:var(--rd);border:1px solid rgba(255,92,125,.25);}
-.bp{background:rgba(124,92,252,.12);color:var(--acc2);border:1px solid rgba(124,92,252,.25);}
+.bp{background:rgba(255,46,147,.12);color:var(--acc2);border:1px solid rgba(255,46,147,.25);}
 .bo{background:rgba(249,115,22,.12);color:var(--or);border:1px solid rgba(249,115,22,.25);}
 
 /* BTN */
 .btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--fn);transition:all .2s;display:inline-flex;align-items:center;gap:5px;}
-.btn-p{background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;box-shadow:0 4px 12px rgba(124,92,252,.3);}
+.btn-p{background:linear-gradient(135deg,var(--acc),#b3126a);color:#fff;box-shadow:0 4px 12px rgba(255,46,147,.3);}
 .btn-p:hover{transform:translateY(-1px);}
 .btn-g{background:var(--s2);border:1px solid var(--bd);color:var(--mt);}
 .btn-g:hover{border-color:var(--acc);color:var(--acc2);}
@@ -149,7 +149,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .ch-wrap{padding:18px;}
 .ch-bars{display:flex;align-items:flex-end;gap:7px;height:130px;margin-bottom:7px;}
 .ch-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
-.ch-bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,var(--acc),rgba(124,92,252,.25));transition:height .5s cubic-bezier(.34,1.56,.64,1);cursor:pointer;}
+.ch-bar{width:100%;border-radius:5px 5px 0 0;background:linear-gradient(180deg,var(--acc),rgba(255,46,147,.25));transition:height .5s cubic-bezier(.34,1.56,.64,1);cursor:pointer;}
 .ch-bar:hover{filter:brightness(1.25);}
 .ch-lbl{font-size:10px;color:var(--mt);}
 
@@ -238,7 +238,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 /* P&L sub-tabs */
 .mbs-pl-subtabs{display:flex;gap:6px;padding:10px 12px;background:var(--s2);border-bottom:1px solid var(--bd);flex-shrink:0;}
 .mbs-pl-subtab{flex:1;padding:7px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--mt);cursor:pointer;border-radius:8px;border:1px solid transparent;transition:all .15s;}
-.mbs-pl-subtab.on{background:rgba(124,92,252,.18);color:var(--acc2);border-color:rgba(124,92,252,.3);}
+.mbs-pl-subtab.on{background:rgba(255,46,147,.18);color:var(--acc2);border-color:rgba(255,46,147,.3);}
 /* P&L summary row */
 .mbs-pl-sumrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 12px 6px;}
 .mbs-pl-sc{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 8px;text-align:center;}
@@ -257,7 +257,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .mbs-pl-row-profit.neg{color:var(--rd);}
 .mbs-pl-row-meta{display:flex;gap:14px;font-size:11px;color:var(--mt);margin-bottom:5px;}
 .mbs-pl-bar-wrap{height:3px;background:rgba(35,42,61,.8);border-radius:2px;overflow:hidden;}
-.mbs-pl-bar-rev{height:100%;background:rgba(124,92,252,.5);border-radius:2px;}
+.mbs-pl-bar-rev{height:100%;background:rgba(255,46,147,.5);border-radius:2px;}
 .mbs-pl-bar-profit{height:100%;background:var(--gr);border-radius:2px;}
 .mbs-pl-bar-neg{background:var(--rd);}
 /* User rows */
@@ -281,7 +281,7 @@ textarea.fi{resize:vertical;min-height:75px;}
   border-radius:12px;cursor:pointer;transition:all .15s;
   font-size:11px;font-weight:600;color:var(--tx);text-align:center;
 }
-.mob-sheet-item:active{background:rgba(124,92,252,.15);border-color:var(--acc);}
+.mob-sheet-item:active{background:rgba(255,46,147,.15);border-color:var(--acc);}
 .mob-sheet-item-ico{font-size:22px;}
 /* Report stats */
 .mbs-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 12px 8px;}
@@ -292,7 +292,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .mbs-stat-val.red{color:var(--rd);}
 .mbs-stat-val.yellow{color:var(--yw);}
 .mbs-chart{display:flex;align-items:flex-end;gap:4px;height:70px;padding:0 12px 6px;}
-.mbs-bar{flex:1;background:rgba(124,92,252,.4);border-radius:3px 3px 0 0;min-height:3px;position:relative;}
+.mbs-bar{flex:1;background:rgba(255,46,147,.4);border-radius:3px 3px 0 0;min-height:3px;position:relative;}
 .mbs-bar.today{background:var(--acc);}
 .mbs-chart-lbl{display:flex;gap:4px;padding:0 12px 12px;}
 .mbs-chart-lbl span{flex:1;text-align:center;font-size:9px;color:var(--mt);}
@@ -317,8 +317,8 @@ textarea.fi{resize:vertical;min-height:75px;}
   display:none;
   position:fixed;right:16px;bottom:80px;z-index:150;
   width:50px;height:50px;border-radius:50%;
-  background:linear-gradient(135deg,var(--acc),#5b21b6);
-  box-shadow:0 6px 20px rgba(124,92,252,.5);
+  background:linear-gradient(135deg,var(--acc),#b3126a);
+  box-shadow:0 6px 20px rgba(255,46,147,.5);
   align-items:center;justify-content:center;
   cursor:pointer;border:none;color:#fff;font-size:22px;
   transition:transform .2s,box-shadow .2s;
@@ -447,7 +447,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .a-s{background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);}
 .a-e{background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);}
 .a-w{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--yw);}
-.a-i{background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);}
+.a-i{background:rgba(255,46,147,.1);border:1px solid rgba(255,46,147,.3);color:var(--acc2);}
 #sp-emailauto code{background:var(--s2);padding:1px 6px;border-radius:4px;font-size:11px;}
 
 /* ══ COMMAND PALETTE ══ */
@@ -463,7 +463,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .cp-results{max-height:380px;overflow-y:auto;}
 .cp-section{font-size:10px;font-weight:800;color:var(--mt);text-transform:uppercase;letter-spacing:1px;padding:10px 14px 4px;}
 .cp-item{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .12s;}
-.cp-item:hover,.cp-item.active{background:rgba(124,92,252,.15);}
+.cp-item:hover,.cp-item.active{background:rgba(255,46,147,.15);}
 .cp-item-ico{width:32px;height:32px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;}
 .cp-item-txt{flex:1;}
 .cp-item-name{font-size:13px;font-weight:600;color:var(--tx);}
@@ -530,7 +530,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .sc.c3 .sc-ring{background:var(--yw);}
 .sc.c4 .sc-ring{background:var(--rd);}
 .sc-ico-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
-.sc.c1 .sc-ico-wrap{background:rgba(124,92,252,.15);}
+.sc.c1 .sc-ico-wrap{background:rgba(255,46,147,.15);}
 .sc.c2 .sc-ico-wrap{background:rgba(0,210,160,.15);}
 .sc.c3 .sc-ico-wrap{background:rgba(251,191,36,.15);}
 .sc.c4 .sc-ico-wrap{background:rgba(255,92,125,.15);}
@@ -573,9 +573,9 @@ textarea.fi{resize:vertical;min-height:75px;}
 }
 
 /* ══ DARK MODE ENHANCEMENTS ══ */
-.sec:hover{border-color:rgba(124,92,252,.3);}
-.sc:hover{box-shadow:0 8px 24px rgba(124,92,252,.15);}
-.btn-p:hover{box-shadow:0 6px 18px rgba(124,92,252,.5);}
+.sec:hover{border-color:rgba(255,46,147,.3);}
+.sc:hover{box-shadow:0 8px 24px rgba(255,46,147,.15);}
+.btn-p:hover{box-shadow:0 6px 18px rgba(255,46,147,.5);}
 
 /* ══ STATUS BAR ══ */
 .status-bar{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--mt);margin-left:auto;}
@@ -602,13 +602,13 @@ textarea.fi{resize:vertical;min-height:75px;}
 
 /* ══ PROVIDER INTEL PAGE ══ */
 .pi-card{background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:16px;text-align:center;transition:border-color .2s;}
-.pi-card.highlight{border-color:var(--acc);background:rgba(124,92,252,.08);}
+.pi-card.highlight{border-color:var(--acc);background:rgba(255,46,147,.08);}
 .pi-card-ico{font-size:26px;margin-bottom:6px;}
 .pi-card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mt);margin-bottom:4px;}
 .pi-card-val{font-size:15px;font-weight:800;color:var(--tx);margin-bottom:3px;}
 .pi-card-sub{font-size:11px;color:var(--mt);}
 .pi-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;gap:0;border-bottom:1px solid var(--bd);align-items:center;}
-.pi-row:hover{background:rgba(124,92,252,.04);}
+.pi-row:hover{background:rgba(255,46,147,.04);}
 .pi-row-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--mt);background:var(--s2);}
 .pi-cell{padding:10px 12px;font-size:12px;}
 .pi-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;}
@@ -622,7 +622,7 @@ textarea.fi{resize:vertical;min-height:75px;}
 .nbg{animation:none;min-width:18px;text-align:center;}
 
 /* ══ BETTER TABLE ══ */
-tr:hover td{background:rgba(124,92,252,.05);}
+tr:hover td{background:rgba(255,46,147,.05);}
 th{font-size:10px;}
 
 /* ══ TOPBAR TITLE ══ */
@@ -639,6 +639,8 @@ th{font-size:10px;}
 @media(max-width:768px){.qa-bar{padding:10px 12px;gap:6px;margin-bottom:12px;}}
 @media(max-width:480px){.qa-bar .qa-chip:nth-child(n+6){display:none;}}
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&display=swap">
+<link rel="stylesheet" href="/theme-neon.css?v=1">
 </head>
 <body>
 
@@ -807,7 +809,7 @@ th{font-size:10px;}
     <div class="page" id="pg-services">
       <div class="sec">
         <!-- Bulk action bar -->
-        <div id="bulk-action-bar" style="display:none;background:rgba(124,92,252,.12);border:1px solid rgba(124,92,252,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:8px;flex-wrap:wrap">
+        <div id="bulk-action-bar" style="display:none;background:rgba(255,46,147,.12);border:1px solid rgba(255,46,147,.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:8px;flex-wrap:wrap">
           <input type="checkbox" id="select-all-cb" onchange="selectAllSvcs(this)" title="Select / Deselect All" style="width:16px;height:16px;accent-color:var(--acc)">
           <span id="bulk-count" style="font-size:13px;font-weight:700;color:var(--acc2)">0 selected</span>
           <button class="btn btn-s btn-sm" onclick="bulkActivate()">✅ Enable</button>
@@ -823,7 +825,7 @@ th{font-size:10px;}
           <button class="btn btn-d btn-sm" onclick="deleteAllServices()" style="margin-left:auto">🗑 Delete All Services</button>
         </div>
         <!-- Price Editor -->
-        <div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="background:rgba(255,46,147,.08);border:1px solid rgba(255,46,147,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px">
           <div style="font-size:12px;font-weight:700;color:var(--wh);margin-bottom:8px">💰 Bulk Price Editor</div>
           <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
             <select class="fi" id="price-edit-type" style="width:190px;padding:7px 9px;font-size:12px" onchange="updatePricePreview()">
@@ -942,7 +944,7 @@ th{font-size:10px;}
         </select>
 
         <!-- Row 2: Price + Category settings -->
-        <div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div style="background:rgba(255,46,147,.08);border:1px solid rgba(255,46,147,.2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
           <div style="font-size:12px;font-weight:700;color:var(--wh);margin-bottom:8px">💰 Import Settings</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
             <div>
@@ -1163,13 +1165,13 @@ th{font-size:10px;}
                 </div>
                 <div class="fg"><label class="fl">Email Subject</label><input class="fi" id="ea-t-subj" value="We miss you, {{name}}! 🌟 Come back and grow your social media"></div>
                 <div class="fg"><label class="fl">Email Body (HTML)</label><textarea class="fi" id="ea-t-body" rows="12">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
-  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+  &lt;div style="background:linear-gradient(135deg,#ff2e93,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
     &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🌟 Afghan Followers&lt;/h1&gt;
   &lt;/div&gt;
   &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08)"&gt;
     &lt;h2 style="color:#1a202c;margin-bottom:8px"&gt;Hi {{name}}, we miss you! 👋&lt;/h2&gt;
     &lt;p style="color:#555;line-height:1.7;margin-bottom:16px"&gt;
-      You haven't visited &lt;strong&gt;{{site_name}}&lt;/strong&gt; for &lt;strong style="color:#7c5cfc"&gt;{{days}} days&lt;/strong&gt;.
+      You haven't visited &lt;strong&gt;{{site_name}}&lt;/strong&gt; for &lt;strong style="color:#ff2e93"&gt;{{days}} days&lt;/strong&gt;.
       Your account balance is &lt;strong style="color:#00d2a0"&gt;${{balance}}&lt;/strong&gt; — ready to use!
     &lt;/p&gt;
     &lt;p style="color:#555;line-height:1.7;margin-bottom:20px"&gt;
@@ -1179,7 +1181,7 @@ th{font-size:10px;}
       ✅ 24/7 support team ready to help
     &lt;/p&gt;
     &lt;div style="text-align:center;margin-bottom:20px"&gt;
-      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#ff2e93,#b3126a);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
         🚀 Back to Panel
       &lt;/a&gt;
     &lt;/div&gt;
@@ -1216,7 +1218,7 @@ th{font-size:10px;}
                 </div>
                 <div class="fg"><label class="fl">Email Subject</label><input class="fi" id="ea-bc-subj" value="🚀 وب‌سایت جدید افغان‌فالوورز راه‌اندازی شد"></div>
                 <div class="fg"><label class="fl">Email Body (HTML)</label><textarea class="fi" id="ea-bc-body" rows="14">&lt;div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa"&gt;
-  &lt;div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
+  &lt;div style="background:linear-gradient(135deg,#ff2e93,#00d2a0);padding:20px;border-radius:12px 12px 0 0;text-align:center"&gt;
     &lt;h1 style="color:#fff;margin:0;font-size:22px"&gt;🚀 افغان‌فالوورز&lt;/h1&gt;
   &lt;/div&gt;
   &lt;div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);direction:rtl;text-align:right"&gt;
@@ -1232,7 +1234,7 @@ th{font-size:10px;}
       ✅ پشتیبانی ۲۴ ساعته
     &lt;/p&gt;
     &lt;div style="text-align:center;margin-bottom:20px"&gt;
-      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
+      &lt;a href="{{panel_link}}" style="background:linear-gradient(135deg,#ff2e93,#b3126a);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block"&gt;
         🌐 بازدید از وب‌سایت جدید
       &lt;/a&gt;
     &lt;/div&gt;
@@ -1292,7 +1294,7 @@ th{font-size:10px;}
         <div class="fgrid" style="padding:14px 18px" id="fl-settings-fields">
           <div class="fg"><label class="fl">Friends Required</label><input type="number" min="1" class="fi" value="5" id="g-fl-friends"></div>
           <div class="fg"><label class="fl">Link Visits Required</label><input type="number" min="1" class="fi" value="50" id="g-fl-visits"></div>
-          <div class="fg full" style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.2);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--mt)">
+          <div class="fg full" style="background:rgba(255,46,147,.08);border:1px solid rgba(255,46,147,.2);border-radius:9px;padding:10px 14px;font-size:12px;color:var(--mt)">
             💡 Changes here take effect immediately for new claims — customers see the updated numbers next time they open the panel.
           </div>
           <div class="fg full"><button class="btn btn-p" onclick="saveInviteSettings()">💾 Save Changes</button></div>
@@ -2209,7 +2211,7 @@ th{font-size:10px;}
   <div style="width:100%;max-width:380px;margin:auto 0">
     <!-- Logo -->
     <div style="text-align:center;margin-bottom:28px">
-      <img src="/icons/nav-badge.png" alt="Afghan Followers" style="width:60px;height:60px;border-radius:16px;margin:0 auto 14px;box-shadow:0 8px 28px rgba(124,92,252,.4);display:block;object-fit:cover">
+      <img src="/icons/nav-badge.png" alt="Afghan Followers" style="width:60px;height:60px;border-radius:16px;margin:0 auto 14px;box-shadow:0 8px 28px rgba(255,46,147,.4);display:block;object-fit:cover">
       <div style="font-size:22px;font-weight:900;color:var(--wh)">Admin Panel</div>
       <div style="font-size:13px;color:var(--mt);margin-top:4px">Afghan Followers — Secure Access</div>
       <div style="font-size:10px;color:#00d2a0;margin-top:6px;font-weight:800">ADMIN-BUILD-svc-sync-v2</div>
@@ -2232,7 +2234,7 @@ th{font-size:10px;}
         </div>
       </div>
 
-      <button id="admin-login-btn" onclick="doAdminLogin()" style="width:100%;padding:13px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--acc),#5b21b6);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fn);box-shadow:0 6px 20px rgba(124,92,252,.35);transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px">
+      <button id="admin-login-btn" onclick="doAdminLogin()" style="width:100%;padding:13px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--acc),#b3126a);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--fn);box-shadow:0 6px 20px rgba(255,46,147,.35);transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px">
         🔐 Sign In
       </button>
 
@@ -3073,7 +3075,7 @@ function rOrders(list){
         +'<button data-oid="'+oid+'" onclick="rejectFreeLikes(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.15);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">❌ Reject</button>'
         :'')
        +'<button data-oid="'+oid+'" onclick="adminSetOrderStart(this.dataset.oid)" style="padding:5px 10px;background:rgba(0,210,160,.1);border:1px solid rgba(0,210,160,.3);color:var(--gr);border-radius:7px;font-size:11px;cursor:pointer">✏️ Start Count</button>'
-       +'<button data-oid="'+oid+'" onclick="adminSetOrderRemain(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.3);color:var(--acc2);border-radius:7px;font-size:11px;cursor:pointer">📊 Remains</button>'
+       +'<button data-oid="'+oid+'" onclick="adminSetOrderRemain(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,46,147,.1);border:1px solid rgba(255,46,147,.3);color:var(--acc2);border-radius:7px;font-size:11px;cursor:pointer">📊 Remains</button>'
        +'<button data-oid="'+oid+'" onclick="adminRefundOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:var(--rd);border-radius:7px;font-size:11px;cursor:pointer">💸 Refund</button>'
      +'</div>'
      +'</div>';
@@ -3312,7 +3314,7 @@ function rSvcs(){
     var plat=getPlatFromStr(catName)||getPlatFromStr(glist[0].name);
     var ico=platIco[plat]||'⭐';
     // Category header row
-    html+='<div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.15);border-radius:10px;padding:10px 14px;margin-bottom:4px;display:flex;align-items:center;gap:10px" data-cat="'+catName+'">'
+    html+='<div style="background:rgba(255,46,147,.08);border:1px solid rgba(255,46,147,.15);border-radius:10px;padding:10px 14px;margin-bottom:4px;display:flex;align-items:center;gap:10px" data-cat="'+catName+'">'
       +'<span style="cursor:pointer;flex:1;display:flex;align-items:center;gap:10px" onclick="toggleCatSection(this.closest(\'[data-cat]\'))">'
       +'<span style="font-size:16px">'+ico+'</span>'
       +'<span style="font-weight:700;color:var(--acc2);font-size:13px">'+catName+'</span>'
@@ -3360,7 +3362,7 @@ function rSvcs(){
       var isQoWinner=_qoWinners.has(String(s.id));
       html+='<tr style="background:'+(active?'':'rgba(255,92,125,.03)')+'opacity:'+(active?'1':'.6')+'">'
         +'<td><input type="checkbox" class="svc-cb" data-id="'+s.id+'" onchange="updateBulkBar()"></td>'
-        +'<td><div onclick="pickSvcLogo(this.dataset.id)" data-id="'+s.id+'" style="width:32px;height:32px;border-radius:8px;background:#7c5cfc;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer" title="Change logo">'+logo+'</div></td>'
+        +'<td><div onclick="pickSvcLogo(this.dataset.id)" data-id="'+s.id+'" style="width:32px;height:32px;border-radius:8px;background:#ff2e93;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer" title="Change logo">'+logo+'</div></td>'
         +'<td style="color:var(--mt);font-size:11px">#'+(s.svcId||String(s.id).slice(-5))+'</td>'
         +'<td style="max-width:220px">'
           +'<div style="font-weight:600;font-size:12px;line-height:1.4">'+s.name+(isNew?' <span style="background:#00d2a0;color:#000;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>':'')+(isQoDis?' <span style="background:rgba(255,92,125,.2);color:var(--rd);font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;vertical-align:middle">💤سایت</span>':'')+'</div>'
@@ -4192,7 +4194,7 @@ function qiRender(services,provId){
     var svcId=String(s.service||s.id||'');
     var isImported=existingIds.has(svcId);
     var isSelected=_qiSelected.has(svcId);
-    return '<tr style="background:'+(isImported?'rgba(0,210,160,.04)':'')+(isSelected&&!isImported?'rgba(124,92,252,.06)':'')+';">'
+    return '<tr style="background:'+(isImported?'rgba(0,210,160,.04)':'')+(isSelected&&!isImported?'rgba(255,46,147,.06)':'')+';">'
       +'<td style="text-align:center"><input type="checkbox" class="qi-cb" data-svcid="'+svcId+'" data-provid="'+provId+'" '
       +(isImported?'disabled title="Already imported"':(isSelected?'checked':''))
       +' onchange="qiToggleCb(this)"></td>'
@@ -4244,7 +4246,7 @@ function qiRender(services,provId){
     order.forEach(function(catName){
       var glist=groups[catName];
       html+='<div style="margin-bottom:10px">'
-        +'<div style="background:rgba(124,92,252,.08);border:1px solid rgba(124,92,252,.15);border-radius:9px 9px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px">'
+        +'<div style="background:rgba(255,46,147,.08);border:1px solid rgba(255,46,147,.15);border-radius:9px 9px 0 0;padding:8px 12px;display:flex;align-items:center;gap:8px">'
         +'<input type="checkbox" title="Select all in '+qiEsc(catName)+'" onchange="qiSelectVisibleInCategory(this,\''+qiEsc(catName)+'\')">'
         +'<span style="font-weight:700;color:var(--acc2);font-size:12px">'+qiEsc(catName)+'</span>'
         +'<span style="color:var(--mt);font-size:11px">('+glist.length+' services)</span>'
@@ -5308,7 +5310,7 @@ function rStuckOrders(){
       +'<div style="font-size:13px;font-weight:700;color:var(--wh);margin-bottom:2px">'+escHtmlAdmin(name)+'</div>'
       +(link?'<div style="font-size:11px;color:var(--mt);word-break:break-all;margin-bottom:10px">'+escHtmlAdmin(link)+'</div>':'')
       +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +(isCatalogErr?'<button data-oid="'+s.orderId+'" onclick="fixStuckOrderService(this.dataset.oid)" style="padding:5px 10px;background:rgba(124,92,252,.15);border:1px solid rgba(124,92,252,.4);color:var(--acc2);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔧 Reassign Service</button>':'')
+      +(isCatalogErr?'<button data-oid="'+s.orderId+'" onclick="fixStuckOrderService(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,46,147,.15);border:1px solid rgba(255,46,147,.4);color:var(--acc2);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🔧 Reassign Service</button>':'')
       +'<button data-oid="'+s.orderId+'" onclick="deleteStuckOrder(this.dataset.oid)" style="padding:5px 10px;background:rgba(255,92,125,.12);border:1px solid rgba(255,92,125,.4);color:var(--rd);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">🗑 Delete &amp; Refund</button>'
       +'</div>'
       +'</div>';
@@ -5440,7 +5442,7 @@ function viewTicket(id){
   var msgHtml=msgs.map(function(m){
     var isAdmin=m.from==='admin';
     return '<div style="margin-bottom:10px;display:flex;flex-direction:'+(isAdmin?'row-reverse':'row')+';gap:8px">'
-      +'<div style="background:'+(isAdmin?'rgba(124,92,252,.2)':'var(--s2)')+';border-radius:10px;padding:10px 14px;max-width:80%;font-size:13px">'
+      +'<div style="background:'+(isAdmin?'rgba(255,46,147,.2)':'var(--s2)')+';border-radius:10px;padding:10px 14px;max-width:80%;font-size:13px">'
       +'<div style="font-size:10px;color:var(--mt);margin-bottom:4px">'+(isAdmin?'Admin':'User')+' · '+escHtmlAdmin(m.date||'')+'</div>'
       +escHtmlAdmin(m.text||m.msg||'')+'</div></div>';
   }).join('');
@@ -5448,7 +5450,7 @@ function viewTicket(id){
   div.className='mo open';div.id='m-view-ticket';
   div.innerHTML='<div class="md" style="max-width:520px">'
     +'<div class="md-h"><div class="md-t">🎫 Ticket #'+t.id+'</div><div class="md-x" id="tkt-x-btn">✕</div></div>'
-    +'<div style="padding:8px 16px;background:rgba(124,92,252,.08);font-size:13px;font-weight:600">'+escHtmlAdmin(t.subject||t.title||'')+'</div>'
+    +'<div style="padding:8px 16px;background:rgba(255,46,147,.08);font-size:13px;font-weight:600">'+escHtmlAdmin(t.subject||t.title||'')+'</div>'
     +'<div class="md-b" style="max-height:280px;overflow-y:auto;padding:12px 16px" id="tkt-msgs-body">'+msgHtml+'</div>'
     +'<div style="padding:12px 16px;border-top:1px solid var(--bd)">'
     +'<textarea class="fi" id="ticket-reply-txt" rows="3" placeholder="Type your reply to the user..." style="margin-bottom:8px;resize:vertical"></textarea>'
@@ -6151,7 +6153,7 @@ function openTk(id){
   var msgs=(t.messages||[{from:'user',text:t.msg,time:t.date}]);
   var msgsHtml=msgs.map(function(m){
     return '<div style="display:flex;gap:8px;margin-bottom:8px'+(m.from==='admin'?';flex-direction:row-reverse':'')+'">'
-      +'<div style="max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;background:'+(m.from==='admin'?'rgba(124,92,252,.15)':'var(--s2)')+';border:1px solid '+(m.from==='admin'?'rgba(124,92,252,.3)':'var(--bd)')+'">'+escHtmlAdmin(m.text)
+      +'<div style="max-width:75%;padding:9px 13px;border-radius:12px;font-size:13px;background:'+(m.from==='admin'?'rgba(255,46,147,.15)':'var(--s2)')+';border:1px solid '+(m.from==='admin'?'rgba(255,46,147,.3)':'var(--bd)')+'">'+escHtmlAdmin(m.text)
       +'<div style="font-size:10px;color:var(--mt);margin-top:3px">'+(m.from==='admin'?'👤 Admin':'👥 '+escHtmlAdmin(t.user))+' · '+escHtmlAdmin(m.time)+'</div></div></div>';
   }).join('');
   document.getElementById('m-ticket-msg').innerHTML=msgsHtml;
@@ -6960,7 +6962,7 @@ var intgA=[
   {name:'Google Analytics',desc:'Track user behavior. Get ID from analytics.google.com',ico:'📈',bg:'#F4B400',key:'gaId',placeholder:'G-XXXXXXXXXX'},
 ];
 var intgO=[
-  {name:'Beamer',desc:'Announce updates with in-app notifications.',ico:'✏️',bg:'#5b21b6'},
+  {name:'Beamer',desc:'Announce updates with in-app notifications.',ico:'✏️',bg:'#b3126a'},
   {name:'Getsitecontrol',desc:'Reduce visitor bounce with popups.',ico:'📊',bg:'#0ea5e9'},
 ];
 function rIntg(){
@@ -7703,7 +7705,7 @@ function piRenderResults(){
       // cheapest
     }
     var cheapestAvg=rows.filter(function(x){return x.avgPrice!==null;}).map(function(x){return x.avgPrice;});
-    if(cheapestAvg.length&&r.avgPrice!==null&&r.avgPrice===Math.min.apply(null,cheapestAvg)) badges+='<span class="pi-badge" style="background:rgba(124,92,252,.15);color:var(--acc2)">💰 ارزان‌ترین</span> ';
+    if(cheapestAvg.length&&r.avgPrice!==null&&r.avgPrice===Math.min.apply(null,cheapestAvg)) badges+='<span class="pi-badge" style="background:rgba(255,46,147,.15);color:var(--acc2)">💰 ارزان‌ترین</span> ';
     var fastestMs=rows.map(function(x){return x.ms;});
     if(r.ms===Math.min.apply(null,fastestMs)) badges+='<span class="pi-badge" style="background:rgba(0,180,255,.12);color:#00b4ff">⚡ سریع‌ترین</span> ';
 
@@ -8079,18 +8081,18 @@ function wrapEmailTemplate(innerHtml,lang){
   var s=EMAIL_WRAP_STRINGS[lang]||EMAIL_WRAP_STRINGS.fa;
   return '<div dir="'+s.dir+'" style="font-family:Tahoma,\'Segoe UI\',Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f8f9fa;text-align:'+s.align+'">'
     +'<style>@keyframes flPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}.fl-badge{animation:flPulse 1.8s ease-in-out infinite}</style>'
-    +'<div style="background:linear-gradient(135deg,#7c5cfc,#00d2a0);padding:18px 20px;border-radius:12px 12px 0 0;text-align:center">'
+    +'<div style="background:linear-gradient(135deg,#ff2e93,#00d2a0);padding:18px 20px;border-radius:12px 12px 0 0;text-align:center">'
     +'<img src="'+EMAIL_LOGO_URL+'" width="36" height="36" alt="" style="vertical-align:middle;border-radius:9px;margin-'+(s.dir==='rtl'?'left':'right')+':10px">'
     +'<span style="color:#fff;font-size:22px;font-weight:800;vertical-align:middle">{{site_name}}</span></div>'
     +'<div style="background:#fff;padding:28px;border-radius:0 0 12px 12px;box-shadow:0 4px 20px rgba(0,0,0,.08);line-height:1.9">'
     +innerHtml
-    +'<div class="fl-badge" style="background:linear-gradient(135deg,rgba(124,92,252,.12),rgba(0,210,160,.12));border:1px solid rgba(124,92,252,.3);border-radius:12px;padding:16px 18px;margin:20px 0;text-align:center">'
-    +'<div style="font-size:16px;font-weight:800;color:#5b21b6;margin-bottom:6px">'+s.flHeading+'</div>'
+    +'<div class="fl-badge" style="background:linear-gradient(135deg,rgba(255,46,147,.12),rgba(0,210,160,.12));border:1px solid rgba(255,46,147,.3);border-radius:12px;padding:16px 18px;margin:20px 0;text-align:center">'
+    +'<div style="font-size:16px;font-weight:800;color:#b3126a;margin-bottom:6px">'+s.flHeading+'</div>'
     +'<div style="font-size:13px;color:#555;margin-bottom:10px">'+s.flBody+'</div>'
-    +'<a href="{{panel_link}}" style="color:#7c5cfc;font-weight:700;font-size:13px;text-decoration:none">'+s.flCta+'</a>'
+    +'<a href="{{panel_link}}" style="color:#ff2e93;font-weight:700;font-size:13px;text-decoration:none">'+s.flCta+'</a>'
     +'</div>'
     +'<div style="text-align:center;margin:20px 0 0">'
-    +'<a href="{{panel_link}}" style="background:linear-gradient(135deg,#7c5cfc,#5b21b6);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">'+s.cta+'</a>'
+    +'<a href="{{panel_link}}" style="background:linear-gradient(135deg,#ff2e93,#b3126a);color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block">'+s.cta+'</a>'
     +'</div>'
     +'<p style="font-size:12px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:14px;margin:20px 0 0">'
     +s.footer+'</p>'
@@ -9017,8 +9019,8 @@ function showAdminLoginAlert(msg){
   // The box is styled red in markup; device-lock added success/neutral states
   // to it, so tint by message kind instead of always reading as an error.
   var ok=msg.indexOf('✅')===0, info=msg.indexOf('🔐')===0;
-  el.style.background=ok?'rgba(16,185,129,.1)':info?'rgba(124,92,252,.1)':'rgba(255,92,125,.1)';
-  el.style.borderColor=ok?'rgba(16,185,129,.3)':info?'rgba(124,92,252,.3)':'rgba(255,92,125,.3)';
+  el.style.background=ok?'rgba(16,185,129,.1)':info?'rgba(255,46,147,.1)':'rgba(255,92,125,.1)';
+  el.style.borderColor=ok?'rgba(16,185,129,.3)':info?'rgba(255,46,147,.3)':'rgba(255,92,125,.3)';
   el.style.color=ok?'#10b981':info?'var(--acc2)':'var(--rd)';
   el.style.display='block';
   setTimeout(function(){el.style.display='none';},3000);

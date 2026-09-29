@@ -1,0 +1,213 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Afghan Followers — "Neon Creators" theme
+   Loaded by every page right before </head>, AFTER each page's own inline
+   styles. It re-points the shared design tokens (both naming families used
+   across the site) and layers the neon treatment on primary actions, active
+   states, cards and the page atmosphere. Delete the <link> tags to revert.
+
+   Palette
+     Ink        #07050F  ground (violet-biased black, never pure #000)
+     Surfaces   #100C1E / #171229 / #1F1935, border #2C2448
+     Signal     Pink #FF2E93 → Violet #A14DFF → Cyan #22E4FF
+                (the creator-platform "chromatic offset" pair)
+     Semantic   Mint #3DFFA8 ok · Coral #FF4D6D error · Amber #FFD23F warn
+     Text       #F1ECFF, muted #9B93B9
+
+   Selectors are prefixed with `html body` so they out-rank the pages' bare
+   class rules even when a page has a later <style> block, while compound
+   state rules (.svc-card.sel, .pay-card:hover …) still win over these.
+   ───────────────────────────────────────────────────────────────────────── */
+
+html:root{
+  /* short-name family — index, admin, auth, blog, guest */
+  --bg:#07050f; --s1:#100c1e; --s2:#171229; --s3:#1f1935; --bd:#2c2448;
+  --acc:#ff2e93; --acc2:#22e4ff;
+  --gr:#3dffa8; --rd:#ff4d6d; --yw:#ffd23f; --or:#ff8a3d; --ember:#ff8a3d;
+  --tx:#f1ecff; --mt:#9b93b9; --wh:#fff;
+
+  /* long-name family — smm-panel */
+  --surface:#100c1e; --surface2:#171229; --border:#2c2448;
+  --accent:#ff2e93; --accent2:#22e4ff; --accent-dark:#b3126a;
+  --accent-glow:rgba(255,46,147,.32);
+  --green:#3dffa8; --red:#ff4d6d; --yellow:#ffd23f; --orange:#ff8a3d;
+  --text:#f1ecff; --muted:#9b93b9; --white:#fff;
+
+  /* neon extras */
+  --neon-pink:#ff2e93; --neon-violet:#a14dff; --neon-cyan:#22e4ff;
+  --neon-grad:linear-gradient(120deg,#ff2e93 0%,#a14dff 50%,#22e4ff 100%);
+  --neon-ink:#0b0714;            /* text ON the neon gradient (contrast ≥ 5:1 on every stop) */
+  --glass-line:rgba(255,255,255,.075);
+  --glass-hi:rgba(255,255,255,.05);
+
+  color-scheme:dark;
+  background:var(--bg);
+  scrollbar-color:#3a2f5e transparent;
+}
+
+/* ── Atmosphere: slow-drifting aurora behind everything ─────────────────── */
+/* The body is made transparent so the fixed layer (z-index:-1) sits between
+   the html ground and the page content on every page, whether or not a page
+   paints its own html background. */
+html body{background:transparent !important;}
+html body::before{
+  content:"";
+  position:fixed; inset:-18vmax; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(38vmax 38vmax at 12% 8%,  rgba(255,46,147,.26), transparent 62%),
+    radial-gradient(34vmax 34vmax at 88% 22%, rgba(34,228,255,.19), transparent 62%),
+    radial-gradient(44vmax 44vmax at 52% 108%, rgba(161,77,255,.24), transparent 62%);
+  will-change:transform;
+  animation:neonDrift 32s ease-in-out infinite alternate;
+}
+/* faint dot-matrix over the aurora, fading out toward the edges */
+html body::after{
+  content:"";
+  position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:radial-gradient(rgba(255,255,255,.10) 1px, transparent 1.5px);
+  background-size:24px 24px;
+  -webkit-mask-image:radial-gradient(ellipse 85% 65% at 50% 25%, #000 25%, transparent 78%);
+          mask-image:radial-gradient(ellipse 85% 65% at 50% 25%, #000 25%, transparent 78%);
+}
+@keyframes neonDrift{
+  from{transform:translate3d(0,0,0) rotate(0deg);}
+  to  {transform:translate3d(3vmax,-2vmax,0) rotate(7deg);}
+}
+
+::selection{background:rgba(255,46,147,.38); color:#fff;}
+::-webkit-scrollbar{width:10px; height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#ff2e93,#22e4ff); border-radius:10px; border:3px solid var(--bg);}
+
+html body :focus-visible{
+  outline:2px solid var(--neon-cyan); outline-offset:2px;
+  box-shadow:0 0 0 5px rgba(34,228,255,.16);
+}
+
+/* ── Brand wordmark ─────────────────────────────────────────────────────── */
+html body .logo{
+  font-family:'Unbounded','Vazirmatn','Inter',sans-serif;
+  letter-spacing:-.2px;
+}
+
+/* ── Signature move: chromatic-offset gradient headline ─────────────────── */
+html body .hero h1 span,
+html body .hero-title span{
+  background:var(--neon-grad);
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(-2px 0 0 rgba(34,228,255,.55)) drop-shadow(2px 0 0 rgba(255,46,147,.55));
+}
+html body .hero h1{letter-spacing:-.5px;}
+
+/* ── Primary actions: neon gradient, ink text, glow ─────────────────────── */
+html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go){
+  background:var(--neon-grad);
+  background-size:220% 100%;
+  background-position:0% 0;
+  color:var(--neon-ink);
+  font-weight:800;
+  border:0;
+  box-shadow:0 8px 26px -8px rgba(255,46,147,.6), inset 0 1px 0 rgba(255,255,255,.35);
+  transition:background-position .6s ease, transform .15s ease, box-shadow .3s ease, filter .2s ease;
+}
+html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go):hover{
+  background-position:100% 0;
+  transform:translateY(-1px);
+  box-shadow:0 10px 32px -8px rgba(34,228,255,.55), 0 0 0 1px rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.35);
+}
+html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go):active{transform:translateY(0); filter:brightness(.95);}
+html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go):disabled,
+html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go)[disabled]{
+  opacity:.5; transform:none; box-shadow:none; cursor:not-allowed;
+}
+
+/* ── Active tabs / segmented controls ───────────────────────────────────── */
+html body :is(.tab.on,.plat-tab.on,.pi-cat.on,.sd.on){
+  background:var(--neon-grad);
+  color:var(--neon-ink);
+  border-color:transparent;
+  box-shadow:0 6px 20px -8px rgba(255,46,147,.55);
+}
+/* active-item indicator bars in the side/bottom navs */
+/* (pseudo-elements aren't allowed inside :is(), so a plain selector list) */
+html body .dnav-item.active::before,
+html body .ni.on::before,
+html body .mbs-tab.on::after{
+  background:var(--neon-grad);
+  box-shadow:0 0 12px rgba(255,46,147,.6);
+}
+
+/* ── Cards: dark glass with a lit top edge ──────────────────────────────── */
+html body :is(.card,.chart-card,.trust-card,.svc-card,.pay-card,.gw-method-card,.af-pm-card,.pi-card,.mbs-prov-card,.post-card){
+  background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.008)), var(--s1);
+  border-color:var(--glass-line);
+  box-shadow:inset 0 1px 0 var(--glass-hi), 0 14px 34px -22px rgba(0,0,0,.9);
+}
+html body :is(.trust-card,.svc-card,.pay-card,.gw-method-card,.post-card,.pi-card){
+  transition:border-color .25s ease, box-shadow .25s ease, transform .2s ease;
+}
+html body :is(.trust-card,.svc-card,.pay-card,.gw-method-card,.post-card,.pi-card):hover{
+  border-color:rgba(255,46,147,.45);
+  box-shadow:0 0 0 1px rgba(255,46,147,.22), 0 16px 42px -16px rgba(255,46,147,.4), inset 0 1px 0 var(--glass-hi);
+}
+
+/* ── The bold move: a live, rotating neon ring around Quick Order ───────────
+   (the landing page's main conversion widget). A conic gradient painted on
+   the border-box under an opaque padding-box. @property lets the angle
+   animate; browsers without it just show a static neon ring. */
+@property --neon-angle{syntax:'<angle>'; initial-value:0deg; inherits:false;}
+@keyframes neonSpin{to{--neon-angle:360deg;}}
+@keyframes neonPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,46,147,.28), 0 20px 60px -30px rgba(161,77,255,.7);}
+  60%    {box-shadow:0 0 0 12px rgba(255,46,147,0), 0 20px 60px -30px rgba(161,77,255,.7);}
+}
+html body .qo-wrap{
+  border:1.5px solid transparent;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01)) padding-box,
+    linear-gradient(var(--s1),var(--s1)) padding-box,
+    conic-gradient(from var(--neon-angle),#ff2e93,#a14dff,#22e4ff,#a14dff,#ff2e93) border-box;
+  box-shadow:0 20px 60px -30px rgba(161,77,255,.7);
+  animation:neonSpin 6s linear infinite;
+}
+html body .qo-wrap.qo-wrap-pulse{
+  animation:neonSpin 6s linear infinite, neonPulse 1.6s ease-in-out infinite;
+}
+
+/* "⚡ سفارش فوری" badge: from flashing red to a shimmering neon pill */
+@keyframes neonShift{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
+html body .qo-red-title{
+  background:var(--neon-grad);
+  background-size:220% 100%;
+  color:var(--neon-ink);
+  box-shadow:0 8px 28px -8px rgba(255,46,147,.65), inset 0 1px 0 rgba(255,255,255,.35);
+  animation:neonShift 4s ease-in-out infinite;
+}
+
+/* ── Big numbers: display face + gradient fill ──────────────────────────── */
+html body :is(.stat b,.trust-num,.chart-metric){
+  font-family:'Unbounded','Vazirmatn','Inter',sans-serif;
+  background:var(--neon-grad);
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+}
+/* child <small> labels keep their own colour instead of inheriting the
+   transparent fill (which would make them invisible) */
+html body :is(.trust-num,.chart-metric) small{-webkit-text-fill-color:currentColor;}
+
+/* ── Form fields: cyan focus glow ───────────────────────────────────────── */
+html body :is(input,select,textarea):focus{
+  border-color:var(--neon-cyan);
+  box-shadow:0 0 0 3px rgba(34,228,255,.14);
+}
+
+/* ── Respect reduced motion ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  html body::before,
+  html body .qo-wrap, html body .qo-wrap.qo-wrap-pulse,
+  html body .qo-red-title{animation:none;}
+  html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go,.trust-card,.svc-card,.pay-card,.gw-method-card,.post-card,.pi-card){
+    transition:none;
+  }
+  html body :is(.btn-p,.btn-primary,.btn-acc,.qo-go):hover{transform:none;}
+}
