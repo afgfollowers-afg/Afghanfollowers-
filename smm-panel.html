@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SMM Panel</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#07050f">
+<meta name="theme-color" content="#16143a">
 <link rel="icon" href="/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -18,7 +18,7 @@
 <style>
 :root{
   --bg:#0f1117;--surface:#181c27;--surface2:#1e2336;--border:#252b40;
-  --accent:#ff2e93;--accent2:#22e4ff;--accent-dark:#b3126a;--accent-glow:rgba(255,46,147,.3);
+  --accent:#e8590c;--accent2:#ffd23f;--accent-dark:#c2410c;--accent-glow:rgba(255,182,39,.3);
   --green:#00d2a0;--red:#ff5c7d;--yellow:#fbbf24;--orange:#f97316;
   --text:#e2e8f0;--muted:#8a93a6;--text2:var(--muted);--white:#fff;
   --radius:14px;--font:'Inter',sans-serif;--font-fa:'Vazirmatn',sans-serif;
@@ -446,7 +446,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
 }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&display=swap">
-<link rel="stylesheet" href="/theme-neon.css?v=1">
+<link rel="stylesheet" href="/theme-neon.css?v=2">
 </head>
 <body>
 
@@ -533,7 +533,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div style="padding:12px 16px 4px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px" id="t-dn-theme">Theme</div>
       <div id="theme-row" style="display:flex;gap:10px">
-        <div class="theme-swatch" data-t="violet" onclick="setTheme('violet')" title="Violet" style="background:linear-gradient(135deg,#ff2e93,#b3126a)"></div>
+        <div class="theme-swatch" data-t="violet" onclick="setTheme('violet')" title="Violet" style="background:linear-gradient(135deg,#e8590c,#c2410c)"></div>
         <div class="theme-swatch" data-t="ocean" onclick="setTheme('ocean')" title="Ocean" style="background:linear-gradient(135deg,#2f80fa,#1e40af)"></div>
         <div class="theme-swatch" data-t="emerald" onclick="setTheme('emerald')" title="Emerald" style="background:linear-gradient(135deg,#10b981,#065f46)"></div>
         <div class="theme-swatch" data-t="rose" onclick="setTheme('rose')" title="Rose" style="background:linear-gradient(135deg,#f43f76,#9d174d)"></div>
@@ -1155,11 +1155,11 @@ tr:hover td{background:rgba(30,35,54,.5);}
 </div>
 
 <!-- AI Assistant FAB (next to the Telegram FAB, opens a mini chat popup) -->
-<div id="ai-fab" title="AI Assistant" role="button" tabindex="0" aria-label="AI Assistant" onclick="toggleAiWidget()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAiWidget();}" style="cursor:pointer;position:fixed;bottom:204px;right:16px;width:52px;height:52px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(255,46,147,.5);z-index:999">
+<div id="ai-fab" title="AI Assistant" role="button" tabindex="0" aria-label="AI Assistant" onclick="toggleAiWidget()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAiWidget();}" style="cursor:pointer;position:fixed;bottom:204px;right:16px;width:52px;height:52px;border-radius:50%;overflow:hidden;box-shadow:0 4px 16px rgba(255,182,39,.5);z-index:999">
   <img src="/icons/nav-badge.png" alt="AI Assistant" style="width:100%;height:100%;object-fit:cover;display:block">
 </div>
 <div id="ai-widget" style="display:none;flex-direction:column;position:fixed;bottom:264px;right:16px;width:320px;max-width:calc(100vw - 32px);height:420px;max-height:60vh;background:#10131c;border:1px solid #232a3d;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:1000;overflow:hidden">
-  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#ff2e93,#b3126a)">
+  <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:linear-gradient(135deg,#e8590c,#c2410c)">
     <span style="width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="/icons/nav-badge.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
     </span>
@@ -1173,7 +1173,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
   </div>
   <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #232a3d">
     <input type="text" id="ai-widget-input" placeholder="سوالتون رو بنویسید..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
-    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#ff2e93,#b3126a);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
+    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#e8590c,#c2410c);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
   </div>
 </div>
 
@@ -1993,7 +1993,7 @@ function sendAiWidgetChat(){
   input.disabled=true;
 
   var userBubble=document.createElement('div');
-  userBubble.style.cssText='background:#ff2e93;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
+  userBubble.style.cssText='background:#e8590c;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
   userBubble.textContent=msg;
   log.appendChild(userBubble);
 
@@ -2076,7 +2076,7 @@ function sendAiChat(){
   input.disabled=true;
 
   var userBubble=document.createElement('div');
-  userBubble.style.cssText='background:var(--acc,#ff2e93);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
+  userBubble.style.cssText='background:var(--acc,#e8590c);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;align-self:flex-end;max-width:85%';
   userBubble.textContent=msg;
   log.appendChild(userBubble);
 
@@ -2334,7 +2334,7 @@ var _platColorMap={
   instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',
   tiktok:'#010101',telegram:'#2AABEE',youtube:'#FF0000',
   facebook:'#1877F2',twitter:'#000',whatsapp:'#25D366',
-  linkedin:'#0A66C2',twitch:'#9147ff',spotify:'#1DB954',other:'#ff2e93'
+  linkedin:'#0A66C2',twitch:'#9147ff',spotify:'#1DB954',other:'#e8590c'
 };
 var _platSvgMap={
   instagram:'<svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>',
@@ -2372,7 +2372,7 @@ function renderCategoryList(){
   var selCatName=cats[_selCatIdx]||cats[0]||'';
   var selCatSvcs=catSvcsMap[selCatName]||[];
   var selPlatKey=selCatSvcs.length?selCatSvcs[0].platKey:plat;
-  var platBg=_platColorMap[selPlatKey]||'#ff2e93';
+  var platBg=_platColorMap[selPlatKey]||'#e8590c';
   var platSvg=_platSvgMap[selPlatKey]||'<span style="font-size:14px">⭐</span>';
 
   // Update trigger label + icon
@@ -2390,7 +2390,7 @@ function renderCategoryList(){
     var catName=cats[i];
     var catSvcs2=catSvcsMap[catName]||[];
     var catPlatKey=catSvcs2.length?catSvcs2[0].platKey:'other';
-    var catBg=_platColorMap[catPlatKey]||'#ff2e93';
+    var catBg=_platColorMap[catPlatKey]||'#e8590c';
     var catSvg2=_platSvgMap[catPlatKey]||'<span style="font-size:12px">⭐</span>';
     var isActive=(i===_selCatIdx);
     html+='<div class="cat-list-item" data-idx="'+i+'" data-plat="'+plat+'" style="'
