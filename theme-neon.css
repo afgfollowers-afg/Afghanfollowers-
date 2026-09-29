@@ -34,6 +34,16 @@ html:root{
   --green:#3dffa8; --red:#ff5c7a; --yellow:#ffd23f; --orange:#ff7a45;
   --text:#f3f0ff; --muted:#aaa4d0; --white:#fff;
 
+  /* typography — Persian always in Vazir (Vazirmatn). Inter comes first so
+     Latin letters/digits stay in Inter, and every Persian glyph (which Inter
+     doesn't have) falls through per-glyph to Vazirmatn instead of to the
+     phone's system font. Covers both token families (--fn/--fn-fa on
+     index/admin/auth/blog/guest, --font/--font-fa on smm-panel). */
+  --fn:'Inter','Vazirmatn',sans-serif;
+  --fn-fa:'Vazirmatn','Inter',sans-serif;
+  --font:'Inter','Vazirmatn',sans-serif;
+  --font-fa:'Vazirmatn','Inter',sans-serif;
+
   /* neon extras */
   --gold-sun:#ffd23f; --gold-amber:#ffb627; --gold-tang:#ff7a45;
   --neon-grad:linear-gradient(120deg,#ffd23f 0%,#ffb627 45%,#ff7a45 100%);
@@ -50,7 +60,9 @@ html:root{
 /* The body is made transparent so the fixed layer (z-index:-1) sits between
    the html ground and the page content on every page, whether or not a page
    paints its own html background. */
-html body{background:transparent !important;}
+html body{background:transparent !important; font-family:'Inter','Vazirmatn',sans-serif;}
+/* form controls don't inherit the page font by default — make them */
+html body :is(input,button,select,textarea){font-family:inherit;}
 html body::before{
   content:"";
   position:fixed; inset:-18vmax; z-index:-1; pointer-events:none;
