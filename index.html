@@ -1748,14 +1748,18 @@ function qoRenderPayPalBtn(){
         application_context:{shipping_preference:'NO_SHIPPING'}
       });
     },
-    onApprove:function(data){
+    onApprove:function(data,actions){
       qoPpStatus(T('pp_verifying'));
       var linkEl=document.getElementById('qo-link-inp');
       var fname=(document.getElementById('qo-fname').value||'').trim();
       var lname=(document.getElementById('qo-lname').value||'').trim();
       var email=(document.getElementById('qo-email').value||'').trim();
       var link=(linkEl.value||'').trim();
-      fetch('/api/paypal-verify',{
+      // Capture first — without it the payment stays "approved" and nothing
+      // is charged or ordered. If the capture call fails here the server
+      // still tries to capture (see api/paypal-verify.js's guest path).
+      return actions.order.capture().catch(function(){return null;}).then(function(){
+        return fetch('/api/paypal-verify',{
         method:'POST',
         headers:{'Content-Type':'application/json','x-db-key':DB_CLIENT_KEY},
         body:JSON.stringify({
@@ -1768,6 +1772,7 @@ function qoRenderPayPalBtn(){
           guestEmail:email,
           guestName:fname+' '+lname
         })
+        });
       }).then(function(r){return r.json();}).then(function(res){
         if(res.ok){
           qoCloseCheckout();

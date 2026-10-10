@@ -28,7 +28,7 @@ const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b/';
 // running), this is the fastest way to confirm whether Vercel is truly
 // serving the latest deploy of this specific function or something
 // (a stale build, a caching layer) is still serving an old one.
-const DEPLOY_MARKER = 'pv-2026-07-28-v10-env-diag';
+const DEPLOY_MARKER = 'pv-2026-10-10-v11-guest-capture';
 
 async function readRecord() {
   // When Upstash (KV) is the store, read the main blob straight from it — the
@@ -122,27 +122,8 @@ module.exports = async (req, res) => {
         return res.status(200).json({ ok: false, error: 'This payment has already been processed', deployMarker: DEPLOY_MARKER });
       }
 
-      // Verify payment with PayPal API.
-      const gSandbox = gPm.env === 'sandbox';
-      const gApiBase = gSandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
-      let gToken;
-      try { gToken = await getPayPalToken(gPm.clientId, gPm.clientSecret, gApiBase); }
-      catch (e) { return res.status(200).json({ ok: false, error: 'PayPal auth failed: ' + e.message, deployMarker: DEPLOY_MARKER }); }
-
-      const gPpResp = await fetch(gApiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
-        headers: { Authorization: 'Bearer ' + gToken }
-      });
-      const gPpOrder = await gPpResp.json();
-      if (!gPpResp.ok || gPpOrder.status !== 'COMPLETED') {
-        return res.status(200).json({ ok: false, error: 'PayPal payment not completed (status: ' + (gPpOrder.status || 'unknown') + ')', deployMarker: DEPLOY_MARKER });
-      }
-      const gUnit = gPpOrder.purchase_units && gPpOrder.purchase_units[0];
-      const gCapt = gUnit && gUnit.payments && gUnit.payments.captures && gUnit.payments.captures[0];
-      if (!gCapt || gCapt.status !== 'COMPLETED') {
-        return res.status(200).json({ ok: false, error: 'Payment capture not completed', deployMarker: DEPLOY_MARKER });
-      }
-      const gPaid = parseFloat(gCapt.amount.value);
-
+      // Look up the service first so the expected cost is known before any
+      // money is captured below.
       // Look up service from catalog to compute expected cost server-side.
       // smm_svc compact format: [id, svcId, name, cat, provName, provId, provCost, panelPrice, min, max, active, ...]
       const gSvcList = gDb.smm_svc || [];
@@ -157,6 +138,52 @@ module.exports = async (req, res) => {
       if (gQty < gMinQty || gQty > gMaxQty) {
         return res.status(200).json({ ok: false, error: 'Quantity ' + gQty + ' is outside allowed range (' + gMinQty + '–' + gMaxQty + ')', deployMarker: DEPLOY_MARKER });
       }
+
+      // Verify payment with PayPal API.
+      const gSandbox = gPm.env === 'sandbox';
+      const gApiBase = gSandbox ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+      let gToken;
+      try { gToken = await getPayPalToken(gPm.clientId, gPm.clientSecret, gApiBase); }
+      catch (e) { return res.status(200).json({ ok: false, error: 'PayPal auth failed: ' + e.message, deployMarker: DEPLOY_MARKER }); }
+
+      const gPpResp = await fetch(gApiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId), {
+        headers: { Authorization: 'Bearer ' + gToken }
+      });
+      let gPpOrder = await gPpResp.json();
+      // The quick-order widget used to call this endpoint straight from
+      // onApprove without ever capturing, so every guest order arrived here
+      // as APPROVED (buyer said yes, no money moved) and was rejected — no
+      // order, no admin notice, no success screen. The widget now captures
+      // first; capturing here too covers a page still cached from before
+      // that fix, or a client-side capture that failed. Only capture once the
+      // approved amount is known to cover the service.
+      if (gPpResp.ok && gPpOrder.status === 'APPROVED') {
+        const gApprovedUnit = gPpOrder.purchase_units && gPpOrder.purchase_units[0];
+        const gApproved = parseFloat(gApprovedUnit && gApprovedUnit.amount && gApprovedUnit.amount.value) || 0;
+        if (gApproved < gExpected - 0.01) {
+          return res.status(200).json({ ok: false, error: 'Approved amount $' + gApproved.toFixed(2) + ' is less than service cost $' + gExpected.toFixed(2), deployMarker: DEPLOY_MARKER });
+        }
+        const gCapResp = await fetch(gApiBase + '/v2/checkout/orders/' + encodeURIComponent(orderId) + '/capture', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + gToken, 'Content-Type': 'application/json', 'PayPal-Request-Id': 'qo-capture-' + orderId }
+        });
+        const gCapJson = await gCapResp.json().catch(() => ({}));
+        if (!gCapResp.ok) {
+          const gDetail = (gCapJson.details && gCapJson.details[0] && (gCapJson.details[0].issue || gCapJson.details[0].description)) || gCapJson.message || gCapJson.name || ('HTTP ' + gCapResp.status);
+          return res.status(200).json({ ok: false, error: 'PayPal capture failed: ' + gDetail, deployMarker: DEPLOY_MARKER });
+        }
+        gPpOrder = gCapJson;
+      }
+      if (!gPpResp.ok || gPpOrder.status !== 'COMPLETED') {
+        return res.status(200).json({ ok: false, error: 'PayPal payment not completed (status: ' + (gPpOrder.status || 'unknown') + ')', deployMarker: DEPLOY_MARKER });
+      }
+      const gUnit = gPpOrder.purchase_units && gPpOrder.purchase_units[0];
+      const gCapt = gUnit && gUnit.payments && gUnit.payments.captures && gUnit.payments.captures[0];
+      if (!gCapt || gCapt.status !== 'COMPLETED') {
+        return res.status(200).json({ ok: false, error: 'Payment capture not completed', deployMarker: DEPLOY_MARKER });
+      }
+      const gPaid = parseFloat(gCapt.amount.value);
+
       // Allow 1-cent tolerance for floating-point rounding.
       if (gPaid < gExpected - 0.01) {
         return res.status(200).json({ ok: false, error: 'Payment $' + gPaid.toFixed(2) + ' is less than service cost $' + gExpected.toFixed(2), deployMarker: DEPLOY_MARKER });
@@ -184,12 +211,22 @@ module.exports = async (req, res) => {
       gProcessed.push(orderId);
       if (gProcessed.length > 2000) gProcessed.splice(0, gProcessed.length - 2000);
 
-      // Save order + updated processed list.
-      await fetchInternal(API_BASE + '/api/db', {
-        method: 'POST',
-        headers: dbHeaders(),
-        body: JSON.stringify({ smm_orders: [gOrder], smm_paypal_processed: gProcessed, smm_ts: Date.now() })
-      });
+      // Save order + updated processed list. Payment is already captured at
+      // this point, so a failed save must not stop the dispatch — but the
+      // admin needs to know the order is missing from the panel.
+      let gSaved = false;
+      try {
+        const gSaveResp = await fetchInternal(API_BASE + '/api/db', {
+          method: 'POST',
+          headers: dbHeaders(),
+          body: JSON.stringify({ smm_orders: [gOrder], smm_paypal_processed: gProcessed, smm_ts: Date.now() })
+        });
+        const gSaveJson = await gSaveResp.json().catch(() => null);
+        gSaved = !!(gSaveResp.ok && gSaveJson && gSaveJson.ok !== false);
+      } catch (e) { gSaved = false; }
+      if (!gSaved) {
+        logSystemError('paypal', 'Guest order ' + gOrderId + ' was paid (PayPal ' + orderId + ') but could not be saved to the database', { order: gOrder });
+      }
 
       // Dispatch immediately to the provider.
       const gDispatch = await dispatchOneOrder(
@@ -207,7 +244,7 @@ module.exports = async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: gCfg.chatId, parse_mode: 'HTML',
-              text: `🛒 <b>Guest Order</b>\nService: ${gOrder.svcName}\nQty: ${gQty.toLocaleString()}\nLink: ${gLink}\nPaid: $${gPaid.toFixed(2)}\nEmail: ${gEmail || 'N/A'}\nTrackingID: ${gOrderId}\nDispatch: ${gDispatch.ok ? '✅ provOrder#' + gDispatch.provOrderId : '❌ ' + gDispatch.error}`
+              text: `🛒 <b>Guest Order</b>\nService: ${gOrder.svcName}\nQty: ${gQty.toLocaleString()}\nLink: ${gLink}\nPaid: $${gPaid.toFixed(2)}\nEmail: ${gEmail || 'N/A'}\nTrackingID: ${gOrderId}\nDispatch: ${gDispatch.ok ? '✅ provOrder#' + gDispatch.provOrderId : '❌ ' + gDispatch.error}${gSaved ? '' : '\n⚠️ Paid but NOT saved to the panel — add it manually (PayPal ' + orderId + ')'}`
             })
           });
         }
