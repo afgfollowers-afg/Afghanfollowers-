@@ -292,6 +292,8 @@ html[lang="en"] .sub{margin-left:0;}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Vazirmatn:wght@400;500;600;700;800;900&display=swap">
 <link rel="stylesheet" href="/theme-neon.css?v=3">
+<link rel="stylesheet" href="/home-motion.css?v=1">
+<script src="/home-motion.js?v=1" defer></script>
 </head>
 <body>
 <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
@@ -302,6 +304,7 @@ html[lang="en"] .sub{margin-left:0;}
   <symbol id="ico-facebook" viewBox="0 0 24 24"><path fill="#fff" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></symbol>
   <symbol id="ico-x" viewBox="0 0 24 24"><path fill="#fff" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></symbol>
 </svg>
+<div class="hs-progress" aria-hidden="true"></div>
 <div class="wrap">
 
 <header>
@@ -317,6 +320,245 @@ html[lang="en"] .sub{margin-left:0;}
 <main>
 
 <div id="ann-banners"></div>
+
+<!-- ═══ Icon sprite (used by the hero slider, its tabs/particles and the marquee) ═══ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.5" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-tt" viewBox="0 0 24 24"><path fill="currentColor" d="M16.6 2.5c.4 2.4 1.9 3.9 4.3 4.1v3.2c-1.6 0-3.1-.5-4.3-1.3v6.4a5.7 5.7 0 1 1-5.7-5.7c.3 0 .6 0 .9.1v3.3a2.5 2.5 0 1 0 1.6 2.3V2.5h3.2z"/></symbol>
+    <symbol id="i-yt" viewBox="0 0 24 24"><path fill="currentColor" d="M21.6 7.2a2.6 2.6 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.6 2.6 0 0 0 2.4 7.2C2 8.8 2 12 2 12s0 3.2.4 4.8a2.6 2.6 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.6 2.6 0 0 0 1.8-1.8c.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8zM10 15V9l5.2 3L10 15z"/></symbol>
+    <symbol id="i-tg" viewBox="0 0 24 24"><path fill="currentColor" d="M21.7 3.3 2.9 10.6c-1.3.5-1.3 1.3-.2 1.6l4.8 1.5 1.8 5.6c.2.6.1.9.8.9.5 0 .7-.2 1-.5l2.3-2.3 4.9 3.6c.9.5 1.5.2 1.8-.8l3.2-15.2c.3-1.3-.5-1.9-1.6-1.5zM8.6 13.3l9.3-5.9c.5-.3.9-.1.5.2l-7.9 7.2-.3 3.3-1.6-4.8z"/></symbol>
+    <symbol id="i-fb" viewBox="0 0 24 24"><path fill="currentColor" d="M14 8.5V6.8c0-.8.5-1.3 1.4-1.3H17V2.3C16.5 2.2 15.3 2 14 2c-2.9 0-4.6 1.7-4.6 4.7v1.8H7v3.5h2.4V22H14V12h2.7l.4-3.5H14z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="currentColor" d="M17.8 3h3.1l-6.8 7.8L22 21h-6.3l-4.9-6.4L5.2 21H2.1l7.3-8.3L1.8 3h6.4l4.4 5.9L17.8 3zm-1.1 16.2h1.7L7.4 4.7H5.6l11.1 14.5z"/></symbol>
+    <symbol id="i-wa" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.6-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.6-.4.8-.4h.6c.2 0 .4 0 .7.5l.9 2.2c.1.2.1.4 0 .6l-.4.6-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.2.5.1.6 0l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.6.3.1.2.1.7-.1 1.3z"/></symbol>
+    <symbol id="i-li" viewBox="0 0 24 24"><path fill="currentColor" d="M5 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.5h4V21H3V9.5zm6.5 0h3.8v1.6h.1c.5-1 1.8-2 3.7-2 4 0 4.7 2.6 4.7 6V21h-4v-5.2c0-1.3 0-2.9-1.8-2.9s-2 1.4-2 2.8V21h-4V9.5z"/></symbol>
+    <symbol id="i-twitch" viewBox="0 0 24 24"><path fill="currentColor" d="M4 2 2.5 5.5V19h4.5v3h2.6l3-3h3.6L21.5 13V2H4zm15.5 10-3 3h-4l-2.6 2.6V15H6.5V4h13v8zM16 6.5h-2v5h2v-5zm-5 0H9v5h2v-5z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></symbol>
+    <symbol id="i-thumb" viewBox="0 0 24 24"><path fill="currentColor" d="M2 21h3.5V9.5H2V21zm19.4-9.6c.1-.3.1-.6.1-.9 0-1.1-.9-2-2-2h-5.6l.9-4.2v-.3c0-.4-.2-.8-.4-1.1L13.3 2 7 8.3c-.4.4-.5.9-.5 1.4V19c0 1.1.9 2 2 2h8.5c.8 0 1.5-.5 1.8-1.2l2.6-6.1v-2.3z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.1v13.8L19 12 8 5.1z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5C6.5 5 2.7 9.2 1.5 12c1.2 2.8 5 7 10.5 7s9.3-4.2 10.5-7C21.3 9.2 17.5 5 12 5zm0 11.2a4.2 4.2 0 1 1 0-8.4 4.2 4.2 0 0 1 0 8.4zm0-6.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11c0-3.3-1.8-6-5-6.8V3.5a2 2 0 1 0-4 0v.7C6.8 5 5 7.7 5 11v5l-2 2v1h18v-1l-2-2z"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><path fill="currentColor" d="M20 7h-2.2c.1-.3.2-.7.2-1a3 3 0 0 0-5.5-1.7L12 5l-.5-.7A3 3 0 0 0 6 6c0 .3.1.7.2 1H4a2 2 0 0 0-2 2v2c0 .7.6 1 1 1h18c.4 0 1-.3 1-1V9a2 2 0 0 0-2-2zM9 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM3 13v6a2 2 0 0 0 2 2h6v-8H3zm10 8h6a2 2 0 0 0 2-2v-6h-8v8z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 4 5.5v6c0 5 3.4 9.2 8 10.5 4.6-1.3 8-5.5 8-10.5v-6L12 2zm-1.3 14.2-3.6-3.6 1.4-1.4 2.2 2.2 5-5 1.4 1.4-6.4 6.4z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.2 0-8 2.1-8 5v2h16v-2c0-2.9-3.8-5-8-5z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ═══ Cinematic hero slider (styles: /home-motion.css, behaviour: /home-motion.js) ═══ -->
+<section id="hs" class="hs" aria-roledescription="carousel" aria-label="Afghan Followers">
+  <canvas class="hs-canvas" aria-hidden="true"></canvas>
+  <div class="hs-stage">
+
+    <!-- 1 · Brand / growth (keeps the page's single H1 for SEO) -->
+    <div class="hero hs-slide is-active" role="group" aria-roledescription="slide" aria-label="1 / 6">
+      <div class="hs-copy">
+        <div class="live-chip" data-hs-in style="--i:0">
+          <span class="pulse-dot"></span>
+          <span data-i18n="live_chip">پشتیبانی تلگرام هم‌اکنون آنلاین است</span>
+        </div>
+        <div class="badge" data-hs-in style="--i:1" data-i18n="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
+        <h1 data-hs-in style="--i:2" data-i18n="h1">رشدی که <span>می‌توانی ببینی</span></h1>
+        <p class="sub" data-hs-in style="--i:3" data-i18n="sub">افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی 24 ساعته.</p>
+        <div class="hero-cta" data-hs-in style="--i:4">
+          <a class="btn btn-p" href="/auth.html" data-i18n="cta_register">🎉 همین حالا ثبت‌نام کنید</a>
+          <a class="btn btn-g" href="#quick-order"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_cta_qo">سفارش فوری بدون ثبت‌نام</span></a>
+        </div>
+        <ul class="trust-row" data-hs-in style="--i:5">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg><span data-i18n="trust_1"> بدون نیاز به رمز عبور</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg><span data-i18n="trust_2"> گارانتی جبران ریزش</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="trust_3"> تحویل از چند دقیقه</span></li>
+        </ul>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="chart-card">
+            <div class="chart-head">
+              <div>
+                <div class="chart-title" data-i18n="chart_title">نمودار نمونه — رشد فالوور</div>
+                <div class="chart-metric"><span class="hs-count" data-to="4820" data-prefix="+">+4,820</span> <small>▲ 31٪</small></div>
+              </div>
+              <div class="chart-sample" data-i18n="chart_sample">نمونه</div>
+            </div>
+            <svg class="chart-svg" viewBox="0 0 392 150" preserveAspectRatio="none" role="img" aria-label="نمودار نمونه‌ی رشد فالوور رو به بالا">
+              <defs>
+                <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00d2a0" stop-opacity=".28"/>
+                  <stop offset="100%" stop-color="#00d2a0" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="chart-fill" fill="url(#cg)" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26 L392,150 L8,150 Z"/>
+              <path class="chart-line" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26"/>
+              <circle class="chart-dot" r="4.5" fill="#e2e8f0"/>
+            </svg>
+            <div class="chart-foot"><span data-i18n="chart_d1">شنبه</span><span data-i18n="chart_d2">سه‌شنبه</span><span data-i18n="chart_d3">پنج‌شنبه</span><span data-i18n="chart_d4">امروز</span></div>
+          </div>
+          <div class="hs-badge b1"><svg aria-hidden="true"><use href="#i-shield"/></svg><span data-i18n="hs_b_safe">امن و بدون رمز</span></div>
+          <div class="hs-badge b2"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_b_fast">شروع در چند دقیقه</span></div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-heart,i-thumb,i-bolt" data-colors="#ffd23f,#ffb627,#ff7a45,#3dffa8"></div>
+      </div>
+    </div>
+
+    <!-- 2 · Instagram -->
+    <div class="hero hs-slide" role="group" aria-roledescription="slide" aria-label="2 / 6" style="--pc1:#feda75;--pc2:#d62976;--pc3:#962fbf">
+      <div class="hs-copy">
+        <div class="hs-chip" data-hs-in style="--i:0"><svg aria-hidden="true"><use href="#i-ig"/></svg><span>Instagram</span></div>
+        <h2 class="hs-title" data-hs-in style="--i:1" data-i18n="hs_ig_t">فالوور و لایک <span>واقعی</span> اینستاگرام</h2>
+        <p class="sub" data-hs-in style="--i:2" data-i18n="hs_ig_s">پیجت را با فالوور فعال، لایک پست و ویو ریلز رشد بده — تحویل از چند دقیقه، با گارانتی جبران ریزش و بدون نیاز به رمز عبور.</p>
+        <div class="hero-cta" data-hs-in style="--i:3">
+          <a class="btn btn-p" href="#quick-order"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_cta_order">همین الان سفارش بده</span></a>
+          <a class="btn btn-g" href="/auth.html" data-i18n="hs_cta_prices">مشاهده قیمت‌ها</a>
+        </div>
+        <ul class="hs-feats" data-hs-in style="--i:4"><li data-i18n="hs_ig_f1">فالوور فعال</li><li data-i18n="hs_ig_f2">لایک و کامنت</li><li data-i18n="hs_ig_f3">ویو ریلز و استوری</li></ul>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="hs-device">
+            <div class="hs-dev-top"><span class="hs-dev-ico"><svg aria-hidden="true"><use href="#i-ig"/></svg></span><div class="hs-dev-id"><b>@your_page</b><small>Instagram</small></div><span class="hs-sample" data-i18n="chart_sample">نمونه</span></div>
+            <div class="hs-dev-metric"><span class="hs-count" data-to="12480" data-prefix="+">+12,480</span><small data-i18n="hs_m_followers">فالوور جدید</small></div>
+            <div class="hs-bars" aria-hidden="true"><i style="--h:.28;--n:0"></i><i style="--h:.36;--n:1"></i><i style="--h:.33;--n:2"></i><i style="--h:.47;--n:3"></i><i style="--h:.52;--n:4"></i><i style="--h:.49;--n:5"></i><i style="--h:.64;--n:6"></i><i style="--h:.72;--n:7"></i><i style="--h:.84;--n:8"></i><i style="--h:1;--n:9"></i></div>
+            <div class="hs-dev-row"><span class="hs-pill"><svg aria-hidden="true"><use href="#i-heart"/></svg><span class="hs-count" data-to="3460" data-prefix="+">+3,460</span><em data-i18n="hs_m_likes">لایک</em></span><span class="hs-pill"><svg aria-hidden="true"><use href="#i-play"/></svg><span class="hs-count" data-to="58200" data-prefix="+">+58,200</span><em data-i18n="hs_m_views">ویو</em></span></div>
+            <div class="hs-dev-shine" aria-hidden="true"></div>
+          </div>
+          <div class="hs-badge b1"><svg aria-hidden="true"><use href="#i-heart"/></svg><span>+1.2K</span></div>
+          <div class="hs-badge b2"><svg aria-hidden="true"><use href="#i-user"/></svg><span data-i18n="hs_b_real">فالوور واقعی</span></div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-heart" data-colors="#d62976,#feda75,#ff7a45,#ffffff"></div>
+      </div>
+    </div>
+
+    <!-- 3 · TikTok -->
+    <div class="hero hs-slide" role="group" aria-roledescription="slide" aria-label="3 / 6" style="--pc1:#25f4ee;--pc2:#fe2c55;--pc3:#111111">
+      <div class="hs-copy">
+        <div class="hs-chip" data-hs-in style="--i:0"><svg aria-hidden="true"><use href="#i-tt"/></svg><span>TikTok</span></div>
+        <h2 class="hs-title" data-hs-in style="--i:1" data-i18n="hs_tt_t">ویدیوهایت را <span>وایرال کن</span></h2>
+        <p class="sub" data-hs-in style="--i:2" data-i18n="hs_tt_s">ویو، لایک و فالوور واقعی تیک‌تاک تا ویدیوهایت دیده شوند و به صفحه‌ی For You برسند.</p>
+        <div class="hero-cta" data-hs-in style="--i:3">
+          <a class="btn btn-p" href="#quick-order"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_cta_order">همین الان سفارش بده</span></a>
+          <a class="btn btn-g" href="/auth.html" data-i18n="hs_cta_prices">مشاهده قیمت‌ها</a>
+        </div>
+        <ul class="hs-feats" data-hs-in style="--i:4"><li data-i18n="hs_tt_f1">ویو ویدیو</li><li data-i18n="hs_tt_f2">لایک واقعی</li><li data-i18n="hs_tt_f3">فالوور تیک‌تاک</li></ul>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="hs-device">
+            <div class="hs-dev-top"><span class="hs-dev-ico"><svg aria-hidden="true"><use href="#i-tt"/></svg></span><div class="hs-dev-id"><b>@your_video</b><small>TikTok</small></div><span class="hs-sample" data-i18n="chart_sample">نمونه</span></div>
+            <div class="hs-dev-metric"><span class="hs-count" data-to="248000" data-prefix="+">+248,000</span><small data-i18n="hs_m_views">ویو</small></div>
+            <div class="hs-bars" aria-hidden="true"><i style="--h:.18;--n:0"></i><i style="--h:.22;--n:1"></i><i style="--h:.2;--n:2"></i><i style="--h:.31;--n:3"></i><i style="--h:.42;--n:4"></i><i style="--h:.38;--n:5"></i><i style="--h:.6;--n:6"></i><i style="--h:.78;--n:7"></i><i style="--h:.9;--n:8"></i><i style="--h:1;--n:9"></i></div>
+            <div class="hs-dev-row"><span class="hs-pill"><svg aria-hidden="true"><use href="#i-heart"/></svg><span class="hs-count" data-to="18300" data-prefix="+">+18,300</span><em data-i18n="hs_m_likes">لایک</em></span><span class="hs-pill"><svg aria-hidden="true"><use href="#i-user"/></svg><span class="hs-count" data-to="4120" data-prefix="+">+4,120</span><em data-i18n="hs_m_followers_s">فالوور</em></span></div>
+            <div class="hs-dev-shine" aria-hidden="true"></div>
+          </div>
+          <div class="hs-badge b1"><svg aria-hidden="true"><use href="#i-play"/></svg><span>For You</span></div>
+          <div class="hs-badge b2"><svg aria-hidden="true"><use href="#i-chart"/></svg><span data-i18n="hs_b_viral">در حال وایرال شدن</span></div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-heart,i-play" data-colors="#fe2c55,#25f4ee,#ffffff"></div>
+      </div>
+    </div>
+
+    <!-- 4 · YouTube -->
+    <div class="hero hs-slide" role="group" aria-roledescription="slide" aria-label="4 / 6" style="--pc1:#ff4e45;--pc2:#ff0000;--pc3:#b30000">
+      <div class="hs-copy">
+        <div class="hs-chip" data-hs-in style="--i:0"><svg aria-hidden="true"><use href="#i-yt"/></svg><span>YouTube</span></div>
+        <h2 class="hs-title" data-hs-in style="--i:1" data-i18n="hs_yt_t">کانالت را <span>بزرگ کن</span></h2>
+        <p class="sub" data-hs-in style="--i:2" data-i18n="hs_yt_s">ساب‌اسکرایبر، ویو و لایک واقعی یوتیوب — اعتبار کانالت را بالا ببر و ویدیوهایت را به مخاطب بیشتری برسان.</p>
+        <div class="hero-cta" data-hs-in style="--i:3">
+          <a class="btn btn-p" href="#quick-order"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_cta_order">همین الان سفارش بده</span></a>
+          <a class="btn btn-g" href="/auth.html" data-i18n="hs_cta_prices">مشاهده قیمت‌ها</a>
+        </div>
+        <ul class="hs-feats" data-hs-in style="--i:4"><li data-i18n="hs_yt_f1">ساب‌اسکرایبر</li><li data-i18n="hs_yt_f2">ویو ویدیو</li><li data-i18n="hs_yt_f3">لایک و کامنت</li></ul>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="hs-device">
+            <div class="hs-dev-top"><span class="hs-dev-ico"><svg aria-hidden="true"><use href="#i-yt"/></svg></span><div class="hs-dev-id"><b>Your Channel</b><small>YouTube</small></div><span class="hs-sample" data-i18n="chart_sample">نمونه</span></div>
+            <div class="hs-dev-metric"><span class="hs-count" data-to="2860" data-prefix="+">+2,860</span><small data-i18n="hs_m_subs">ساب‌اسکرایبر</small></div>
+            <div class="hs-bars" aria-hidden="true"><i style="--h:.3;--n:0"></i><i style="--h:.34;--n:1"></i><i style="--h:.4;--n:2"></i><i style="--h:.38;--n:3"></i><i style="--h:.5;--n:4"></i><i style="--h:.58;--n:5"></i><i style="--h:.62;--n:6"></i><i style="--h:.74;--n:7"></i><i style="--h:.86;--n:8"></i><i style="--h:1;--n:9"></i></div>
+            <div class="hs-dev-row"><span class="hs-pill"><svg aria-hidden="true"><use href="#i-eye"/></svg><span class="hs-count" data-to="96400" data-prefix="+">+96,400</span><em data-i18n="hs_m_views">ویو</em></span><span class="hs-pill"><svg aria-hidden="true"><use href="#i-thumb"/></svg><span class="hs-count" data-to="7350" data-prefix="+">+7,350</span><em data-i18n="hs_m_likes">لایک</em></span></div>
+            <div class="hs-dev-shine" aria-hidden="true"></div>
+          </div>
+          <div class="hs-badge b1"><svg aria-hidden="true"><use href="#i-bell"/></svg><span data-i18n="hs_b_sub">ساب‌اسکرایب شد</span></div>
+          <div class="hs-badge b2"><svg aria-hidden="true"><use href="#i-thumb"/></svg><span>+860</span></div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-thumb,i-bell,i-play" data-colors="#ff4e45,#ffffff,#ffd23f"></div>
+      </div>
+    </div>
+
+    <!-- 5 · Telegram -->
+    <div class="hero hs-slide" role="group" aria-roledescription="slide" aria-label="5 / 6" style="--pc1:#5fd0ff;--pc2:#2aabee;--pc3:#1c7fd6">
+      <div class="hs-copy">
+        <div class="hs-chip" data-hs-in style="--i:0"><svg aria-hidden="true"><use href="#i-tg"/></svg><span>Telegram</span></div>
+        <h2 class="hs-title" data-hs-in style="--i:1" data-i18n="hs_tg_t">کانال تلگرامت را <span>پرمخاطب کن</span></h2>
+        <p class="sub" data-hs-in style="--i:2" data-i18n="hs_tg_s">ممبر واقعی و بازدید پست برای کانال و گروه تلگرام — سریع، امن و بدون نیاز به رمز عبور.</p>
+        <div class="hero-cta" data-hs-in style="--i:3">
+          <a class="btn btn-p" href="#quick-order"><svg aria-hidden="true"><use href="#i-bolt"/></svg><span data-i18n="hs_cta_order">همین الان سفارش بده</span></a>
+          <a class="btn btn-g" href="/auth.html" data-i18n="hs_cta_prices">مشاهده قیمت‌ها</a>
+        </div>
+        <ul class="hs-feats" data-hs-in style="--i:4"><li data-i18n="hs_tg_f1">ممبر کانال</li><li data-i18n="hs_tg_f2">ممبر گروه</li><li data-i18n="hs_tg_f3">بازدید پست</li></ul>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="hs-device">
+            <div class="hs-dev-top"><span class="hs-dev-ico"><svg aria-hidden="true"><use href="#i-tg"/></svg></span><div class="hs-dev-id"><b>@your_channel</b><small>Telegram</small></div><span class="hs-sample" data-i18n="chart_sample">نمونه</span></div>
+            <div class="hs-dev-metric"><span class="hs-count" data-to="7350" data-prefix="+">+7,350</span><small data-i18n="hs_m_members">ممبر جدید</small></div>
+            <div class="hs-bars" aria-hidden="true"><i style="--h:.25;--n:0"></i><i style="--h:.3;--n:1"></i><i style="--h:.36;--n:2"></i><i style="--h:.44;--n:3"></i><i style="--h:.46;--n:4"></i><i style="--h:.55;--n:5"></i><i style="--h:.63;--n:6"></i><i style="--h:.7;--n:7"></i><i style="--h:.88;--n:8"></i><i style="--h:1;--n:9"></i></div>
+            <div class="hs-dev-row"><span class="hs-pill"><svg aria-hidden="true"><use href="#i-eye"/></svg><span class="hs-count" data-to="41800" data-prefix="+">+41,800</span><em data-i18n="hs_m_postviews">بازدید پست</em></span></div>
+            <div class="hs-dev-shine" aria-hidden="true"></div>
+          </div>
+          <div class="hs-badge b1"><svg aria-hidden="true"><use href="#i-user"/></svg><span>+320</span></div>
+          <div class="hs-badge b2"><svg aria-hidden="true"><use href="#i-shield"/></svg><span data-i18n="hs_b_safe">امن و بدون رمز</span></div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-tg" data-colors="#2aabee,#5fd0ff,#ffffff"></div>
+      </div>
+    </div>
+
+    <!-- 6 · Free likes (referral) -->
+    <div class="hero hs-slide" role="group" aria-roledescription="slide" aria-label="6 / 6" style="--pc1:#ffd23f;--pc2:#ffb627;--pc3:#ff7a45">
+      <div class="hs-copy">
+        <div class="hs-chip" data-hs-in style="--i:0"><svg aria-hidden="true"><use href="#i-gift"/></svg><span data-i18n="hs_fl_chip">لایک رایگان</span></div>
+        <h2 class="hs-title" data-hs-in style="--i:1" data-i18n="hs_fl_t">دوستانت را دعوت کن، <span>لایک رایگان</span> بگیر</h2>
+        <p class="sub" data-hs-in style="--i:2" data-i18n="hs_fl_s">بعد از ثبت‌نام لینک دعوت اختصاصی‌ات را برای دوستانت بفرست و برای اینستاگرام یا تیک‌تاک لایک رایگان هدیه بگیر — کاملاً رایگان.</p>
+        <div class="hero-cta" data-hs-in style="--i:3">
+          <a class="btn btn-p" href="/auth.html"><svg aria-hidden="true"><use href="#i-gift"/></svg><span data-i18n="hs_cta_free">دریافت لایک رایگان</span></a>
+        </div>
+      </div>
+      <div class="hs-visual" data-hs-vis>
+        <div class="hs-tilt"><div class="hs-float">
+          <div class="hs-gift">
+            <div class="hs-giftbox" aria-hidden="true">
+              <div class="box"></div><div class="ribbon"></div>
+              <div class="lid-wrap"><div class="lid"></div><div class="bow"></div></div>
+            </div>
+            <div class="hs-invite"><span>afghanfollowers.online/?ref=</span><b>YOUR-CODE</b></div>
+            <div class="hs-friends" aria-hidden="true">
+              <i class="on" style="--n:0"><svg><use href="#i-user"/></svg></i><i class="on" style="--n:1"><svg><use href="#i-user"/></svg></i><i class="on" style="--n:2"><svg><use href="#i-user"/></svg></i><i><svg><use href="#i-user"/></svg></i><i><svg><use href="#i-user"/></svg></i>
+            </div>
+            <div class="hs-friends-cap" data-i18n="hs_fl_cap">هر دعوت موفق، یک قدم به هدیه‌ی بعدی</div>
+          </div>
+        </div></div>
+        <div class="hs-fx" aria-hidden="true" data-glyph="i-heart,i-gift" data-colors="#ffd23f,#ffb627,#ff7a45,#3dffa8"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hs-ctrl">
+    <button class="hs-arrow hs-prev" type="button" aria-label="قبلی"><svg aria-hidden="true"><use href="#i-chev"/></svg></button>
+    <div class="hs-tabs">
+      <button class="hs-tab is-active" type="button" aria-label="Afghan Followers"><svg aria-hidden="true"><use href="#i-chart"/></svg><span data-i18n="hs_tab_1">رشد</span><i class="hs-tab-bar"></i></button>
+      <button class="hs-tab" type="button" aria-label="Instagram"><svg aria-hidden="true"><use href="#i-ig"/></svg><span>Instagram</span><i class="hs-tab-bar"></i></button>
+      <button class="hs-tab" type="button" aria-label="TikTok"><svg aria-hidden="true"><use href="#i-tt"/></svg><span>TikTok</span><i class="hs-tab-bar"></i></button>
+      <button class="hs-tab" type="button" aria-label="YouTube"><svg aria-hidden="true"><use href="#i-yt"/></svg><span>YouTube</span><i class="hs-tab-bar"></i></button>
+      <button class="hs-tab" type="button" aria-label="Telegram"><svg aria-hidden="true"><use href="#i-tg"/></svg><span>Telegram</span><i class="hs-tab-bar"></i></button>
+      <button class="hs-tab" type="button" aria-label="Free likes"><svg aria-hidden="true"><use href="#i-gift"/></svg><span data-i18n="hs_tab_6">رایگان</span><i class="hs-tab-bar"></i></button>
+    </div>
+    <button class="hs-arrow hs-next" type="button" aria-label="بعدی"><svg aria-hidden="true"><use href="#i-chev"/></svg></button>
+    <button class="hs-pause" type="button" aria-label="توقف" aria-pressed="false"><svg class="ic-pause" aria-hidden="true"><use href="#i-pause"/></svg><svg class="ic-play" aria-hidden="true"><use href="#i-play"/></svg></button>
+  </div>
+</section>
+
 
 <!-- ══ QUICK ORDER WIDGET ══ -->
 <section id="quick-order">
@@ -385,48 +627,6 @@ html[lang="en"] .sub{margin-left:0;}
   </div>
 </div>
 
-<div class="hero">
-  <div>
-    <div class="live-chip">
-      <span class="pulse-dot"></span>
-      <span data-i18n="live_chip">پشتیبانی تلگرام هم‌اکنون آنلاین است</span>
-    </div>
-    <div class="badge" data-i18n="badge">🚀 بهترین پنل SMM (Social Media Marketing) در افغانستان</div>
-    <h1 data-i18n="h1">رشدی که <span>می‌توانی ببینی</span></h1>
-    <p class="sub" data-i18n="sub">افغان فالوورز به شما کمک می‌کند فالوور اینستاگرام، لایک اینستاگرام، ممبر تلگرام، فالوور تیک‌تاک و ویو یوتیوب واقعی بخرید — با قیمت ارزان، تحویل سریع و پشتیبانی 24 ساعته.</p>
-    <div class="hero-cta">
-      <a class="btn btn-p" href="/auth.html" data-i18n="cta_register">🎉 همین حالا ثبت‌نام کنید</a>
-      <a class="btn btn-g" href="/auth.html" data-i18n="cta_panel">مشاهده قیمت‌ها و ورود</a>
-    </div>
-    <ul class="trust-row">
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg><span data-i18n="trust_1"> بدون نیاز به رمز عبور</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg><span data-i18n="trust_2"> گارانتی جبران ریزش</span></li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span data-i18n="trust_3"> تحویل از چند دقیقه</span></li>
-    </ul>
-  </div>
-
-  <div class="chart-card">
-    <div class="chart-head">
-      <div>
-        <div class="chart-title" data-i18n="chart_title">نمودار نمونه — رشد فالوور</div>
-        <div class="chart-metric">+4,820 <small>▲ 31٪</small></div>
-      </div>
-      <div class="chart-sample" data-i18n="chart_sample">نمونه</div>
-    </div>
-    <svg class="chart-svg" viewBox="0 0 392 150" preserveAspectRatio="none" role="img" aria-label="نمودار نمونه‌ی رشد فالوور رو به بالا">
-      <defs>
-        <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#00d2a0" stop-opacity=".28"/>
-          <stop offset="100%" stop-color="#00d2a0" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <path class="chart-fill" fill="url(#cg)" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26 L392,150 L8,150 Z"/>
-      <path class="chart-line" d="M8,120 C 60,124 90,60 140,66 C 190,72 210,100 260,86 C 310,72 330,20 392,26"/>
-      <circle class="chart-dot" r="4.5" fill="#e2e8f0"/>
-    </svg>
-    <div class="chart-foot"><span data-i18n="chart_d1">شنبه</span><span data-i18n="chart_d2">سه‌شنبه</span><span data-i18n="chart_d3">پنج‌شنبه</span><span data-i18n="chart_d4">امروز</span></div>
-  </div>
-</div>
 <div class="stats">
   <div class="stat"><b>+12,800</b><span data-i18n="stat_1">کاربر راضی</span><div class="tick"></div></div>
   <div class="stat"><b>+94,000</b><span data-i18n="stat_2">سفارش انجام‌شده</span><div class="tick"></div></div>
@@ -434,6 +634,12 @@ html[lang="en"] .sub{margin-left:0;}
   <div class="stat"><b>24/7</b><span data-i18n="stat_4">پشتیبانی</span><div class="tick"></div></div>
 </div>
 
+
+<!-- ═══ Platform marquee ═══ -->
+<section class="hs-marquee" aria-label="Platforms">
+  <div class="hs-mq-row"><div class="hs-mq-track"><div class="hs-mq-set"><span class="hs-mq-chip" style="--bc:#e1306c"><i><svg aria-hidden="true"><use href="#i-ig"/></svg></i>Instagram</span><span class="hs-mq-chip" style="--bc:#25f4ee"><i><svg aria-hidden="true"><use href="#i-tt"/></svg></i>TikTok</span><span class="hs-mq-chip" style="--bc:#2aabee"><i><svg aria-hidden="true"><use href="#i-tg"/></svg></i>Telegram</span><span class="hs-mq-chip" style="--bc:#ff0000"><i><svg aria-hidden="true"><use href="#i-yt"/></svg></i>YouTube</span><span class="hs-mq-chip" style="--bc:#1877f2"><i><svg aria-hidden="true"><use href="#i-fb"/></svg></i>Facebook</span><span class="hs-mq-chip" style="--bc:#e7e9ea"><i><svg aria-hidden="true"><use href="#i-x"/></svg></i>X (Twitter)</span><span class="hs-mq-chip" style="--bc:#25d366"><i><svg aria-hidden="true"><use href="#i-wa"/></svg></i>WhatsApp</span><span class="hs-mq-chip" style="--bc:#0a66c2"><i><svg aria-hidden="true"><use href="#i-li"/></svg></i>LinkedIn</span><span class="hs-mq-chip" style="--bc:#9146ff"><i><svg aria-hidden="true"><use href="#i-twitch"/></svg></i>Twitch</span></div><div class="hs-mq-set" aria-hidden="true"><span class="hs-mq-chip" style="--bc:#e1306c"><i><svg aria-hidden="true"><use href="#i-ig"/></svg></i>Instagram</span><span class="hs-mq-chip" style="--bc:#25f4ee"><i><svg aria-hidden="true"><use href="#i-tt"/></svg></i>TikTok</span><span class="hs-mq-chip" style="--bc:#2aabee"><i><svg aria-hidden="true"><use href="#i-tg"/></svg></i>Telegram</span><span class="hs-mq-chip" style="--bc:#ff0000"><i><svg aria-hidden="true"><use href="#i-yt"/></svg></i>YouTube</span><span class="hs-mq-chip" style="--bc:#1877f2"><i><svg aria-hidden="true"><use href="#i-fb"/></svg></i>Facebook</span><span class="hs-mq-chip" style="--bc:#e7e9ea"><i><svg aria-hidden="true"><use href="#i-x"/></svg></i>X (Twitter)</span><span class="hs-mq-chip" style="--bc:#25d366"><i><svg aria-hidden="true"><use href="#i-wa"/></svg></i>WhatsApp</span><span class="hs-mq-chip" style="--bc:#0a66c2"><i><svg aria-hidden="true"><use href="#i-li"/></svg></i>LinkedIn</span><span class="hs-mq-chip" style="--bc:#9146ff"><i><svg aria-hidden="true"><use href="#i-twitch"/></svg></i>Twitch</span></div></div></div>
+  <div class="hs-mq-row"><div class="hs-mq-track hs-mq-rev"><div class="hs-mq-set"><span class="hs-mq-chip" style="--bc:#ffd23f"><i><svg aria-hidden="true"><use href="#i-user"/></svg></i><span data-i18n="mq_followers">فالوور</span></span><span class="hs-mq-chip" style="--bc:#ff7a45"><i><svg aria-hidden="true"><use href="#i-heart"/></svg></i><span data-i18n="mq_likes">لایک</span></span><span class="hs-mq-chip" style="--bc:#3dffa8"><i><svg aria-hidden="true"><use href="#i-eye"/></svg></i><span data-i18n="mq_views">ویو</span></span><span class="hs-mq-chip" style="--bc:#ffb627"><i><svg aria-hidden="true"><use href="#i-bell"/></svg></i><span data-i18n="mq_subs">ساب‌اسکرایبر</span></span><span class="hs-mq-chip" style="--bc:#5fd0ff"><i><svg aria-hidden="true"><use href="#i-tg"/></svg></i><span data-i18n="mq_members">ممبر</span></span><span class="hs-mq-chip" style="--bc:#ffd23f"><i><svg aria-hidden="true"><use href="#i-chart"/></svg></i><span data-i18n="mq_growth">رشد ارگانیک</span></span><span class="hs-mq-chip" style="--bc:#3dffa8"><i><svg aria-hidden="true"><use href="#i-shield"/></svg></i><span data-i18n="mq_guarantee">گارانتی ریزش</span></span><span class="hs-mq-chip" style="--bc:#ff7a45"><i><svg aria-hidden="true"><use href="#i-bolt"/></svg></i><span data-i18n="mq_fast">تحویل سریع</span></span></div><div class="hs-mq-set" aria-hidden="true"><span class="hs-mq-chip" style="--bc:#ffd23f"><i><svg aria-hidden="true"><use href="#i-user"/></svg></i><span data-i18n="mq_followers">فالوور</span></span><span class="hs-mq-chip" style="--bc:#ff7a45"><i><svg aria-hidden="true"><use href="#i-heart"/></svg></i><span data-i18n="mq_likes">لایک</span></span><span class="hs-mq-chip" style="--bc:#3dffa8"><i><svg aria-hidden="true"><use href="#i-eye"/></svg></i><span data-i18n="mq_views">ویو</span></span><span class="hs-mq-chip" style="--bc:#ffb627"><i><svg aria-hidden="true"><use href="#i-bell"/></svg></i><span data-i18n="mq_subs">ساب‌اسکرایبر</span></span><span class="hs-mq-chip" style="--bc:#5fd0ff"><i><svg aria-hidden="true"><use href="#i-tg"/></svg></i><span data-i18n="mq_members">ممبر</span></span><span class="hs-mq-chip" style="--bc:#ffd23f"><i><svg aria-hidden="true"><use href="#i-chart"/></svg></i><span data-i18n="mq_growth">رشد ارگانیک</span></span><span class="hs-mq-chip" style="--bc:#3dffa8"><i><svg aria-hidden="true"><use href="#i-shield"/></svg></i><span data-i18n="mq_guarantee">گارانتی ریزش</span></span><span class="hs-mq-chip" style="--bc:#ff7a45"><i><svg aria-hidden="true"><use href="#i-bolt"/></svg></i><span data-i18n="mq_fast">تحویل سریع</span></span></div></div></div>
+</section>
 
 <section class="cta-band reveal" style="background:linear-gradient(135deg,rgba(0,210,160,.15),rgba(255,182,39,.12));border-color:rgba(0,210,160,.3)">
   <div class="gift-emoji" style="font-size:44px;margin-bottom:10px">🎁</div>
@@ -535,6 +741,56 @@ var DB_CLIENT_KEY='18cc92b1c20ab7712fb4e1af98f08aea5962cd4e4b496955d7606891c6823
 // ── Bilingual FA/EN ──
 var LANG={
 fa:{
+  hs_cta_qo:"سفارش فوری بدون ثبت‌نام",
+  hs_cta_order:"همین الان سفارش بده",
+  hs_cta_prices:"مشاهده قیمت‌ها",
+  hs_cta_free:"دریافت لایک رایگان",
+  hs_b_safe:"امن و بدون رمز",
+  hs_b_fast:"شروع در چند دقیقه",
+  hs_b_real:"فالوور واقعی",
+  hs_b_viral:"در حال وایرال شدن",
+  hs_b_sub:"ساب‌اسکرایب شد",
+  hs_ig_t:"فالوور و لایک <span>واقعی</span> اینستاگرام",
+  hs_ig_s:"پیجت را با فالوور فعال، لایک پست و ویو ریلز رشد بده — تحویل از چند دقیقه، با گارانتی جبران ریزش و بدون نیاز به رمز عبور.",
+  hs_ig_f1:"فالوور فعال",
+  hs_ig_f2:"لایک و کامنت",
+  hs_ig_f3:"ویو ریلز و استوری",
+  hs_tt_t:"ویدیوهایت را <span>وایرال کن</span>",
+  hs_tt_s:"ویو، لایک و فالوور واقعی تیک‌تاک تا ویدیوهایت دیده شوند و به صفحه‌ی For You برسند.",
+  hs_tt_f1:"ویو ویدیو",
+  hs_tt_f2:"لایک واقعی",
+  hs_tt_f3:"فالوور تیک‌تاک",
+  hs_yt_t:"کانالت را <span>بزرگ کن</span>",
+  hs_yt_s:"ساب‌اسکرایبر، ویو و لایک واقعی یوتیوب — اعتبار کانالت را بالا ببر و ویدیوهایت را به مخاطب بیشتری برسان.",
+  hs_yt_f1:"ساب‌اسکرایبر",
+  hs_yt_f2:"ویو ویدیو",
+  hs_yt_f3:"لایک و کامنت",
+  hs_tg_t:"کانال تلگرامت را <span>پرمخاطب کن</span>",
+  hs_tg_s:"ممبر واقعی و بازدید پست برای کانال و گروه تلگرام — سریع، امن و بدون نیاز به رمز عبور.",
+  hs_tg_f1:"ممبر کانال",
+  hs_tg_f2:"ممبر گروه",
+  hs_tg_f3:"بازدید پست",
+  hs_fl_chip:"لایک رایگان",
+  hs_fl_t:"دوستانت را دعوت کن، <span>لایک رایگان</span> بگیر",
+  hs_fl_s:"بعد از ثبت‌نام لینک دعوت اختصاصی‌ات را برای دوستانت بفرست و برای اینستاگرام یا تیک‌تاک لایک رایگان هدیه بگیر — کاملاً رایگان.",
+  hs_fl_cap:"هر دعوت موفق، یک قدم به هدیه‌ی بعدی",
+  hs_m_followers:"فالوور جدید",
+  hs_m_followers_s:"فالوور",
+  hs_m_likes:"لایک",
+  hs_m_views:"ویو",
+  hs_m_subs:"ساب‌اسکرایبر",
+  hs_m_members:"ممبر جدید",
+  hs_m_postviews:"بازدید پست",
+  hs_tab_1:"رشد",
+  hs_tab_6:"رایگان",
+  mq_followers:"فالوور",
+  mq_likes:"لایک",
+  mq_views:"ویو",
+  mq_subs:"ساب‌اسکرایبر",
+  mq_members:"ممبر",
+  mq_growth:"رشد ارگانیک",
+  mq_guarantee:"گارانتی ریزش",
+  mq_fast:"تحویل سریع",
   nav_blog:'📝 وبلاگ',nav_login:'ورود',nav_register:'ثبت‌نام رایگان',
   qo_title:'⚡ سفارش فوری',
   qo_h2:'همین الان سفارش بده — بدون ثبت‌نام',
@@ -620,6 +876,56 @@ fa:{
   svc_type_members:'ممبر',svc_type_comments:'کامنت',svc_type_shares:'اشتراک‌گذاری'
 },
 en:{
+  hs_cta_qo:"Quick order, no sign-up",
+  hs_cta_order:"Order now",
+  hs_cta_prices:"See prices",
+  hs_cta_free:"Get free likes",
+  hs_b_safe:"Safe, no password",
+  hs_b_fast:"Starts in minutes",
+  hs_b_real:"Real followers",
+  hs_b_viral:"Going viral",
+  hs_b_sub:"Subscribed",
+  hs_ig_t:"<span>Real</span> Instagram followers &amp; likes",
+  hs_ig_s:"Grow your page with active followers, post likes and Reels views — delivery starts in minutes, with a refill guarantee and no password needed.",
+  hs_ig_f1:"Active followers",
+  hs_ig_f2:"Likes &amp; comments",
+  hs_ig_f3:"Reels &amp; story views",
+  hs_tt_t:"Make your videos <span>go viral</span>",
+  hs_tt_s:"Real TikTok views, likes and followers so your videos get seen and reach the For You page.",
+  hs_tt_f1:"Video views",
+  hs_tt_f2:"Real likes",
+  hs_tt_f3:"TikTok followers",
+  hs_yt_t:"<span>Grow</span> your channel",
+  hs_yt_s:"Real YouTube subscribers, views and likes — build your channel’s credibility and reach a bigger audience.",
+  hs_yt_f1:"Subscribers",
+  hs_yt_f2:"Video views",
+  hs_yt_f3:"Likes &amp; comments",
+  hs_tg_t:"Fill your Telegram <span>channel</span>",
+  hs_tg_s:"Real members and post views for Telegram channels and groups — fast, safe and no password needed.",
+  hs_tg_f1:"Channel members",
+  hs_tg_f2:"Group members",
+  hs_tg_f3:"Post views",
+  hs_fl_chip:"Free likes",
+  hs_fl_t:"Invite friends, get <span>free likes</span>",
+  hs_fl_s:"After signing up, share your personal invite link with friends and earn free likes for Instagram or TikTok — completely free.",
+  hs_fl_cap:"Every successful invite brings your next gift closer",
+  hs_m_followers:"new followers",
+  hs_m_followers_s:"followers",
+  hs_m_likes:"likes",
+  hs_m_views:"views",
+  hs_m_subs:"subscribers",
+  hs_m_members:"new members",
+  hs_m_postviews:"post views",
+  hs_tab_1:"Growth",
+  hs_tab_6:"Free",
+  mq_followers:"Followers",
+  mq_likes:"Likes",
+  mq_views:"Views",
+  mq_subs:"Subscribers",
+  mq_members:"Members",
+  mq_growth:"Organic growth",
+  mq_guarantee:"Refill guarantee",
+  mq_fast:"Fast delivery",
   nav_blog:'📝 Blog',nav_login:'Login',nav_register:'Sign Up Free',
   qo_title:'⚡ Quick Order',
   qo_h2:'Order Now — No Sign-Up Required',

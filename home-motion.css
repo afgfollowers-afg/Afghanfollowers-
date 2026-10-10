@@ -1,0 +1,359 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Afghan Followers — landing-page motion layer (index.html only)
+   Loaded after theme-neon.css. Everything here is transform/opacity driven,
+   GPU-friendly, and switched off under prefers-reduced-motion. Without JS
+   the slides simply stack as normal hero sections (all content visible);
+   home-motion.js adds .hs-ready to turn them into a carousel.
+
+   Motion tokens: enter 700ms expo-out, exit 380ms (≈55% of enter),
+   stagger 80ms, autoplay 6.5s per slide.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root{
+  --hs-ease:cubic-bezier(.16,1,.3,1);
+  --hs-ease-in:cubic-bezier(.55,0,1,.45);
+  --hs-enter:.7s;
+  --hs-exit:.38s;
+  --hs-dur:6.5s;
+}
+
+/* ── Scroll progress (top of viewport) ──────────────────────────────────── */
+.hs-progress{
+  position:fixed; inset-inline:0; top:0; height:3px; z-index:2000;
+  background:var(--neon-grad);
+  transform:scaleX(0); transform-origin:left center;
+  box-shadow:0 0 12px rgba(255,182,39,.7);
+  pointer-events:none;
+}
+[dir="rtl"] .hs-progress{transform-origin:right center;}
+
+/* ── Hero slider shell ──────────────────────────────────────────────────── */
+.hs{position:relative; isolation:isolate; margin:4px 0 8px;}
+.hs-canvas{
+  position:absolute; inset:0; width:100%; height:100%; z-index:-1;
+  pointer-events:none;
+  -webkit-mask-image:radial-gradient(ellipse 75% 70% at 50% 45%, #000 40%, transparent 100%);
+          mask-image:radial-gradient(ellipse 75% 70% at 50% 45%, #000 40%, transparent 100%);
+}
+
+/* Carousel mode: every slide in the same grid cell, so the stage is always
+   as tall as the tallest slide — no layout shift when slides change. */
+.hs-ready .hs-stage{display:grid;}
+.hs-ready .hs-slide{
+  grid-area:1/1;
+  opacity:0; visibility:hidden;
+  transition:opacity var(--hs-exit) var(--hs-ease-in), visibility 0s linear var(--hs-exit);
+}
+.hs-ready .hs-slide.is-active{
+  opacity:1; visibility:visible;
+  transition:opacity .45s var(--hs-ease), visibility 0s;
+}
+/* no-JS fallback: slides stack as normal sections, separated */
+.hs:not(.hs-ready) .hs-slide + .hs-slide{border-top:1px solid var(--bd);}
+.hs:not(.hs-ready) .hs-ctrl{display:none;}
+
+/* slide layout reuses index.html's .hero grid; fix its sub-paragraph rule
+   (which centres .sub whenever there's no .chart-card) for the carousel */
+.hs-slide .sub{margin-inline:0;}
+@media(max-width:880px){.hs-slide .sub{margin-inline:auto;}}
+.hs-slide{padding-bottom:28px;}
+
+/* staggered entrance for copy, re-run each time a slide becomes active */
+@keyframes hsIn{
+  from{opacity:0; transform:translate3d(0,26px,0); filter:blur(6px);}
+  to  {opacity:1; transform:none; filter:none;}
+}
+.hs-ready .hs-slide.is-active [data-hs-in]{
+  animation:hsIn var(--hs-enter) var(--hs-ease) both;
+  animation-delay:calc(var(--i,0) * 80ms + 90ms);
+}
+@keyframes hsVisIn{
+  from{opacity:0; transform:perspective(1100px) rotateY(-22deg) rotateX(8deg) translate3d(0,30px,-80px) scale(.9);}
+  to  {opacity:1; transform:none;}
+}
+.hs-ready .hs-slide.is-active [data-hs-vis]{animation:hsVisIn .95s var(--hs-ease) .12s both;}
+
+/* replay the existing growth chart each time slide 1 returns */
+.hs-ready .hs-slide:not(.is-active) .chart-line,
+.hs-ready .hs-slide:not(.is-active) .chart-fill{animation:none;}
+
+/* chips & headings */
+.hs-chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:7px 14px 7px 12px; border-radius:99px; margin-bottom:16px;
+  font-size:13px; font-weight:800; letter-spacing:.2px;
+  color:#fff; background:linear-gradient(120deg,var(--pc1),var(--pc2) 55%,var(--pc3));
+  box-shadow:0 8px 24px -10px var(--pc2);
+}
+.hs-chip svg{width:16px; height:16px;}
+.hs-title{
+  font-size:clamp(28px,4.4vw,44px); font-weight:900; line-height:1.2;
+  color:var(--wh); margin:0 0 14px; text-align:inherit;
+}
+.hs-title span{
+  background:var(--neon-grad); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 16px rgba(255,182,39,.35));
+}
+.hero-cta .btn svg{width:17px; height:17px; flex-shrink:0;}
+.hs-feats{display:flex; flex-wrap:wrap; gap:8px; list-style:none; padding:0; margin:0;}
+.hs-feats li{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12.5px; font-weight:700; color:var(--tx);
+  padding:6px 12px; border-radius:99px;
+  background:rgba(255,255,255,.05); border:1px solid var(--glass-line);
+}
+.hs-feats li::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--gold-amber); box-shadow:0 0 8px var(--gold-amber);}
+@media(max-width:880px){.hs-feats{justify-content:center;}}
+@media(max-width:560px){.hs-feats{display:none;}}
+
+/* ── Visual column: 3D tilt rig ─────────────────────────────────────────── */
+.hs-visual{position:relative; display:grid; place-items:center; perspective:1100px; min-height:300px; padding-block:18px 30px;}
+.hs-tilt{
+  position:relative; transform-style:preserve-3d;
+  transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .12s linear;
+  width:100%; max-width:430px;
+}
+@keyframes hsFloat{0%,100%{transform:translate3d(0,0,0);}50%{transform:translate3d(0,-10px,0);}}
+.hs-float{animation:hsFloat 6s ease-in-out infinite; transform-style:preserve-3d;}
+
+/* platform "device" mockup */
+.hs-device{
+  position:relative; overflow:hidden; border-radius:24px;
+  padding:18px 18px 16px;
+  background:
+    radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--pc2) 22%, transparent), transparent 60%),
+    linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015)), var(--s1);
+  border:1px solid var(--glass-line);
+  box-shadow:inset 0 1px 0 var(--glass-hi), 0 30px 70px -30px rgba(5,3,20,.95), 0 0 0 1px rgba(255,255,255,.02);
+  transform:translateZ(0);
+}
+.hs-dev-top{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.hs-dev-ico{
+  width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex-shrink:0;
+  color:#fff; background:linear-gradient(135deg,var(--pc1),var(--pc2) 55%,var(--pc3));
+  box-shadow:0 8px 20px -8px var(--pc2);
+}
+.hs-dev-ico svg{width:22px; height:22px;}
+.hs-dev-id{display:flex; flex-direction:column; line-height:1.25; min-width:0;}
+.hs-dev-id b{font-size:14px; color:#fff; font-family:'Inter','Vazirmatn',sans-serif;}
+.hs-dev-id small{font-size:11.5px; color:var(--mt);}
+.hs-sample{
+  margin-inline-start:auto; font-size:10.5px; font-weight:700; color:var(--mt);
+  padding:3px 9px; border-radius:99px; border:1px dashed var(--bd);
+}
+.hs-dev-metric{display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap;}
+.hs-dev-metric .hs-count{
+  font-family:'Unbounded','Inter','Vazirmatn',sans-serif; font-weight:800;
+  font-size:clamp(30px,4vw,40px); line-height:1;
+  background:var(--neon-grad); -webkit-background-clip:text; background-clip:text;
+  color:transparent; -webkit-text-fill-color:transparent;
+}
+.hs-dev-metric small{font-size:13px; font-weight:700; color:var(--tx);}
+.hs-count{font-variant-numeric:tabular-nums;}
+
+/* growth bars — scaleY so they animate on the compositor */
+.hs-bars{display:flex; align-items:flex-end; gap:6px; height:84px; margin-bottom:14px; direction:ltr;}
+.hs-bars i{
+  flex:1; height:100%; border-radius:6px 6px 3px 3px;
+  background:linear-gradient(180deg,var(--pc1),color-mix(in srgb, var(--pc2) 60%, transparent));
+  transform-origin:bottom; transform:scaleY(var(--h,.5));
+  opacity:.9;
+}
+@keyframes hsBar{from{transform:scaleY(.04);}to{transform:scaleY(var(--h,.5));}}
+.hs-ready .hs-slide.is-active .hs-bars i{animation:hsBar .9s var(--hs-ease) both; animation-delay:calc(var(--n,0) * 55ms + 350ms);}
+.hs-dev-row{display:flex; gap:8px; flex-wrap:wrap;}
+.hs-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:7px 11px; border-radius:12px; font-size:13px; font-weight:800; color:#fff;
+  background:rgba(255,255,255,.06); border:1px solid var(--glass-line);
+  font-family:'Inter','Vazirmatn',sans-serif;
+}
+.hs-pill svg{width:15px; height:15px; color:var(--pc2);}
+.hs-pill em{font-style:normal; font-weight:600; color:var(--mt); font-size:11.5px; font-family:'Vazirmatn','Inter',sans-serif;}
+
+/* light sweep across the device */
+.hs-dev-shine{
+  position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.10) 45%,transparent 60%);
+  transform:translateX(-120%);
+}
+@keyframes hsShine{0%,55%{transform:translateX(-120%);}100%{transform:translateX(120%);}}
+.hs-ready .hs-slide.is-active .hs-dev-shine{animation:hsShine 4.2s ease-in-out 1s infinite;}
+
+/* depth chips orbiting the device (translateZ gives real parallax under tilt) */
+.hs-badge{
+  position:absolute; z-index:2;
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 13px; border-radius:14px;
+  font-size:12.5px; font-weight:800; color:#fff; white-space:nowrap;
+  background:rgba(31,28,70,.82); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 14px 32px -14px rgba(5,3,20,.9);
+  font-family:'Inter','Vazirmatn',sans-serif;
+}
+.hs-badge svg{width:16px; height:16px; color:var(--gold-amber);}
+.hs-badge.b1{top:-26px; inset-inline-end:-10px; transform:translateZ(70px);}
+.hs-badge.b2{bottom:-26px; inset-inline-start:22px; transform:translateZ(110px);}
+@keyframes hsBob{0%,100%{translate:0 0;}50%{translate:0 -8px;}}
+.hs-badge{animation:hsBob 4.6s ease-in-out infinite;}
+.hs-badge.b2{animation-delay:-2.3s;}
+@media(max-width:560px){.hs-badge.b1{inset-inline-end:16px;} .hs-badge.b2{inset-inline-start:16px;} .hs-fx{inset:-10% 0 0;}}
+/* badges/particles lean past the card under 3D tilt — keep them from widening the page on small screens */
+@media(max-width:880px){.hs{overflow-x:clip;} .hs-ready .hs-slide{align-content:start;}}
+/* phones: slides share one height (the tallest), so trim the brand slide's secondary lines to keep every slide about the same height */
+@media(max-width:560px){.hs-ready .hs-slide .badge,.hs-ready .hs-slide .trust-row{display:none;}}
+
+/* particle layer (hearts / likes / planes / confetti spawned by JS) */
+.hs-fx{position:absolute; inset:-10% -6% 0; pointer-events:none; overflow:visible; z-index:3; transform:translateZ(60px);}
+.hs-p{
+  position:absolute; bottom:6%; left:var(--x,50%);
+  width:var(--s,20px); height:var(--s,20px);
+  color:var(--c,var(--pc2));
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.35));
+  animation:hsRise var(--d,3.2s) cubic-bezier(.2,.7,.3,1) forwards;
+  will-change:transform,opacity;
+}
+.hs-p svg{width:100%; height:100%;}
+@keyframes hsRise{
+  0%  {opacity:0; transform:translate3d(0,0,0) scale(.4) rotate(0deg);}
+  12% {opacity:1;}
+  100%{opacity:0; transform:translate3d(var(--dx,0px),-260px,0) scale(1.05) rotate(var(--rot,0deg));}
+}
+.hs-confetti{
+  position:absolute; top:42%; left:50%; width:8px; height:12px; border-radius:2px;
+  background:var(--c,#ffd23f);
+  animation:hsBurst var(--d,1.4s) cubic-bezier(.15,.8,.3,1) forwards;
+  will-change:transform,opacity;
+}
+@keyframes hsBurst{
+  0%  {opacity:1; transform:translate3d(0,0,0) rotate(0deg);}
+  100%{opacity:0; transform:translate3d(var(--dx,0px),var(--dy,0px),0) rotate(var(--rot,180deg));}
+}
+
+/* ── Slide 1: the existing chart card, upgraded ─────────────────────────── */
+.hs-slide .chart-card{animation:none;}
+.hs-slide .chart-card .chart-metric{font-size:clamp(24px,3vw,30px);}
+
+/* ── Slide 6: gift / invite visual ──────────────────────────────────────── */
+.hs-gift{
+  position:relative; border-radius:24px; padding:26px 20px 20px; text-align:center;
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(255,182,39,.22), transparent 70%),
+    linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015)), var(--s1);
+  border:1px solid var(--glass-line);
+  box-shadow:inset 0 1px 0 var(--glass-hi), 0 30px 70px -30px rgba(5,3,20,.95);
+}
+.hs-giftbox{position:relative; width:120px; height:120px; margin:0 auto 14px;}
+.hs-giftbox .lid,.hs-giftbox .box{position:absolute; left:50%; translate:-50% 0; color:var(--gold-amber);}
+.hs-giftbox .box{bottom:0; width:104px; height:72px; border-radius:10px;
+  background:linear-gradient(180deg,#ffb627,#ff7a45);
+  box-shadow:0 16px 34px -12px rgba(255,122,69,.7), inset 0 2px 0 rgba(255,255,255,.35);}
+.hs-giftbox .lid{bottom:66px; width:118px; height:24px; border-radius:8px;
+  background:linear-gradient(180deg,#ffe07a,#ffb627); box-shadow:inset 0 2px 0 rgba(255,255,255,.5);}
+.hs-giftbox .ribbon{position:absolute; left:50%; translate:-50% 0; bottom:0; width:16px; height:90px; background:#c2410c; border-radius:3px; opacity:.85;}
+.hs-giftbox .bow{position:absolute; left:50%; bottom:86px; translate:-50% 0; width:46px; height:22px;}
+.hs-giftbox .bow::before,.hs-giftbox .bow::after{content:""; position:absolute; top:0; width:22px; height:20px; border:5px solid #c2410c; border-radius:50% 50% 0 50%;}
+.hs-giftbox .bow::before{left:0; rotate:-30deg;} .hs-giftbox .bow::after{right:0; rotate:30deg; border-radius:50% 50% 50% 0;}
+@keyframes hsLid{0%,30%{transform:none;}45%{transform:translateY(-26px) rotate(-12deg);}60%,100%{transform:translateY(-18px) rotate(-8deg);}}
+.hs-ready .hs-slide.is-active .hs-giftbox .lid-wrap{animation:hsLid 3.2s var(--hs-ease) .5s infinite alternate;}
+.hs-giftbox .lid-wrap{position:absolute; inset:0; transform-origin:30% 70%;}
+.hs-invite{
+  display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+  margin:0 auto 14px; padding:10px 14px; border-radius:14px; max-width:320px;
+  background:rgba(255,255,255,.05); border:1px dashed rgba(255,182,39,.45);
+  font-family:'Inter','Vazirmatn',sans-serif; font-size:13px; color:var(--mt); direction:ltr;
+}
+.hs-invite b{color:var(--gold-sun); letter-spacing:.5px;}
+.hs-friends{display:flex; justify-content:center; gap:8px; direction:ltr;}
+.hs-friends i{
+  width:34px; height:34px; border-radius:50%; display:grid; place-items:center;
+  border:2px dashed var(--bd); color:var(--mt);
+}
+.hs-friends i svg{width:16px; height:16px;}
+.hs-friends i.on{border:2px solid transparent; color:var(--neon-ink); background:var(--neon-grad); box-shadow:0 6px 16px -6px rgba(255,150,40,.7);}
+@keyframes hsPop{0%{transform:scale(.4);}70%{transform:scale(1.15);}100%{transform:scale(1);}}
+.hs-ready .hs-slide.is-active .hs-friends i.on{animation:hsPop .5s var(--hs-ease) both; animation-delay:calc(var(--n,0) * 160ms + 500ms);}
+.hs-friends-cap{margin-top:10px; font-size:12px; color:var(--mt);}
+
+/* ── Controls: labelled tabs with autoplay progress ─────────────────────── */
+.hs-ctrl{display:flex; align-items:center; justify-content:center; gap:10px; padding:4px 0 6px;}
+.hs-tabs{display:flex; gap:6px; padding:5px; border-radius:16px; background:rgba(255,255,255,.04); border:1px solid var(--glass-line);}
+.hs-tab{
+  position:relative; overflow:hidden;
+  display:inline-flex; align-items:center; gap:7px;
+  min-height:44px; padding:0 13px; border-radius:12px; border:0; cursor:pointer;
+  background:transparent; color:var(--mt); font:inherit; font-size:13px; font-weight:800;
+  transition:color .2s ease, background-color .2s ease;
+  touch-action:manipulation;
+}
+.hs-tab svg{width:18px; height:18px; flex-shrink:0;}
+.hs-tab:hover{color:var(--tx); background:rgba(255,255,255,.05);}
+.hs-tab.is-active{color:var(--neon-ink); background:var(--neon-grad); box-shadow:0 6px 18px -8px rgba(255,150,40,.7);}
+.hs-tab-bar{
+  position:absolute; inset-inline:10px; bottom:5px; height:3px; border-radius:3px;
+  background:rgba(18,14,36,.35); transform:scaleX(0); transform-origin:left;
+}
+[dir="rtl"] .hs-tab-bar{transform-origin:right;}
+@keyframes hsProg{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+.hs-tab.is-active .hs-tab-bar{animation:hsProg var(--hs-dur) linear forwards;}
+.hs.is-paused .hs-tab.is-active .hs-tab-bar{animation-play-state:paused;}
+.hs-arrow,.hs-pause{
+  width:44px; height:44px; flex-shrink:0; border-radius:50%; cursor:pointer;
+  display:grid; place-items:center; color:var(--tx);
+  background:rgba(255,255,255,.05); border:1px solid var(--glass-line);
+  transition:transform .2s ease, border-color .2s ease, color .2s ease;
+  touch-action:manipulation;
+}
+.hs-arrow:hover,.hs-pause:hover{border-color:rgba(255,182,39,.6); color:var(--gold-sun);}
+.hs-arrow:active,.hs-pause:active{transform:scale(.94);}
+.hs-arrow svg,.hs-pause svg{width:18px; height:18px;}
+.hs-prev svg{transform:scaleX(-1);}
+[dir="rtl"] .hs-prev svg{transform:none;}
+[dir="rtl"] .hs-next svg{transform:scaleX(-1);}
+.hs-pause .ic-play{display:none;}
+.hs.is-paused .hs-pause .ic-pause{display:none;}
+.hs.is-paused .hs-pause .ic-play{display:block;}
+@media(max-width:720px){
+  .hs-tab span{display:none;}
+  .hs-tab{padding:0 11px;}
+  .hs-arrow{display:none;}
+}
+
+/* ── Platform marquee ───────────────────────────────────────────────────── */
+.hs-marquee{margin:34px 0 6px; display:grid; gap:12px;}
+.hs-mq-row{
+  direction:ltr; overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);
+}
+.hs-mq-track{display:flex; width:max-content; animation:hsMq 42s linear infinite;}
+.hs-mq-rev .hs-mq-track{animation-direction:reverse; animation-duration:50s;}
+.hs-marquee:hover .hs-mq-track{animation-play-state:paused;}
+.hs-mq-set{display:flex; gap:12px; padding-right:12px;}
+@keyframes hsMq{to{transform:translateX(-50%);}}
+.hs-mq-chip{
+  display:inline-flex; align-items:center; gap:9px; white-space:nowrap;
+  padding:9px 16px 9px 10px; border-radius:99px;
+  font-family:'Inter','Vazirmatn',sans-serif; font-size:14px; font-weight:700; color:var(--tx);
+  background:rgba(255,255,255,.045); border:1px solid var(--glass-line);
+}
+.hs-mq-chip i{width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#fff; background:var(--bc,#555);}
+.hs-mq-chip i svg{width:16px; height:16px;}
+
+/* ── Reduced motion: stills, instant changes ─────────────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  .hs-ready .hs-slide,.hs-ready .hs-slide.is-active{transition:none;}
+  .hs-ready .hs-slide.is-active [data-hs-in],
+  .hs-ready .hs-slide.is-active [data-hs-vis],
+  .hs-ready .hs-slide.is-active .hs-bars i,
+  .hs-float,.hs-badge,.hs-dev-shine,.hs-giftbox .lid-wrap{animation:none !important;}
+  .hs-tab-bar{display:none;}
+  .hs-tilt{transition:none;}
+  .hs-mq-track{animation:none; flex-wrap:wrap; width:auto; justify-content:center;}
+  .hs-mq-set[aria-hidden="true"]{display:none;}
+  .hs-mq-set{flex-wrap:wrap; justify-content:center; padding:0;}
+  .hs-mq-row{-webkit-mask-image:none; mask-image:none;}
+  .hs-progress{display:none;}
+}
