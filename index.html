@@ -236,10 +236,16 @@ footer a{color:var(--acc2);text-decoration:none;}
 
 /* ── QUICK ORDER WIDGET ── */
 .qo-wrap{background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:24px;overflow:hidden;}
-.qo-plat-sel-wrap{position:relative;margin-bottom:16px;}
-.qo-plat-sel-wrap::after{content:'▾';position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mt);pointer-events:none;font-size:14px;line-height:1;}
-.qo-plat-sel{width:100%;height:48px;background:var(--s2);border:2px solid var(--bd);border-radius:12px;padding:0 40px 0 14px;color:var(--tx);font-size:15px;font-family:'Vazirmatn','Inter',sans-serif;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .18s;direction:rtl;}
-.qo-plat-sel:focus{border-color:var(--acc);}
+.qo-plats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px;}
+.qo-plat{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 10px;border-radius:16px;background:var(--s2);border:2px solid var(--bd);color:var(--mt);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;transition:transform .2s,border-color .2s,box-shadow .2s,color .2s;}
+.qo-plat:hover{transform:translateY(-2px);color:var(--tx);}
+.qo-plat:focus-visible{outline:2px solid var(--acc2,#ffd23f);outline-offset:2px;}
+.qo-plat-ic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:var(--pb);color:#fff;box-shadow:0 8px 18px -10px var(--ps,rgba(0,0,0,.6));transition:transform .25s;}
+.qo-plat-ic svg{width:24px;height:24px;}
+.qo-plat.is-active{color:var(--tx);border-color:var(--ps);box-shadow:0 0 0 3px color-mix(in srgb,var(--ps) 22%,transparent),0 12px 26px -14px var(--ps);}
+.qo-plat.is-active .qo-plat-ic{transform:scale(1.08);}
+.qo-plat-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+@media(max-width:480px){.qo-wrap{padding:18px 14px;}.qo-plats{gap:5px;}.qo-plat{padding:10px 0 8px;font-size:clamp(9px,2.75vw,10.5px);border-radius:14px;border-width:1.5px;}.qo-plat-nm{overflow:visible;text-overflow:clip;max-width:none;letter-spacing:-.1px;}.qo-plat-ic{width:38px;height:38px;border-radius:11px;}.qo-plat-ic svg{width:21px;height:21px;}}
 .qo-input-row{display:flex;align-items:stretch;border-radius:12px;overflow:hidden;border:2px solid var(--bd);transition:border-color .18s;}
 .qo-input-row:focus-within{border-color:var(--acc);}
 .qo-at{width:38px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--mt);flex-shrink:0;}
@@ -284,8 +290,6 @@ html[lang="en"] body{direction:ltr;}
 html[lang="en"] .hero{text-align:left;}
 html[lang="en"] .ann-feed{text-align:left;}
 html[lang="en"] .ann-feed-arrow{margin-right:0;margin-left:auto;}
-html[lang="en"] .qo-plat-sel{direction:ltr;padding:0 14px 0 40px;}
-html[lang="en"] .qo-plat-sel-wrap::after{left:auto;right:14px;}
 html[lang="en"] .svc-list li:hover{transform:translateX(3px);}
 html[lang="en"] .sub{margin-left:0;}
 #lang-toggle{padding:8px 14px;font-weight:800;letter-spacing:.06em;}
@@ -566,14 +570,12 @@ html[lang="en"] .sub{margin-left:0;}
   <h2 style="text-align:center;margin-bottom:8px" data-i18n="qo_h2">همین الان سفارش بده — بدون ثبت‌نام</h2>
   <p class="section-sub" style="margin-bottom:24px" data-i18n="qo_sub">بدون نیاز به ثبت‌نام — فقط یوزرنیم، تعداد و پرداخت. قیمت‌ها کمی بالاتر از مشتریان ثبت‌نام‌شده است. برای قیمت بهتر <a href="/auth.html" style="color:var(--acc2);text-decoration:none;font-weight:700">ثبت‌نام رایگان</a> کنید.</p>
   <div class="qo-wrap qo-wrap-pulse reveal">
-    <div class="qo-plat-sel-wrap">
-      <select id="qo-plat-sel" class="qo-plat-sel" onchange="qoPlatFromSel(this.value)">
-        <option value="instagram">📸 اینستاگرام</option>
-        <option value="tiktok">🎵 تیک‌تاک</option>
-        <option value="telegram">✈️ تلگرام</option>
-        <option value="youtube">▶️ یوتیوب</option>
-        <option value="facebook">👤 فیسبوک</option>
-      </select>
+    <div class="qo-plats">
+      <button type="button" class="qo-plat is-active" data-plat="instagram" aria-pressed="true" style="--pb:linear-gradient(45deg,#feda75,#fa7e1e 25%,#d62976 50%,#962fbf 75%,#4f5bd5);--ps:#d62976" onclick="qoPlatSelect('instagram')"><span class="qo-plat-ic"><svg aria-hidden="true"><use href="#i-ig"/></svg></span><span class="qo-plat-nm" data-i18n="plat_nm_ig">اینستاگرام</span></button>
+      <button type="button" class="qo-plat" data-plat="tiktok" aria-pressed="false" style="--pb:#111;--ps:#25f4ee" onclick="qoPlatSelect('tiktok')"><span class="qo-plat-ic"><svg aria-hidden="true" style="filter:drop-shadow(1.5px 1px 0 #fe2c55) drop-shadow(-1.5px -1px 0 #25f4ee)"><use href="#i-tt"/></svg></span><span class="qo-plat-nm" data-i18n="plat_nm_tt">تیک‌تاک</span></button>
+      <button type="button" class="qo-plat" data-plat="telegram" aria-pressed="false" style="--pb:#2aabee;--ps:#2aabee" onclick="qoPlatSelect('telegram')"><span class="qo-plat-ic"><svg aria-hidden="true"><use href="#i-tg"/></svg></span><span class="qo-plat-nm" data-i18n="plat_nm_tg">تلگرام</span></button>
+      <button type="button" class="qo-plat" data-plat="youtube" aria-pressed="false" style="--pb:#ff0000;--ps:#ff3b30" onclick="qoPlatSelect('youtube')"><span class="qo-plat-ic"><svg aria-hidden="true"><use href="#i-yt"/></svg></span><span class="qo-plat-nm" data-i18n="plat_nm_yt">یوتیوب</span></button>
+      <button type="button" class="qo-plat" data-plat="facebook" aria-pressed="false" style="--pb:#1877f2;--ps:#1877f2" onclick="qoPlatSelect('facebook')"><span class="qo-plat-ic"><svg aria-hidden="true"><use href="#i-fb"/></svg></span><span class="qo-plat-nm" data-i18n="plat_nm_fb">فیسبوک</span></button>
     </div>
     <div id="qo-svc-row" style="margin-bottom:14px;display:none">
       <label class="qo-form-lbl" data-i18n="qo_svc_lbl">نوع سرویس</label>
@@ -871,6 +873,7 @@ fa:{
   ai_typing:'در حال تایپ...',
   ai_err_reply:'متأسفانه الان نمی‌تونم جواب بدم. لطفاً از دکمه‌ی تلگرام پیام بدید.',
   ai_net_err:'خطا در اتصال. لطفاً دوباره امتحان کنید.',
+  plat_nm_ig:'اینستاگرام',plat_nm_tt:'تیک‌تاک',plat_nm_tg:'تلگرام',plat_nm_yt:'یوتیوب',plat_nm_fb:'فیسبوک',
   plat_opt_ig:'📸 اینستاگرام',plat_opt_tt:'🎵 تیک‌تاک',plat_opt_tg:'✈️ تلگرام',plat_opt_yt:'▶️ یوتیوب',plat_opt_fb:'👤 فیسبوک',
   svc_type_followers:'فالوور',svc_type_likes:'لایک',svc_type_views:'ویو / بازدید',
   svc_type_members:'ممبر',svc_type_comments:'کامنت',svc_type_shares:'اشتراک‌گذاری'
@@ -1006,6 +1009,7 @@ en:{
   ai_typing:'Typing...',
   ai_err_reply:"Sorry, I can't respond right now. Please message us via Telegram.",
   ai_net_err:'Connection error. Please try again.',
+  plat_nm_ig:'Instagram',plat_nm_tt:'TikTok',plat_nm_tg:'Telegram',plat_nm_yt:'YouTube',plat_nm_fb:'Facebook',
   plat_opt_ig:'📸 Instagram',plat_opt_tt:'🎵 TikTok',plat_opt_tg:'✈️ Telegram',plat_opt_yt:'▶️ YouTube',plat_opt_fb:'👤 Facebook',
   svc_type_followers:'Followers',svc_type_likes:'Likes',svc_type_views:'Views',
   svc_type_members:'Members',svc_type_comments:'Comments',svc_type_shares:'Shares'
@@ -1266,8 +1270,6 @@ function qoFilterSvcs(plat,typeKey){
 }
 
 function qoInit(){
-  var sel=document.getElementById('qo-plat-sel');
-  if(sel) sel.value=_qoPlat;
   qoPlatSelect(_qoPlat);
 }
 
@@ -1279,8 +1281,11 @@ function qoPlatSelect(plat){
   _qoPlat=plat;
   _qoSvcRow=null;
   _qoQty=0;
-  var sel=document.getElementById('qo-plat-sel');
-  if(sel) sel.value=plat;
+  document.querySelectorAll('.qo-plat').forEach(function(b){
+    var on=b.getAttribute('data-plat')===plat;
+    b.classList.toggle('is-active',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
   qoHideUserPreview();
   qoBuildSvcSel();
 }
@@ -1422,7 +1427,11 @@ var _QO_PLAT_PROFILE_URLS={
 };
 
 var _QO_PLAT_EMOJIS={
-  instagram:'📸',tiktok:'🎵',telegram:'✈️',youtube:'▶️',facebook:'👤'
+  instagram:'<svg style="width:24px;height:24px;color:#d62976"><use href="#i-ig"/></svg>',
+  tiktok:'<svg style="width:24px;height:24px;color:#fff"><use href="#i-tt"/></svg>',
+  telegram:'<svg style="width:24px;height:24px;color:#2aabee"><use href="#i-tg"/></svg>',
+  youtube:'<svg style="width:24px;height:24px;color:#ff0000"><use href="#i-yt"/></svg>',
+  facebook:'<svg style="width:24px;height:24px;color:#1877f2"><use href="#i-fb"/></svg>'
 };
 
 function qoHideUserPreview(){
