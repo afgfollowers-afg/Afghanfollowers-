@@ -1553,7 +1553,12 @@ var _currentUser=null;
     // rejected AFTER the money is already captured. Force a fresh login
     // immediately, the same way a suspension does, instead of letting them
     // use a panel whose writes quietly don't reach the server.
-    if(!_session.token){
+    // An EXPIRED token is just as useless as a missing one: the server
+    // drops every write from it (new orders included — they were never
+    // saved, so the Orders page, which reloads the list from the server,
+    // showed nothing). Tokens last 7 days but the session in localStorage
+    // never expires, so check exp here too, not only presence.
+    if(!_session.token||_ppTokenExpired(_session.token)){
       localStorage.removeItem('smm_session');
       window.location.replace('auth.html?reauth=1');
       return;
@@ -2635,6 +2640,10 @@ function updatePrice(){
 // ORDER
 var FINISHED_ORDER_STATUSES=['completed','cancelled','canceled','refunded','failed','partial'];
 function placeOrder(){
+  // A tab left open past the token's expiry would otherwise "place" an order
+  // that only exists in this browser: the server rejects the write, nothing
+  // is dispatched, and the order disappears from My Orders on the next sync.
+  if(!_session||!_session.token||_ppTokenExpired(_session.token)){forceCustomerReauth();return;}
   var link=document.getElementById('order-link');
   if(!link||!link.value.trim()){showToast('Please enter target link/username','e');return;}
 
@@ -2805,7 +2814,12 @@ function placeOrder(){
   var dbPush=fetch('/api/db',{method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({smm_users:allUsers,smm_orders:allOrders,smm_ts:Date.now()})
-  }).catch(function(){});
+  }).then(function(r){return r.json();}).then(function(resp){
+    // smm_users_restricted = the server had no valid identity for this
+    // write (token rejected), so the order was NOT saved.
+    if(resp&&resp.smm_users_restricted) forceCustomerReauth();
+    return resp;
+  }).catch(function(){return null;});
 
   // Place with provider if service has provId and svcId (matchedSvc already
   // resolved above, before the order object was built). The provider's
@@ -2817,7 +2831,8 @@ function placeOrder(){
   try{
     if(matchedSvc&&matchedSvc.svcId&&matchedSvc.provId){
       sentToProvider=true;
-      dbPush.then(function(){
+      dbPush.then(function(resp){
+        if(resp&&resp.smm_users_restricted) return Promise.reject(new Error('session expired'));
         return fetch('/api/place-order',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
@@ -2846,7 +2861,7 @@ function placeOrder(){
         } else if(d.error){
           showToast('⚠️ Provider did not accept order: '+d.error,'e');
         }
-      }).catch(function(e){showToast('⚠️ Could not reach provider: '+e.message,'e');});
+      }).catch(function(e){if(!_forcedCustomerReauthShown) showToast('⚠️ Could not reach provider: '+e.message,'e');});
     }
     // If matchedSvc has no provId at all, this is a manually-priced/local service — no provider call needed.
   }catch(e){}
@@ -5054,7 +5069,13 @@ function refreshOrderStatusesLive(){
     return fetch('/api/db');
   }).then(function(r){return r.json();}).then(function(dbData){
     if(dbData&&Array.isArray(dbData.smm_orders)){
-      localStorage.setItem('smm_orders',JSON.stringify(dbData.smm_orders));
+      // Server list wins, but keep orders created in this browser in the
+      // last few minutes that the server doesn't have yet (their save may
+      // still be in flight) so a just-placed order doesn't blink out.
+      var _localO=[];try{_localO=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+      var _have={};dbData.smm_orders.forEach(function(o){if(o&&o.id!==undefined)_have[o.id]=1;});
+      var _recent=_localO.filter(function(o){return o&&!_have[o.id]&&typeof o.id==='number'&&Date.now()-o.id<5*60*1000;});
+      localStorage.setItem('smm_orders',JSON.stringify(_recent.concat(dbData.smm_orders)));
     }
     if(badge) badge.style.display='none';
     renderOrdersList();
