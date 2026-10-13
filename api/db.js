@@ -277,6 +277,13 @@ module.exports = async (req, res) => {
           }
         });
         shape.unknownDistinctUsers = Object.keys(shape.unknownDistinctUsers).length;
+        const fieldTypes = {};
+        ['link', 'qty', 'cost', 'remain', 'startCount', 'status', 'date', 'email', 'svc', 'svcName', 'service'].forEach(function (f) {
+          const c = {};
+          (rec.smm_orders || []).forEach(function (o) { if (!o) return; const t = o[f] === null ? 'null' : Array.isArray(o[f]) ? 'array' : typeof o[f]; c[t] = (c[t] || 0) + 1; });
+          fieldTypes[f] = c;
+        });
+        shape.fieldTypes = fieldTypes;
         const uIdLens = {};
         (rec.smm_users || []).forEach(function (u) { if (u) { const l = String(u.id).length; uIdLens[l] = (uIdLens[l] || 0) + 1; } });
         shape.userIdLens = uIdLens;
