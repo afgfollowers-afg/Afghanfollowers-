@@ -265,7 +265,7 @@ module.exports = async (req, res) => {
           shape.idTypes[typeof o.id] = (shape.idTypes[typeof o.id] || 0) + 1;
           shape.userIdTypes[typeof o.userId] = (shape.userIdTypes[typeof o.userId] || 0) + 1;
           if (o.userId === 'guest') shape.guest++;
-          else if (o.userId === undefined || o.userId === null || o.userId === '') shape.noUserId++;
+          else if (o.userId === undefined || o.userId === null || o.userId === '') { shape.noUserId++; (shape.noUserIdIds = shape.noUserIdIds || []).push(o.id); }
           else if (userIds[String(o.userId)]) { shape.matchesUser++; track('matched', o); }
           else {
             shape.unknownUser++;
@@ -1053,7 +1053,23 @@ module.exports = async (req, res) => {
       if (body.smm_orders && Array.isArray(body.smm_orders)) {
         const ordersAuth = AUTH_CONFIGURED ? (smmUsersAuth || getAuth(req)) : null;
         if (!AUTH_CONFIGURED || (ordersAuth && ordersAuth.role === 'admin')) {
-          current.smm_orders = mergeById(current.smm_orders, body.smm_orders);
+          // A plain mergeById replaces a stored order with whatever object
+          // arrives under its id — a partial patch ({id, status, ...} with no
+          // userId/qty) then wiped the real order and left a half record that
+          // matched every customer's "My Orders" filter and crashed it. Keep
+          // the stored fields when the incoming copy has no owner, and never
+          // create a brand-new order that has no owner at all.
+          const _existingById = {};
+          (current.smm_orders || []).forEach(function (o) { if (o && o.id !== undefined) _existingById[o.id] = o; });
+          const _incomingOrders = body.smm_orders.map(function (o) {
+            if (!o || o.id === undefined) return o;
+            const ex = _existingById[o.id];
+            const noOwner = o.userId === undefined || o.userId === null || o.userId === '';
+            if (ex && noOwner) return Object.assign({}, ex, o, { userId: ex.userId });
+            if (!ex && noOwner) return null;
+            return o;
+          }).filter(Boolean);
+          current.smm_orders = mergeById(current.smm_orders, _incomingOrders);
         } else {
           // Only pay the extra JSONBin round-trip for the service catalog
           // when there's actually a brand-new order to price-check — a

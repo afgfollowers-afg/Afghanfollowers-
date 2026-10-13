@@ -5100,11 +5100,19 @@ function renderOrdersList(){
     });
   }
   
-  var uid=String(u.id||u.userId||'');
+  // Match on a REAL owner only. The old check compared
+  // String(o.userId)===String(u.userId) — u.userId is normally undefined, so
+  // any order record missing userId ("undefined"==="undefined") landed in
+  // EVERY customer's list, and one such half-written record (no qty) then
+  // crashed the render below for everyone, leaving "No orders yet".
+  var uid=String(u.id!==undefined&&u.id!==null?u.id:(u.userId||''));
+  var uemail=String(u.email||'').trim().toLowerCase();
   var myOrders=orders.filter(function(o){
-    return String(o.userId)===uid||
-           String(o.userId)===String(u.userId)||
-           o.email===u.email;
+    if(!o||o.id===undefined) return false;
+    if(o.userId!==undefined&&o.userId!==null&&o.userId!==''&&uid&&String(o.userId)===uid) return true;
+    // Older orders kept the account's email when the account was later
+    // re-created under a new id — still show those to the same email.
+    return !!uemail&&String(o.email||'').trim().toLowerCase()===uemail;
   }).sort(function(a,b){return (b.id||0)-(a.id||0);});
   
   if(!myOrders.length){
@@ -5113,13 +5121,16 @@ function renderOrdersList(){
   }
   
   el.innerHTML=myOrders.map(function(o){
+   // One malformed record must never blank the whole list.
+   try{
     var status=o.status||'pending';
     var sc=status==='completed'?'bg':(status==='processing'||status==='in_progress')?'bp':(status==='failed'||status==='cancelled'||status==='refunded')?'br':'by';
     var statusLabels={in_progress:'In Progress',processing:'Processing',pending:'Pending',completed:'Completed',cancelled:'Cancelled',refunded:'Refunded',partial:'Partial',failed:'Failed'};
     var statusText=statusLabels[status]||status;
     var cost=parseFloat(o.cost||o.totalCost||0);
-    var remain=o.remain!==undefined?o.remain:(status==='completed'?0:o.qty);
-    var startCount=o.startCount||o.start_count||0;
+    var remain=Number(o.remain!==undefined&&o.remain!==null?o.remain:(status==='completed'?0:o.qty))||0;
+    var startCount=Number(o.startCount||o.start_count)||0;
+    var link=String(o.link||'');
     // Once an order has a provOrderId it's already been sent to the
     // provider — cancelling it here only marks it cancelled and refunds
     // locally, it doesn't tell the provider to stop, so allowing it would
@@ -5144,10 +5155,10 @@ function renderOrdersList(){
       +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4">'+(o.service||o.svcName||o.svc||'—')+'</div>'
       // Details grid
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;margin-bottom:10px">'
-        +'<div><span style="color:var(--muted)">Link</span><br><a href="'+(o.link||'#')+'" target="_blank" style="color:var(--accent2);word-break:break-all;font-size:11px">'+(o.link||'—').slice(0,40)+(o.link&&o.link.length>40?'...':'')+'</a></div>'
+        +'<div><span style="color:var(--muted)">Link</span><br><a href="'+(link||'#')+'" target="_blank" style="color:var(--accent2);word-break:break-all;font-size:11px">'+(link||'—').slice(0,40)+(link.length>40?'...':'')+'</a></div>'
         +'<div><span style="color:var(--muted)">Date</span><br><span style="color:var(--text)">'+dateStr+'</span></div>'
         +'<div><span style="color:var(--muted)">Charge</span><br><span style="color:var(--green);font-weight:700">'+fmtPrice(cost)+'</span></div>'
-        +'<div><span style="color:var(--muted)">Quantity</span><br><span style="color:var(--text)">'+(o.qty||0).toLocaleString()+'</span></div>'
+        +'<div><span style="color:var(--muted)">Quantity</span><br><span style="color:var(--text)">'+(Number(o.qty)||0).toLocaleString()+'</span></div>'
         +'<div><span style="color:var(--muted)">Start Count</span><br><span style="color:var(--text)">'+startCount.toLocaleString()+'</span></div>'
         +'<div><span style="color:var(--muted)">Remains</span><br><span style="color:var(--text)">'+remain.toLocaleString()+'</span></div>'
       +'</div>'
@@ -5157,6 +5168,7 @@ function renderOrdersList(){
         +(canRefill?'<button data-oid="'+o.id+'" onclick="refillOrder(this.dataset.oid)" style="flex:1;padding:8px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent2);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Refill</button>':'')
         +'</div>':'')
       +'</div>';
+   }catch(e){ return ''; }
   }).join('');
 }
 
