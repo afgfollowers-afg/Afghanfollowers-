@@ -408,7 +408,10 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
 /* TOAST */
 .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 20px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 8px 32px rgba(0,0,0,.5);white-space:nowrap;pointer-events:none;}
-.toast.show{transform:translateX(-50%) translateY(0);pointer-events:auto;}
+/* Hidden state used to only slide the toast 60px down — that parked the empty
+   box right on the bottom nav, covering the Free Likes icon. Fade it out fully. */
+.toast:not(.show){opacity:0;visibility:hidden;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .2s,visibility 0s linear .3s;}
+.toast.show{transform:translateX(-50%) translateY(0);pointer-events:auto;opacity:1;visibility:visible;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .2s;}
 .toast.s{border-color:var(--green);color:var(--green);}
 .toast.e{border-color:var(--red);color:var(--red);}
 
