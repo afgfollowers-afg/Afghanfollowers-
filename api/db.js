@@ -250,7 +250,15 @@ module.exports = async (req, res) => {
         }
         const userIds = {};
         (rec.smm_users || []).forEach(function (u) { if (u && u.id !== undefined) userIds[String(u.id)] = 1; });
-        const shape = { total: 0, guest: 0, matchesUser: 0, noUserId: 0, unknownUser: 0, idTypes: {}, userIdTypes: {} };
+        const userEmails = {};
+        (rec.smm_users || []).forEach(function (u) { if (u && u.email) userEmails[String(u.email).toLowerCase()] = 1; });
+        const shape = { total: 0, guest: 0, matchesUser: 0, noUserId: 0, unknownUser: 0, unknownButEmailMatches: 0, unknownIdLens: {}, unknownDistinctUsers: {}, idTypes: {}, userIdTypes: {}, dates: {} };
+        function track(kind, o) {
+          const d = String(o.date || '').slice(0, 10);
+          const t = shape.dates[kind] || (shape.dates[kind] = { first: null, last: null });
+          if (d && (!t.first || d < t.first)) t.first = d;
+          if (d && (!t.last || d > t.last)) t.last = d;
+        }
         (rec.smm_orders || []).forEach(function (o) {
           shape.total++;
           if (!o) return;
@@ -258,9 +266,23 @@ module.exports = async (req, res) => {
           shape.userIdTypes[typeof o.userId] = (shape.userIdTypes[typeof o.userId] || 0) + 1;
           if (o.userId === 'guest') shape.guest++;
           else if (o.userId === undefined || o.userId === null || o.userId === '') shape.noUserId++;
-          else if (userIds[String(o.userId)]) shape.matchesUser++;
-          else shape.unknownUser++;
+          else if (userIds[String(o.userId)]) { shape.matchesUser++; track('matched', o); }
+          else {
+            shape.unknownUser++;
+            track('unknown', o);
+            if (o.email && userEmails[String(o.email).toLowerCase()]) shape.unknownButEmailMatches++;
+            const idLen = String(o.userId).length;
+            shape.unknownIdLens[idLen] = (shape.unknownIdLens[idLen] || 0) + 1;
+            shape.unknownDistinctUsers[String(o.userId)] = 1;
+          }
         });
+        shape.unknownDistinctUsers = Object.keys(shape.unknownDistinctUsers).length;
+        const uIdLens = {};
+        (rec.smm_users || []).forEach(function (u) { if (u) { const l = String(u.id).length; uIdLens[l] = (uIdLens[l] || 0) + 1; } });
+        shape.userIdLens = uIdLens;
+        const usersWithOrders = {};
+        (rec.smm_orders || []).forEach(function (o) { if (o && userIds[String(o.userId)]) usersWithOrders[String(o.userId)] = 1; });
+        shape.usersWithMatchedOrders = Object.keys(usersWithOrders).length;
         out.orderShape = shape;
       }
       // JSONBin-only: safe key fingerprints (NOT the key) to catch a corrupted
