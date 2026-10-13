@@ -233,6 +233,36 @@ module.exports = async (req, res) => {
         orders: probe.ok && Array.isArray(probe.record.smm_orders) ? probe.record.smm_orders.length : null,
         smm_ts: probe.ok ? probe.record.smm_ts : null
       };
+      // Sizes and order-shape counts only (no values) — for diagnosing a
+      // customer panel that can't show orders: an oversized GET response or
+      // browser cache, or orders whose userId doesn't match any account.
+      if (probe.ok) {
+        const rec = probe.record || {};
+        const sizes = {};
+        Object.keys(rec).forEach(function (k) { try { sizes[k] = JSON.stringify(rec[k]).length; } catch (e) { sizes[k] = -1; } });
+        out.mainChars = JSON.stringify(rec).length;
+        out.keyChars = sizes;
+        if (svcProbe && svcProbe.ok) {
+          let svcArr = [];
+          try { svcArr = svcProbe.record.svc_gz ? base64ToObj(svcProbe.record.svc_gz) : (svcProbe.record.smm_svc || []); } catch (e) { svcArr = []; }
+          out.svcCount = Array.isArray(svcArr) ? svcArr.length : null;
+          out.svcChars = JSON.stringify(svcArr).length;
+        }
+        const userIds = {};
+        (rec.smm_users || []).forEach(function (u) { if (u && u.id !== undefined) userIds[String(u.id)] = 1; });
+        const shape = { total: 0, guest: 0, matchesUser: 0, noUserId: 0, unknownUser: 0, idTypes: {}, userIdTypes: {} };
+        (rec.smm_orders || []).forEach(function (o) {
+          shape.total++;
+          if (!o) return;
+          shape.idTypes[typeof o.id] = (shape.idTypes[typeof o.id] || 0) + 1;
+          shape.userIdTypes[typeof o.userId] = (shape.userIdTypes[typeof o.userId] || 0) + 1;
+          if (o.userId === 'guest') shape.guest++;
+          else if (o.userId === undefined || o.userId === null || o.userId === '') shape.noUserId++;
+          else if (userIds[String(o.userId)]) shape.matchesUser++;
+          else shape.unknownUser++;
+        });
+        out.orderShape = shape;
+      }
       // JSONBin-only: safe key fingerprints (NOT the key) to catch a corrupted
       // master key (leading "$" eaten by a .env bulk-paste, truncation, or a
       // trailing space). Meaningless under Upstash, so omitted there.
