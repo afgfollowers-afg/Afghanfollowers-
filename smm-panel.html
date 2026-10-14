@@ -700,12 +700,12 @@ tr:hover td{background:rgba(30,35,54,.5);}
         </div>
         <div class="form-group">
           <label class="form-label">Link / Username</label>
-          <input type="text" class="form-input" id="order-link" placeholder="https://instagram.com/username" onfocus="checkServiceDropDisclaimer()">
+          <input type="text" class="form-input" id="order-link" placeholder="Link or username" autocomplete="off" autocapitalize="off" spellcheck="false" onfocus="checkServiceDropDisclaimer()">
         </div>
         <div class="form-row" style="margin-bottom:14px">
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Quantity</label>
-            <input type="number" class="form-input" id="order-qty" value="1000" min="100" oninput="updatePrice()">
+            <input type="number" class="form-input" id="order-qty" inputmode="numeric" min="100" placeholder="Enter quantity" oninput="updatePrice()">
           </div>
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Cost</label>
@@ -2556,13 +2556,43 @@ function syncServiceFromDropdown2(svcs){
   
   // Set min/max on qty input
   var qtyEl=document.getElementById('order-qty');
+  // Quantity starts empty — the customer types it. The service's limits are
+  // shown as the placeholder and enforced in placeOrder(), not by silently
+  // rewriting what was typed.
   if(qtyEl){
     qtyEl.min=s.min||100;
     qtyEl.max=s.max||50000;
-    if(parseInt(qtyEl.value)<(s.min||100)) qtyEl.value=s.min||100;
+    qtyEl.placeholder=Number(s.min||100).toLocaleString()+' – '+Number(s.max||50000).toLocaleString();
+  }
+  var linkEl=document.getElementById('order-link');
+  if(linkEl){
+    var pk=(S.selPlat&&S.selPlat!=='all')?S.selPlat:detectPlatform((s.cat||s.category||'')+' '+(s.name||''));
+    if(pk==='other') pk=detectPlatform(s.name||'');
+    linkEl.placeholder=orderLinkPlaceholder(pk,s.name||'');
   }
   
   updatePrice();
+}
+
+// Example link for the selected service's network, so a TikTok order isn't
+// prompted with an Instagram URL. Profile-type services (followers,
+// subscribers, members) take a profile/channel link; the rest a post link.
+function orderLinkPlaceholder(plat,name){
+  var n=String(name||'').toLowerCase();
+  var profile=/follow|subscri|member|page like|channel|profile/.test(n);
+  switch(plat){
+    case 'instagram': return profile?'https://instagram.com/username':'https://www.instagram.com/p/POST_ID';
+    case 'tiktok': return profile?'https://www.tiktok.com/@username':(/live/.test(n)?'https://www.tiktok.com/@username/live':'https://www.tiktok.com/@username/video/VIDEO_ID');
+    case 'youtube': return profile?'https://www.youtube.com/@channel':'https://www.youtube.com/watch?v=VIDEO_ID';
+    case 'telegram': return /view|reaction|post/.test(n)?'https://t.me/channel/123':'https://t.me/channel';
+    case 'facebook': return profile?'https://www.facebook.com/yourpage':'https://www.facebook.com/…/posts/…';
+    case 'twitter': return profile?'https://x.com/username':'https://x.com/username/status/POST_ID';
+    case 'whatsapp': return 'https://whatsapp.com/channel/…';
+    case 'linkedin': return 'https://www.linkedin.com/in/username';
+    case 'twitch': return 'https://www.twitch.tv/username';
+    case 'spotify': return 'https://open.spotify.com/…';
+    default: return 'Link or username';
+  }
 }
 
 function selectOrderCat(idx,plat){
@@ -2624,11 +2654,12 @@ function updatePrice(){
     }
   }
   
-  var qty=parseInt(document.getElementById('order-qty').value)||1000;
-  var cost=price>0?(price*qty/1000):0;
+  var qty=parseInt(document.getElementById('order-qty').value)||0;
+  var cost=price>0&&qty>0?(price*qty/1000):0;
   
   var costEl=document.getElementById('order-cost');
-  if(costEl) costEl.value=cost>0?'$'+parseFloat(cost.toPrecision(4)):'$0.00';
+  if(costEl) costEl.value=cost>0?'$'+parseFloat(cost.toPrecision(4)):'';
+  if(costEl) costEl.placeholder='$0.00';
   
   var rateEl=document.getElementById('sum-rate');
   if(rateEl) rateEl.textContent=price>0?'$'+parseFloat(price.toPrecision(4))+'/K':'—';
@@ -2695,7 +2726,11 @@ function placeOrder(){
   }
 
   var qtyEl=document.getElementById('order-qty');
-  var qty=parseInt(qtyEl&&qtyEl.value)||1000;
+  var qty=parseInt(qtyEl&&qtyEl.value)||0;
+  var qMin=parseInt(qtyEl&&qtyEl.min)||1, qMax=parseInt(qtyEl&&qtyEl.max)||0;
+  if(!qty||qty<1){showToast('Please enter a quantity','e');if(qtyEl)qtyEl.focus();return;}
+  if(qty<qMin){showToast('Minimum quantity for this service is '+qMin.toLocaleString(),'e');if(qtyEl)qtyEl.focus();return;}
+  if(qMax&&qty>qMax){showToast('Maximum quantity for this service is '+qMax.toLocaleString(),'e');if(qtyEl)qtyEl.focus();return;}
   
   // Get cost from cost field or calculate
   var costEl=document.getElementById('order-cost');
@@ -2879,8 +2914,9 @@ function placeOrder(){
   
   S.orders.unshift(order);
   
-  // Clear link field
+  // Clear link and quantity for the next order
   link.value='';
+  if(qtyEl){qtyEl.value='';updatePrice();}
   
   updateBalanceUI();
   showToast('✅ Order placed! Processing...','s');
