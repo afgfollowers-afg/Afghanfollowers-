@@ -6,6 +6,7 @@
 // Env vars needed: JSONBIN_BIN_ID, JSONBIN_SVC_BIN_ID, JSONBIN_API_KEY
 
 const zlib = require('zlib');
+const { appendSystemAlert } = require('./_alert-dedupe');
 const { DB_SERVICE_KEY } = require('./_dbkey');
 const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 const { KV_ENABLED, kvGet, kvSet, KV_MAIN_KEY, KV_SVC_KEY } = require('./_kv');
@@ -1109,9 +1110,11 @@ module.exports = async (req, res) => {
       // record without bound (see the 100KB-cap notes elsewhere in this
       // file). Diagnostic-only, not security-sensitive — any first-party
       // caller past the shared x-db-key gate above can push an entry.
+      let systemAlertNotify;
       if (body.smm_error_log_push && typeof body.smm_error_log_push === 'object') {
-        const entry = Object.assign({}, body.smm_error_log_push, { id: Date.now() + '-' + Math.random().toString(36).slice(2, 8), ts: Date.now() });
-        current.smm_error_log = [entry].concat(Array.isArray(current.smm_error_log) ? current.smm_error_log : []).slice(0, 200);
+        const alert = appendSystemAlert(current.smm_error_log, body.smm_error_log_push);
+        current.smm_error_log = alert.entries;
+        systemAlertNotify = alert.notify;
       }
       // Admin-login audit trail — appended by api/auth.js on every admin-login
       // attempt (success and failure). Capped to the most recent 100 entries.
@@ -1403,6 +1406,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         ok: true,
         users: (current.smm_users || []).length,
+        systemAlertNotify,
         orders: (current.smm_orders || []).length,
         ts: current.smm_ts,
         smm_users_restricted: smmUsersRestricted,
@@ -1421,3 +1425,4 @@ module.exports = async (req, res) => {
 
   return res.status(405).json({});
 };
+

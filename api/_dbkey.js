@@ -86,11 +86,15 @@ async function fetchInternal(url, opts, hopsLeft) {
 // error handling, so every failure here is swallowed.
 async function logSystemError(source, message, details) {
   try {
-    await fetchInternal(API_BASE + '/api/db', {
+    const response = await fetchInternal(API_BASE + '/api/db', {
       method: 'POST',
       headers: dbHeaders(),
       body: JSON.stringify({ smm_error_log_push: { source: source, message: message, details: details || null }, smm_ts: Date.now() })
     });
+    const saved = await response.json();
+    // Only a successful persisted decision may suppress Telegram. If the
+    // database is down, preserve the independent best-effort notification.
+    if (response.ok && saved.ok && saved.systemAlertNotify === false) return;
   } catch (e) { /* best-effort */ }
   // Also surface the alert on the dedicated ADMIN bot so important backend
   // failures reach the admin's own Telegram channel, not just the panel's
@@ -139,3 +143,4 @@ async function notifyAdminBot(text) {
 }
 
 module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot };
+
