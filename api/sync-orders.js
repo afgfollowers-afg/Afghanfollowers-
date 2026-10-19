@@ -301,7 +301,7 @@ const BENIGN_DISPATCH_ERRORS = ['Already dispatched or finished', 'Dispatch alre
 async function dispatchOneOrder(order, dbSnapshot, opts) {
   const result = await dispatchOneOrderCore(order, dbSnapshot, opts);
   if (!result.ok && BENIGN_DISPATCH_ERRORS.indexOf(result.error) === -1) {
-    logSystemError('dispatch', 'Order #' + order.id + ' failed to dispatch: ' + result.error, {
+    await logSystemError('dispatch', 'Order #' + order.id + ' failed to dispatch: ' + result.error, {
       orderId: order.id, service: order.svcName || order.svc || order.service, error: result.error
     });
   }
@@ -1831,3 +1831,4 @@ async function runProviderIntelJob(opts) {
   };
 }
 // redeploy: force Vercel to serve latest main (Groq model = GROQ_MODEL || openai/gpt-oss-120b)
+
