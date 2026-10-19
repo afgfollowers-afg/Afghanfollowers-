@@ -150,36 +150,55 @@ module.exports = async (req, res) => {
   // is obvious. Returns only bot usernames + chat ids, never the tokens.
   if (req.query && req.query.job === 'bot-check') {
     const admin = await resolveAdminBot();
-    const out = {
-      adminBotConfigured: !!(admin.token && admin.chatId),
-      adminSource: process.env.ADMIN_BOT_TOKEN ? 'env' : (admin.token ? 'panel (smm_tg_bot.adminToken)' : 'none'),
-      adminChatId: admin.chatId || null
-    };
+    let cfg = {};
     try {
-      const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
-      const db = await dbResp.json();
-      const tgCfg = db.smm_tg_bot || {};
-      out.mainBotChatId = tgCfg.chatId || null;
-      if (tgCfg.token) {
-        const me = await fetch('https://api.telegram.org/bot' + tgCfg.token + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
-        out.mainBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
-      } else out.mainBot = 'no token in smm_tg_bot';
-    } catch (e) { out.mainBot = 'error: ' + e.message; }
-    if (admin.token) {
-      const me = await fetch('https://api.telegram.org/bot' + admin.token + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
-      out.adminBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
-      // Read-only routing diagnostics. Never return the full webhook URL:
-      // existing setups embed bot credentials in its query or path.
-      const hook = await fetch('https://api.telegram.org/bot' + admin.token + '/getWebhookInfo')
-        .then(r => r.json()).catch(() => null);
-      if (hook && hook.ok && hook.result) {
-        out.adminWebhookConfigured = !!hook.result.url;
-        if (hook.result.url) {
-          try { out.adminWebhookHost = new URL(hook.result.url).hostname; } catch (e) {}
-        }
-        out.adminWebhookPendingUpdates = hook.result.pending_update_count || 0;
+      const response = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+      const db = await response.json();
+      cfg = db.smm_tg_bot || {};
+    } catch (e) {}
+    // Inspect every configured credential source, including shadowed env
+    // overrides. Tokens stay server-side and are never echoed.
+    const sources = [
+      ['panel.main', cfg.token], ['panel.admin', cfg.adminToken],
+      ['env.TG_BOT_TOKEN', process.env.TG_BOT_TOKEN],
+      ['env.ADMIN_BOT_TOKEN', process.env.ADMIN_BOT_TOKEN]
+    ];
+    const unique = new Map();
+    for (const [source, token] of sources) {
+      if (!token) continue;
+      if (!unique.has(token)) unique.set(token, []);
+      unique.get(token).push(source);
+    }
+    const bots = await Promise.all(Array.from(unique, async ([token, sources]) => {
+      async function read(method) {
+        try {
+          const result = await fetch('https://api.telegram.org/bot' + token + '/' + method).then(r => r.json());
+          return result && result.ok ? result.result : null;
+        } catch (e) { return null; }
       }
-    } else out.adminBot = 'not set (add it in Admin → Settings → Integrations, or as ADMIN_BOT_TOKEN)';
+      const [me, hook, commands] = await Promise.all([
+        read('getMe'), read('getWebhookInfo'), read('getMyCommands')
+      ]);
+      let webhookHost = null;
+      if (hook && hook.url) {
+        try { webhookHost = new URL(hook.url).hostname; } catch (e) {}
+      }
+      return {
+        sources, username: me ? '@' + me.username : null,
+        identityVerified: !!me, webhookChecked: !!hook,
+        webhookConfigured: hook ? !!hook.url : null, webhookHost,
+        pendingUpdates: hook ? hook.pending_update_count : null,
+        commands: Array.isArray(commands) ? commands.map(c => c.command) : null,
+        role: token === admin.token && token === cfg.token ? 'main+admin'
+          : token === admin.token ? 'admin' : token === cfg.token ? 'main' : 'override'
+      };
+    }));
+    const out = {
+      configuredCredentialCount: sources.filter(pair => !!pair[1]).length,
+      distinctCredentialCount: bots.length,
+      verifiedBotCount: new Set(bots.filter(b => b.identityVerified).map(b => b.username)).size,
+      bots
+    };
     return res.status(200).json(out);
   }
 
