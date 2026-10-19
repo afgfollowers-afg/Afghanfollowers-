@@ -168,6 +168,17 @@ module.exports = async (req, res) => {
     if (admin.token) {
       const me = await fetch('https://api.telegram.org/bot' + admin.token + '/getMe').then(r => r.json()).catch(e => ({ error: e.message }));
       out.adminBot = me && me.result ? '@' + me.result.username : 'error: ' + JSON.stringify(me);
+      // Read-only routing diagnostics. Never return the full webhook URL:
+      // existing setups embed bot credentials in its query or path.
+      const hook = await fetch('https://api.telegram.org/bot' + admin.token + '/getWebhookInfo')
+        .then(r => r.json()).catch(() => null);
+      if (hook && hook.ok && hook.result) {
+        out.adminWebhookConfigured = !!hook.result.url;
+        if (hook.result.url) {
+          try { out.adminWebhookHost = new URL(hook.result.url).hostname; } catch (e) {}
+        }
+        out.adminWebhookPendingUpdates = hook.result.pending_update_count || 0;
+      }
     } else out.adminBot = 'not set (add it in Admin → Settings → Integrations, or as ADMIN_BOT_TOKEN)';
     return res.status(200).json(out);
   }
