@@ -14,6 +14,7 @@
 //     slot left to give either of these their own schedule.
 
 const SITE = 'https://www.afghanfollowers.online';
+const { resolveOrderProvider } = require('./_order-provider');
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot } = require('./_dbkey');
 // (auto-post sends a promo image by URL from a public Supabase bucket — no
 // runtime image renderer, so `sharp` is no longer pulled into this function's
@@ -335,7 +336,7 @@ async function dispatchOneOrderCore(order, dbSnapshot, opts) {
     provNumericId = svcRow[1]; // provider's numeric service id
     provId = svcRow[5];
   }
-  const prov = providers.find(p => String(p.id) === String(provId)) || providers[0];
+  const prov = resolveOrderProvider(providers, provId);
   if (!prov || !prov.url || !prov.key) return { ok: false, error: 'Provider config not found' };
 
   let claimed;
@@ -382,6 +383,7 @@ async function dispatchOneOrderCore(order, dbSnapshot, opts) {
     }
     if (result.order) {
       claimed.provOrderId = result.order;
+      claimed.provId = prov.id;
       claimed.status = 'processing';
       // Write back immediately via a merge-safe single-order update (not a
       // full-array overwrite) so this can never clobber an order placed or
@@ -548,7 +550,7 @@ async function runOrderSyncJob(force) {
   //    otherwise fall back to trying every provider — most panels have one provider anyway)
   const byProvider = {};
   pending.forEach(o => {
-    const key = o.provId || 'default';
+    const key = o.provId === undefined || o.provId === null || o.provId === '' ? '' : String(o.provId);
     if (!byProvider[key]) byProvider[key] = [];
     byProvider[key].push(o);
   });
@@ -559,11 +561,15 @@ async function runOrderSyncJob(force) {
   const debugInfo = [];
 
   for (const provId of Object.keys(byProvider)) {
-    let prov = providers.find(p => String(p.id) === String(provId));
-    if (!prov) prov = providers[0]; // fallback to the only/first configured provider
-    if (!prov || !prov.url || !prov.key) continue;
-
     const group = byProvider[provId];
+    const prov = resolveOrderProvider(providers, provId);
+    if (!prov || !prov.url || !prov.key) {
+      group.forEach(o => debugInfo.push({
+        orderId: o.id, provOrderId: o.provOrderId,
+        error: 'Provider missing or ambiguous; status left unchanged'
+      }));
+      continue;
+    }
 
     // Check each order individually — this provider does not reliably
     // support bulk/comma-separated status requests.
@@ -1831,4 +1837,5 @@ async function runProviderIntelJob(opts) {
   };
 }
 // redeploy: force Vercel to serve latest main (Groq model = GROQ_MODEL || openai/gpt-oss-120b)
+
 
