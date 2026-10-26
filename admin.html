@@ -663,6 +663,7 @@ th{font-size:10px;}
     <div class="ni" data-label="Invites" onclick="go('invites',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg><span class="ni-label">User Invites</span></div>
     <div class="sb-sec">Finance</div>
     <div class="ni" data-label="Payments" onclick="go('payments',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span class="ni-label">Payments</span></div>
+    <div class="ni" data-label="Refunds ریفند" onclick="go('refunds',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h11a7 7 0 0 1 0 14" transform="translate(0 -3)"/><path d="m7 3-4 4 4 4"/></svg><span class="ni-label">Refunds — ریفند</span></div>
     <div class="ni" data-label="Wallets" onclick="go('wallets',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg><span class="ni-label">Wallets</span></div>
     <div class="ni" data-label="Withdrawals" onclick="go('withdrawals',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg><span class="ni-label">Withdrawals</span><span class="nbg" id="nb-wd" style="display:none">0</span></div>
     <div class="ni" data-label="Guest Orders" onclick="go('guest-orders',this)"><svg class="ni-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><line x1="18" y1="3" x2="22" y2="3"/><line x1="20" y1="1" x2="20" y2="5"/></svg><span class="ni-label">Guest Orders</span><span class="nbg" id="nb-go" style="display:none">0</span></div>
@@ -1322,6 +1323,23 @@ th{font-size:10px;}
       </div>
     </div>
 
+    <!-- REFUNDS -->
+    <div class="page" id="pg-refunds">
+      <div class="sec">
+        <div class="sec-h" style="flex-wrap:wrap;gap:10px">
+          <div class="sec-t">↩️ Refunds — ریفند کاربران</div>
+          <button class="btn btn-sm" onclick="pullFromServer().then(function(){rRefunds();})">🔄 Refresh</button>
+        </div>
+        <div style="padding:0 18px 14px;color:var(--mt);font-size:12px">مبلغ‌های برگشت داده‌شده به موجودی کاربران، همراه با شماره سفارش و تاریخ بازپرداخت.</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;padding:0 18px 14px;font-size:13px">
+          <div>Total Refunded / مجموع: <strong id="admin-rf-total" style="color:var(--gr)">$0.0000</strong></div>
+          <div>Refunds / تعداد: <strong id="admin-rf-count">0</strong></div>
+        </div>
+        <div style="padding:0 18px 14px"><input class="fi" id="admin-rf-search" type="search" placeholder="Search user / email / order — جستجوی کاربر یا سفارش" oninput="rRefunds()" style="width:100%"></div>
+        <div class="tw" id="admin-refunds-tbl"></div>
+      </div>
+    </div>
+
     <!-- WALLETS -->
     <div class="page" id="pg-wallets">
       <div class="sec">
@@ -1733,6 +1751,7 @@ th{font-size:10px;}
       <div class="mob-sheet-item" onclick="go('settings',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚙️</span>Settings</div>
       <div class="mob-sheet-item" onclick="go('services',null);closeMobSheet()"><span class="mob-sheet-item-ico">⚡</span>Services</div>
       <div class="mob-sheet-item" onclick="go('payments',null);closeMobSheet()"><span class="mob-sheet-item-ico">💳</span>Payments</div>
+      <div class="mob-sheet-item" onclick="go('refunds',null);closeMobSheet()"><span class="mob-sheet-item-ico">↩️</span>Refunds — ریفند</div>
       <div class="mob-sheet-item" onclick="go('wallets',null);closeMobSheet()"><span class="mob-sheet-item-ico">👛</span>Wallets</div>
       <div class="mob-sheet-item" onclick="go('withdrawals',null);closeMobSheet()"><span class="mob-sheet-item-ico">⬆️</span>Withdrawals</div>
       <div class="mob-sheet-item" onclick="go('announcements',null);closeMobSheet()"><span class="mob-sheet-item-ico">📢</span>Announce</div>
@@ -2697,8 +2716,46 @@ var coupons=[
 var pc={instagram:'linear-gradient(135deg,#f09433,#dc2743,#bc1888)',tiktok:'#010101',telegram:'#2AABEE',youtube:'#FF0000',twitter:'#111',facebook:'#1877F2'};
 var _selTk=null;
 
+// Actual credited refund transactions are the source of truth for this report.
+function getAdminRefundRows(users){
+  var rows=[];
+  (users||[]).forEach(function(u){
+    (u.transactions||[]).forEach(function(t){
+      if(!t||t.type!=='refund'||t.status==='pending'||t.status==='rejected') return;
+      var amount=Number(t.amount!==undefined?t.amount:t.credit);
+      if(!isFinite(amount)||amount<=0) return;
+      var legacy=String(t.desc||'').match(/(?:order\s*#|#)([A-Za-z0-9_-]+)/i);
+      rows.push({userId:u.id,name:((u.fname||u.name||'')+' '+(u.lname||'')).trim()||String(u.id),
+        email:u.email||'',orderId:t.orderId!=null?t.orderId:(legacy?legacy[1]:''),
+        amount:amount,date:t.date||'',desc:t.desc||''});
+    });
+  });
+  return rows.sort(function(a,b){return (Date.parse(b.date)||0)-(Date.parse(a.date)||0);});
+}
+function rRefunds(){
+  var table=document.getElementById('admin-refunds-tbl');
+  if(!table) return;
+  var search=document.getElementById('admin-rf-search');
+  var query=(search?search.value:'').trim().toLowerCase();
+  var rows=getAdminRefundRows(getRealUsers()).filter(function(r){
+    return !query||[r.userId,r.name,r.email,r.orderId,r.desc].join(' ').toLowerCase().indexOf(query)!==-1;
+  });
+  document.getElementById('admin-rf-total').textContent='$'+rows.reduce(function(sum,r){return sum+r.amount;},0).toFixed(4);
+  document.getElementById('admin-rf-count').textContent=rows.length;
+  table.innerHTML='<table><thead><tr><th>User / کاربر</th><th>Order / سفارش</th><th>Amount / مبلغ</th><th>Status / وضعیت</th><th>Date / تاریخ</th></tr></thead><tbody>'
+    +(rows.length?rows.map(function(r){
+      var date=Date.parse(r.date);
+      return '<tr><td><strong>'+escHtmlAdmin(r.name)+'</strong><div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(r.email||('User #'+r.userId))+'</div></td>'
+        +'<td>'+escHtmlAdmin(r.orderId!==''?'#'+r.orderId:'—')+'</td>'
+        +'<td style="color:var(--gr);font-weight:700">+$'+r.amount.toFixed(4)+'</td>'
+        +'<td><span class="badge bg">✅ Refunded / برگشت داده شد</span></td>'
+        +'<td>'+escHtmlAdmin(isNaN(date)?'—':new Date(date).toLocaleString())+'</td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--mt)">هیچ ریفندی پیدا نشد — No refunds found</td></tr>')
+    +'</tbody></table>';
+}
+
 // ═══ NAV ═══
-var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',wallets:'Wallets',withdrawals:'Withdrawals','guest-orders':'Guest Orders (بدون ثبت‌نام)',tickets:'Tickets',alerts:'System Alerts','provider-intel':'Provider Intelligence',settings:'Settings'};
+var heads={dashboard:'Dashboard',users:'Users',orders:'Orders',services:'Services',announcements:'Announcements',blog:'Blog',emailauto:'Email Automation',invites:'User Invite Status',payments:'Payments',refunds:'Refunds — ریفند',wallets:'Wallets',withdrawals:'Withdrawals','guest-orders':'Guest Orders (بدون ثبت‌نام)',tickets:'Tickets',alerts:'System Alerts','provider-intel':'Provider Intelligence',settings:'Settings'};
 function go(pg,el){
   // Hide all pages
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
@@ -2731,6 +2788,7 @@ function go(pg,el){
   else if(pg==='invites') rInviteStatus();
   else if(pg==='payments'){_payTab='all';_payStatus='all';buildPayTabs();applyPayFilter();}
   else if(pg==='wallets'){_wltTab='all';document.querySelectorAll('.wlt-tab').forEach(function(b,i){b.classList.toggle('on',i===0);});rWallets(getRealUsers());}
+  else if(pg==='refunds'){rRefunds();pullFromServer();}
   else if(pg==='withdrawals') rWithdrawals(getRealWithdrawals());
   else if(pg==='guest-orders') renderGuestOrders();
   else if(pg==='tickets') rTickets(getRealTickets());
@@ -5079,26 +5137,23 @@ function adminSetOrderRemain(id){
   toast('Remains updated','s');
 }
 
-function adminRefundOrder(id){
-  var orders=getRealOrders();
-  var o=orders.find(function(x){return String(x.id)===String(id);});
+var _adminRefundInFlight={};
+async function adminRefundOrder(id){
+  if(_adminRefundInFlight[id]) return;
+  var o=getRealOrders().find(function(x){return String(x.id)===String(id);});
   if(!o){toast('Order not found','e');return;}
-  if(o.status==='refunded'){toast('Order already refunded','w');return;}
-  if(!confirm('Refund $'+parseFloat(o.cost||0).toFixed(2)+' to the user and cancel this order?')) return;
-  var users=getRealUsers();
-  var u=users.find(function(x){return String(x.id)===String(o.userId)||x.email===o.email;});
-  var cost=parseFloat(o.cost||0);
-  if(u){
-    u.balance=parseFloat((parseFloat(u.balance)||0)+cost).toFixed(2);
-    u.balance=parseFloat(u.balance);
-    if(!u.transactions) u.transactions=[];
-    u.transactions.unshift({id:Date.now(),type:'refund',amount:cost,desc:'Refund for order #'+id,date:new Date().toISOString(),status:'approved'});
-    localStorage.setItem('smm_users',JSON.stringify(users));
-  }
-  o.status='refunded';
-  localStorage.setItem('smm_orders',JSON.stringify(orders));
-  rOrders(getRealOrders());notifyPanel();pushToServer();
-  toast('✅ Refunded $'+cost.toFixed(2)+(u?' to '+(u.fname||u.name||'user'):''),'s');
+  if(!confirm('Refund this order to the user wallet?')) return;
+  _adminRefundInFlight[id]=true;
+  try{
+    var response=await fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'refund_order',orderId:id})});
+    var result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.error||'Refund could not be saved');
+    await pullFromServer();
+    rOrders(getRealOrders());notifyPanel();
+    toast('✅ Refunded to user wallet','s');
+  }catch(e){toast(e.message||'Refund failed — please try again','e');}
+  finally{delete _adminRefundInFlight[id];}
 }
 
 // Free Likes (referral reward) approval — claims never reach the real
@@ -5357,7 +5412,7 @@ function finishDeleteStuckOrder(orderId, refund){
     if(u){
       u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
       if(!u.transactions) u.transactions=[];
-      u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,desc:'Order #'+orderId+' deleted by admin (provider could not accept it) — refunded',date:new Date().toISOString(),status:'approved'});
+      u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,orderId:orderId,desc:'Order #'+orderId+' deleted by admin (provider could not accept it) — refunded',date:new Date().toISOString(),status:'approved'});
       localStorage.setItem('smm_users',JSON.stringify(users));
     }
   }
@@ -9215,6 +9270,7 @@ function startAdminSync(){
         else if(pgId==='pg-users') rUsers(freshUsers);
         else if(pgId==='pg-orders') rOrders(freshOrders);
         else if(pgId==='pg-payments'){buildPayTabs();applyPayFilter();}
+        else if(pgId==='pg-refunds') rRefunds();
         else if(pgId==='pg-tickets') rTickets(freshTickets);
       }
       // Always update dashboard stats if visible
@@ -9281,7 +9337,7 @@ function pullFromServer(){
   // rarely-changing service catalog, so each poll is one storage read instead
   // of two (keeps the fast refresh affordable). Services still load fully on
   // page load and via the Services page's own sync.
-  fetch('/api/db?nosvc=1',{method:'GET',signal:controller.signal})
+  return fetch('/api/db?nosvc=1',{method:'GET',signal:controller.signal})
     .then(function(r){clearTimeout(timeout);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
     .then(function(d){
       if(!d||!d.smm_ts) return;
@@ -9416,6 +9472,7 @@ function pullFromServer(){
           if(pgId==='pg-users') rUsers(getRealUsers());
           else if(pgId==='pg-payments'){buildPayTabs();applyPayFilter();}
           else if(pgId==='pg-orders'){rOrders(getRealOrders());rRefVisitQueue();rStuckOrders();}
+          else if(pgId==='pg-refunds') rRefunds();
           else if(pgId==='pg-wallets') refreshWlts(getRealUsers());
           else if(pgId==='pg-dashboard') initDash();
         }
@@ -9515,6 +9572,7 @@ window.addEventListener('pageshow',function(e){ if(e.persisted) _adminPullIfDue(
     {type:'page',ico:'📧',name:'Email Automation',hint:'Automated email campaigns',page:'emailauto'},
     {type:'page',ico:'🎁',name:'User Invites',hint:'Free Likes referral program',page:'invites'},
     {type:'page',ico:'💳',name:'Payments',hint:'Payment requests',page:'payments',key:'P'},
+    {type:'page',ico:'↩️',name:'Refunds — ریفند',hint:'Money returned to user wallets',page:'refunds'},
     {type:'page',ico:'💼',name:'Wallets',hint:'User balances',page:'wallets'},
     {type:'page',ico:'⬆️',name:'Withdrawals',hint:'Withdrawal requests',page:'withdrawals'},
     {type:'page',ico:'🎫',name:'Tickets',hint:'Support tickets',page:'tickets',key:'T'},
@@ -10130,3 +10188,4 @@ window.addEventListener('pageshow',function(e){ if(e.persisted) _adminPullIfDue(
 </script>
 </body>
 </html>
+

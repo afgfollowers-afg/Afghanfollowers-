@@ -4055,11 +4055,15 @@ function getMinWithdrawAmount(){
 }
 // Refunds view — lists only 'refund' transactions (money credited back to the
 // wallet when an order was cancelled), plus their total. Read-only; the refund
-// itself is issued from the Orders page's Cancel button (finishCancelOrder).
+// itself is issued server-side for customer, admin, and provider cancellations.
 function showRefunds(){
+  renderRefunds();
+  pullFromServerOnLoad();
+}
+function renderRefunds(){
   var u=getCurrentUser();
   if(!u){showToast('Login required','e');return;}
-  var refunds=(u.transactions||[]).filter(function(t){return t.type==='refund';});
+  var refunds=(u.transactions||[]).filter(function(t){return t.type==='refund'&&t.status!=='rejected'&&t.status!=='pending';}).sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0);});
   var total=refunds.reduce(function(sum,t){return sum+(parseFloat(t.amount||t.credit||0)||0);},0);
   var totalEl=document.getElementById('rf-total');
   if(totalEl) totalEl.textContent=fmt(total);
@@ -4081,6 +4085,7 @@ function showRefunds(){
           +'<div style="flex:1;min-width:0">'
             +'<div style="font-size:13px;font-weight:700;color:var(--white)">'+ref+'</div>'
             +'<div style="font-size:11px;color:var(--muted)">'+when+'</div>'
+            +'<div style="font-size:11px;color:var(--green);margin-top:4px">✅ Refunded to your wallet — پول به حساب شما برگشت داده شد</div>'
           +'</div>'
           +'<div style="font-size:15px;font-weight:800;color:var(--green);flex-shrink:0">+'+fmt(amt)+'</div>'
         +'</div>';
@@ -4865,7 +4870,7 @@ function mergeByIdPreferServer(serverArr,localArr){
 }
 
 function pullFromServerOnLoad(){
-  fetch('/api/db',{method:'GET'})
+  return fetch('/api/db',{method:'GET'})
     .then(function(r){return r.json();})
     .then(function(d){
       if(!d) return;
@@ -5012,6 +5017,8 @@ function pullFromServerOnLoad(){
           }catch(e){}
         }
         updateBalanceUI();
+        var rf=document.getElementById('refunds-modal');
+        if(rf&&rf.style.display==='flex') renderRefunds();
         var op=document.getElementById('page-orders');
         if(op&&op.style.display!=='none') renderOrdersList();
         var tp=document.getElementById('page-tickets');
@@ -5180,7 +5187,7 @@ function renderOrdersList(){
     // own catalog) — a missing/unknown value (older orders predating this
     // field, or any creation path that doesn't set it) must default to NOT
     // cancellable, not the reverse.
-    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel===true)&&!o.provOrderId;
+    var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel===true)&&!o.provOrderId&&!o.dispatchAttemptedAt;
     var canRefill=status==='completed'&&(o.refill||false)&&!o.refillRequested;
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
@@ -5211,53 +5218,29 @@ function renderOrdersList(){
   }).join('');
 }
 
+var _cancelOrdersInFlight={};
 function cancelOrder(id){
-  var _cu=getCurrentUser();
-  if(_cu&&_cu.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
-  if(!confirm('Cancel this order?')) return;
-  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-  var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(!o){showToast('Order not found','e');return;}
-  if(o.status==='cancelled'||o.status==='canceled'){showToast('Order already cancelled','w');return;}
-  if(o.provOrderId){showToast('This order was already sent to the provider and can no longer be cancelled here.','e');return;}
-
-  // The Cancel button is already hidden once an order has a provOrderId,
-  // but that local check can be a moment behind the real dispatch (a
-  // customer clicking right as the order goes out) — re-verify the live
-  // server state before actually refunding, so that race can't turn into
-  // a free order (customer refunded while the provider still fulfills it).
-  fetch('/api/db').then(function(r){return r.json();}).then(function(d){
-    var freshOrder=(d&&Array.isArray(d.smm_orders)?d.smm_orders:orders).find(function(x){return String(x.id)===String(id);});
-    if(freshOrder&&freshOrder.provOrderId){
-      showToast('This order was just sent to the provider and can no longer be cancelled.','e');
-      renderOrdersList();
-      return;
-    }
-    finishCancelOrder(id);
-  }).catch(function(){
-    showToast('Could not verify this order\'s current status — please try again','e');
-  });
-}
-function finishCancelOrder(id){
-  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-  var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(!o) return;
-  var refund=parseFloat(o.cost||o.totalCost||0);
-  o.status='cancelled';
-  localStorage.setItem('smm_orders',JSON.stringify(orders));
   var u=getCurrentUser();
-  if(u&&refund>0){
-    u.balance=parseFloat(((parseFloat(u.balance)||0)+refund).toFixed(2));
-    if(!u.transactions) u.transactions=[];
-    u.transactions.unshift({id:Date.now(),type:'refund',amount:refund,orderId:id,desc:'Order #'+id+' cancelled — refunded',date:new Date().toISOString(),status:'approved'});
-    saveCurrentUser(u);
-  }
+  if(!u||u.status==='suspended'){showToast('Please log in with an active account','e');return;}
+  if(_cancelOrdersInFlight[id]||!confirm('Cancel this order?')) return;
+  return finishCancelOrder(id);
+}
+async function finishCancelOrder(id){
+  if(_cancelOrdersInFlight[id]) return;
+  _cancelOrdersInFlight[id]=true;
   try{
-    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_orders:orders,smm_ts:Date.now()})}).catch(function(){});
-  }catch(e){}
-  renderOrdersList();
-  showToast(refund>0?('Order cancelled — $'+refund.toFixed(2)+' refunded'):'Order cancelled','s');
+    var response=await fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'cancel_order',orderId:id})});
+    var result=await response.json();
+    if(!response.ok||!result.ok) throw new Error(result.error||'Could not cancel the order. Please try again.');
+    await pullFromServerOnLoad();
+    renderOrdersList();
+    showToast('Order cancelled. Refund details are available in Refunds.','s');
+  }catch(e){
+    showToast(e.message||'Could not cancel the order. Please try again.','e');
+  }finally{
+    delete _cancelOrdersInFlight[id];
+  }
 }
 
 function refillOrder(id){
@@ -5369,3 +5352,4 @@ function pwaInstallClick(){
 </script>
 </body>
 </html>
+

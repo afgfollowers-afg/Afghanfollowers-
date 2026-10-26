@@ -573,6 +573,12 @@ async function runOrderSyncJob(force) {
   const pending = orders.filter(o => o.provOrderId && !finished.includes(o.status));
 
   if (!pending.length) {
+    // Also backfill historical cancellations and retry queued refund messages.
+    const saved = await fetchInternal(API_BASE + '/api/db', {
+      method: 'POST', headers: dbHeaders(), body: JSON.stringify({ smm_refunds_reconcile: true })
+    });
+    const result = await saved.json();
+    if (!saved.ok || !result.ok) throw new Error('Refund reconciliation could not be saved');
     return { ok: true, checked: 0, updated: 0, retried, retryDebug, message: 'No pending orders' };
   }
 
@@ -586,6 +592,7 @@ async function runOrderSyncJob(force) {
   });
 
   let updated = 0;
+  const changedOrders = [];
   const idToOrder = {};
   orders.forEach(o => { idToOrder[o.id] = o; });
   const debugInfo = [];
@@ -639,7 +646,7 @@ async function runOrderSyncJob(force) {
           const startNum = parseInt(info.start_count);
           if (!isNaN(startNum) && startNum !== o.startCount) { o.startCount = startNum; changed = true; }
         }
-        if (changed) updated++;
+        if (changed) { updated++; changedOrders.push(o); }
       } catch (e) {
         debugInfo.push({ orderId: o.id, provOrderId: o.provOrderId, error: e.message });
         continue;
@@ -647,14 +654,13 @@ async function runOrderSyncJob(force) {
     }
   }
 
-  // 4. Write updated orders back if anything changed
-  if (updated > 0) {
-    await fetchInternal(API_BASE + '/api/db', {
-      method: 'POST',
-      headers: dbHeaders(),
-      body: JSON.stringify({ smm_orders_sync: orders, smm_ts: Date.now() })
-    });
-  }
+  // Persist only changed orders; reconcile refunds even when status is unchanged.
+  const saved = await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST', headers: dbHeaders(),
+    body: JSON.stringify({ smm_orders_sync: changedOrders, smm_refunds_reconcile: true, smm_ts: Date.now() })
+  });
+  const result = await saved.json();
+  if (!saved.ok || !result.ok) throw new Error('Order status/refund changes could not be saved');
 
   return { ok: true, checked: pending.length, updated, retried, retryDebug, debugInfo };
 }
@@ -1867,5 +1873,6 @@ async function runProviderIntelJob(opts) {
   };
 }
 // redeploy: force Vercel to serve latest main (Groq model = GROQ_MODEL || openai/gpt-oss-120b)
+
 
 
