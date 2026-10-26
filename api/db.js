@@ -1084,6 +1084,11 @@ module.exports = async (req, res) => {
             const noOwner = o.userId === undefined || o.userId === null || o.userId === '';
             if (ex && noOwner) return Object.assign({}, ex, o, { userId: ex.userId });
             if (!ex && noOwner) return null;
+            // Browser snapshots created before an incident was stored must
+            // not erase the server's dispatch retry/notification guard.
+            if (ex && o.dispatchFailure === undefined && ex.dispatchFailure !== undefined) {
+              return Object.assign({}, o, { dispatchFailure: ex.dispatchFailure });
+            }
             return o;
           }).filter(Boolean);
           current.smm_orders = mergeById(current.smm_orders, _incomingOrders);
@@ -1131,6 +1136,18 @@ module.exports = async (req, res) => {
         const alert = appendSystemAlert(current.smm_error_log, body.smm_error_log_push);
         current.smm_error_log = alert.entries;
         systemAlertNotify = alert.notify;
+      }
+      if (body.smm_error_log_resolve && typeof body.smm_error_log_resolve === 'object') {
+        const resolveAuth = getAuth(req);
+        if (resolveAuth && resolveAuth.role === 'admin') {
+          const incident = body.smm_error_log_resolve;
+          current.smm_error_log = (current.smm_error_log || []).map(entry => {
+            const legacy = String(entry.message || '').match(/Order #([A-Za-z0-9_-]+)/i);
+            const orderId = entry.details && entry.details.orderId != null ? entry.details.orderId : legacy && legacy[1];
+            return entry.source === incident.source && String(orderId) === String(incident.orderId)
+              ? Object.assign({}, entry, { resolvedAt: Date.now() }) : entry;
+          });
+        }
       }
       // Admin-login audit trail — appended by api/auth.js on every admin-login
       // attempt (success and failure). Capped to the most recent 100 entries.

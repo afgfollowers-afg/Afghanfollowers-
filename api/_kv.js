@@ -55,4 +55,37 @@ async function kvSet(key, valueStr) {
   } catch (e) { return { ok: false, status: 0, raw: e.message }; }
 }
 
-module.exports = { KV_ENABLED, KV_URL, kvGet, kvSet, KV_MAIN_KEY, KV_SVC_KEY };
+// Separate expiring keys coordinate notification delivery across Vercel
+// instances. NX is atomic; a read-then-write of the main blob is not.
+async function kvClaim(key, owner, ttlSeconds) {
+  try {
+    const r = await fetch(KV_URL, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['SET', key, owner, 'NX', 'EX', ttlSeconds])
+    });
+    const data = await r.json();
+    if (!r.ok || data.error) return { ok: false };
+    return { ok: true, claimed: data.result === 'OK' };
+  } catch (_) { return { ok: false }; }
+}
+async function kvRelease(key, owner) {
+  try {
+    const script = "if redis.call('get',KEYS[1]) == ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
+    await fetch(KV_URL, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['EVAL', script, 1, key, owner])
+    });
+  } catch (_) { /* a failed release expires naturally */ }
+}
+
+async function kvForget(key) {
+  try {
+    await fetch(KV_URL, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['DEL', key])
+    });
+  } catch (_) { /* existing reservation expires naturally */ }
+}
+
+module.exports = { KV_ENABLED, KV_URL, kvGet, kvSet, kvClaim, kvRelease, kvForget, KV_MAIN_KEY, KV_SVC_KEY };
+
