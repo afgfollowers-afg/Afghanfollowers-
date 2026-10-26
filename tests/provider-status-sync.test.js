@@ -12,7 +12,7 @@ async function run(order, providers) {
       API_BASE: 'https://test.local', dbHeaders: () => ({}),
       fetchInternal: async (url, opts) => {
         if (opts && opts.method === 'POST') writes.push(JSON.parse(opts.body));
-        return { json: async () => ({ smm_orders: [order], smm_providers: providers }) };
+        return { ok: true, json: async () => opts && opts.method === 'POST' ? { ok: true } : ({ smm_orders: [order], smm_providers: providers }) };
       }
     },
     fetch: async (url) => {
@@ -30,7 +30,9 @@ test('missing and ambiguous providers never query a different panel or cancel an
     const order = { id: 10, provOrderId: 123, provId, status: 'processing' };
     const result = await run(order, providers);
     assert.equal(result.calls.length, 0);
-    assert.equal(result.writes.length, 0);
+    assert.equal(result.writes.length, 1);
+    assert.equal(result.writes[0].smm_orders_sync.length, 0);
+    assert.equal(result.writes[0].smm_refunds_reconcile, true);
     assert.equal(order.status, 'processing');
     assert.match(result.result.debugInfo[0].error, /Provider missing or ambiguous/);
   }
@@ -39,4 +41,11 @@ test('matched provider still synchronizes actual cancellations', async () => {
   const result = await run({ id: 10, provOrderId: 123, provId: '2', status: 'processing' }, providers);
   assert.deepEqual(result.calls, ['https://second.local']);
   assert.equal(result.writes[0].smm_orders_sync[0].status, 'cancelled');
+});
+
+
+test('a sweep with no active orders still reconciles historical refunds', async () => {
+  const result = await run({ id: 10, provOrderId: 123, provId: 2, status: 'cancelled' }, providers);
+  assert.equal(result.calls.length, 0);
+  assert.equal(result.writes[0].smm_refunds_reconcile, true);
 });

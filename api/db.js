@@ -7,26 +7,14 @@
 
 const zlib = require('zlib');
 const { appendSystemAlert } = require('./_alert-dedupe');
+const { settleRefunds, deliverRefundNotifications } = require('./_refunds');
 const { DB_SERVICE_KEY } = require('./_dbkey');
 const { getAuth, diagnoseAuth, AUTH_CONFIGURED, SECRET_FINGERPRINT } = require('./_auth');
 const { KV_ENABLED, kvGet, kvSet, KV_MAIN_KEY, KV_SVC_KEY } = require('./_kv');
 const AGENT_SECRET = process.env.AGENT_SECRET;
 
-// Transaction types that credit or debit a wallet by admin/server decision
-// rather than the customer's own in-the-moment action — never allowed to
-// appear as a *new* entry in a customer-role smm_users push (see
-// sanitizeCustomerUserWrites below). A customer submitting their own manual
-// deposit gets 'deposit_pending' (no balance change until an admin
-// approves); PayPal's own auto-credit goes through paypal-verify.js with an
-// admin-equivalent server token, not a customer token. 'refund' is NOT
-// listed here — smm-panel.html's cancelOrder() lets a customer cancel
-// their own order and refund themselves as a normal self-service action —
-// but see the 'refund' branch below: it's validated against the order's
-// own server-stored cost (via serverOrders/ordersMap), not whatever amount
-// the client claims, and sanitizeCustomerOrderWrites (below) freezes an
-// existing order's cost field so those two checks can't be defeated by
-// also forging the order in the same request.
-const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus'];
+// Refund credits are server-issued alongside an accepted order cancellation.
+const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus', 'refund'];
 
 // Restricts an smm_users push from a plain customer token (or no/invalid
 // token at all) to only what that customer could legitimately have caused
@@ -39,19 +27,10 @@ const PRIVILEGED_TX_TYPES = ['admin_credit', 'admin_debit', 'bonus'];
 // the gap the rest of this file's history documents repeatedly: a customer
 // forging their own balance, another user's balance, or a self-granted
 // bonus/admin_credit by POSTing a crafted smm_users array directly.
-function sanitizeCustomerUserWrites(incoming, currentUsers, subId, serverOrders) {
+function sanitizeCustomerUserWrites(incoming, currentUsers, subId) {
   if (subId === undefined || subId === null) return [];
   const currentMap = {};
   (currentUsers || []).forEach(function (u) { if (u && u.id !== undefined) currentMap[u.id] = u; });
-  const ordersMap = {};
-  (serverOrders || []).forEach(function (o) { if (o && o.id !== undefined) ordersMap[o.id] = o; });
-  // Caps a customer token to at most one accepted 'refund' per order per
-  // request — without this, two refund transactions for the same orderId
-  // in one push would both pass the "order not already cancelled" check
-  // below, since that check reads a single fixed snapshot (serverOrders)
-  // rather than being updated as each transaction is processed.
-  const refundedOrderIds = {};
-
   const out = [];
   (incoming || []).forEach(function (item) {
     if (!item || String(item.id) !== String(subId)) return;
@@ -82,29 +61,6 @@ function sanitizeCustomerUserWrites(incoming, currentUsers, subId, serverOrders)
         const amt = parseFloat(t.amount) || 0;
         if (amt > 0 && amt <= runningBalance) {
           runningBalance = parseFloat((runningBalance - amt).toFixed(2));
-          acceptedTx.push(t);
-        }
-        return;
-      }
-      if (t.type === 'refund') {
-        // cancelOrder() in smm-panel.html — a customer cancelling their own
-        // order and refunding themselves. Previously trusted t.amount
-        // outright with no upper bound: a forged smm_orders entry with an
-        // inflated cost, paired with a matching forged refund in the same
-        // request, was a straightforward way to self-credit an arbitrary
-        // balance. Now cross-checked against serverOrders — the DB's own
-        // pre-existing copy of the order, captured before this same
-        // request's smm_orders write is applied — so nothing the client
-        // just claimed about that order (its cost included) has any say
-        // in how much this refund is allowed to be worth.
-        const order = t.orderId !== undefined ? ordersMap[t.orderId] : null;
-        const amt = parseFloat(t.amount) || 0;
-        const orderCost = order ? (parseFloat(order.cost !== undefined ? order.cost : order.totalCost) || 0) : 0;
-        const alreadyFinished = order && ['cancelled', 'canceled', 'refunded'].indexOf(order.status) !== -1;
-        if (order && String(order.userId) === String(subId) && !alreadyFinished
-            && !refundedOrderIds[t.orderId] && amt > 0 && amt <= orderCost + 0.0001) {
-          refundedOrderIds[t.orderId] = true;
-          runningBalance = parseFloat((runningBalance + amt).toFixed(2));
           acceptedTx.push(t);
         }
         return;
@@ -182,6 +138,21 @@ async function writeBin(binId, record) {
   const text = await r.text();
   if (!r.ok) return { ok: false, status: r.status, raw: text.slice(0, 300) };
   return { ok: true };
+}
+
+// Delivery runs only after the wallet and outbox have been persisted. Read the
+// latest record before acknowledging, so a Telegram response cannot overwrite
+// a newer wallet balance or unrelated orders with our old request snapshot.
+async function flushRefundNotifications(record) {
+  try {
+    const delivered = await deliverRefundNotifications(record);
+    if (!delivered.length) return;
+    const latest = await readBin(BIN_ID);
+    if (!latest.ok) return;
+    latest.record.smm_refund_notifications = (latest.record.smm_refund_notifications || [])
+      .filter(item => !delivered.includes(item.id));
+    await writeBin(BIN_ID, latest.record);
+  } catch (_) { /* persisted outbox remains available for retry */ }
 }
 
 function gzipToBase64(obj) {
@@ -472,12 +443,15 @@ module.exports = async (req, res) => {
     const coOrders = coData.smm_orders || [];
     const coIdx = coOrders.findIndex(o => String(o.id) === String(orderId));
     if (coIdx === -1) return res.status(200).json({ ok: false, error: 'order not found' });
+    const storedOrders = coOrders.map(o => Object.assign({}, o));
     const prevStatus = coOrders[coIdx].status;
     coOrders[coIdx].status = 'cancelled';
     coOrders[coIdx].cancel = true;
     coData.smm_orders = coOrders;
     coData.smm_ts = Date.now();
+    settleRefunds(coData, storedOrders);
     const coWrite = await writeBin(BIN_ID, coData);
+    if (coWrite.ok) await flushRefundNotifications(coData);
     return res.status(200).json({ ok: coWrite.ok, prevStatus, error: coWrite.ok ? undefined : 'write failed' });
   }
 
@@ -577,6 +551,7 @@ module.exports = async (req, res) => {
     Object.keys(visitOverrides).forEach(function (k) { visitCounts[k] = visitOverrides[k]; });
     const record = Object.assign({}, main.record);
     delete record.smm_ref_visits;
+    delete record.smm_refund_notifications; // internal outbox contains private chat IDs
 
     // dbHeaders() (_dbkey.js) mints a short-lived {sub:'service',role:'admin'}
     // token for every genuinely internal, server-to-server call this project
@@ -792,6 +767,31 @@ module.exports = async (req, res) => {
       // against, specifically so a forged order in THIS SAME request body
       // can never be used to justify a matching forged refund in it.
       const ordersAtRequestStart = current.smm_orders || [];
+      const usersAtRequestStart = current.smm_users || [];
+      if (body.action === 'refund_order') {
+        const auth = getAuth(req);
+        if (!auth || auth.role !== 'admin') return res.status(403).json({ ok: false, error: 'Admin login required' });
+        const order = ordersAtRequestStart.find(o => o && String(o.id) === String(body.orderId));
+        if (!order) return res.status(404).json({ ok: false, error: 'Order not found' });
+        body.smm_orders = [Object.assign({}, order, { status: 'refunded' })];
+        delete body.smm_users;
+      }
+      if (body.action === 'cancel_order') {
+        const auth = getAuth(req);
+        if (!auth) return res.status(401).json({ ok: false, error: 'Login required' });
+        const order = ordersAtRequestStart.find(o => o && String(o.id) === String(body.orderId));
+        if (!order || String(order.userId) !== String(auth.sub)) {
+          return res.status(403).json({ ok: false, error: 'Order not found' });
+        }
+        if (!['cancelled', 'canceled', 'refunded'].includes(order.status)
+            && (!['pending', 'processing', 'in_progress'].includes(order.status)
+              || order.cancel !== true || order.provOrderId || order.dispatchAttemptedAt)) {
+          return res.status(409).json({ ok: false, error: 'This order can no longer be cancelled here' });
+        }
+        body.smm_orders = [Object.assign({}, order, { status: 'cancelled' })];
+        delete body.smm_users; // the stored wallet and cost determine the refund
+      }
+
 
       // Merge by unique id — this prevents one browser's push from wiping out
       // records another browser already saved (the old "keep longer array"
@@ -935,7 +935,7 @@ module.exports = async (req, res) => {
         // wrong role) so a server-to-server caller can report it directly
         // instead of the mystery repeating with no way to narrow further.
         smmUsersAuthDiagnostic = smmUsersAuthDiagnostic || diagnoseAuth(req);
-        const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub, ordersAtRequestStart);
+        const allowed = sanitizeCustomerUserWrites(body.smm_users, baselineUsers, smmUsersAuth && smmUsersAuth.sub);
         // "restricted" is the signal the client uses to force a re-login
         // (see forceCustomerReauth()/forceAdminReauth()) — it must mean
         // "there was no valid identity to write as at all" (no token,
@@ -996,14 +996,19 @@ module.exports = async (req, res) => {
       // economically sensitive field on an EXISTING order — cost, qty,
       // service, userId, provOrderId — is frozen to the server's stored
       // value no matter what the client sends. This is what stops "edit my
-      // own past order's cost upward, then refund it": the 'refund' branch
-      // in sanitizeCustomerUserWrites above only trusts THIS frozen
-      // server-side cost, never the client's.
+      // own past order's cost upward, then refund it": settleRefunds only
+      // trusts the stored cost and owner, never the client's refund amount.
       function sanitizeCustomerOrderWrites(incoming, currentOrders, subId, svcCatalog) {
         if (subId === undefined || subId === null) return [];
         const currentMap = {};
         (currentOrders || []).forEach(function (o) { if (o && o.id !== undefined) currentMap[o.id] = o; });
         const FINISHED = ['completed', 'cancelled', 'canceled', 'partial', 'refunded'];
+        const originalUser = usersAtRequestStart.find(u => u && String(u.id) === String(subId));
+        const mergedUser = (current.smm_users || []).find(u => u && String(u.id) === String(subId));
+        const oldTxIds = new Set((originalUser && originalUser.transactions || []).map(t => String(t.id)));
+        const newSpends = (mergedUser && mergedUser.transactions || []).filter(t => t && t.type === 'spend'
+          && !oldTxIds.has(String(t.id)));
+        const usedSpends = new Set();
         const out = [];
         (incoming || []).forEach(function (item) {
           if (!item || item.id === undefined) return;
@@ -1035,13 +1040,24 @@ module.exports = async (req, res) => {
             // (claiming a small fraction of the real price, not a rounding-
             // sized sliver of it). $0.01 floor keeps tiny orders protected.
             const tolerance = Math.max(0.01, expectedCost * 0.005);
-            if (claimedCost < expectedCost - tolerance) return;
+            if (!Number.isFinite(claimedCost) || claimedCost < 0 || claimedCost < expectedCost - tolerance) return;
+            if (!['pending', 'processing', 'pending_approval'].includes(item.status)) return;
+            // A newly created paid order must be backed by an accepted debit
+            // in this same request; otherwise cancelling a fabricated unpaid
+            // order later could turn it into free wallet credit.
+            if (claimedCost > 0) {
+              const debit = newSpends.find(t => !usedSpends.has(String(t.id))
+                && Math.abs(Number(t.amount) - claimedCost) < 0.0001);
+              if (!debit) return;
+              usedSpends.add(String(debit.id));
+            }
             out.push(item);
             return;
           }
           if (String(existing.userId) !== String(subId)) return; // not this customer's order
           const next = Object.assign({}, existing);
-          if (item.status === 'cancelled' && FINISHED.indexOf(existing.status) === -1 && !existing.provOrderId) {
+          if (item.status === 'cancelled' && FINISHED.indexOf(existing.status) === -1
+              && existing.cancel === true && !existing.provOrderId && !existing.dispatchAttemptedAt) {
             next.status = 'cancelled';
           }
           if (item.refillRequested === true && !existing.refillRequested) {
@@ -1259,8 +1275,21 @@ module.exports = async (req, res) => {
         current.smm_blog = body.smm_blog;
       }
       if (body.smm_orders_sync && Array.isArray(body.smm_orders_sync)) {
-        // Used by the sync-orders cron job to write back updated order statuses
-        current.smm_orders = body.smm_orders_sync;
+        const syncAuth = getAuth(req);
+        if (!AUTH_CONFIGURED || (syncAuth && syncAuth.role === 'admin')) {
+          // Merge status patches into stored orders; a stale sync cannot replace
+          // their owner/cost or remove orders created since the sweep started.
+          const syncById = new Map(body.smm_orders_sync.filter(Boolean).map(o => [String(o.id), o]));
+          current.smm_orders = (current.smm_orders || []).map(o => {
+            const patch = syncById.get(String(o.id));
+            if (!patch) return o;
+            const next = Object.assign({}, o);
+            ['status', 'remain', 'startCount'].forEach(key => {
+              if (patch[key] !== undefined) next[key] = patch[key];
+            });
+            return next;
+          });
+        }
       }
       if (body.smm_stuck_orders && Array.isArray(body.smm_stuck_orders)) {
         // Orders the sync-orders retry job couldn't dispatch (bad catalog
@@ -1400,9 +1429,11 @@ module.exports = async (req, res) => {
 
       current.smm_ts = Date.now();
 
+      settleRefunds(current, ordersAtRequestStart);
       const w2 = await writeBin(BIN_ID, current);
       if (!w2.ok) return res.status(200).json({ diag: 'PUT_MAIN_FAILED', jsonbinStatus: w2.status, jsonbinBodyRaw: w2.raw });
 
+      await flushRefundNotifications(current);
       return res.status(200).json({
         ok: true,
         users: (current.smm_users || []).length,
@@ -1425,4 +1456,5 @@ module.exports = async (req, res) => {
 
   return res.status(405).json({});
 };
+
 
