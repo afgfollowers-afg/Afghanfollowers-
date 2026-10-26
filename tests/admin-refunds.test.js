@@ -8,6 +8,8 @@ const source = html.slice(html.indexOf('function getAdminRefundRows('), html.ind
 test('admin refunds report lists actual credits, links legacy orders and filters safely', () => {
   const elements = { 'admin-refunds-tbl': {}, 'admin-rf-search': { value: '' }, 'admin-rf-total': {}, 'admin-rf-count': {} };
   const context = {
+    AFRefunds: require('../refund-report'),
+    getRealOrders: () => [{id:10,userId:1,cost:3,status:'cancelled'},{id:20,userId:1,cost:1,status:'refunded'}],
     document: { getElementById: id => elements[id] },
     getRealUsers: () => [{ id: 1, fname: '<script>name</script>', email: 'user@test.local', transactions: [
       { type: 'refund', amount: 2.1234, orderId: 10, date: '2026-01-02', status: 'approved' },
@@ -32,5 +34,5 @@ test('admin refunds report lists actual credits, links legacy orders and filters
   elements['admin-rf-search'].value = 'missing-user';
   context.rRefunds();
   assert.equal(elements['admin-rf-total'].textContent, '$0.0000');
-  assert.match(elements['admin-refunds-tbl'].innerHTML, /No refunds found/);
+  assert.match(elements['admin-refunds-tbl'].innerHTML, /No verified refunds found/);
 });

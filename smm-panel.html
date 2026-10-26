@@ -451,6 +451,8 @@ tr:hover td{background:rgba(30,35,54,.5);}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Vazirmatn:wght@400;500;600;700;800;900&display=swap">
 <link rel="stylesheet" href="/theme-neon.css?v=3">
 <link rel="stylesheet" href="/panel-mobile.css?v=1">
+<link rel="stylesheet" href="/panel-neon.css?v=1">
+<script src="/refund-report.js?v=1"></script>
 </head>
 <body class="customer-panel">
 
@@ -494,7 +496,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
     </div>
     <div class="dnav-item" onclick="navTo('new-order')">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-      <span style="font-family:var(--font-fa)">⚡ خرید سریع</span>
+      <span style="font-family:var(--font-fa)">⚡ Quick order</span>
     </div>
     <div class="dnav-item" onclick="navTo('services')">
       <span class="dnav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
@@ -537,11 +539,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div style="padding:12px 16px 4px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px" id="t-dn-theme">Theme</div>
       <div id="theme-row" style="display:flex;gap:10px">
-        <div class="theme-swatch" data-t="violet" onclick="setTheme('violet')" title="Violet" style="background:linear-gradient(135deg,#e8590c,#c2410c)"></div>
-        <div class="theme-swatch" data-t="ocean" onclick="setTheme('ocean')" title="Ocean" style="background:linear-gradient(135deg,#2f80fa,#1e40af)"></div>
-        <div class="theme-swatch" data-t="emerald" onclick="setTheme('emerald')" title="Emerald" style="background:linear-gradient(135deg,#10b981,#065f46)"></div>
-        <div class="theme-swatch" data-t="rose" onclick="setTheme('rose')" title="Rose" style="background:linear-gradient(135deg,#f43f76,#9d174d)"></div>
-        <div class="theme-swatch" data-t="gold" onclick="setTheme('gold')" title="Gold" style="background:linear-gradient(135deg,#eab308,#854d0e)"></div>
+        <div class="theme-swatch sel" data-t="neon" onclick="setTheme('neon')" title="Neon Mint" style="background:#67f5c5"></div><span style="font-size:12px;color:var(--muted);align-self:center">Neon Mint</span>
       </div>
     </div>
     <div class="dnav-item" style="color:var(--red)" onclick="logout()">
@@ -718,7 +716,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
           <div class="sum-row"><span>Delivery</span><span class="sum-val" id="sum-time">—</span></div>
           <div class="sum-row total"><span>Total</span><span class="sum-val" id="sum-total" style="color:var(--green)">—</span></div>
         </div>
-        <div class="gw-warn" id="dup-order-note" style="display:none;cursor:pointer" onclick="this.style.display='none';_dupNoteDismissed=true;" title="Click to dismiss">⚠️ برای یک لینک، همزمان چند سفارش ثبت نکنید — تا تکمیل شدن سفارش قبلی صبر کنید.<br>Do not submit multiple orders for the same link at the same time — wait for the previous order to finish first.</div>
+        <div class="gw-warn" id="dup-order-note" style="display:none;cursor:pointer" onclick="this.style.display='none';_dupNoteDismissed=true;" title="Click to dismiss">⚠️ Wait for the current order to finish before placing another order on the same link.<br>Do not submit multiple orders for the same link at the same time — wait for the previous order to finish first.</div>
         <button class="btn btn-primary" onclick="placeOrder()">⚡ Submit Order</button>
         <div id="order-submit-notes" style="margin-top:10px;padding:10px 12px;background:rgba(255,200,0,0.07);border:1px solid rgba(255,200,0,0.22);border-radius:9px;font-size:11.5px;color:var(--text-muted,#888);line-height:1.7"></div>
         <div id="flag-review-notice" style="margin-top:12px;border:1.5px solid #ef4444;border-radius:11px;overflow:hidden;font-size:12px;line-height:1.75"></div>
@@ -802,7 +800,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
         <div style="font-size:28px;flex-shrink:0" id="cpb-icon">⏳</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:var(--white)" id="cpb-title">پرداخت در حال پروسس است</div>
+          <div style="font-size:14px;font-weight:800;color:var(--white)" id="cpb-title">Payment processing</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px" id="cpb-sub">Your payment is being verified by admin</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -988,10 +986,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
 
   <!-- ── PROFILE / ACCOUNT PAGE ── -->
   <div class="page" id="page-profile">
-    <div style="margin-bottom:16px">
-      <div style="font-size:20px;font-weight:800;color:var(--white);margin-bottom:2px">Account</div>
-      <div style="font-size:13px;color:var(--muted)">Manage your profile and password</div>
-    </div>
+    <div class="panel-page-heading"><div class="eyebrow">Your workspace</div><h1>Account settings</h1><p>Keep your profile and account security up to date.</p></div>
 
     <div id="prof-alert" style="display:none"></div>
 
@@ -1082,19 +1077,19 @@ tr:hover td{background:rgba(30,35,54,.5);}
         <span style="width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0">
           <img src="/icons/nav-badge.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
         </span>
-        <span class="card-title">دستیار هوشمند (پاسخ فوری)</span>
+        <span class="card-title">AI support assistant</span>
       </div>
       <div class="card-body">
         <div id="ai-chat-log" style="max-height:280px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:8px">
           <div style="background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--tx,#e2e8f0);align-self:flex-start;max-width:85%">
-            👋 سلام! من دستیار هوشمند این پنل هستم. هر سوالی درباره‌ی خرید فالوور، لایک، ویو، سفارش‌ها، لایک رایگان یا پرداخت داری بپرس!
+            Hi! Ask me about services, orders, rewards or payments.
           </div>
         </div>
         <div style="display:flex;gap:8px">
-          <input type="text" class="form-input" id="ai-chat-input" placeholder="سوالتون رو بنویسید..." style="flex:1" onkeypress="if(event.key==='Enter')sendAiChat();">
-          <button class="btn btn-primary btn-sm" style="width:auto" onclick="sendAiChat()">ارسال</button>
+          <input type="text" class="form-input" id="ai-chat-input" placeholder="Ask a question..." style="flex:1" onkeypress="if(event.key==='Enter')sendAiChat();">
+          <button class="btn btn-primary btn-sm" style="width:auto" onclick="sendAiChat()">Send</button>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">اگه دستیار نتونست کمک کنه، از فرم پایین یه تیکت واقعی برای پشتیبانی بفرستید.</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Need more help? Create a support ticket using the form below.</div>
       </div>
     </div>
     <div class="card" style="margin-bottom:14px">
@@ -1167,17 +1162,17 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <span style="width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="/icons/nav-badge.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
     </span>
-    <span style="font-size:13px;font-weight:700;color:#fff;flex:1">دستیار هوشمند</span>
+    <span style="font-size:13px;font-weight:700;color:#fff;flex:1">AI assistant</span>
     <span onclick="toggleAiWidget()" style="cursor:pointer;color:#fff;font-size:16px;padding:2px 6px;line-height:1">✕</span>
   </div>
   <div id="ai-widget-log" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px">
     <div style="background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;align-self:flex-start;max-width:85%">
-      👋 سلام! هر سوالی درباره‌ی خرید فالوور، لایک، ویو، سفارش‌ها یا لایک رایگان داری بپرس!
+      Hi! How can I help with your order?
     </div>
   </div>
   <div style="display:flex;gap:8px;padding:10px;border-top:1px solid #232a3d">
-    <input type="text" id="ai-widget-input" placeholder="سوالتون رو بنویسید..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
-    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#e8590c,#c2410c);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">ارسال</button>
+    <input type="text" id="ai-widget-input" placeholder="Ask a question..." style="flex:1;background:#161b28;border:1px solid #232a3d;border-radius:8px;padding:8px 10px;color:#e2e8f0;font-size:13px;outline:none" onkeypress="if(event.key==='Enter')sendAiWidgetChat();">
+    <button onclick="sendAiWidgetChat()" style="background:linear-gradient(135deg,#e8590c,#c2410c);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer">Send</button>
   </div>
 </div>
 
@@ -1204,16 +1199,16 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div style="text-align:center;margin-bottom:14px">
       <div style="width:36px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 16px"></div>
       <div class="disc-icon-wrap"><div class="disc-ring"></div><div class="disc-icon">⚠️</div></div>
-      <div class="disc-badge">توجه / NOTICE</div>
+      <div class="disc-badge">NOTICE</div>
     </div>
     <div style="font-size:13px;color:var(--text);line-height:1.9;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px">
-      <div style="font-weight:800;color:var(--accent2);font-size:14px;margin-bottom:6px">📢 اطلاعیه</div>
-      <div>تمام سفارش‌ها با دقت پردازش می‌شوند. با این حال، به‌دلیل به‌روزرسانی‌ها، الگوریتم‌ها و سیاست‌های شبکه‌های اجتماعی، ممکن است نتایج پس از تحویل در طول زمان تغییر کند. از اعتماد و همراهی شما سپاسگزاریم.</div>
+      <div style="font-weight:800;color:var(--accent2);font-size:14px;margin-bottom:6px">📢 Notice</div>
+      <div>We process every order carefully. Social platform updates and policies can affect results after delivery. Thank you for your trust.</div>
       <div style="height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:14px 0"></div>
       <div style="font-weight:800;color:var(--accent2);font-size:14px;margin-bottom:6px">📢 Official Notice</div>
       <div>Every order is processed with care and quality. However, due to social media platform updates, algorithms, and policies, results may naturally change over time after delivery. Thank you for your trust and understanding.</div>
     </div>
-    <button class="disc-agree-btn" onclick="agreeServiceDropDisclaimer()" style="width:100%;padding:15px;border-radius:13px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:800;font-family:var(--fn);cursor:pointer;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 40%,transparent)">✅ موافقم — ادامه / I Agree — Continue</button>
+    <button class="disc-agree-btn" onclick="agreeServiceDropDisclaimer()" style="width:100%;padding:15px;border-radius:13px;border:none;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:14px;font-weight:800;font-family:var(--fn);cursor:pointer;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 40%,transparent)">✅ I agree — Continue</button>
   </div>
 </div>
 
@@ -1325,7 +1320,7 @@ var PANEL_T={
 };
 (function applyPanelLang(){
   try{
-    var lang=localStorage.getItem('smm_auth_lang');
+    var lang='en';
     var t=PANEL_T[lang]||PANEL_T.en;
     // Only the non-Latin-script options need the Vazirmatn font swap —
     // Turkish and German use the Latin alphabet just like English, so they
@@ -1365,7 +1360,7 @@ var PANEL_T={
       var frEl=document.getElementById('flag-review-notice');
       if(frEl){
         var frTextFa='<div style="padding:12px 14px;background:#7f1d1d22;direction:rtl;text-align:right">'
-          +'<div style="font-weight:800;font-size:13px;color:#ef4444;margin-bottom:8px">🚨 اطلاعیه مهم 🚨</div>'
+          +'<div style="font-weight:800;font-size:13px;color:#ef4444;margin-bottom:8px">🚨 Notice مهم 🚨</div>'
           +'<p style="margin:0 0 8px">از تاریخ ۱۸ اوت ۲۰۲۴، به‌روزرسانی اینستاگرام مستلزم <strong>غیرفعال کردن ویژگی Flag for Review</strong> برای دریافت مستقیم فالوور است. اگر این ویژگی فعال بماند، فالوورها به‌صورت درخواست ارسال می‌شوند و باید آن‌ها را دستی تأیید کنید. سایت ما مسئولیتی در قبال مشکلات ناشی از فعال گذاشتن این ویژگی نخواهد داشت.</p>'
           +'<p style="margin:0 0 8px">🔑 <strong>یادآوری:</strong> غیرفعال کردن این ویژگی ضروری است.<br>⚠️ <strong>اجباری:</strong> فعال گذاشتن آن باعث عدم عملکرد صحیح سرویس خواهد شد.</p>'
           +'<p style="margin:0 0 6px;font-weight:700">مراحل غیرفعال‌سازی:</p>'
@@ -1518,7 +1513,7 @@ function setTheme(t){
   renderThemeSwatches();
 }
 function renderThemeSwatches(){
-  var cur=document.documentElement.getAttribute('data-theme')||'violet';
+  var cur='neon';
   document.querySelectorAll('.theme-swatch').forEach(function(el){
     el.classList.toggle('sel',el.getAttribute('data-t')===cur);
   });
@@ -2008,7 +2003,7 @@ function sendAiWidgetChat(){
 
   var typingBubble=document.createElement('div');
   typingBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#8a93a6;align-self:flex-start;max-width:85%';
-  typingBubble.textContent='در حال تایپ...';
+  typingBubble.textContent='Typing...';
   log.appendChild(typingBubble);
   log.scrollTop=log.scrollHeight;
 
@@ -2026,7 +2021,7 @@ function sendAiWidgetChat(){
       _aiWidgetHistory.push({role:'user',content:msg});
       _aiWidgetHistory.push({role:'assistant',content:d.reply});
     }else{
-      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً بعداً امتحان کنید یا از تلگرام پیام بدید.';
+      botBubble.textContent='Support is temporarily unavailable. Try again or contact us on Telegram.';
     }
     log.appendChild(botBubble);
     log.scrollTop=log.scrollHeight;
@@ -2035,7 +2030,7 @@ function sendAiWidgetChat(){
     typingBubble.remove();
     var errBubble=document.createElement('div');
     errBubble.style.cssText='background:#161b28;border-radius:10px;padding:10px 12px;font-size:13px;color:#ff5c7d;align-self:flex-start;max-width:85%';
-    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید.';
+    errBubble.textContent='Connection failed. Please try again.';
     log.appendChild(errBubble);
   });
 }
@@ -2091,7 +2086,7 @@ function sendAiChat(){
 
   var typingBubble=document.createElement('div');
   typingBubble.style.cssText='background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted,#64748b);align-self:flex-start;max-width:85%';
-  typingBubble.textContent='در حال تایپ...';
+  typingBubble.textContent='Typing...';
   log.appendChild(typingBubble);
   log.scrollTop=log.scrollHeight;
 
@@ -2109,7 +2104,7 @@ function sendAiChat(){
       _aiChatHistory.push({role:'user',content:msg});
       _aiChatHistory.push({role:'assistant',content:d.reply});
     } else {
-      botBubble.textContent='متأسفانه الان نمی‌تونم جواب بدم. لطفاً از فرم پایین یه تیکت ثبت کنید.';
+      botBubble.textContent='Support is temporarily unavailable. Please create a support ticket below.';
     }
     log.appendChild(botBubble);
     log.scrollTop=log.scrollHeight;
@@ -2118,7 +2113,7 @@ function sendAiChat(){
     typingBubble.remove();
     var errBubble=document.createElement('div');
     errBubble.style.cssText='background:var(--s2,#161b28);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--rd,#ff5c7d);align-self:flex-start;max-width:85%';
-    errBubble.textContent='خطا در اتصال. لطفاً دوباره امتحان کنید یا تیکت بزنید.';
+    errBubble.textContent='Connection failed. Try again or create a ticket.';
     log.appendChild(errBubble);
   });
 }
@@ -2991,14 +2986,14 @@ function pickFreeLikesPlat(el,plat){
 function buildReferralInviteMessage(){
   var el=document.getElementById('fl-ref-link');
   var link=el?el.value:'';
-  return 'بیا لایک رایگان بگیر! 🎁 با این لینک ثبت‌نام کن: '+link;
+  return 'Earn free likes! Sign up using this link: '+link;
 }
 function copyReferralLink(){
   var el=document.getElementById('fl-ref-link');
   var link=el?el.value:'';
   var message=buildReferralInviteMessage();
   if(navigator.share){
-    navigator.share({title:'Afghan Followers',text:'بیا لایک رایگان بگیر! 🎁',url:link}).catch(function(){});
+    navigator.share({title:'Afghan Followers',text:'Earn free likes!',url:link}).catch(function(){});
     return;
   }
   if(navigator.clipboard) navigator.clipboard.writeText(message);
@@ -3421,20 +3416,20 @@ var gwMethods={
         +'</div>';
     }
   },
-  card:{name:'کارت به کارت',sub:'Iran Bank Transfer',bg:'linear-gradient(135deg,#e11d48,#9f1239)',
+  card:{name:'Bank transfer',sub:'Iran Bank Transfer',bg:'linear-gradient(135deg,#e11d48,#9f1239)',
     instructions:function(){
-      return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px"><div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💳 کارت به کارت:</div>'+
+      return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px"><div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💳 Bank transfer:</div>'+
       '<div class="gw-addr-row"><span class="gw-addr" style="font-size:16px;font-weight:800;letter-spacing:2px;color:var(--white)">6037-9975-1234-5678</span><button class="gw-copy-btn" onclick="copyAddr(\'6037997512345678\')">Copy</button></div>'+
-      '<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.8">نام صاحب حساب: <strong style="color:var(--white)">محمد احمدی</strong><br>بانک: <strong style="color:var(--white)">ملی ایران</strong><br><br>پس از واریز، شناسه پیگیری را در کادر بالا وارد کنید.</div>'+
-      '<div class="gw-warn">⚠️ حتماً شناسه تراکنش را ثبت کنید. بدون شناسه، موجودی اضافه نمی‌شود.</div></div>';
+      '<div style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.8">Account holder: <strong style="color:var(--white)">محمد احمدی</strong><br>Bank: <strong style="color:var(--white)">ملی ایران</strong><br><br>After your transfer, enter its reference in the field above.</div>'+
+      '<div class="gw-warn">⚠️ Enter the transaction ID so your payment can be verified.</div></div>';
     }
   },
-  hawala:{name:'حواله / نقدی',sub:'Cash · Hawala · M-Pesa',bg:'linear-gradient(135deg,#16a34a,#166534)',
+  hawala:{name:'Cash / Hawala',sub:'Cash · Hawala · M-Pesa',bg:'linear-gradient(135deg,#16a34a,#166534)',
     instructions:function(){
-      return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px"><div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💵 پرداخت نقدی / حواله:</div>'+
-      '<div style="font-size:13px;color:var(--muted);line-height:1.9"><strong style="color:var(--white)">مرحله 1:</strong> با پشتیبانی واتساپ تماس بگیرید<br>'+
-      '<strong style="color:var(--white)">مرحله 2:</strong> مبلغ و روش پرداخت را هماهنگ کنید<br>'+
-      '<strong style="color:var(--white)">مرحله 3:</strong> پس از پرداخت، کد رسید را وارد کنید</div>'+
+      return '<div style="background:var(--surface);border:1px solid var(--border);padding:16px;border-radius:14px"><div style="font-size:13px;font-weight:700;color:var(--white);margin-bottom:10px">💵 Cash / Hawala payment:</div>'+
+      '<div style="font-size:13px;color:var(--muted);line-height:1.9"><strong style="color:var(--white)">Step 1:</strong> Contact support on WhatsApp<br>'+
+      '<strong style="color:var(--white)">Step 2:</strong> Confirm the amount and payment method<br>'+
+      '<strong style="color:var(--white)">Step 3:</strong> After payment, enter the receipt code</div>'+
       '<div style="margin-top:14px"><a href="https://wa.me/93XXXXXXXXX" target="_blank" style="display:flex;align-items:center;gap:10px;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);border-radius:10px;padding:12px;text-decoration:none">'+
       '<div style="width:36px;height:36px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="18" height="18"><use href="#ico-wa"/></svg></div>'+
       '<div><div style="font-size:13px;font-weight:700;color:#25D366">Contact on WhatsApp</div><div style="font-size:11px;color:var(--muted)">+93 XXX XXX XXXX</div></div></a></div></div>';
@@ -3659,7 +3654,7 @@ function getPayIcon(method){
 
 // ── Crypto pending banner (USDT / TRX 30-min processing indicator) ──
 var _NON_LATIN_LANGS={fa:1,da:1,ps:1,ar:1};
-function _isFa(){try{return !!_NON_LATIN_LANGS[localStorage.getItem('smm_auth_lang')];}catch(e){return false;}}
+function _isFa(){try{return !!_NON_LATIN_LANGS['en'];}catch(e){return false;}}
 var _cryptoTimerInterval=null;
 var _CRYPTO_METHODS_SET={usdt_trc20:1,usdt_erc20:1,trx:1};
 var _CRYPTO_METHOD_LABELS={usdt_trc20:'USDT TRC20',usdt_erc20:'USDT ERC20',trx:'Tron (TRX)'};
@@ -3682,7 +3677,7 @@ function checkCryptoPending(){
     banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(0,210,160,.1),rgba(22,163,74,.05));border:2px solid rgba(0,210,160,.35);border-radius:14px;padding:16px';
     document.getElementById('cpb-icon').textContent='✅';
     document.getElementById('cpb-title').textContent=fa?'پرداخت تایید شد!':'Payment Approved!';
-    document.getElementById('cpb-sub').textContent=fa?'موجودی شما شارژ شد':'Your balance has been credited';
+    document.getElementById('cpb-sub').textContent=fa?'Balance شما شارژ شد':'Your balance has been credited';
     var timerEl=document.getElementById('cpb-timer');
     timerEl.style.display='none';
     var wl=document.getElementById('cpb-wait-label');if(wl)wl.style.display='none';
@@ -3709,7 +3704,7 @@ function checkCryptoPending(){
   var THIRTY_MIN=30*60*1000;
   banner.style.cssText='display:block;margin-bottom:14px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(245,158,11,.04));border:2px solid rgba(251,191,36,.35);border-radius:14px;padding:16px';
   document.getElementById('cpb-icon').textContent='⏳';
-  document.getElementById('cpb-title').textContent=fa?'پرداخت در حال پروسس است':'Payment Processing';
+  document.getElementById('cpb-title').textContent=fa?'Payment processing':'Payment Processing';
   document.getElementById('cpb-sub').textContent=fa?'پرداخت '+methodLabel+' شما در حال بررسی توسط ادمین است':'Your '+methodLabel+' payment is being verified by admin';
   var timerEl2=document.getElementById('cpb-timer');
   timerEl2.style.display='';timerEl2.style.color='#fbbf24';
@@ -3992,7 +3987,7 @@ function afSubmitManual(){
   afRenderHistory();
   if(isCrypto){
     checkCryptoPending();
-    showToast('✅ پرداخت ثبت شد! در حال پروسس...','s');
+    showToast('✅ Payment submitted for review.','s');
     // Scroll up to show the pending banner prominently
     var banner=document.getElementById('crypto-pending-banner');
     if(banner) setTimeout(function(){banner.scrollIntoView({behavior:'smooth',block:'start'});},150);
@@ -4064,10 +4059,12 @@ function showRefunds(){
 function renderRefunds(){
   var u=getCurrentUser();
   if(!u){showToast('Login required','e');return;}
-  var refunds=(u.transactions||[]).filter(function(t){return t.type==='refund'&&t.status!=='rejected'&&t.status!=='pending';}).sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0);});
+  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var report=AFRefunds.buildReport([u],orders);
+  var refunds=report.rows;
   var total=refunds.reduce(function(sum,t){return sum+(parseFloat(t.amount||t.credit||0)||0);},0);
   var totalEl=document.getElementById('rf-total');
-  if(totalEl) totalEl.textContent=fmt(total);
+  if(totalEl) totalEl.textContent=AFRefunds.money(total);
   var list=document.getElementById('rf-list');
   if(list){
     if(!refunds.length){
@@ -4086,9 +4083,9 @@ function renderRefunds(){
           +'<div style="flex:1;min-width:0">'
             +'<div style="font-size:13px;font-weight:700;color:var(--white)">'+ref+'</div>'
             +'<div style="font-size:11px;color:var(--muted)">'+when+'</div>'
-            +'<div style="font-size:11px;color:var(--green);margin-top:4px">✅ Refunded to your wallet — پول به حساب شما برگشت داده شد</div>'
+            +'<div style="font-size:11px;color:var(--green);margin-top:4px">✅ Refunded to your wallet</div>'
           +'</div>'
-          +'<div style="font-size:15px;font-weight:800;color:var(--green);flex-shrink:0">+'+fmt(amt)+'</div>'
+          +'<div style="font-size:15px;font-weight:800;color:var(--green);flex-shrink:0">+'+AFRefunds.money(amt)+'</div>'
         +'</div>';
       }).join('');
     }
@@ -4384,7 +4381,7 @@ function openPayPalModal(amt, clientId, fee){
   // a re-login here, before any charge, instead.
   if(!_session||!_session.token||_ppTokenExpired(_session.token)){
     var _em=(typeof _isFa==='function'&&_isFa())
-      ? 'نشست شما منقضی شده — لطفاً یک‌بار خارج و دوباره وارد شوید، سپس پرداخت کنید.'
+      ? 'Your session expired. Sign in again before paying.'
       : 'Your session has expired — please log out and log back in, then pay.';
     showToast(_em,'e');
     return;
@@ -4558,7 +4555,7 @@ function verifyPayPalOrder(orderId){
       if(res.authDiag){ _diag=(typeof res.authDiag==='string')?res.authDiag:(res.authDiag.reason||JSON.stringify(res.authDiag)); }
       // A rejected session token (no header / expired / signature) is an auth
       // problem, not a PayPal one — tell the user how to fix it themselves.
-      var _authHint=res.authDiag?'<br><small>⚠️ نشست شما منقضی یا نامعتبر شده. لطفاً یک‌بار از حساب خارج شوید و دوباره وارد شوید، سپس دوباره پرداخت را امتحان کنید.</small>':'';
+      var _authHint=res.authDiag?'<br><small>⚠️ Your session expired. Sign in again before retrying the payment.</small>':'';
       ppShowStatus('<div style="background:#fee2e2;padding:12px;border-radius:9px;color:#991b1b;font-size:13px">❌ Could not verify payment: '+(res.error||'unknown error')+(_diag?' <b>['+_diag+']</b>':'')+_authHint+'<br><small>If you were charged, contact support with your PayPal receipt (Order: '+orderId+').</small></div>');
       showToast('Payment verification failed — save this Order ID: '+orderId,'e');
       return;
@@ -5101,7 +5098,7 @@ function tgPanelSend(text){
     var u=getCurrentUser();
     var name=u?((u.fname||u.name||'')+' '+(u.lname||'')).trim()||u.email||'Unknown':'Unknown';
     var email=u?(u.email||u.phone||'—'):'—';
-    var msg='🟢 <b>کاربر وارد پنل شد</b>\n'
+    var msg='🟢 <b>Customer وارد پنل شد</b>\n'
       +'👤 '+name+' ('+email+')\n'
       +'📅 '+new Date().toLocaleString();
     tgPanelSend(msg);
