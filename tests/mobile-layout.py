@@ -54,6 +54,7 @@ async def main():
 
         for name in ("admin.html", "smm-panel.html"):
             await page.goto("http://panel.test/" + name)
+            await page.add_script_tag(path=str(ROOT / "refund-report.js"))
             if name == "admin.html":
                 await fits("admin login", 320)
                 await page.evaluate("document.querySelector('#admin-login-screen').remove()")
@@ -61,6 +62,7 @@ async def main():
                 report = source[source.index("function getAdminRefundRows("):source.index("// ═══ NAV ═══")]
                 await page.evaluate("""users => {
                     window.getRealUsers=()=>users;
+                    window.getRealOrders=()=>users[0].transactions.map(t=>({id:t.orderId,userId:1,cost:t.amount,status:'cancelled'}));
                     window.escHtmlAdmin=s=>{const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;};
                 }""", USERS)
                 await page.add_script_tag(content=report)
@@ -70,6 +72,7 @@ async def main():
                 report = source[source.index("function renderRefunds("):source.index("function closeRefundsModal(")]
                 await page.evaluate("""user => {
                     window.getCurrentUser=()=>user;
+                    localStorage.setItem('smm_orders',JSON.stringify(user.transactions.map(t=>({id:t.orderId,userId:1,cost:t.amount,status:'cancelled'}))));
                     window.fmt=n=>'$'+Number(n).toFixed(4);
                     window.showToast=()=>{};
                     window.escHtml=s=>{const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;};
@@ -95,6 +98,9 @@ async def main():
                     if width == 390:
                         await page.wait_for_timeout(350)
                         await page.screenshot(path=str(artifacts / "admin-refunds-mobile.png"))
+                        await show("pg-settings")
+                        await page.wait_for_timeout(350)
+                        await page.screenshot(path=str(artifacts / "admin-settings-mobile.png"))
                     if width <= 768:
                         for modal in ("#m-add-bal", "#m-user-report"):
                             await page.locator(modal).evaluate("e=>e.classList.add('open')")
@@ -115,6 +121,9 @@ async def main():
                     if width == 390:
                         await page.wait_for_timeout(350)
                         await page.screenshot(path=str(artifacts / "customer-panel-mobile.png"))
+                        await show("page-profile")
+                        await page.wait_for_timeout(350)
+                        await page.screenshot(path=str(artifacts / "customer-settings-mobile.png"))
                     await page.locator("#ai-widget").evaluate("e=>e.style.display='flex'")
                     box = await page.locator("#ai-widget").bounding_box()
                     assert box and box["x"] >= -1 and box["y"] >= -1 and box["x"]+box["width"] <= width+1, box

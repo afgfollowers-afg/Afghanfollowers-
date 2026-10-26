@@ -1,0 +1,116 @@
+/* One visual language for the customer workspace and the admin console. */
+html:root{
+  --bg:#080f18;--s1:#101c28;--s2:#152533;--s3:#1b3040;--bd:#243b49;
+  --surface:#101c28;--surface2:#152533;--border:#243b49;
+  --acc:#67f5c5;--acc2:#a4ffe1;--accent:#67f5c5;--accent2:#a4ffe1;--accent-dark:#27cfa0;
+  --accent-glow:rgba(103,245,197,.18);--gr:#67f5c5;--green:#67f5c5;
+  --tx:#eef7fb;--text:#eef7fb;--wh:#f5fbff;--white:#f5fbff;--mt:#93aab8;--muted:#93aab8;
+  --gold-sun:#67f5c5;--gold-amber:#67f5c5;--gold-tang:#a4ffe1;
+  --neon-grad:linear-gradient(120deg,#67f5c5,#a4ffe1);--neon-ink:#07241c;
+  --glass-line:rgba(147,197,210,.12);--glass-hi:rgba(210,255,240,.045);
+}
+html body:is(.admin-panel,.customer-panel){
+  background:radial-gradient(ellipse at 82% 0,rgba(103,245,197,.055),transparent 45%),var(--bg)!important;
+  font-family:'Inter','Vazirmatn',sans-serif;line-height:1.5;
+}
+html body:is(.admin-panel,.customer-panel)::before{background:none;animation:none;will-change:auto;}
+html body:is(.admin-panel,.customer-panel)::after{
+  background-image:radial-gradient(rgba(164,255,225,.065) .7px,transparent .7px);
+  background-size:28px 28px;opacity:.35;
+}
+html body:is(.admin-panel,.customer-panel) :is(.card,.sec,.sc,.stat,.pi-card,.set-wrap){
+  background:linear-gradient(145deg,rgba(255,255,255,.025),transparent 70%),var(--s1);
+  border:1px solid var(--glass-line);border-radius:18px;
+  box-shadow:0 12px 32px -24px rgba(0,0,0,.85),inset 0 1px 0 var(--glass-hi);
+}
+html body:is(.admin-panel,.customer-panel) :is(.sec-h,.card-head,.md-h,.ch){border-bottom-color:var(--glass-line);}
+html body:is(.admin-panel,.customer-panel) :is(.sec-t,.card-title,.md-t){font-size:14px;font-weight:700;letter-spacing:-.2px;}
+html body:is(.admin-panel,.customer-panel) .topbar{
+  background:rgba(8,15,24,.93);backdrop-filter:blur(20px);border-bottom:1px solid var(--glass-line);
+}
+html body:is(.admin-panel,.customer-panel) :is(.btn-p,.btn-primary,.balance-btn,.drawer-balance,#admin-login-btn,.disc-agree-btn){
+  background:var(--neon-grad)!important;color:var(--neon-ink)!important;
+  border:1px solid rgba(164,255,225,.35);box-shadow:0 4px 20px -10px rgba(103,245,197,.65);animation:none;
+}
+html body:is(.admin-panel,.customer-panel) :is(.btn-p,.btn-primary):hover{
+  box-shadow:0 5px 24px -10px rgba(103,245,197,.8);filter:brightness(1.04);
+}
+html body:is(.admin-panel,.customer-panel) :is(.av,.avatar-btn,.uav){
+  background:linear-gradient(145deg,#244b44,#153730);color:var(--acc2);
+  border:1px solid rgba(103,245,197,.3);box-shadow:0 0 18px -10px rgba(103,245,197,.5);
+}
+html body:is(.admin-panel,.customer-panel) :is(.fi,.form-input,.search-bar){
+  background:rgba(7,15,23,.55);border-color:var(--bd);border-radius:11px;box-shadow:none;
+}
+html body:is(.admin-panel,.customer-panel) :is(input,select,textarea):focus{
+  border-color:var(--acc);box-shadow:0 0 0 3px rgba(103,245,197,.10);
+}
+html body:is(.admin-panel,.customer-panel) :focus-visible{outline-color:var(--acc);box-shadow:0 0 0 4px rgba(103,245,197,.10);}
+html body:is(.admin-panel,.customer-panel) :is(.hbg,.hamburger,.tb-btn,.tb-search-mob,.top-icon-btn){
+  background:rgba(21,37,51,.8);border-color:var(--bd);border-radius:12px;color:var(--mt);
+}
+html body:is(.admin-panel,.customer-panel) :is(.bnav,.bottom-nav){
+  background:rgba(8,15,24,.96);border-top-color:var(--bd);backdrop-filter:blur(20px);
+}
+html body:is(.admin-panel,.customer-panel) :is(.bn.on,.bn-item.active,.wlt-tab.on){color:var(--acc);}
+html body.admin-panel .sb{background:#0c1721;border-right:1px solid var(--glass-line);}
+html body.admin-panel .sb-logo{padding:22px 18px;border-color:var(--glass-line);}
+html body.admin-panel .sb-logo-txt{font-size:14px;letter-spacing:-.3px;}
+html body.admin-panel .sb-sec{padding:20px 20px 8px;font-size:9px;letter-spacing:1.7px;color:#728e9e;}
+html body.admin-panel .ni{margin:3px 9px;border-radius:11px;padding:11px 12px;font-size:12px;}
+html body.admin-panel .ni.on{background:rgba(103,245,197,.09);color:var(--acc2);box-shadow:inset 0 0 0 1px rgba(103,245,197,.15);}
+html body.admin-panel .ni.on::before{display:none;}
+html body.admin-panel .nbg{background:rgba(103,245,197,.14);color:var(--acc2);}
+html body.admin-panel .sc::before{height:2px;background:linear-gradient(90deg,var(--acc),transparent);opacity:.7;}
+html body.admin-panel .sc-val{letter-spacing:-1px;}
+html body.admin-panel :is(.sc-ico,.pi-card-ico){filter:saturate(.65);}
+html body.admin-panel :is(th,.pi-row-hd){background:#0d1a25;color:var(--mt);font-size:10px;letter-spacing:.8px;}
+html body.admin-panel td{border-bottom-color:var(--glass-line);}
+html body.admin-panel tr:hover td{background:rgba(103,245,197,.025);}
+html body.admin-panel #admin-refunds-tbl tr{background:#12232f;border-color:var(--bd);}
+html body.admin-panel .set-wrap{overflow:hidden;}
+html body.admin-panel .set-menu{width:195px;background:rgba(6,14,21,.3);padding:12px 8px;border-color:var(--glass-line);}
+html body.admin-panel .set-mi{border:0;border-radius:10px;margin:3px 0;color:var(--mt);padding:12px;font-weight:500;}
+html body.admin-panel .set-mi.on{background:rgba(103,245,197,.09);color:var(--acc2);box-shadow:inset 0 0 0 1px rgba(103,245,197,.15);}
+html body.admin-panel .set-body{padding:24px;}
+html body.admin-panel :is(.mo,.cp-overlay){backdrop-filter:blur(8px);}
+html body.admin-panel :is(.md,.cp-box,.mob-sheet){background:var(--s1);border-color:var(--bd);}
+html body.admin-panel .mob-fab{background:var(--acc);color:var(--neon-ink);box-shadow:0 8px 24px -10px rgba(103,245,197,.7);}
+html body.customer-panel .main-content{max-width:680px;}
+html body.customer-panel .drawer{background:#0c1721;}
+html body.customer-panel .dnav-item.active{color:var(--acc2);background:rgba(103,245,197,.08);}
+html body.customer-panel #home-fl-banner{background:linear-gradient(120deg,#163a32,#112b29)!important;border:1px solid rgba(103,245,197,.2)!important;}
+html body.customer-panel #home-fl-banner :is(strong,b){color:var(--acc2);}
+html body.customer-panel #plat-icon-grid .ig-btn{aspect-ratio:auto;height:58px;}
+html body.customer-panel #plat-icon-grid .ig-btn[data-p="all"] .igb-inner{background:linear-gradient(140deg,#1d5745,#143b32)!important;color:var(--acc2);}
+html body.customer-panel .ig-btn.active-btn{box-shadow:0 0 0 2px var(--acc),0 0 20px -10px var(--acc);}
+html body.customer-panel :is(.ig-btn,.si):hover{animation:none;transform:translateY(-1px);}
+html body.customer-panel .igb-inner::before{opacity:.35;}
+html body.customer-panel #ai-widget > div:first-child{background:linear-gradient(120deg,#164335,#15302d)!important;}
+html body.customer-panel #ai-widget button{background:var(--acc)!important;color:var(--neon-ink)!important;}
+html body.customer-panel #ai-widget,.customer-panel #ai-widget-log{background:var(--s1)!important;}
+html body.customer-panel #refunds-modal > div{background:var(--s1)!important;border:1px solid var(--bd);}
+html body.customer-panel .toast{background:var(--s1);}
+.panel-page-heading{margin-bottom:22px;}
+.panel-page-heading .eyebrow{font-size:10px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--acc);margin-bottom:7px;}
+.panel-page-heading h1{font-size:27px;line-height:1.2;letter-spacing:-1px;font-weight:800;color:var(--wh);}
+.panel-page-heading p{font-size:13px;color:var(--mt);margin-top:8px;max-width:540px;}
+.refund-review{margin:16px;padding:14px;border:1px solid rgba(251,191,36,.3);border-radius:12px;background:rgba(251,191,36,.035);font-size:12px;}
+.refund-review[hidden]{display:none;}
+.refund-review summary{cursor:pointer;color:var(--yw);font-weight:700;}
+.refund-review p{margin:10px 0;color:var(--mt);}
+.refund-review-row{padding:10px 0;border-top:1px solid var(--bd);overflow-wrap:anywhere;}
+.refund-review-row small{display:block;color:var(--mt);margin-top:3px;}
+#admin-rf-total,#admin-rf-count,#rf-total{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;}
+@media(min-width:1000px){.admin-panel .content{padding:28px 30px 100px;}}
+@media(max-width:768px){
+  html body.admin-panel .set-menu{width:100%;padding:8px;gap:4px;}
+  html body.admin-panel .set-mi{margin:0;white-space:nowrap;padding:10px 14px;}
+  html body.admin-panel .set-body{padding:16px;}
+  .panel-page-heading{margin:8px 0 20px;}
+  .panel-page-heading h1{font-size:24px;}
+  html body.customer-panel #plat-icon-grid .ig-btn{height:52px;}
+}
+@media(prefers-reduced-motion:reduce){
+  html body:is(.admin-panel,.customer-panel) *{scroll-behavior:auto!important;animation:none!important;transition:none!important;}
+}
