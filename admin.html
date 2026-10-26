@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Admin Panel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -641,8 +641,9 @@ th{font-size:10px;}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Vazirmatn:wght@400;500;600;700;800;900&display=swap">
 <link rel="stylesheet" href="/theme-neon.css?v=3">
+<link rel="stylesheet" href="/panel-mobile.css?v=1">
 </head>
-<body>
+<body class="admin-panel">
 
 <!-- SIDEBAR -->
 <div class="sb" id="sb">
@@ -2745,11 +2746,11 @@ function rRefunds(){
   table.innerHTML='<table><thead><tr><th>User / کاربر</th><th>Order / سفارش</th><th>Amount / مبلغ</th><th>Status / وضعیت</th><th>Date / تاریخ</th></tr></thead><tbody>'
     +(rows.length?rows.map(function(r){
       var date=Date.parse(r.date);
-      return '<tr><td><strong>'+escHtmlAdmin(r.name)+'</strong><div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(r.email||('User #'+r.userId))+'</div></td>'
-        +'<td>'+escHtmlAdmin(r.orderId!==''?'#'+r.orderId:'—')+'</td>'
-        +'<td style="color:var(--gr);font-weight:700">+$'+r.amount.toFixed(4)+'</td>'
-        +'<td><span class="badge bg">✅ Refunded / برگشت داده شد</span></td>'
-        +'<td>'+escHtmlAdmin(isNaN(date)?'—':new Date(date).toLocaleString())+'</td></tr>';
+      return '<tr><td data-label="User / کاربر"><div class="refund-user"><strong>'+escHtmlAdmin(r.name)+'</strong><div style="font-size:11px;color:var(--mt)">'+escHtmlAdmin(r.email||('User #'+r.userId))+'</div></div></td>'
+        +'<td data-label="Order / سفارش">'+escHtmlAdmin(r.orderId!==''?'#'+r.orderId:'—')+'</td>'
+        +'<td data-label="Amount / مبلغ" style="color:var(--gr);font-weight:700">+$'+r.amount.toFixed(4)+'</td>'
+        +'<td data-label="Status / وضعیت"><span class="b bg">✅ Refunded / برگشت داده شد</span></td>'
+        +'<td data-label="Date / تاریخ">'+escHtmlAdmin(isNaN(date)?'—':new Date(date).toLocaleString())+'</td></tr>';
     }).join(''):'<tr><td colspan="5" style="text-align:center;padding:28px;color:var(--mt)">هیچ ریفندی پیدا نشد — No refunds found</td></tr>')
     +'</tbody></table>';
 }
