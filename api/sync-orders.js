@@ -16,6 +16,8 @@
 const SITE = 'https://www.afghanfollowers.online';
 const { resolveOrderProvider } = require('./_order-provider');
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot } = require('./_dbkey');
+const { dispatchFingerprint, isPermanentDispatchError, sameFailure, dispatchAlertKey } = require('./_dispatch-errors');
+const { KV_ENABLED, kvForget } = require('./_kv');
 // (auto-post sends a promo image by URL from a public Supabase bucket — no
 // runtime image renderer, so `sharp` is no longer pulled into this function's
 // bundle; see PROMO_IMAGE_BASE / tgSendPhoto / fbPostPhoto below.)
@@ -330,10 +332,52 @@ module.exports.dispatchOneOrder = dispatchOneOrder;
 // return statement inside the core function below.
 const BENIGN_DISPATCH_ERRORS = ['Already dispatched or finished', 'Dispatch already in progress'];
 async function dispatchOneOrder(order, dbSnapshot, opts) {
-  const result = await dispatchOneOrderCore(order, dbSnapshot, opts);
-  if (!result.ok && BENIGN_DISPATCH_ERRORS.indexOf(result.error) === -1) {
-    await logSystemError('dispatch', 'Order #' + order.id + ' failed to dispatch: ' + result.error, {
-      orderId: order.id, service: order.svcName || order.svc || order.service, error: result.error
+  opts = opts || {};
+  // Read the persisted incident as well as the order, so a stale tab or a
+  // fresh serverless instance cannot re-alert on an already blocked order.
+  let latest = order;
+  try {
+    const response = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+    const db = await response.json();
+    if (response.ok) latest = (db.smm_orders || []).find(o => String(o.id) === String(order.id)) || order;
+  } catch (_) { /* core still performs its own claim check before dispatch */ }
+  const fingerprint = dispatchFingerprint(latest, dbSnapshot);
+  const previous = latest.dispatchFailure;
+  if (!opts.force && !latest.provOrderId && !['completed', 'cancelled', 'canceled', 'refunded', 'pending_approval'].includes(latest.status)
+      && previous && previous.permanent
+      && previous.fingerprint === fingerprint) {
+    return { ok: false, error: previous.message, blocked: true };
+  }
+  const result = await dispatchOneOrderCore(latest, dbSnapshot, opts);
+  if (result.ok) {
+    if (previous) {
+      if (KV_ENABLED) await kvForget(dispatchAlertKey('Order #' + latest.id + ' failed to dispatch: ' + previous.message, previous.fingerprint));
+      await fetchInternal(API_BASE + '/api/db', {
+        method: 'POST', headers: dbHeaders(),
+        body: JSON.stringify({ smm_orders: [{ id: latest.id, dispatchFailure: null }],
+          smm_error_log_resolve: { source: 'dispatch', orderId: latest.id }, smm_ts: Date.now() })
+      }).catch(() => {});
+    }
+    return result;
+  }
+  if (BENIGN_DISPATCH_ERRORS.includes(result.error)) return result;
+  const unchanged = sameFailure(previous, result.error, fingerprint);
+  const failure = {
+    id: unchanged ? previous.id : Date.now() + '-' + Math.random().toString(36).slice(2, 10),
+    message: result.error, fingerprint, permanent: isPermanentDispatchError(result.error),
+    firstSeenAt: unchanged ? previous.firstSeenAt : Date.now(), lastSeenAt: Date.now(),
+    attempts: unchanged ? (Number(previous.attempts) || 1) + 1 : 1
+  };
+  await fetchInternal(API_BASE + '/api/db', {
+    method: 'POST', headers: dbHeaders(),
+    body: JSON.stringify({ smm_orders: [{ id: latest.id, dispatchFailure: failure }], smm_ts: Date.now() })
+  }).catch(() => {});
+  // Transient failures may be retried, but the same unresolved incident
+  // does not send another Telegram notification on each attempt.
+  if (!unchanged) {
+    await logSystemError('dispatch', 'Order #' + latest.id + ' failed to dispatch: ' + result.error, {
+      orderId: latest.id, service: latest.svcName || latest.svc || latest.service,
+      error: result.error, incident: fingerprint, eventId: failure.id, permanent: failure.permanent
     });
   }
   return result;
@@ -536,6 +580,7 @@ async function runOrderSyncJob(force) {
   const finishedStatuses = ['completed', 'canceled', 'cancelled', 'refunded', 'pending_approval'];
   const neverSent = orders.filter(o => {
     if (o.provOrderId || finishedStatuses.includes(o.status)) return false;
+    if (o.dispatchFailure && o.dispatchFailure.permanent) return true;
     if (force || !o.dispatchAttemptedAt) return true;
     return (Date.now() - o.dispatchAttemptedAt) > RETRY_AGE_MS;
   });

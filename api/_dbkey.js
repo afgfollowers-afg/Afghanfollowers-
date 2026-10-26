@@ -4,6 +4,9 @@
 // must also be present in the DB_CLIENT_KEY constant near the top of
 // admin.html, smm-panel.html and auth.html).
 const DB_SERVICE_KEY = process.env.DB_SERVICE_KEY;
+const { KV_ENABLED, kvClaim, kvRelease } = require('./_kv');
+const crypto = require('crypto');
+const { dispatchAlertKey } = require('./_dispatch-errors');
 
 // db.js's smm_users authorization gate (see _auth.js) restricts a plain
 // customer token to their own record and a narrow set of self-service
@@ -96,12 +99,23 @@ async function logSystemError(source, message, details) {
     // database is down, preserve the independent best-effort notification.
     if (response.ok && saved.ok && saved.systemAlertNotify === false) return;
   } catch (e) { /* best-effort */ }
-  // Also surface the alert on the dedicated ADMIN bot so important backend
-  // failures reach the admin's own Telegram channel, not just the panel's
-  // System Alerts page. Best-effort and independent of the log write above.
+  // The persisted error log handles normal repeats. An independent atomic
+  // reservation also handles overlapping sync jobs or a stale blob read.
+  let reservation = null;
+  if (source === 'dispatch' && KV_ENABLED) {
+    const key = dispatchAlertKey(message, details && details.incident);
+    const owner = crypto.randomUUID();
+    const claim = await kvClaim(key, owner, 30 * 24 * 60 * 60);
+    if (claim.ok && !claim.claimed) return;
+    if (claim.ok) reservation = { key, owner };
+  }
   try {
-    await notifyAdminBot('⚠️ <b>هشدار سیستم</b>\n📍 <b>' + source + '</b>\n' + message);
-  } catch (e) { /* best-effort */ }
+    const sent = await notifyAdminBot('⚠️ <b>هشدار سیستم</b>\n📍 <b>' + source + '</b>\n' + message);
+    if (reservation && (!sent || !sent.ok)) await kvRelease(reservation.key, reservation.owner);
+  } catch (e) {
+    if (reservation) await kvRelease(reservation.key, reservation.owner);
+  }
+
 }
 
 // Dedicated ADMIN bot (@takrun_bot), configured via ADMIN_BOT_TOKEN /
@@ -115,14 +129,17 @@ async function logSystemError(source, message, details) {
 // itself (smm_tg_bot.adminToken / adminChatId, set in Settings → Integrations
 // the same way the main bot is). Env vars win when present; otherwise fall
 // back to the DB config. Best-effort throughout — never throws.
-async function resolveAdminBot() {
+async function resolveAdminBot(configSnapshot) {
   let token = process.env.ADMIN_BOT_TOKEN;
   let chatId = process.env.ADMIN_BOT_CHAT_ID;
   if (!token || !chatId) {
     try {
-      const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
-      const db = await r.json();
-      const cfg = (db && db.smm_tg_bot) || {};
+      let cfg = configSnapshot;
+      if (!cfg) {
+        const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
+        const db = await r.json();
+        cfg = (db && db.smm_tg_bot) || {};
+      }
       token = token || cfg.adminToken;
       chatId = chatId || cfg.adminChatId;
     } catch (e) { /* fall through — unconfigured */ }
@@ -143,4 +160,5 @@ async function notifyAdminBot(text) {
 }
 
 module.exports = { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, logSystemError, notifyAdminBot, resolveAdminBot };
+
 

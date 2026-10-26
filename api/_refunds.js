@@ -30,31 +30,41 @@ function settleRefunds(record, storedOrders, now = new Date().toISOString()) {
       date: now, status: 'approved', desc: 'Order #' + original.id + ' cancelled — refunded to wallet' }].concat(transactions);
     // Persist the notification with the credit. Failed deliveries remain queued
     // and are retried on a later write without issuing another wallet credit.
-    const cfg = record.smm_tg_bot || {};
     const text = '↩️ برگشت پول سفارش / Order refund\nسفارش / Order #' + original.id
       + '\nکاربر / User: ' + (user.fname || user.name || user.id)
       + '\nمبلغ / Amount: $' + amount.toFixed(4)
       + '\n✅ پول دوباره به موجودی حساب برگشت داده شد.\nRefunded to your wallet.';
-    const recipients = new Set([cfg.chatId, user.tgChatId].filter(Boolean).map(String));
-    for (const chatId of recipients) queue.push({ id: id + ':' + chatId, chatId, text });
+    queue.push({ id: id, text });
   }
   record.smm_refund_notifications = queue;
 }
 
 async function deliverRefundNotifications(record, send = fetch) {
-  const token = (record.smm_tg_bot || {}).token || process.env.TG_BOT_TOKEN;
+  // Refund notifications belong exclusively to the dedicated admin bot.
+  // Resolve the same env/panel settings as system alerts; never fall back
+  // to the main customer bot or to a queued customer's chat ID.
+  const { resolveAdminBot } = require('./_dbkey');
+  const { token, chatId } = await resolveAdminBot(record.smm_tg_bot || {});
   const delivered = [];
-  if (!token) return delivered;
-  // Bound each serverless invocation; remaining messages stay persisted.
-  await Promise.all((record.smm_refund_notifications || []).slice(0, 10).map(async item => {
+  if (!token || !chatId) return delivered;
+  const groups = new Map();
+  for (const item of record.smm_refund_notifications || []) {
+    // Old releases queued one copy per main-bot/customer recipient. Collapse
+    // those copies and acknowledge all of them after one admin-bot send.
+    const eventId = String(item.id).split(':')[0];
+    const group = groups.get(eventId) || { text: item.text, ids: [] };
+    group.ids.push(item.id);
+    groups.set(eventId, group);
+  }
+  await Promise.all(Array.from(groups.values()).slice(0, 10).map(async item => {
     try {
       const response = await send('https://api.telegram.org/bot' + token + '/sendMessage', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: item.chatId, text: item.text }),
+        body: JSON.stringify({ chat_id: chatId, text: item.text }),
         signal: AbortSignal.timeout(5000)
       });
       const result = await response.json();
-      if (response.ok && result.ok) delivered.push(item.id);
+      if (response.ok && result.ok) delivered.push(...item.ids);
     } catch (_) { /* keep queued; a Telegram failure must never undo a refund */ }
   }));
   return delivered;

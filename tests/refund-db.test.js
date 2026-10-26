@@ -9,11 +9,13 @@ function app({ failWrite = false, failTelegram = false } = {}) {
   let record = {
     smm_orders: [{ id: 10, userId: 1, cost: 2.1234, status: 'pending', cancel: true }],
     smm_users: [{ id: 1, balance: 5, transactions: [], tgChatId: 123 }],
-    smm_tg_bot: { token: 'test-token', chatId: 456 }, smm_ts: 1
+    smm_tg_bot: { token: 'main-token', chatId: 456, adminToken: 'admin-token', adminChatId: 789 }, smm_ts: 1
   };
   const sent = [];
   const fakeFetch = async (url, opts = {}) => {
     if (url.includes('api.telegram.org')) {
+      assert.match(url, /botadmin-token\/sendMessage$/);
+      assert.equal(JSON.parse(opts.body).chat_id, 789);
       sent.push(JSON.parse(opts.body));
       return { ok: !failTelegram, json: async () => ({ ok: !failTelegram }) };
     }
@@ -54,11 +56,11 @@ test('customer cancellation persists credit and sends Telegram once across repea
   assert.equal(first.body.ok, true);
   assert.equal(api.record.smm_users[0].balance, 7.1234);
   assert.equal(api.record.smm_orders[0].status, 'cancelled');
-  assert.equal(api.sent.length, 2);
+  assert.equal(api.sent.length, 1);
   await api.request({ action: 'cancel_order', orderId: '10' });
   assert.equal(api.record.smm_users[0].balance, 7.1234);
   assert.equal(api.record.smm_users[0].transactions.length, 1);
-  assert.equal(api.sent.length, 2);
+  assert.equal(api.sent.length, 1);
 });
 test('provider sync and admin status patches issue the same server-side refund', async () => {
   for (const body of [
@@ -94,7 +96,7 @@ test('Telegram failure leaves the refund credited and notifications queued', asy
   const api = app({ failTelegram: true });
   assert.equal((await api.request({ action: 'cancel_order', orderId: 10 })).body.ok, true);
   assert.equal(api.record.smm_users[0].balance, 7.1234);
-  assert.equal(api.record.smm_refund_notifications.length, 2);
+  assert.equal(api.record.smm_refund_notifications.length, 1);
   const view = await api.request(null, { sub: 1, role: 'user' }, 'GET');
   assert.equal(view.body.smm_refund_notifications, undefined);
 });
@@ -140,4 +142,11 @@ test('admin refund action rejects expired/customer sessions and works for an adm
   }
   assert.equal((await api.request({ action: 'refund_order', orderId: 10 }, { sub: 'admin', role: 'admin' })).body.ok, true);
   assert.equal(api.record.smm_users[0].balance, 7.1234);
+});
+
+test('stale admin user/order snapshots do not remove the persistent dispatch failure guard', async () => {
+  const api = app();
+  api.record.smm_orders[0].dispatchFailure = { permanent: true, message: 'Service not found in catalog', fingerprint: 'stored' };
+  await api.request({ smm_orders: [{ id: 10, userId: 1, cost: 2.1234, status: 'pending' }] }, { sub: 'admin', role: 'admin' });
+  assert.equal(api.record.smm_orders[0].dispatchFailure.fingerprint, 'stored');
 });
