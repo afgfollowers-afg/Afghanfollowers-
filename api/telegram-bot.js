@@ -977,11 +977,17 @@ async function listOpenTickets(token, chatId) {
     const snippet = escapeHtml(String(last.text || '').replace(/\s+/g, ' ').slice(0, 100));
     const src = t.tgChatId ? '📱 تلگرام' : '🖥 پنل';
     const when = fmtWhen(t);
-    out += `\n──────────\n🎫 شماره تیکت: <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}${when ? ' · ' + when : ''}\n`
+    const block = `\n──────────\n🎫 شماره تیکت: <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}${when ? ' · ' + when : ''}\n`
        + TicketOrderContext.telegram(TicketOrderContext.resolve(t,db.smm_orders,db.smm_providers,db.smm_svc))+'\n'
       + `${waiting ? '🟢 منتظر پاسخ شما' : '↩️ آخرین پیام: شما'}\n`
       + `💬 «${snippet}»\n`
       + `✍️ پاسخ: <code>/reply ${escapeHtml(t.id)} پیام شما</code>\n`;
+    if(out.length+block.length>3500){
+      await tgApi(token,'sendMessage',{chat_id:chatId,parse_mode:'HTML',text:out});
+      out='🎫 <b>ادامه تیکت‌ها</b>\n';
+    }
+    out+=block;
+
   }
   if (open.length > top.length) out += `\n… و ${open.length - top.length} تیکت دیگر`;
   await tgApi(token, 'sendMessage', { chat_id: chatId, parse_mode: 'HTML', text: out });
