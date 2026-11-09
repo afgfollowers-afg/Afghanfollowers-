@@ -6,6 +6,7 @@
 
 const { sendOnce, ticketEvent, hash } = require('./_telegram-notices');
 const TicketOrderContext = require('../ticket-order-context');
+const { providerDraft } = require('./_provider-ticket-draft');
 const { getAuth } = require('./_auth');
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, resolveAdminBot } = require('./_dbkey');
@@ -60,6 +61,8 @@ module.exports = async (req, res) => {
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
     let notificationEvent;
+    let preparedDraft;
+    let relatedTicket;
     // Older open tabs still post formatted ticket messages. Resolve known
     // IDs to the same canonical notification as the current structured API.
     if(!body.ticketId&&typeof message==='string'){
@@ -74,7 +77,10 @@ module.exports = async (req, res) => {
         return res.status(403).json({ok:false,error:'Ticket not found'});
       }
       notificationEvent=ticketEvent(ticket);
+      relatedTicket=ticket;
       const context=TicketOrderContext.resolve(ticket,db.smm_orders,db.smm_providers,db.smm_svc);
+      const relatedOrder=context&&!context.missing?(db.smm_orders||[]).find(o=>String(o.id)===String(context.orderId)):null;
+      preparedDraft=providerDraft(ticket,context,relatedOrder);
       message='🎫 <b>Ticket / تیکت: '+TicketOrderContext.escape(ticket.id)+'</b>\n'
         +'Request / درخواست: '+TicketOrderContext.escape(ticket.requestType||'support')+'\n'
         +'User / کاربر: '+TicketOrderContext.escape(ticket.user||'—')+'\n'
@@ -104,6 +110,27 @@ module.exports = async (req, res) => {
         return tgResp.json();
       });
       result=tgResult&&tgResult.ok?{ok:true,duplicate:!!tgResult.duplicate}:{ok:false,error:'Telegram notification could not be confirmed'};
+      // A separate, independently reserved message: copy the code block to
+      // the supplier. Never include internal provider replies or customer PII.
+      if(preparedDraft&&relatedTicket){
+        const header='📋 <b>متن آماده برای پروایدر</b>\n'
+          +'🎫 تیکت: '+TicketOrderContext.escape(relatedTicket.id)+'\n'
+          +'🏢 پروایدر: '+TicketOrderContext.escape(preparedDraft.provider)+'\n'
+          +(preparedDraft.ready?'متن داخل کادر را کپی و برای پروایدر ارسال کنید.':'⚠️ '+TicketOrderContext.escape(preparedDraft.reason))+'\n\n';
+        const draftResult=await sendOnce({
+          chatId:targetChatId,event:'provider-draft:'+String(relatedTicket.id)+':'+hash(preparedDraft.text),
+          ttl:90*24*60*60
+        },async()=>{
+          const response=await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({chat_id:targetChatId,parse_mode:'HTML',
+              text:header+'<pre>'+TicketOrderContext.escape(preparedDraft.text)+'</pre>',disable_web_page_preview:true})
+          });
+          return response.json();
+        });
+        result.providerDraft={ok:!!(draftResult&&draftResult.ok),duplicate:!!(draftResult&&draftResult.duplicate),ready:preparedDraft.ready};
+      }
+
 
     }
 
