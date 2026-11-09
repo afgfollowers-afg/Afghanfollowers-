@@ -453,6 +453,7 @@ tr:hover td{background:rgba(30,35,54,.5);}
 <link rel="stylesheet" href="/panel-mobile.css?v=1">
 <link rel="stylesheet" href="/panel-neon.css?v=1">
 <script src="/refund-report.js?v=1"></script>
+<script src="/ticket-order-context.js?v=1"></script>
 </head>
 <body class="customer-panel">
 
@@ -1095,7 +1096,11 @@ tr:hover td{background:rgba(30,35,54,.5);}
     <div class="card" style="margin-bottom:14px">
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">Subject</label>
+          <label class="form-label" for="tkt-order-id">Related order number / شماره سفارش (optional)</label>
+          <input type="text" inputmode="numeric" class="form-input" id="tkt-order-id" placeholder="Order number — not ticket number" autocomplete="off">
+          <label class="form-label" for="tkt-request-type">Request / نوع درخواست</label>
+          <select class="form-input" id="tkt-request-type"><option value="support">Support / پشتیبانی</option><option value="cancellation">Cancellation request / درخواست لغو</option><option value="refill">Refill / جبران ریزش</option></select>
+          <label class="form-label" for="tkt-subject">Subject / موضوع</label>
           <input type="text" class="form-input" id="tkt-subject" placeholder="Describe your issue">
         </div>
         <div class="form-group">
@@ -2118,7 +2123,11 @@ function sendAiChat(){
   });
 }
 
-function submitTicket(){
+function ticketOrderDetails(ticket){
+  function read(key){try{return JSON.parse(localStorage.getItem(key)||'[]');}catch(e){return [];}}
+  return TicketOrderContext.resolve(ticket,read('smm_orders'),read('smm_providers'),read('smm_svc'));
+}
+async function submitTicket(){
   var subject=document.getElementById('tkt-subject');
   var msg=document.getElementById('tkt-msg');
   if(!subject||!subject.value.trim()){showToast('Enter a subject','e');return;}
@@ -2127,7 +2136,17 @@ function submitTicket(){
   if(!u){showToast('Please login first','e');return;}
   if(u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
 
+  var selectedId=document.getElementById('tkt-order-id').value.trim().replace(/^#/, '');
+  var relatedId=selectedId||TicketOrderContext.orderId({subject:subject.value.trim()});
+  var requestType=document.getElementById('tkt-request-type').value;
+  var ownOrders=[];try{ownOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  if(relatedId&&!ownOrders.some(function(o){return String(o.id)===relatedId&&String(o.userId)===String(u.id);})){
+    showToast('Order not found in your account / سفارش در حساب شما پیدا نشد','e');return;
+  }
+  if(requestType!=='support'&&!relatedId){showToast('Enter the order number / شماره سفارش را وارد کنید','e');return;}
   var ticket={
+    orderId:relatedId||null,
+    requestType:requestType,
     id:'T'+Date.now(),
     userId:u.id,
     user:(u.fname||u.name||'User')+' '+(u.lname||''),
@@ -2141,46 +2160,34 @@ function submitTicket(){
     messages:[{from:'user',text:msg.value.trim(),date:new Date().toLocaleString()}]
   };
   
-  // Save to localStorage
-  var tickets=[];
-  try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
-  tickets.unshift(ticket);
-  localStorage.setItem('smm_tickets',JSON.stringify(tickets));
-  localStorage.setItem('smm_admin_updated',Date.now().toString());
-  
-  // Push to server
-  fetch('/api/db',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({smm_tickets:tickets,smm_ts:Date.now()})
-  }).catch(function(){});
-  
-  // Notify admin via Telegram — if subject is an order ID, attach order details
-  var _tkMsg='🎫 <b>New Ticket #'+ticket.id+'</b>\n'
-    +'👤 User: '+ticket.user+' ('+(ticket.email||'—')+')\n'
-    +'📋 Subject: '+ticket.subject+'\n'
-    +'💬 Message: '+ticket.message.slice(0,200);
-  var _subj=ticket.subject.trim();
-  if(/^\d{10,}$/.test(_subj)){
-    var _tOrders=[];
-    try{_tOrders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-    var _tOrd=_tOrders.find(function(o){return String(o.id)===_subj;});
-    if(_tOrd){
-      _tkMsg+='\n\n📦 <b>Related Order #'+_tOrd.id+'</b>'
-        +'\n🛍 '+(_tOrd.svcName||_tOrd.service||'—')
-        +'\n🔢 Qty: '+(_tOrd.qty||'—')+' · 💵 $'+parseFloat(_tOrd.cost||0).toFixed(4)
-        +'\n📌 Status: '+(_tOrd.status||'—')
-        +(_tOrd.provOrderId?'\n🔗 Provider ID: '+_tOrd.provOrderId:'')
-        +'\n📅 '+(_tOrd.date?new Date(_tOrd.date).toLocaleString():'—');
-    }
-  }
-  tgPanelSend(_tkMsg);
-  
+  var button=document.querySelector('[onclick="submitTicket()"]');
+  if(button&&button.disabled)return;
+  if(button)button.disabled=true;
+  try{
+    var saved=await fetch('/api/db',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(requestType==='support'?{smm_tickets:[ticket],smm_ts:Date.now()}:
+        {action:'order_support_request',requestType:requestType,orderId:relatedId,message:msg.value.trim()})
+    });
+    var result=await saved.json();
+    if(!saved.ok||!result.ok)throw new Error(result.error||'Ticket could not be saved. Please try again.');
+    if(result.ticket)ticket=result.ticket;
+    var tickets=[];try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
+    tickets=tickets.filter(function(t){return String(t.id)!==String(ticket.id);});tickets.unshift(ticket);
+    localStorage.setItem('smm_tickets',JSON.stringify(tickets));
+    localStorage.setItem('smm_admin_updated',Date.now().toString());
+    // Server resolves order/provider details; no provider secrets in the browser.
+    if(requestType==='support'&&!result.duplicate)fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ticketId:ticket.id,skipGeo:true})}).catch(function(){});
+  }catch(e){showToast(e.message,'e');return;}
+  finally{if(button)button.disabled=false;}
+
   // Clear form
-  subject.value='';msg.value='';
+  subject.value='';msg.value='';document.getElementById('tkt-order-id').value='';document.getElementById('tkt-request-type').value='support';
   
   // Refresh list
   renderTicketsList();
-  showToast('✅ Ticket submitted! We will reply soon.','s');
+  showToast('Request saved. Support will review and reply / درخواست ثبت شد؛ پشتیبانی پاسخ می‌دهد','s');
 }
 
 function renderTicketsList(){
@@ -5186,6 +5193,7 @@ function renderOrdersList(){
     // field, or any creation path that doesn't set it) must default to NOT
     // cancellable, not the reverse.
     var canCancel=(status==='pending'||status==='processing'||status==='in_progress')&&(o.cancel===true)&&!o.provOrderId&&!o.dispatchAttemptedAt;
+    var canRequestCancel=!canCancel&&['pending','processing','in_progress'].indexOf(status)!==-1;
     var canRefill=status==='completed'&&(o.refill||false)&&!o.refillRequested;
     var dateStr=o.date?new Date(o.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     
@@ -5207,8 +5215,9 @@ function renderOrdersList(){
         +'<div><span style="color:var(--muted)">Remains</span><br><span style="color:var(--text)">'+remain.toLocaleString()+'</span></div>'
       +'</div>'
       // Actions
-      +(canCancel||canRefill?'<div style="display:flex;gap:8px;margin-top:4px">'
+      +(canCancel||canRequestCancel||canRefill?'<div style="display:flex;gap:8px;margin-top:4px">'
         +(canCancel?'<button data-oid="'+o.id+'" onclick="cancelOrder(this.dataset.oid)" style="flex:1;padding:8px;background:rgba(255,92,125,.1);border:1px solid rgba(255,92,125,.3);color:#ff5c7d;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Cancel</button>':'')
+        +(canRequestCancel?'<button data-oid="'+o.id+'" onclick="requestOrderCancellation(this.dataset.oid)" style="flex:1;padding:8px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer">Request cancellation / درخواست لغو</button>':'')
         +(canRefill?'<button data-oid="'+o.id+'" onclick="refillOrder(this.dataset.oid)" style="flex:1;padding:8px;background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent2);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">Refill</button>':'')
         +'</div>':'')
       +'</div>';
@@ -5217,6 +5226,19 @@ function renderOrdersList(){
 }
 
 var _cancelOrdersInFlight={};
+function requestOrderCancellation(id){
+  var u=getCurrentUser();if(!u)return;
+  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
+  var order=orders.find(function(o){return String(o.id)===String(id)&&String(o.userId)===String(u.id);});
+  if(!order)return;
+  document.getElementById('tkt-order-id').value=String(order.id);
+  document.getElementById('tkt-request-type').value='cancellation';
+  document.getElementById('tkt-subject').value='Cancellation request - Order #'+order.id;
+  document.getElementById('tkt-msg').value='Please review cancellation of order #'+order.id+'.';
+  navTo('tickets');
+  document.getElementById('tkt-subject').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('tkt-msg').focus();
+}
 function cancelOrder(id){
   var u=getCurrentUser();
   if(!u||u.status==='suspended'){showToast('Please log in with an active account','e');return;}
@@ -5242,24 +5264,13 @@ async function finishCancelOrder(id){
 }
 
 function refillOrder(id){
-  var u=getCurrentUser();
-  if(u&&u.status==='suspended'){showToast('Your account is suspended — contact support.','e');return;}
-  var orders=[];try{orders=JSON.parse(localStorage.getItem('smm_orders')||'[]');}catch(e){}
-  var o=orders.find(function(x){return String(x.id)===String(id);});
-  if(!o){showToast('Order not found','e');return;}
-  if(o.refillRequested){showToast('Refill already requested for this order','w');return;}
-  var tickets=[];try{tickets=JSON.parse(localStorage.getItem('smm_tickets')||'[]');}catch(e){}
-  tickets.unshift({id:'R'+Date.now(),userId:u&&u.id,user:u?(u.fname||''):'',subject:'Refill Request - Order #'+id,message:'Please refill order #'+id,status:'open',date:new Date().toISOString()});
-  localStorage.setItem('smm_tickets',JSON.stringify(tickets));
-  o.refillRequested=true;
-  localStorage.setItem('smm_orders',JSON.stringify(orders));
-  localStorage.setItem('smm_admin_updated',Date.now().toString());
-  try{
-    fetch('/api/db',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({smm_tickets:tickets,smm_orders:orders,smm_ts:Date.now()})}).catch(function(){});
-  }catch(e){}
-  renderOrdersList();
-  showToast('Refill request submitted!','s');
+  var u=getCurrentUser();if(!u||u.status==='suspended')return;
+  navTo('tickets');
+  document.getElementById('tkt-order-id').value=String(id);
+  document.getElementById('tkt-request-type').value='refill';
+  document.getElementById('tkt-subject').value='Refill request - Order #'+id;
+  document.getElementById('tkt-msg').value='Please refill order #'+id+'.';
+  return submitTicket();
 }
 
 function showApiInfo(){

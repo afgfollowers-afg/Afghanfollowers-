@@ -4,8 +4,10 @@
 // the Facebook Page token from Vercel env vars, so any page (customer or
 // admin) can trigger a broadcast without needing to know either secret.
 
+const TicketOrderContext = require('../ticket-order-context');
+const { getAuth } = require('./_auth');
 const SITE = 'https://afghanfollowers.online';
-const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal } = require('./_dbkey');
+const { dbHeaders, DB_SERVICE_KEY, API_BASE, fetchInternal, resolveAdminBot } = require('./_dbkey');
 
 // Vercel only gives a 2-letter ISO country code — spell out the ones most
 // relevant to this site's audience so the notification reads naturally;
@@ -36,7 +38,7 @@ module.exports = async (req, res) => {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     let message = body.message;
-    if (!message) return res.status(200).json({ ok: false, error: 'No message provided' });
+    if (!message && !body.ticketId) return res.status(200).json({ ok: false, error: 'No message provided' });
 
     // Vercel's edge network geolocates every request by IP and passes it
     // along as headers — free, no external API call, and reflects whoever's
@@ -56,15 +58,33 @@ module.exports = async (req, res) => {
     const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
+    if(body.ticketId){
+      const auth=getAuth(req);
+      if(!auth)return res.status(401).json({ok:false,error:'Login required'});
+      const ticket=(db.smm_tickets||[]).find(t=>String(t.id)===String(body.ticketId));
+      if(!ticket||(auth.role!=='admin'&&String(ticket.userId)!==String(auth.sub))){
+        return res.status(403).json({ok:false,error:'Ticket not found'});
+      }
+      const context=TicketOrderContext.resolve(ticket,db.smm_orders,db.smm_providers,db.smm_svc);
+      message='🎫 <b>Ticket / تیکت: '+TicketOrderContext.escape(ticket.id)+'</b>\n'
+        +'Request / درخواست: '+TicketOrderContext.escape(ticket.requestType||'support')+'\n'
+        +'User / کاربر: '+TicketOrderContext.escape(ticket.user||'—')+'\n'
+        +'Subject / موضوع: '+TicketOrderContext.escape(ticket.subject||'')+'\n'
+        +TicketOrderContext.telegram(context)+'\n'
+        +'Message / پیام: '+TicketOrderContext.escape(String(ticket.message||ticket.msg||'').slice(0,600))+'\n'
+        +'Reply: <code>/reply '+TicketOrderContext.escape(ticket.id)+' message</code>';
+    }
 
     // Callers (e.g. the "broadcast to public channel" feature) can target a
     // different chat than the admin notification chat by passing chatId —
     // still requires the same server-configured bot token either way.
-    const targetChatId = body.chatId || cfg.chatId;
+    const adminBot=body.ticketId?await resolveAdminBot():null;
+    const botToken=adminBot&&adminBot.token?adminBot.token:cfg.token;
+    const targetChatId = body.ticketId?(adminBot&&adminBot.chatId||cfg.chatId):(body.chatId||cfg.chatId);
 
     let result = { ok: false, error: 'Telegram bot not configured on server' };
-    if (cfg.token && targetChatId) {
-      const tgResp = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
+    if (botToken && targetChatId) {
+      const tgResp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: targetChatId, text: message, parse_mode: 'HTML', disable_web_page_preview: false })
