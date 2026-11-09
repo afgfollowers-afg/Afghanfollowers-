@@ -1,4 +1,5 @@
 // Vercel Serverless Function — Telegram Bot webhook handler
+const TicketOrderContext = require('../ticket-order-context');
 const SITE = 'https://afghanfollowers.online';
 const { dbHeaders, API_BASE, fetchInternal } = require('./_dbkey');
 const { dispatchOneOrder } = require('./sync-orders');
@@ -976,7 +977,8 @@ async function listOpenTickets(token, chatId) {
     const snippet = escapeHtml(String(last.text || '').replace(/\s+/g, ' ').slice(0, 100));
     const src = t.tgChatId ? '📱 تلگرام' : '🖥 پنل';
     const when = fmtWhen(t);
-    out += `\n──────────\n🆔 <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}${when ? ' · ' + when : ''}\n`
+    out += `\n──────────\n🎫 شماره تیکت: <code>${escapeHtml(t.id)}</code> · ${escapeHtml(t.user || '—')} · ${src}${when ? ' · ' + when : ''}\n`
+       + TicketOrderContext.telegram(TicketOrderContext.resolve(t,db.smm_orders,db.smm_providers,db.smm_svc))+'\n'
       + `${waiting ? '🟢 منتظر پاسخ شما' : '↩️ آخرین پیام: شما'}\n`
       + `💬 «${snippet}»\n`
       + `✍️ پاسخ: <code>/reply ${escapeHtml(t.id)} پیام شما</code>\n`;

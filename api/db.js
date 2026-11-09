@@ -5,6 +5,9 @@
 //
 // Env vars needed: JSONBIN_BIN_ID, JSONBIN_SVC_BIN_ID, JSONBIN_API_KEY
 
+const { publicTicket } = require('../ticket-order-context');
+const { createOrderSupport } = require('./_order-support');
+const { kvClaim: claimSupportRequest, kvRelease: releaseSupportRequest } = require('./_kv');
 const zlib = require('zlib');
 const { appendSystemAlert } = require('./_alert-dedupe');
 const { settleRefunds, deliverRefundNotifications } = require('./_refunds');
@@ -569,6 +572,9 @@ module.exports = async (req, res) => {
     // "Provider config not found" ever since Track A shipped.
     const _getAuthForGet = AUTH_CONFIGURED ? getAuth(req) : null;
     const isInternalServiceCall = !!(_getAuthForGet && _getAuthForGet.role === 'admin' && _getAuthForGet.sub === 'service');
+    if(!isInternalServiceCall&& !(_getAuthForGet&&_getAuthForGet.role==='admin') && !isAgentRequest && Array.isArray(record.smm_tickets)){
+      record.smm_tickets=record.smm_tickets.map(publicTicket);
+    }
 
     // smm_pm carries admin-configured payment-method secrets (PayPal client
     // secret, Binance/Stripe API secrets). This endpoint is reachable by any
@@ -670,6 +676,20 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     try {
       const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      if(body.action==='order_support_request'){
+        const handler=createOrderSupport({
+          read:()=>readBin(BIN_ID),write:record=>writeBin(BIN_ID,record),
+          atomic:KV_ENABLED,
+          claim:(key,owner)=>claimSupportRequest(key,owner,90*24*60*60),
+          release:releaseSupportRequest,fetch:(url,options)=>fetch(url,options),
+          notify:ticketId=>require('./_dbkey').fetchInternal(require('./_dbkey').API_BASE+'/api/notify-telegram',{
+            method:'POST',headers:require('./_dbkey').dbHeaders(),body:JSON.stringify({ticketId,skipGeo:true})
+          })
+        });
+        const outcome=await handler(getAuth(req),body);
+        return res.status(outcome.status).json(outcome.body);
+      }
+
 
       // Referral visit tracking for the "invite 100 → 50 confirmed visits"
       // Free Likes path. Kept as its own early-return branch (own bin
@@ -1121,7 +1141,19 @@ module.exports = async (req, res) => {
         }
       }
       if (body.smm_tickets && Array.isArray(body.smm_tickets)) {
-        current.smm_tickets = mergeById(current.smm_tickets, body.smm_tickets);
+        // Provider feedback is server-owned. A redacted customer cache or
+        // stale admin view must never erase it on an unrelated ticket push.
+        const incomingTickets=body.smm_tickets.map(function(ticket){
+          const clean=publicTicket(ticket);
+          const existing=(current.smm_tickets||[]).find(t=>String(t.id)===String(ticket.id));
+          if(existing){
+            ['providerDelivery','providerNote','providerResponse','providerRefillId'].forEach(function(key){
+              if(existing[key]!==undefined)clean[key]=existing[key];
+            });
+          }
+          return clean;
+        });
+        current.smm_tickets = mergeById(current.smm_tickets, incomingTickets);
       }
       // Best-effort, append-only system error log — surfaced on the admin
       // panel's "System Alerts" page so a real backend failure (an order
