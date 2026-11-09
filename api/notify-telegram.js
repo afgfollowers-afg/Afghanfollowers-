@@ -4,6 +4,7 @@
 // the Facebook Page token from Vercel env vars, so any page (customer or
 // admin) can trigger a broadcast without needing to know either secret.
 
+const { sendOnce, ticketEvent, hash } = require('./_telegram-notices');
 const TicketOrderContext = require('../ticket-order-context');
 const { getAuth } = require('./_auth');
 const SITE = 'https://afghanfollowers.online';
@@ -58,6 +59,13 @@ module.exports = async (req, res) => {
     const dbResp = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await dbResp.json();
     const cfg = db.smm_tg_bot || {};
+    let notificationEvent;
+    // Older open tabs still post formatted ticket messages. Resolve known
+    // IDs to the same canonical notification as the current structured API.
+    if(!body.ticketId&&typeof message==='string'){
+      const legacy=message.match(/(?:Ticket\s*#?|تیکت\s*:?\s*)([A-Za-z]*\d[\w-]*)/i);
+      if(legacy&&(db.smm_tickets||[]).some(t=>String(t.id)===legacy[1]))body.ticketId=legacy[1];
+    }
     if(body.ticketId){
       const auth=getAuth(req);
       if(!auth)return res.status(401).json({ok:false,error:'Login required'});
@@ -65,6 +73,7 @@ module.exports = async (req, res) => {
       if(!ticket||(auth.role!=='admin'&&String(ticket.userId)!==String(auth.sub))){
         return res.status(403).json({ok:false,error:'Ticket not found'});
       }
+      notificationEvent=ticketEvent(ticket);
       const context=TicketOrderContext.resolve(ticket,db.smm_orders,db.smm_providers,db.smm_svc);
       message='🎫 <b>Ticket / تیکت: '+TicketOrderContext.escape(ticket.id)+'</b>\n'
         +'Request / درخواست: '+TicketOrderContext.escape(ticket.requestType||'support')+'\n'
@@ -84,13 +93,18 @@ module.exports = async (req, res) => {
 
     let result = { ok: false, error: 'Telegram bot not configured on server' };
     if (botToken && targetChatId) {
-      const tgResp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: targetChatId, text: message, parse_mode: 'HTML', disable_web_page_preview: false })
+      const tgResult=await sendOnce({
+        chatId:targetChatId,event:notificationEvent||'message:'+hash(String(body.message||message)),
+        ttl:notificationEvent?90*24*60*60:24*60*60
+      },async()=>{
+        const tgResp=await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({chat_id:targetChatId,text:message,parse_mode:'HTML',disable_web_page_preview:false})
+        });
+        return tgResp.json();
       });
-      const tgResult = await tgResp.json();
-      result = tgResult.ok ? { ok: true } : { ok: false, error: 'Telegram API error: ' + JSON.stringify(tgResult) };
+      result=tgResult&&tgResult.ok?{ok:true,duplicate:!!tgResult.duplicate}:{ok:false,error:'Telegram notification could not be confirmed'};
+
     }
 
     // Optional: also post a plain-text version to the Facebook Page (Telegram's

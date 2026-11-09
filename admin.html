@@ -6271,11 +6271,8 @@ function tgNotifyPayment(user, amount, method){
 }
 
 function tgNotifyTicket(ticket){
-  tgSend('🎫 <b>New Ticket #'+ticket.id+'</b>\n'
-    +'User: '+(ticket.user||'')+'\n'
-    +'Subject: '+(ticket.subject||ticket.title||'')+'\n'
-    +'Priority: '+(ticket.priority||'normal')+'\n'
-    +'Message: '+(ticket.message||ticket.msg||'').slice(0,200)+'\n'+TicketOrderContext.telegram(ticketOrderDetails(ticket)));
+  return fetch('/api/notify-telegram',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ticketId:ticket.id,skipGeo:true})}).catch(function(){});
 }
 
 // Test Telegram connection
@@ -6286,19 +6283,7 @@ function testTgBot(){
   toast('Test message sent to Telegram!','s');
 }
 
-function tgFwd(ticket){
-  var c=getTgCfg();
-  if(!c.token||!c.chatId) return;
-  var pri={high:'🔴',medium:'🟡',low:'🟢'};
-  var text='🎫 <b>Ticket #'+ticket.id+'</b>\n'
-    +(pri[ticket.priority]||'🟡')+' '+ticket.priority+'\n'
-    +'👤 '+ticket.user+'\n'
-    +'📝 '+ticket.subject+'\n\n'
-    +'💬 '+ticket.msg+'\n\n'+TicketOrderContext.telegram(ticketOrderDetails(ticket))+'\n\n'
-    +'Reply: <code>/reply '+ticket.id+' message</code>\n'
-    +'Close: <code>/close '+ticket.id+'</code>';
-  fetch('https://api.telegram.org/bot'+c.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:c.chatId,text:text,parse_mode:'HTML'})}).catch(function(){});
-}
+function tgFwd(ticket){return tgNotifyTicket(ticket);}
 
 function tgReply(tkId, replyText, targetChatId){
   var c=getTgCfg();
