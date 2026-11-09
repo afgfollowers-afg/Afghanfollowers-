@@ -150,12 +150,15 @@ async function notifyAdminBot(text) {
   const { token, chatId } = await resolveAdminBot();
   if (!token || !chatId) return { ok: false, skipped: 'admin bot not configured' };
   try {
+    const {sendOnce,hash}=require('./_telegram-notices');
+    return await sendOnce({chatId,event:'message:'+hash(text)},async()=>{
     const r = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
     });
     return r.json();
+    });
   } catch (e) { return { ok: false, error: e.message }; }
 }
 

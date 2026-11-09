@@ -843,16 +843,19 @@ function statusEmoji(status) {
 // Best-effort ping to the admin's personal chat (same bot, different chat id
 // — configured once in Settings → Integrations, stored as smm_tg_bot.chatId).
 async function notifyAdmin(token, text) {
-  try {
-    const cfg = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() }).then(r => r.json());
-    const adminChat = (cfg.smm_tg_bot && cfg.smm_tg_bot.chatId) || null;
-    if (!adminChat) return;
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: adminChat, text: text, parse_mode: 'HTML' })
+  try{
+    const cfg=await fetchInternal(API_BASE+'/api/db',{headers:dbHeaders()}).then(r=>r.json());
+    const chatId=cfg.smm_tg_bot&&cfg.smm_tg_bot.chatId;
+    if(!chatId)return;
+    const {sendOnce,hash}=require('./_telegram-notices');
+    return await sendOnce({chatId,event:'message:'+hash(text)},async()=>{
+      const response=await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({chat_id:chatId,text,parse_mode:'HTML'})
+      });
+      return response.json();
     });
-  } catch (e) { /* best-effort — must not break the customer's reply */ }
+  }catch(e){/* notification must not break the customer flow */}
 }
 
 // Links a panel account to this Telegram chat so admin-approved Free Likes
@@ -879,13 +882,16 @@ async function linkTelegramAccount(code, chatId) {
   }
 }
 
-async function createTicket(chatId, username, message) {
+async function createTicket(chatId, username, message, updateId) {
   try {
     const r = await fetchInternal(API_BASE + '/api/db', { headers: dbHeaders() });
     const db = await r.json();
     const tickets = db.smm_tickets || [];
+    const ticketId=Number.isSafeInteger(updateId)?'TG'+String(chatId)+'_'+updateId:'T'+Date.now();
+    const existing=tickets.find(t=>String(t.id)===ticketId);
+    if(existing)return Object.assign({},existing,{_duplicate:true});
     const ticket = {
-      id: 'T' + Date.now(),
+      id: ticketId,
       userId: 'tg_' + chatId,
       user: username || ('Telegram User ' + chatId),
       email: '',
@@ -1367,12 +1373,14 @@ module.exports = async (req, res) => {
   if (ticketMatch) {
     const msgText = ticketMatch[1].trim();
     const username = (msg.from && (msg.from.username ? '@' + msg.from.username : msg.from.first_name)) || 'Telegram User';
-    const ticket = await createTicket(chatId, username, msgText);
+    const ticket = await createTicket(chatId, username, msgText, body.update_id);
     if (ticket) {
       reply = isEnglish
         ? `✅ <b>Your ticket has been submitted!</b>\n\nTicket ID: ${ticket.id}\n\nAdmin will reply as soon as possible. Track it in the panel:\n${SITE}`
         : `✅ <b>تیکت شما ثبت شد!</b>\n\nشماره تیکت: ${ticket.id}\n\nادمین در اسرع وقت پاسخ می‌دهد. برای پیگیری وارد پنل شوید:\n${SITE}`;
-      if (token) await notifyAdmin(token, `🎫 <b>New Ticket ${ticket.id}</b>\nFrom: ${username}\nMessage: ${msgText.slice(0, 300)}`);
+      if(token&&!ticket._duplicate)await fetchInternal(API_BASE+'/api/notify-telegram',{
+        method:'POST',headers:dbHeaders(),body:JSON.stringify({ticketId:ticket.id,skipGeo:true})
+      }).catch(()=>{});
     } else {
       reply = isEnglish
         ? '❌ Error submitting the ticket. Please try again or use the panel.'

@@ -9,7 +9,7 @@ function setup(saved, fail, options = {}) {
   const context = {
     module: { exports: {} }, URL,
     process: { env: { ADMIN_BOT_TOKEN: 'test', ADMIN_BOT_CHAT_ID: 'test' } },
-    require: name => name === 'crypto' ? require('crypto') : name === './_dispatch-errors' ? require('../api/_dispatch-errors') : name === './_kv' ? (options.kv || {}) : ({}),
+    require: name => name === './_telegram-notices' ? { hash: value => value, sendOnce: async (options, send) => send() } : name === 'crypto' ? require('crypto') : name === './_dispatch-errors' ? require('../api/_dispatch-errors') : name === './_kv' ? (options.kv || {}) : ({}),
     fetch: async (url, opts) => {
       if (url.includes('api.telegram.org')) {
         sent.push(JSON.parse(opts.body));
